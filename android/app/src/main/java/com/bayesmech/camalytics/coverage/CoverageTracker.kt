@@ -19,7 +19,8 @@ class CoverageTracker {
         val hasMagnetometer: Boolean,
         val hasIntrinsics: Boolean,
         val hasPose: Boolean,
-        val hasGeometry: Boolean
+        val hasGeometry: Boolean,
+        val hasGps: Boolean
     )
 
     private val lock = Any()
@@ -33,7 +34,8 @@ class CoverageTracker {
         hasMagnetometer: Boolean,
         hasIntrinsics: Boolean,
         hasPose: Boolean,
-        hasGeometry: Boolean
+        hasGeometry: Boolean,
+        hasGps: Boolean
     ) {
         val now = System.currentTimeMillis()
         synchronized(lock) {
@@ -41,7 +43,7 @@ class CoverageTracker {
             frames.addLast(
                 FrameRecord(
                     now, hasDepth, hasAccelerometer, hasGyroscope,
-                    hasMagnetometer, hasIntrinsics, hasPose, hasGeometry
+                    hasMagnetometer, hasIntrinsics, hasPose, hasGeometry, hasGps
                 )
             )
             pruneOldFrames(now)
@@ -70,6 +72,7 @@ class CoverageTracker {
                 cameraIntrinsicsCount = totalIntrinsicsCount,
                 poseCoverage = frames.count { it.hasPose } * 100f / total,
                 inferredGeometryCoverage = frames.count { it.hasGeometry } * 100f / total,
+                gpsCoverage = frames.count { it.hasGps } * 100f / total,
                 averageFps = fps
             )
         }

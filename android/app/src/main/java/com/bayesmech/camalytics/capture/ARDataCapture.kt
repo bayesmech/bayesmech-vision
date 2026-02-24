@@ -85,7 +85,8 @@ class ARDataCapture(
                 hasPose = perceiverFrame.hasCameraPose(),
                 hasGeometry = enableGeometry && perceiverFrame.hasInferredGeometry()
                     && (perceiverFrame.inferredGeometry.planesList.isNotEmpty()
-                        || perceiverFrame.inferredGeometry.pointCloudCount > 0)
+                        || perceiverFrame.inferredGeometry.pointCloudCount > 0),
+                hasGps = perceiverFrame.hasGpsLocation()
             )
 
             frameNumber++
@@ -154,6 +155,11 @@ class ARDataCapture(
 
         if (enableGeometry) {
             builder.inferredGeometry = CameraDataExtractor.extractInferredGeometry(session, pointCloudData)
+        }
+
+        val gpsLocation = sensorCollector.getCurrentGpsLocation()
+        if (gpsLocation != null) {
+            builder.gpsLocation = gpsLocation
         }
 
         return builder.build()

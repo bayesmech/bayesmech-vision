@@ -25,6 +25,2331 @@ export const bayesmech = $root.bayesmech = (() => {
          */
         const vision = {};
 
+        vision.PerceiverDataFrame = (function() {
+
+            /**
+             * Properties of a PerceiverDataFrame.
+             * @memberof bayesmech.vision
+             * @interface IPerceiverDataFrame
+             * @property {bayesmech.vision.IPerceiverFrameIdentifier|null} [frameIdentifier] PerceiverDataFrame frameIdentifier
+             * @property {bayesmech.vision.IPose|null} [cameraPose] PerceiverDataFrame cameraPose
+             * @property {bayesmech.vision.IImageFrame|null} [rgbFrame] PerceiverDataFrame rgbFrame
+             * @property {bayesmech.vision.IDepthFrame|null} [depthFrame] PerceiverDataFrame depthFrame
+             * @property {bayesmech.vision.IImuData|null} [imuData] PerceiverDataFrame imuData
+             * @property {bayesmech.vision.ICameraIntrinsics|null} [cameraIntrinsics] PerceiverDataFrame cameraIntrinsics
+             * @property {bayesmech.vision.IInferredGeometry|null} [inferredGeometry] PerceiverDataFrame inferredGeometry
+             * @property {bayesmech.vision.IGpsLocation|null} [gpsLocation] PerceiverDataFrame gpsLocation
+             */
+
+            /**
+             * Constructs a new PerceiverDataFrame.
+             * @memberof bayesmech.vision
+             * @classdesc Represents a PerceiverDataFrame.
+             * @implements IPerceiverDataFrame
+             * @constructor
+             * @param {bayesmech.vision.IPerceiverDataFrame=} [properties] Properties to set
+             */
+            function PerceiverDataFrame(properties) {
+                if (properties)
+                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null)
+                            this[keys[i]] = properties[keys[i]];
+            }
+
+            /**
+             * PerceiverDataFrame frameIdentifier.
+             * @member {bayesmech.vision.IPerceiverFrameIdentifier|null|undefined} frameIdentifier
+             * @memberof bayesmech.vision.PerceiverDataFrame
+             * @instance
+             */
+            PerceiverDataFrame.prototype.frameIdentifier = null;
+
+            /**
+             * PerceiverDataFrame cameraPose.
+             * @member {bayesmech.vision.IPose|null|undefined} cameraPose
+             * @memberof bayesmech.vision.PerceiverDataFrame
+             * @instance
+             */
+            PerceiverDataFrame.prototype.cameraPose = null;
+
+            /**
+             * PerceiverDataFrame rgbFrame.
+             * @member {bayesmech.vision.IImageFrame|null|undefined} rgbFrame
+             * @memberof bayesmech.vision.PerceiverDataFrame
+             * @instance
+             */
+            PerceiverDataFrame.prototype.rgbFrame = null;
+
+            /**
+             * PerceiverDataFrame depthFrame.
+             * @member {bayesmech.vision.IDepthFrame|null|undefined} depthFrame
+             * @memberof bayesmech.vision.PerceiverDataFrame
+             * @instance
+             */
+            PerceiverDataFrame.prototype.depthFrame = null;
+
+            /**
+             * PerceiverDataFrame imuData.
+             * @member {bayesmech.vision.IImuData|null|undefined} imuData
+             * @memberof bayesmech.vision.PerceiverDataFrame
+             * @instance
+             */
+            PerceiverDataFrame.prototype.imuData = null;
+
+            /**
+             * PerceiverDataFrame cameraIntrinsics.
+             * @member {bayesmech.vision.ICameraIntrinsics|null|undefined} cameraIntrinsics
+             * @memberof bayesmech.vision.PerceiverDataFrame
+             * @instance
+             */
+            PerceiverDataFrame.prototype.cameraIntrinsics = null;
+
+            /**
+             * PerceiverDataFrame inferredGeometry.
+             * @member {bayesmech.vision.IInferredGeometry|null|undefined} inferredGeometry
+             * @memberof bayesmech.vision.PerceiverDataFrame
+             * @instance
+             */
+            PerceiverDataFrame.prototype.inferredGeometry = null;
+
+            /**
+             * PerceiverDataFrame gpsLocation.
+             * @member {bayesmech.vision.IGpsLocation|null|undefined} gpsLocation
+             * @memberof bayesmech.vision.PerceiverDataFrame
+             * @instance
+             */
+            PerceiverDataFrame.prototype.gpsLocation = null;
+
+            /**
+             * Creates a new PerceiverDataFrame instance using the specified properties.
+             * @function create
+             * @memberof bayesmech.vision.PerceiverDataFrame
+             * @static
+             * @param {bayesmech.vision.IPerceiverDataFrame=} [properties] Properties to set
+             * @returns {bayesmech.vision.PerceiverDataFrame} PerceiverDataFrame instance
+             */
+            PerceiverDataFrame.create = function create(properties) {
+                return new PerceiverDataFrame(properties);
+            };
+
+            /**
+             * Encodes the specified PerceiverDataFrame message. Does not implicitly {@link bayesmech.vision.PerceiverDataFrame.verify|verify} messages.
+             * @function encode
+             * @memberof bayesmech.vision.PerceiverDataFrame
+             * @static
+             * @param {bayesmech.vision.IPerceiverDataFrame} message PerceiverDataFrame message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            PerceiverDataFrame.encode = function encode(message, writer) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (message.frameIdentifier != null && Object.hasOwnProperty.call(message, "frameIdentifier"))
+                    $root.bayesmech.vision.PerceiverFrameIdentifier.encode(message.frameIdentifier, writer.uint32(/* id 1, wireType 2 =*/10).fork()).ldelim();
+                if (message.cameraPose != null && Object.hasOwnProperty.call(message, "cameraPose"))
+                    $root.bayesmech.vision.Pose.encode(message.cameraPose, writer.uint32(/* id 2, wireType 2 =*/18).fork()).ldelim();
+                if (message.rgbFrame != null && Object.hasOwnProperty.call(message, "rgbFrame"))
+                    $root.bayesmech.vision.ImageFrame.encode(message.rgbFrame, writer.uint32(/* id 3, wireType 2 =*/26).fork()).ldelim();
+                if (message.depthFrame != null && Object.hasOwnProperty.call(message, "depthFrame"))
+                    $root.bayesmech.vision.DepthFrame.encode(message.depthFrame, writer.uint32(/* id 4, wireType 2 =*/34).fork()).ldelim();
+                if (message.imuData != null && Object.hasOwnProperty.call(message, "imuData"))
+                    $root.bayesmech.vision.ImuData.encode(message.imuData, writer.uint32(/* id 5, wireType 2 =*/42).fork()).ldelim();
+                if (message.cameraIntrinsics != null && Object.hasOwnProperty.call(message, "cameraIntrinsics"))
+                    $root.bayesmech.vision.CameraIntrinsics.encode(message.cameraIntrinsics, writer.uint32(/* id 6, wireType 2 =*/50).fork()).ldelim();
+                if (message.inferredGeometry != null && Object.hasOwnProperty.call(message, "inferredGeometry"))
+                    $root.bayesmech.vision.InferredGeometry.encode(message.inferredGeometry, writer.uint32(/* id 7, wireType 2 =*/58).fork()).ldelim();
+                if (message.gpsLocation != null && Object.hasOwnProperty.call(message, "gpsLocation"))
+                    $root.bayesmech.vision.GpsLocation.encode(message.gpsLocation, writer.uint32(/* id 8, wireType 2 =*/66).fork()).ldelim();
+                return writer;
+            };
+
+            /**
+             * Encodes the specified PerceiverDataFrame message, length delimited. Does not implicitly {@link bayesmech.vision.PerceiverDataFrame.verify|verify} messages.
+             * @function encodeDelimited
+             * @memberof bayesmech.vision.PerceiverDataFrame
+             * @static
+             * @param {bayesmech.vision.IPerceiverDataFrame} message PerceiverDataFrame message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            PerceiverDataFrame.encodeDelimited = function encodeDelimited(message, writer) {
+                return this.encode(message, writer).ldelim();
+            };
+
+            /**
+             * Decodes a PerceiverDataFrame message from the specified reader or buffer.
+             * @function decode
+             * @memberof bayesmech.vision.PerceiverDataFrame
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {bayesmech.vision.PerceiverDataFrame} PerceiverDataFrame
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            PerceiverDataFrame.decode = function decode(reader, length, error) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.PerceiverDataFrame();
+                while (reader.pos < end) {
+                    let tag = reader.uint32();
+                    if (tag === error)
+                        break;
+                    switch (tag >>> 3) {
+                    case 1: {
+                            message.frameIdentifier = $root.bayesmech.vision.PerceiverFrameIdentifier.decode(reader, reader.uint32());
+                            break;
+                        }
+                    case 2: {
+                            message.cameraPose = $root.bayesmech.vision.Pose.decode(reader, reader.uint32());
+                            break;
+                        }
+                    case 3: {
+                            message.rgbFrame = $root.bayesmech.vision.ImageFrame.decode(reader, reader.uint32());
+                            break;
+                        }
+                    case 4: {
+                            message.depthFrame = $root.bayesmech.vision.DepthFrame.decode(reader, reader.uint32());
+                            break;
+                        }
+                    case 5: {
+                            message.imuData = $root.bayesmech.vision.ImuData.decode(reader, reader.uint32());
+                            break;
+                        }
+                    case 6: {
+                            message.cameraIntrinsics = $root.bayesmech.vision.CameraIntrinsics.decode(reader, reader.uint32());
+                            break;
+                        }
+                    case 7: {
+                            message.inferredGeometry = $root.bayesmech.vision.InferredGeometry.decode(reader, reader.uint32());
+                            break;
+                        }
+                    case 8: {
+                            message.gpsLocation = $root.bayesmech.vision.GpsLocation.decode(reader, reader.uint32());
+                            break;
+                        }
+                    default:
+                        reader.skipType(tag & 7);
+                        break;
+                    }
+                }
+                return message;
+            };
+
+            /**
+             * Decodes a PerceiverDataFrame message from the specified reader or buffer, length delimited.
+             * @function decodeDelimited
+             * @memberof bayesmech.vision.PerceiverDataFrame
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @returns {bayesmech.vision.PerceiverDataFrame} PerceiverDataFrame
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            PerceiverDataFrame.decodeDelimited = function decodeDelimited(reader) {
+                if (!(reader instanceof $Reader))
+                    reader = new $Reader(reader);
+                return this.decode(reader, reader.uint32());
+            };
+
+            /**
+             * Verifies a PerceiverDataFrame message.
+             * @function verify
+             * @memberof bayesmech.vision.PerceiverDataFrame
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            PerceiverDataFrame.verify = function verify(message) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (message.frameIdentifier != null && message.hasOwnProperty("frameIdentifier")) {
+                    let error = $root.bayesmech.vision.PerceiverFrameIdentifier.verify(message.frameIdentifier);
+                    if (error)
+                        return "frameIdentifier." + error;
+                }
+                if (message.cameraPose != null && message.hasOwnProperty("cameraPose")) {
+                    let error = $root.bayesmech.vision.Pose.verify(message.cameraPose);
+                    if (error)
+                        return "cameraPose." + error;
+                }
+                if (message.rgbFrame != null && message.hasOwnProperty("rgbFrame")) {
+                    let error = $root.bayesmech.vision.ImageFrame.verify(message.rgbFrame);
+                    if (error)
+                        return "rgbFrame." + error;
+                }
+                if (message.depthFrame != null && message.hasOwnProperty("depthFrame")) {
+                    let error = $root.bayesmech.vision.DepthFrame.verify(message.depthFrame);
+                    if (error)
+                        return "depthFrame." + error;
+                }
+                if (message.imuData != null && message.hasOwnProperty("imuData")) {
+                    let error = $root.bayesmech.vision.ImuData.verify(message.imuData);
+                    if (error)
+                        return "imuData." + error;
+                }
+                if (message.cameraIntrinsics != null && message.hasOwnProperty("cameraIntrinsics")) {
+                    let error = $root.bayesmech.vision.CameraIntrinsics.verify(message.cameraIntrinsics);
+                    if (error)
+                        return "cameraIntrinsics." + error;
+                }
+                if (message.inferredGeometry != null && message.hasOwnProperty("inferredGeometry")) {
+                    let error = $root.bayesmech.vision.InferredGeometry.verify(message.inferredGeometry);
+                    if (error)
+                        return "inferredGeometry." + error;
+                }
+                if (message.gpsLocation != null && message.hasOwnProperty("gpsLocation")) {
+                    let error = $root.bayesmech.vision.GpsLocation.verify(message.gpsLocation);
+                    if (error)
+                        return "gpsLocation." + error;
+                }
+                return null;
+            };
+
+            /**
+             * Creates a PerceiverDataFrame message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof bayesmech.vision.PerceiverDataFrame
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {bayesmech.vision.PerceiverDataFrame} PerceiverDataFrame
+             */
+            PerceiverDataFrame.fromObject = function fromObject(object) {
+                if (object instanceof $root.bayesmech.vision.PerceiverDataFrame)
+                    return object;
+                let message = new $root.bayesmech.vision.PerceiverDataFrame();
+                if (object.frameIdentifier != null) {
+                    if (typeof object.frameIdentifier !== "object")
+                        throw TypeError(".bayesmech.vision.PerceiverDataFrame.frameIdentifier: object expected");
+                    message.frameIdentifier = $root.bayesmech.vision.PerceiverFrameIdentifier.fromObject(object.frameIdentifier);
+                }
+                if (object.cameraPose != null) {
+                    if (typeof object.cameraPose !== "object")
+                        throw TypeError(".bayesmech.vision.PerceiverDataFrame.cameraPose: object expected");
+                    message.cameraPose = $root.bayesmech.vision.Pose.fromObject(object.cameraPose);
+                }
+                if (object.rgbFrame != null) {
+                    if (typeof object.rgbFrame !== "object")
+                        throw TypeError(".bayesmech.vision.PerceiverDataFrame.rgbFrame: object expected");
+                    message.rgbFrame = $root.bayesmech.vision.ImageFrame.fromObject(object.rgbFrame);
+                }
+                if (object.depthFrame != null) {
+                    if (typeof object.depthFrame !== "object")
+                        throw TypeError(".bayesmech.vision.PerceiverDataFrame.depthFrame: object expected");
+                    message.depthFrame = $root.bayesmech.vision.DepthFrame.fromObject(object.depthFrame);
+                }
+                if (object.imuData != null) {
+                    if (typeof object.imuData !== "object")
+                        throw TypeError(".bayesmech.vision.PerceiverDataFrame.imuData: object expected");
+                    message.imuData = $root.bayesmech.vision.ImuData.fromObject(object.imuData);
+                }
+                if (object.cameraIntrinsics != null) {
+                    if (typeof object.cameraIntrinsics !== "object")
+                        throw TypeError(".bayesmech.vision.PerceiverDataFrame.cameraIntrinsics: object expected");
+                    message.cameraIntrinsics = $root.bayesmech.vision.CameraIntrinsics.fromObject(object.cameraIntrinsics);
+                }
+                if (object.inferredGeometry != null) {
+                    if (typeof object.inferredGeometry !== "object")
+                        throw TypeError(".bayesmech.vision.PerceiverDataFrame.inferredGeometry: object expected");
+                    message.inferredGeometry = $root.bayesmech.vision.InferredGeometry.fromObject(object.inferredGeometry);
+                }
+                if (object.gpsLocation != null) {
+                    if (typeof object.gpsLocation !== "object")
+                        throw TypeError(".bayesmech.vision.PerceiverDataFrame.gpsLocation: object expected");
+                    message.gpsLocation = $root.bayesmech.vision.GpsLocation.fromObject(object.gpsLocation);
+                }
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a PerceiverDataFrame message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof bayesmech.vision.PerceiverDataFrame
+             * @static
+             * @param {bayesmech.vision.PerceiverDataFrame} message PerceiverDataFrame
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            PerceiverDataFrame.toObject = function toObject(message, options) {
+                if (!options)
+                    options = {};
+                let object = {};
+                if (options.defaults) {
+                    object.frameIdentifier = null;
+                    object.cameraPose = null;
+                    object.rgbFrame = null;
+                    object.depthFrame = null;
+                    object.imuData = null;
+                    object.cameraIntrinsics = null;
+                    object.inferredGeometry = null;
+                    object.gpsLocation = null;
+                }
+                if (message.frameIdentifier != null && message.hasOwnProperty("frameIdentifier"))
+                    object.frameIdentifier = $root.bayesmech.vision.PerceiverFrameIdentifier.toObject(message.frameIdentifier, options);
+                if (message.cameraPose != null && message.hasOwnProperty("cameraPose"))
+                    object.cameraPose = $root.bayesmech.vision.Pose.toObject(message.cameraPose, options);
+                if (message.rgbFrame != null && message.hasOwnProperty("rgbFrame"))
+                    object.rgbFrame = $root.bayesmech.vision.ImageFrame.toObject(message.rgbFrame, options);
+                if (message.depthFrame != null && message.hasOwnProperty("depthFrame"))
+                    object.depthFrame = $root.bayesmech.vision.DepthFrame.toObject(message.depthFrame, options);
+                if (message.imuData != null && message.hasOwnProperty("imuData"))
+                    object.imuData = $root.bayesmech.vision.ImuData.toObject(message.imuData, options);
+                if (message.cameraIntrinsics != null && message.hasOwnProperty("cameraIntrinsics"))
+                    object.cameraIntrinsics = $root.bayesmech.vision.CameraIntrinsics.toObject(message.cameraIntrinsics, options);
+                if (message.inferredGeometry != null && message.hasOwnProperty("inferredGeometry"))
+                    object.inferredGeometry = $root.bayesmech.vision.InferredGeometry.toObject(message.inferredGeometry, options);
+                if (message.gpsLocation != null && message.hasOwnProperty("gpsLocation"))
+                    object.gpsLocation = $root.bayesmech.vision.GpsLocation.toObject(message.gpsLocation, options);
+                return object;
+            };
+
+            /**
+             * Converts this PerceiverDataFrame to JSON.
+             * @function toJSON
+             * @memberof bayesmech.vision.PerceiverDataFrame
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            PerceiverDataFrame.prototype.toJSON = function toJSON() {
+                return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the default type url for PerceiverDataFrame
+             * @function getTypeUrl
+             * @memberof bayesmech.vision.PerceiverDataFrame
+             * @static
+             * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns {string} The default type url
+             */
+            PerceiverDataFrame.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+                if (typeUrlPrefix === undefined) {
+                    typeUrlPrefix = "type.googleapis.com";
+                }
+                return typeUrlPrefix + "/bayesmech.vision.PerceiverDataFrame";
+            };
+
+            return PerceiverDataFrame;
+        })();
+
+        vision.PerceiverFrameIdentifier = (function() {
+
+            /**
+             * Properties of a PerceiverFrameIdentifier.
+             * @memberof bayesmech.vision
+             * @interface IPerceiverFrameIdentifier
+             * @property {number|Long|null} [timestampNs] PerceiverFrameIdentifier timestampNs
+             * @property {number|null} [frameNumber] PerceiverFrameIdentifier frameNumber
+             * @property {string|null} [deviceId] PerceiverFrameIdentifier deviceId
+             */
+
+            /**
+             * Constructs a new PerceiverFrameIdentifier.
+             * @memberof bayesmech.vision
+             * @classdesc Represents a PerceiverFrameIdentifier.
+             * @implements IPerceiverFrameIdentifier
+             * @constructor
+             * @param {bayesmech.vision.IPerceiverFrameIdentifier=} [properties] Properties to set
+             */
+            function PerceiverFrameIdentifier(properties) {
+                if (properties)
+                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null)
+                            this[keys[i]] = properties[keys[i]];
+            }
+
+            /**
+             * PerceiverFrameIdentifier timestampNs.
+             * @member {number|Long} timestampNs
+             * @memberof bayesmech.vision.PerceiverFrameIdentifier
+             * @instance
+             */
+            PerceiverFrameIdentifier.prototype.timestampNs = $util.Long ? $util.Long.fromBits(0,0,false) : 0;
+
+            /**
+             * PerceiverFrameIdentifier frameNumber.
+             * @member {number} frameNumber
+             * @memberof bayesmech.vision.PerceiverFrameIdentifier
+             * @instance
+             */
+            PerceiverFrameIdentifier.prototype.frameNumber = 0;
+
+            /**
+             * PerceiverFrameIdentifier deviceId.
+             * @member {string} deviceId
+             * @memberof bayesmech.vision.PerceiverFrameIdentifier
+             * @instance
+             */
+            PerceiverFrameIdentifier.prototype.deviceId = "";
+
+            /**
+             * Creates a new PerceiverFrameIdentifier instance using the specified properties.
+             * @function create
+             * @memberof bayesmech.vision.PerceiverFrameIdentifier
+             * @static
+             * @param {bayesmech.vision.IPerceiverFrameIdentifier=} [properties] Properties to set
+             * @returns {bayesmech.vision.PerceiverFrameIdentifier} PerceiverFrameIdentifier instance
+             */
+            PerceiverFrameIdentifier.create = function create(properties) {
+                return new PerceiverFrameIdentifier(properties);
+            };
+
+            /**
+             * Encodes the specified PerceiverFrameIdentifier message. Does not implicitly {@link bayesmech.vision.PerceiverFrameIdentifier.verify|verify} messages.
+             * @function encode
+             * @memberof bayesmech.vision.PerceiverFrameIdentifier
+             * @static
+             * @param {bayesmech.vision.IPerceiverFrameIdentifier} message PerceiverFrameIdentifier message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            PerceiverFrameIdentifier.encode = function encode(message, writer) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (message.timestampNs != null && Object.hasOwnProperty.call(message, "timestampNs"))
+                    writer.uint32(/* id 1, wireType 0 =*/8).int64(message.timestampNs);
+                if (message.frameNumber != null && Object.hasOwnProperty.call(message, "frameNumber"))
+                    writer.uint32(/* id 2, wireType 0 =*/16).uint32(message.frameNumber);
+                if (message.deviceId != null && Object.hasOwnProperty.call(message, "deviceId"))
+                    writer.uint32(/* id 3, wireType 2 =*/26).string(message.deviceId);
+                return writer;
+            };
+
+            /**
+             * Encodes the specified PerceiverFrameIdentifier message, length delimited. Does not implicitly {@link bayesmech.vision.PerceiverFrameIdentifier.verify|verify} messages.
+             * @function encodeDelimited
+             * @memberof bayesmech.vision.PerceiverFrameIdentifier
+             * @static
+             * @param {bayesmech.vision.IPerceiverFrameIdentifier} message PerceiverFrameIdentifier message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            PerceiverFrameIdentifier.encodeDelimited = function encodeDelimited(message, writer) {
+                return this.encode(message, writer).ldelim();
+            };
+
+            /**
+             * Decodes a PerceiverFrameIdentifier message from the specified reader or buffer.
+             * @function decode
+             * @memberof bayesmech.vision.PerceiverFrameIdentifier
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {bayesmech.vision.PerceiverFrameIdentifier} PerceiverFrameIdentifier
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            PerceiverFrameIdentifier.decode = function decode(reader, length, error) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.PerceiverFrameIdentifier();
+                while (reader.pos < end) {
+                    let tag = reader.uint32();
+                    if (tag === error)
+                        break;
+                    switch (tag >>> 3) {
+                    case 1: {
+                            message.timestampNs = reader.int64();
+                            break;
+                        }
+                    case 2: {
+                            message.frameNumber = reader.uint32();
+                            break;
+                        }
+                    case 3: {
+                            message.deviceId = reader.string();
+                            break;
+                        }
+                    default:
+                        reader.skipType(tag & 7);
+                        break;
+                    }
+                }
+                return message;
+            };
+
+            /**
+             * Decodes a PerceiverFrameIdentifier message from the specified reader or buffer, length delimited.
+             * @function decodeDelimited
+             * @memberof bayesmech.vision.PerceiverFrameIdentifier
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @returns {bayesmech.vision.PerceiverFrameIdentifier} PerceiverFrameIdentifier
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            PerceiverFrameIdentifier.decodeDelimited = function decodeDelimited(reader) {
+                if (!(reader instanceof $Reader))
+                    reader = new $Reader(reader);
+                return this.decode(reader, reader.uint32());
+            };
+
+            /**
+             * Verifies a PerceiverFrameIdentifier message.
+             * @function verify
+             * @memberof bayesmech.vision.PerceiverFrameIdentifier
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            PerceiverFrameIdentifier.verify = function verify(message) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (message.timestampNs != null && message.hasOwnProperty("timestampNs"))
+                    if (!$util.isInteger(message.timestampNs) && !(message.timestampNs && $util.isInteger(message.timestampNs.low) && $util.isInteger(message.timestampNs.high)))
+                        return "timestampNs: integer|Long expected";
+                if (message.frameNumber != null && message.hasOwnProperty("frameNumber"))
+                    if (!$util.isInteger(message.frameNumber))
+                        return "frameNumber: integer expected";
+                if (message.deviceId != null && message.hasOwnProperty("deviceId"))
+                    if (!$util.isString(message.deviceId))
+                        return "deviceId: string expected";
+                return null;
+            };
+
+            /**
+             * Creates a PerceiverFrameIdentifier message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof bayesmech.vision.PerceiverFrameIdentifier
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {bayesmech.vision.PerceiverFrameIdentifier} PerceiverFrameIdentifier
+             */
+            PerceiverFrameIdentifier.fromObject = function fromObject(object) {
+                if (object instanceof $root.bayesmech.vision.PerceiverFrameIdentifier)
+                    return object;
+                let message = new $root.bayesmech.vision.PerceiverFrameIdentifier();
+                if (object.timestampNs != null)
+                    if ($util.Long)
+                        (message.timestampNs = $util.Long.fromValue(object.timestampNs)).unsigned = false;
+                    else if (typeof object.timestampNs === "string")
+                        message.timestampNs = parseInt(object.timestampNs, 10);
+                    else if (typeof object.timestampNs === "number")
+                        message.timestampNs = object.timestampNs;
+                    else if (typeof object.timestampNs === "object")
+                        message.timestampNs = new $util.LongBits(object.timestampNs.low >>> 0, object.timestampNs.high >>> 0).toNumber();
+                if (object.frameNumber != null)
+                    message.frameNumber = object.frameNumber >>> 0;
+                if (object.deviceId != null)
+                    message.deviceId = String(object.deviceId);
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a PerceiverFrameIdentifier message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof bayesmech.vision.PerceiverFrameIdentifier
+             * @static
+             * @param {bayesmech.vision.PerceiverFrameIdentifier} message PerceiverFrameIdentifier
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            PerceiverFrameIdentifier.toObject = function toObject(message, options) {
+                if (!options)
+                    options = {};
+                let object = {};
+                if (options.defaults) {
+                    if ($util.Long) {
+                        let long = new $util.Long(0, 0, false);
+                        object.timestampNs = options.longs === String ? long.toString() : options.longs === Number ? long.toNumber() : long;
+                    } else
+                        object.timestampNs = options.longs === String ? "0" : 0;
+                    object.frameNumber = 0;
+                    object.deviceId = "";
+                }
+                if (message.timestampNs != null && message.hasOwnProperty("timestampNs"))
+                    if (typeof message.timestampNs === "number")
+                        object.timestampNs = options.longs === String ? String(message.timestampNs) : message.timestampNs;
+                    else
+                        object.timestampNs = options.longs === String ? $util.Long.prototype.toString.call(message.timestampNs) : options.longs === Number ? new $util.LongBits(message.timestampNs.low >>> 0, message.timestampNs.high >>> 0).toNumber() : message.timestampNs;
+                if (message.frameNumber != null && message.hasOwnProperty("frameNumber"))
+                    object.frameNumber = message.frameNumber;
+                if (message.deviceId != null && message.hasOwnProperty("deviceId"))
+                    object.deviceId = message.deviceId;
+                return object;
+            };
+
+            /**
+             * Converts this PerceiverFrameIdentifier to JSON.
+             * @function toJSON
+             * @memberof bayesmech.vision.PerceiverFrameIdentifier
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            PerceiverFrameIdentifier.prototype.toJSON = function toJSON() {
+                return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the default type url for PerceiverFrameIdentifier
+             * @function getTypeUrl
+             * @memberof bayesmech.vision.PerceiverFrameIdentifier
+             * @static
+             * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns {string} The default type url
+             */
+            PerceiverFrameIdentifier.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+                if (typeUrlPrefix === undefined) {
+                    typeUrlPrefix = "type.googleapis.com";
+                }
+                return typeUrlPrefix + "/bayesmech.vision.PerceiverFrameIdentifier";
+            };
+
+            return PerceiverFrameIdentifier;
+        })();
+
+        vision.CameraIntrinsics = (function() {
+
+            /**
+             * Properties of a CameraIntrinsics.
+             * @memberof bayesmech.vision
+             * @interface ICameraIntrinsics
+             * @property {number|null} [fx] CameraIntrinsics fx
+             * @property {number|null} [fy] CameraIntrinsics fy
+             * @property {number|null} [cx] CameraIntrinsics cx
+             * @property {number|null} [cy] CameraIntrinsics cy
+             * @property {number|null} [imageWidth] CameraIntrinsics imageWidth
+             * @property {number|null} [imageHeight] CameraIntrinsics imageHeight
+             * @property {number|null} [depthWidth] CameraIntrinsics depthWidth
+             * @property {number|null} [depthHeight] CameraIntrinsics depthHeight
+             */
+
+            /**
+             * Constructs a new CameraIntrinsics.
+             * @memberof bayesmech.vision
+             * @classdesc Represents a CameraIntrinsics.
+             * @implements ICameraIntrinsics
+             * @constructor
+             * @param {bayesmech.vision.ICameraIntrinsics=} [properties] Properties to set
+             */
+            function CameraIntrinsics(properties) {
+                if (properties)
+                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null)
+                            this[keys[i]] = properties[keys[i]];
+            }
+
+            /**
+             * CameraIntrinsics fx.
+             * @member {number} fx
+             * @memberof bayesmech.vision.CameraIntrinsics
+             * @instance
+             */
+            CameraIntrinsics.prototype.fx = 0;
+
+            /**
+             * CameraIntrinsics fy.
+             * @member {number} fy
+             * @memberof bayesmech.vision.CameraIntrinsics
+             * @instance
+             */
+            CameraIntrinsics.prototype.fy = 0;
+
+            /**
+             * CameraIntrinsics cx.
+             * @member {number} cx
+             * @memberof bayesmech.vision.CameraIntrinsics
+             * @instance
+             */
+            CameraIntrinsics.prototype.cx = 0;
+
+            /**
+             * CameraIntrinsics cy.
+             * @member {number} cy
+             * @memberof bayesmech.vision.CameraIntrinsics
+             * @instance
+             */
+            CameraIntrinsics.prototype.cy = 0;
+
+            /**
+             * CameraIntrinsics imageWidth.
+             * @member {number} imageWidth
+             * @memberof bayesmech.vision.CameraIntrinsics
+             * @instance
+             */
+            CameraIntrinsics.prototype.imageWidth = 0;
+
+            /**
+             * CameraIntrinsics imageHeight.
+             * @member {number} imageHeight
+             * @memberof bayesmech.vision.CameraIntrinsics
+             * @instance
+             */
+            CameraIntrinsics.prototype.imageHeight = 0;
+
+            /**
+             * CameraIntrinsics depthWidth.
+             * @member {number} depthWidth
+             * @memberof bayesmech.vision.CameraIntrinsics
+             * @instance
+             */
+            CameraIntrinsics.prototype.depthWidth = 0;
+
+            /**
+             * CameraIntrinsics depthHeight.
+             * @member {number} depthHeight
+             * @memberof bayesmech.vision.CameraIntrinsics
+             * @instance
+             */
+            CameraIntrinsics.prototype.depthHeight = 0;
+
+            /**
+             * Creates a new CameraIntrinsics instance using the specified properties.
+             * @function create
+             * @memberof bayesmech.vision.CameraIntrinsics
+             * @static
+             * @param {bayesmech.vision.ICameraIntrinsics=} [properties] Properties to set
+             * @returns {bayesmech.vision.CameraIntrinsics} CameraIntrinsics instance
+             */
+            CameraIntrinsics.create = function create(properties) {
+                return new CameraIntrinsics(properties);
+            };
+
+            /**
+             * Encodes the specified CameraIntrinsics message. Does not implicitly {@link bayesmech.vision.CameraIntrinsics.verify|verify} messages.
+             * @function encode
+             * @memberof bayesmech.vision.CameraIntrinsics
+             * @static
+             * @param {bayesmech.vision.ICameraIntrinsics} message CameraIntrinsics message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            CameraIntrinsics.encode = function encode(message, writer) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (message.fx != null && Object.hasOwnProperty.call(message, "fx"))
+                    writer.uint32(/* id 1, wireType 5 =*/13).float(message.fx);
+                if (message.fy != null && Object.hasOwnProperty.call(message, "fy"))
+                    writer.uint32(/* id 2, wireType 5 =*/21).float(message.fy);
+                if (message.cx != null && Object.hasOwnProperty.call(message, "cx"))
+                    writer.uint32(/* id 3, wireType 5 =*/29).float(message.cx);
+                if (message.cy != null && Object.hasOwnProperty.call(message, "cy"))
+                    writer.uint32(/* id 4, wireType 5 =*/37).float(message.cy);
+                if (message.imageWidth != null && Object.hasOwnProperty.call(message, "imageWidth"))
+                    writer.uint32(/* id 5, wireType 5 =*/45).float(message.imageWidth);
+                if (message.imageHeight != null && Object.hasOwnProperty.call(message, "imageHeight"))
+                    writer.uint32(/* id 6, wireType 5 =*/53).float(message.imageHeight);
+                if (message.depthWidth != null && Object.hasOwnProperty.call(message, "depthWidth"))
+                    writer.uint32(/* id 7, wireType 5 =*/61).float(message.depthWidth);
+                if (message.depthHeight != null && Object.hasOwnProperty.call(message, "depthHeight"))
+                    writer.uint32(/* id 8, wireType 5 =*/69).float(message.depthHeight);
+                return writer;
+            };
+
+            /**
+             * Encodes the specified CameraIntrinsics message, length delimited. Does not implicitly {@link bayesmech.vision.CameraIntrinsics.verify|verify} messages.
+             * @function encodeDelimited
+             * @memberof bayesmech.vision.CameraIntrinsics
+             * @static
+             * @param {bayesmech.vision.ICameraIntrinsics} message CameraIntrinsics message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            CameraIntrinsics.encodeDelimited = function encodeDelimited(message, writer) {
+                return this.encode(message, writer).ldelim();
+            };
+
+            /**
+             * Decodes a CameraIntrinsics message from the specified reader or buffer.
+             * @function decode
+             * @memberof bayesmech.vision.CameraIntrinsics
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {bayesmech.vision.CameraIntrinsics} CameraIntrinsics
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            CameraIntrinsics.decode = function decode(reader, length, error) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.CameraIntrinsics();
+                while (reader.pos < end) {
+                    let tag = reader.uint32();
+                    if (tag === error)
+                        break;
+                    switch (tag >>> 3) {
+                    case 1: {
+                            message.fx = reader.float();
+                            break;
+                        }
+                    case 2: {
+                            message.fy = reader.float();
+                            break;
+                        }
+                    case 3: {
+                            message.cx = reader.float();
+                            break;
+                        }
+                    case 4: {
+                            message.cy = reader.float();
+                            break;
+                        }
+                    case 5: {
+                            message.imageWidth = reader.float();
+                            break;
+                        }
+                    case 6: {
+                            message.imageHeight = reader.float();
+                            break;
+                        }
+                    case 7: {
+                            message.depthWidth = reader.float();
+                            break;
+                        }
+                    case 8: {
+                            message.depthHeight = reader.float();
+                            break;
+                        }
+                    default:
+                        reader.skipType(tag & 7);
+                        break;
+                    }
+                }
+                return message;
+            };
+
+            /**
+             * Decodes a CameraIntrinsics message from the specified reader or buffer, length delimited.
+             * @function decodeDelimited
+             * @memberof bayesmech.vision.CameraIntrinsics
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @returns {bayesmech.vision.CameraIntrinsics} CameraIntrinsics
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            CameraIntrinsics.decodeDelimited = function decodeDelimited(reader) {
+                if (!(reader instanceof $Reader))
+                    reader = new $Reader(reader);
+                return this.decode(reader, reader.uint32());
+            };
+
+            /**
+             * Verifies a CameraIntrinsics message.
+             * @function verify
+             * @memberof bayesmech.vision.CameraIntrinsics
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            CameraIntrinsics.verify = function verify(message) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (message.fx != null && message.hasOwnProperty("fx"))
+                    if (typeof message.fx !== "number")
+                        return "fx: number expected";
+                if (message.fy != null && message.hasOwnProperty("fy"))
+                    if (typeof message.fy !== "number")
+                        return "fy: number expected";
+                if (message.cx != null && message.hasOwnProperty("cx"))
+                    if (typeof message.cx !== "number")
+                        return "cx: number expected";
+                if (message.cy != null && message.hasOwnProperty("cy"))
+                    if (typeof message.cy !== "number")
+                        return "cy: number expected";
+                if (message.imageWidth != null && message.hasOwnProperty("imageWidth"))
+                    if (typeof message.imageWidth !== "number")
+                        return "imageWidth: number expected";
+                if (message.imageHeight != null && message.hasOwnProperty("imageHeight"))
+                    if (typeof message.imageHeight !== "number")
+                        return "imageHeight: number expected";
+                if (message.depthWidth != null && message.hasOwnProperty("depthWidth"))
+                    if (typeof message.depthWidth !== "number")
+                        return "depthWidth: number expected";
+                if (message.depthHeight != null && message.hasOwnProperty("depthHeight"))
+                    if (typeof message.depthHeight !== "number")
+                        return "depthHeight: number expected";
+                return null;
+            };
+
+            /**
+             * Creates a CameraIntrinsics message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof bayesmech.vision.CameraIntrinsics
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {bayesmech.vision.CameraIntrinsics} CameraIntrinsics
+             */
+            CameraIntrinsics.fromObject = function fromObject(object) {
+                if (object instanceof $root.bayesmech.vision.CameraIntrinsics)
+                    return object;
+                let message = new $root.bayesmech.vision.CameraIntrinsics();
+                if (object.fx != null)
+                    message.fx = Number(object.fx);
+                if (object.fy != null)
+                    message.fy = Number(object.fy);
+                if (object.cx != null)
+                    message.cx = Number(object.cx);
+                if (object.cy != null)
+                    message.cy = Number(object.cy);
+                if (object.imageWidth != null)
+                    message.imageWidth = Number(object.imageWidth);
+                if (object.imageHeight != null)
+                    message.imageHeight = Number(object.imageHeight);
+                if (object.depthWidth != null)
+                    message.depthWidth = Number(object.depthWidth);
+                if (object.depthHeight != null)
+                    message.depthHeight = Number(object.depthHeight);
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a CameraIntrinsics message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof bayesmech.vision.CameraIntrinsics
+             * @static
+             * @param {bayesmech.vision.CameraIntrinsics} message CameraIntrinsics
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            CameraIntrinsics.toObject = function toObject(message, options) {
+                if (!options)
+                    options = {};
+                let object = {};
+                if (options.defaults) {
+                    object.fx = 0;
+                    object.fy = 0;
+                    object.cx = 0;
+                    object.cy = 0;
+                    object.imageWidth = 0;
+                    object.imageHeight = 0;
+                    object.depthWidth = 0;
+                    object.depthHeight = 0;
+                }
+                if (message.fx != null && message.hasOwnProperty("fx"))
+                    object.fx = options.json && !isFinite(message.fx) ? String(message.fx) : message.fx;
+                if (message.fy != null && message.hasOwnProperty("fy"))
+                    object.fy = options.json && !isFinite(message.fy) ? String(message.fy) : message.fy;
+                if (message.cx != null && message.hasOwnProperty("cx"))
+                    object.cx = options.json && !isFinite(message.cx) ? String(message.cx) : message.cx;
+                if (message.cy != null && message.hasOwnProperty("cy"))
+                    object.cy = options.json && !isFinite(message.cy) ? String(message.cy) : message.cy;
+                if (message.imageWidth != null && message.hasOwnProperty("imageWidth"))
+                    object.imageWidth = options.json && !isFinite(message.imageWidth) ? String(message.imageWidth) : message.imageWidth;
+                if (message.imageHeight != null && message.hasOwnProperty("imageHeight"))
+                    object.imageHeight = options.json && !isFinite(message.imageHeight) ? String(message.imageHeight) : message.imageHeight;
+                if (message.depthWidth != null && message.hasOwnProperty("depthWidth"))
+                    object.depthWidth = options.json && !isFinite(message.depthWidth) ? String(message.depthWidth) : message.depthWidth;
+                if (message.depthHeight != null && message.hasOwnProperty("depthHeight"))
+                    object.depthHeight = options.json && !isFinite(message.depthHeight) ? String(message.depthHeight) : message.depthHeight;
+                return object;
+            };
+
+            /**
+             * Converts this CameraIntrinsics to JSON.
+             * @function toJSON
+             * @memberof bayesmech.vision.CameraIntrinsics
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            CameraIntrinsics.prototype.toJSON = function toJSON() {
+                return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the default type url for CameraIntrinsics
+             * @function getTypeUrl
+             * @memberof bayesmech.vision.CameraIntrinsics
+             * @static
+             * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns {string} The default type url
+             */
+            CameraIntrinsics.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+                if (typeUrlPrefix === undefined) {
+                    typeUrlPrefix = "type.googleapis.com";
+                }
+                return typeUrlPrefix + "/bayesmech.vision.CameraIntrinsics";
+            };
+
+            return CameraIntrinsics;
+        })();
+
+        vision.ImageFrame = (function() {
+
+            /**
+             * Properties of an ImageFrame.
+             * @memberof bayesmech.vision
+             * @interface IImageFrame
+             * @property {Uint8Array|null} [data] ImageFrame data
+             * @property {bayesmech.vision.ImageFrame.ImageFormat|null} [format] ImageFrame format
+             * @property {number|null} [quality] ImageFrame quality
+             */
+
+            /**
+             * Constructs a new ImageFrame.
+             * @memberof bayesmech.vision
+             * @classdesc Represents an ImageFrame.
+             * @implements IImageFrame
+             * @constructor
+             * @param {bayesmech.vision.IImageFrame=} [properties] Properties to set
+             */
+            function ImageFrame(properties) {
+                if (properties)
+                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null)
+                            this[keys[i]] = properties[keys[i]];
+            }
+
+            /**
+             * ImageFrame data.
+             * @member {Uint8Array} data
+             * @memberof bayesmech.vision.ImageFrame
+             * @instance
+             */
+            ImageFrame.prototype.data = $util.newBuffer([]);
+
+            /**
+             * ImageFrame format.
+             * @member {bayesmech.vision.ImageFrame.ImageFormat} format
+             * @memberof bayesmech.vision.ImageFrame
+             * @instance
+             */
+            ImageFrame.prototype.format = 0;
+
+            /**
+             * ImageFrame quality.
+             * @member {number} quality
+             * @memberof bayesmech.vision.ImageFrame
+             * @instance
+             */
+            ImageFrame.prototype.quality = 0;
+
+            /**
+             * Creates a new ImageFrame instance using the specified properties.
+             * @function create
+             * @memberof bayesmech.vision.ImageFrame
+             * @static
+             * @param {bayesmech.vision.IImageFrame=} [properties] Properties to set
+             * @returns {bayesmech.vision.ImageFrame} ImageFrame instance
+             */
+            ImageFrame.create = function create(properties) {
+                return new ImageFrame(properties);
+            };
+
+            /**
+             * Encodes the specified ImageFrame message. Does not implicitly {@link bayesmech.vision.ImageFrame.verify|verify} messages.
+             * @function encode
+             * @memberof bayesmech.vision.ImageFrame
+             * @static
+             * @param {bayesmech.vision.IImageFrame} message ImageFrame message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            ImageFrame.encode = function encode(message, writer) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (message.data != null && Object.hasOwnProperty.call(message, "data"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).bytes(message.data);
+                if (message.format != null && Object.hasOwnProperty.call(message, "format"))
+                    writer.uint32(/* id 2, wireType 0 =*/16).int32(message.format);
+                if (message.quality != null && Object.hasOwnProperty.call(message, "quality"))
+                    writer.uint32(/* id 5, wireType 0 =*/40).uint32(message.quality);
+                return writer;
+            };
+
+            /**
+             * Encodes the specified ImageFrame message, length delimited. Does not implicitly {@link bayesmech.vision.ImageFrame.verify|verify} messages.
+             * @function encodeDelimited
+             * @memberof bayesmech.vision.ImageFrame
+             * @static
+             * @param {bayesmech.vision.IImageFrame} message ImageFrame message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            ImageFrame.encodeDelimited = function encodeDelimited(message, writer) {
+                return this.encode(message, writer).ldelim();
+            };
+
+            /**
+             * Decodes an ImageFrame message from the specified reader or buffer.
+             * @function decode
+             * @memberof bayesmech.vision.ImageFrame
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {bayesmech.vision.ImageFrame} ImageFrame
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            ImageFrame.decode = function decode(reader, length, error) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.ImageFrame();
+                while (reader.pos < end) {
+                    let tag = reader.uint32();
+                    if (tag === error)
+                        break;
+                    switch (tag >>> 3) {
+                    case 1: {
+                            message.data = reader.bytes();
+                            break;
+                        }
+                    case 2: {
+                            message.format = reader.int32();
+                            break;
+                        }
+                    case 5: {
+                            message.quality = reader.uint32();
+                            break;
+                        }
+                    default:
+                        reader.skipType(tag & 7);
+                        break;
+                    }
+                }
+                return message;
+            };
+
+            /**
+             * Decodes an ImageFrame message from the specified reader or buffer, length delimited.
+             * @function decodeDelimited
+             * @memberof bayesmech.vision.ImageFrame
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @returns {bayesmech.vision.ImageFrame} ImageFrame
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            ImageFrame.decodeDelimited = function decodeDelimited(reader) {
+                if (!(reader instanceof $Reader))
+                    reader = new $Reader(reader);
+                return this.decode(reader, reader.uint32());
+            };
+
+            /**
+             * Verifies an ImageFrame message.
+             * @function verify
+             * @memberof bayesmech.vision.ImageFrame
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            ImageFrame.verify = function verify(message) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (message.data != null && message.hasOwnProperty("data"))
+                    if (!(message.data && typeof message.data.length === "number" || $util.isString(message.data)))
+                        return "data: buffer expected";
+                if (message.format != null && message.hasOwnProperty("format"))
+                    switch (message.format) {
+                    default:
+                        return "format: enum value expected";
+                    case 0:
+                    case 1:
+                    case 2:
+                    case 3:
+                    case 4:
+                    case 5:
+                        break;
+                    }
+                if (message.quality != null && message.hasOwnProperty("quality"))
+                    if (!$util.isInteger(message.quality))
+                        return "quality: integer expected";
+                return null;
+            };
+
+            /**
+             * Creates an ImageFrame message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof bayesmech.vision.ImageFrame
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {bayesmech.vision.ImageFrame} ImageFrame
+             */
+            ImageFrame.fromObject = function fromObject(object) {
+                if (object instanceof $root.bayesmech.vision.ImageFrame)
+                    return object;
+                let message = new $root.bayesmech.vision.ImageFrame();
+                if (object.data != null)
+                    if (typeof object.data === "string")
+                        $util.base64.decode(object.data, message.data = $util.newBuffer($util.base64.length(object.data)), 0);
+                    else if (object.data.length >= 0)
+                        message.data = object.data;
+                switch (object.format) {
+                default:
+                    if (typeof object.format === "number") {
+                        message.format = object.format;
+                        break;
+                    }
+                    break;
+                case "UNKNOWN":
+                case 0:
+                    message.format = 0;
+                    break;
+                case "BITMAP_RGB":
+                case 1:
+                    message.format = 1;
+                    break;
+                case "BITMAP_RGBA":
+                case 2:
+                    message.format = 2;
+                    break;
+                case "YUV_420":
+                case 3:
+                    message.format = 3;
+                    break;
+                case "JPEG":
+                case 4:
+                    message.format = 4;
+                    break;
+                case "GRAYSCALE":
+                case 5:
+                    message.format = 5;
+                    break;
+                }
+                if (object.quality != null)
+                    message.quality = object.quality >>> 0;
+                return message;
+            };
+
+            /**
+             * Creates a plain object from an ImageFrame message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof bayesmech.vision.ImageFrame
+             * @static
+             * @param {bayesmech.vision.ImageFrame} message ImageFrame
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            ImageFrame.toObject = function toObject(message, options) {
+                if (!options)
+                    options = {};
+                let object = {};
+                if (options.defaults) {
+                    if (options.bytes === String)
+                        object.data = "";
+                    else {
+                        object.data = [];
+                        if (options.bytes !== Array)
+                            object.data = $util.newBuffer(object.data);
+                    }
+                    object.format = options.enums === String ? "UNKNOWN" : 0;
+                    object.quality = 0;
+                }
+                if (message.data != null && message.hasOwnProperty("data"))
+                    object.data = options.bytes === String ? $util.base64.encode(message.data, 0, message.data.length) : options.bytes === Array ? Array.prototype.slice.call(message.data) : message.data;
+                if (message.format != null && message.hasOwnProperty("format"))
+                    object.format = options.enums === String ? $root.bayesmech.vision.ImageFrame.ImageFormat[message.format] === undefined ? message.format : $root.bayesmech.vision.ImageFrame.ImageFormat[message.format] : message.format;
+                if (message.quality != null && message.hasOwnProperty("quality"))
+                    object.quality = message.quality;
+                return object;
+            };
+
+            /**
+             * Converts this ImageFrame to JSON.
+             * @function toJSON
+             * @memberof bayesmech.vision.ImageFrame
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            ImageFrame.prototype.toJSON = function toJSON() {
+                return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the default type url for ImageFrame
+             * @function getTypeUrl
+             * @memberof bayesmech.vision.ImageFrame
+             * @static
+             * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns {string} The default type url
+             */
+            ImageFrame.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+                if (typeUrlPrefix === undefined) {
+                    typeUrlPrefix = "type.googleapis.com";
+                }
+                return typeUrlPrefix + "/bayesmech.vision.ImageFrame";
+            };
+
+            /**
+             * ImageFormat enum.
+             * @name bayesmech.vision.ImageFrame.ImageFormat
+             * @enum {number}
+             * @property {number} UNKNOWN=0 UNKNOWN value
+             * @property {number} BITMAP_RGB=1 BITMAP_RGB value
+             * @property {number} BITMAP_RGBA=2 BITMAP_RGBA value
+             * @property {number} YUV_420=3 YUV_420 value
+             * @property {number} JPEG=4 JPEG value
+             * @property {number} GRAYSCALE=5 GRAYSCALE value
+             */
+            ImageFrame.ImageFormat = (function() {
+                const valuesById = {}, values = Object.create(valuesById);
+                values[valuesById[0] = "UNKNOWN"] = 0;
+                values[valuesById[1] = "BITMAP_RGB"] = 1;
+                values[valuesById[2] = "BITMAP_RGBA"] = 2;
+                values[valuesById[3] = "YUV_420"] = 3;
+                values[valuesById[4] = "JPEG"] = 4;
+                values[valuesById[5] = "GRAYSCALE"] = 5;
+                return values;
+            })();
+
+            return ImageFrame;
+        })();
+
+        vision.DepthFrame = (function() {
+
+            /**
+             * Properties of a DepthFrame.
+             * @memberof bayesmech.vision
+             * @interface IDepthFrame
+             * @property {Uint8Array|null} [data] DepthFrame data
+             * @property {Uint8Array|null} [confidence] DepthFrame confidence
+             * @property {bayesmech.vision.DepthFrame.DepthFormat|null} [format] DepthFrame format
+             */
+
+            /**
+             * Constructs a new DepthFrame.
+             * @memberof bayesmech.vision
+             * @classdesc Represents a DepthFrame.
+             * @implements IDepthFrame
+             * @constructor
+             * @param {bayesmech.vision.IDepthFrame=} [properties] Properties to set
+             */
+            function DepthFrame(properties) {
+                if (properties)
+                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null)
+                            this[keys[i]] = properties[keys[i]];
+            }
+
+            /**
+             * DepthFrame data.
+             * @member {Uint8Array} data
+             * @memberof bayesmech.vision.DepthFrame
+             * @instance
+             */
+            DepthFrame.prototype.data = $util.newBuffer([]);
+
+            /**
+             * DepthFrame confidence.
+             * @member {Uint8Array} confidence
+             * @memberof bayesmech.vision.DepthFrame
+             * @instance
+             */
+            DepthFrame.prototype.confidence = $util.newBuffer([]);
+
+            /**
+             * DepthFrame format.
+             * @member {bayesmech.vision.DepthFrame.DepthFormat} format
+             * @memberof bayesmech.vision.DepthFrame
+             * @instance
+             */
+            DepthFrame.prototype.format = 0;
+
+            /**
+             * Creates a new DepthFrame instance using the specified properties.
+             * @function create
+             * @memberof bayesmech.vision.DepthFrame
+             * @static
+             * @param {bayesmech.vision.IDepthFrame=} [properties] Properties to set
+             * @returns {bayesmech.vision.DepthFrame} DepthFrame instance
+             */
+            DepthFrame.create = function create(properties) {
+                return new DepthFrame(properties);
+            };
+
+            /**
+             * Encodes the specified DepthFrame message. Does not implicitly {@link bayesmech.vision.DepthFrame.verify|verify} messages.
+             * @function encode
+             * @memberof bayesmech.vision.DepthFrame
+             * @static
+             * @param {bayesmech.vision.IDepthFrame} message DepthFrame message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            DepthFrame.encode = function encode(message, writer) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (message.data != null && Object.hasOwnProperty.call(message, "data"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).bytes(message.data);
+                if (message.confidence != null && Object.hasOwnProperty.call(message, "confidence"))
+                    writer.uint32(/* id 2, wireType 2 =*/18).bytes(message.confidence);
+                if (message.format != null && Object.hasOwnProperty.call(message, "format"))
+                    writer.uint32(/* id 3, wireType 0 =*/24).int32(message.format);
+                return writer;
+            };
+
+            /**
+             * Encodes the specified DepthFrame message, length delimited. Does not implicitly {@link bayesmech.vision.DepthFrame.verify|verify} messages.
+             * @function encodeDelimited
+             * @memberof bayesmech.vision.DepthFrame
+             * @static
+             * @param {bayesmech.vision.IDepthFrame} message DepthFrame message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            DepthFrame.encodeDelimited = function encodeDelimited(message, writer) {
+                return this.encode(message, writer).ldelim();
+            };
+
+            /**
+             * Decodes a DepthFrame message from the specified reader or buffer.
+             * @function decode
+             * @memberof bayesmech.vision.DepthFrame
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {bayesmech.vision.DepthFrame} DepthFrame
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            DepthFrame.decode = function decode(reader, length, error) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.DepthFrame();
+                while (reader.pos < end) {
+                    let tag = reader.uint32();
+                    if (tag === error)
+                        break;
+                    switch (tag >>> 3) {
+                    case 1: {
+                            message.data = reader.bytes();
+                            break;
+                        }
+                    case 2: {
+                            message.confidence = reader.bytes();
+                            break;
+                        }
+                    case 3: {
+                            message.format = reader.int32();
+                            break;
+                        }
+                    default:
+                        reader.skipType(tag & 7);
+                        break;
+                    }
+                }
+                return message;
+            };
+
+            /**
+             * Decodes a DepthFrame message from the specified reader or buffer, length delimited.
+             * @function decodeDelimited
+             * @memberof bayesmech.vision.DepthFrame
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @returns {bayesmech.vision.DepthFrame} DepthFrame
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            DepthFrame.decodeDelimited = function decodeDelimited(reader) {
+                if (!(reader instanceof $Reader))
+                    reader = new $Reader(reader);
+                return this.decode(reader, reader.uint32());
+            };
+
+            /**
+             * Verifies a DepthFrame message.
+             * @function verify
+             * @memberof bayesmech.vision.DepthFrame
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            DepthFrame.verify = function verify(message) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (message.data != null && message.hasOwnProperty("data"))
+                    if (!(message.data && typeof message.data.length === "number" || $util.isString(message.data)))
+                        return "data: buffer expected";
+                if (message.confidence != null && message.hasOwnProperty("confidence"))
+                    if (!(message.confidence && typeof message.confidence.length === "number" || $util.isString(message.confidence)))
+                        return "confidence: buffer expected";
+                if (message.format != null && message.hasOwnProperty("format"))
+                    switch (message.format) {
+                    default:
+                        return "format: enum value expected";
+                    case 0:
+                    case 1:
+                    case 2:
+                        break;
+                    }
+                return null;
+            };
+
+            /**
+             * Creates a DepthFrame message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof bayesmech.vision.DepthFrame
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {bayesmech.vision.DepthFrame} DepthFrame
+             */
+            DepthFrame.fromObject = function fromObject(object) {
+                if (object instanceof $root.bayesmech.vision.DepthFrame)
+                    return object;
+                let message = new $root.bayesmech.vision.DepthFrame();
+                if (object.data != null)
+                    if (typeof object.data === "string")
+                        $util.base64.decode(object.data, message.data = $util.newBuffer($util.base64.length(object.data)), 0);
+                    else if (object.data.length >= 0)
+                        message.data = object.data;
+                if (object.confidence != null)
+                    if (typeof object.confidence === "string")
+                        $util.base64.decode(object.confidence, message.confidence = $util.newBuffer($util.base64.length(object.confidence)), 0);
+                    else if (object.confidence.length >= 0)
+                        message.confidence = object.confidence;
+                switch (object.format) {
+                default:
+                    if (typeof object.format === "number") {
+                        message.format = object.format;
+                        break;
+                    }
+                    break;
+                case "DEPTH_FORMAT_UNKNOWN":
+                case 0:
+                    message.format = 0;
+                    break;
+                case "UINT16_MILLIMETERS":
+                case 1:
+                    message.format = 1;
+                    break;
+                case "FLOAT32_METERS":
+                case 2:
+                    message.format = 2;
+                    break;
+                }
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a DepthFrame message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof bayesmech.vision.DepthFrame
+             * @static
+             * @param {bayesmech.vision.DepthFrame} message DepthFrame
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            DepthFrame.toObject = function toObject(message, options) {
+                if (!options)
+                    options = {};
+                let object = {};
+                if (options.defaults) {
+                    if (options.bytes === String)
+                        object.data = "";
+                    else {
+                        object.data = [];
+                        if (options.bytes !== Array)
+                            object.data = $util.newBuffer(object.data);
+                    }
+                    if (options.bytes === String)
+                        object.confidence = "";
+                    else {
+                        object.confidence = [];
+                        if (options.bytes !== Array)
+                            object.confidence = $util.newBuffer(object.confidence);
+                    }
+                    object.format = options.enums === String ? "DEPTH_FORMAT_UNKNOWN" : 0;
+                }
+                if (message.data != null && message.hasOwnProperty("data"))
+                    object.data = options.bytes === String ? $util.base64.encode(message.data, 0, message.data.length) : options.bytes === Array ? Array.prototype.slice.call(message.data) : message.data;
+                if (message.confidence != null && message.hasOwnProperty("confidence"))
+                    object.confidence = options.bytes === String ? $util.base64.encode(message.confidence, 0, message.confidence.length) : options.bytes === Array ? Array.prototype.slice.call(message.confidence) : message.confidence;
+                if (message.format != null && message.hasOwnProperty("format"))
+                    object.format = options.enums === String ? $root.bayesmech.vision.DepthFrame.DepthFormat[message.format] === undefined ? message.format : $root.bayesmech.vision.DepthFrame.DepthFormat[message.format] : message.format;
+                return object;
+            };
+
+            /**
+             * Converts this DepthFrame to JSON.
+             * @function toJSON
+             * @memberof bayesmech.vision.DepthFrame
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            DepthFrame.prototype.toJSON = function toJSON() {
+                return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the default type url for DepthFrame
+             * @function getTypeUrl
+             * @memberof bayesmech.vision.DepthFrame
+             * @static
+             * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns {string} The default type url
+             */
+            DepthFrame.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+                if (typeUrlPrefix === undefined) {
+                    typeUrlPrefix = "type.googleapis.com";
+                }
+                return typeUrlPrefix + "/bayesmech.vision.DepthFrame";
+            };
+
+            /**
+             * DepthFormat enum.
+             * @name bayesmech.vision.DepthFrame.DepthFormat
+             * @enum {number}
+             * @property {number} DEPTH_FORMAT_UNKNOWN=0 DEPTH_FORMAT_UNKNOWN value
+             * @property {number} UINT16_MILLIMETERS=1 UINT16_MILLIMETERS value
+             * @property {number} FLOAT32_METERS=2 FLOAT32_METERS value
+             */
+            DepthFrame.DepthFormat = (function() {
+                const valuesById = {}, values = Object.create(valuesById);
+                values[valuesById[0] = "DEPTH_FORMAT_UNKNOWN"] = 0;
+                values[valuesById[1] = "UINT16_MILLIMETERS"] = 1;
+                values[valuesById[2] = "FLOAT32_METERS"] = 2;
+                return values;
+            })();
+
+            return DepthFrame;
+        })();
+
+        vision.ImuData = (function() {
+
+            /**
+             * Properties of an ImuData.
+             * @memberof bayesmech.vision
+             * @interface IImuData
+             * @property {bayesmech.vision.IVector3|null} [angularVelocity] ImuData angularVelocity
+             * @property {bayesmech.vision.IVector3|null} [linearAcceleration] ImuData linearAcceleration
+             * @property {bayesmech.vision.IVector3|null} [gravity] ImuData gravity
+             * @property {bayesmech.vision.IVector3|null} [magneticField] ImuData magneticField
+             */
+
+            /**
+             * Constructs a new ImuData.
+             * @memberof bayesmech.vision
+             * @classdesc Represents an ImuData.
+             * @implements IImuData
+             * @constructor
+             * @param {bayesmech.vision.IImuData=} [properties] Properties to set
+             */
+            function ImuData(properties) {
+                if (properties)
+                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null)
+                            this[keys[i]] = properties[keys[i]];
+            }
+
+            /**
+             * ImuData angularVelocity.
+             * @member {bayesmech.vision.IVector3|null|undefined} angularVelocity
+             * @memberof bayesmech.vision.ImuData
+             * @instance
+             */
+            ImuData.prototype.angularVelocity = null;
+
+            /**
+             * ImuData linearAcceleration.
+             * @member {bayesmech.vision.IVector3|null|undefined} linearAcceleration
+             * @memberof bayesmech.vision.ImuData
+             * @instance
+             */
+            ImuData.prototype.linearAcceleration = null;
+
+            /**
+             * ImuData gravity.
+             * @member {bayesmech.vision.IVector3|null|undefined} gravity
+             * @memberof bayesmech.vision.ImuData
+             * @instance
+             */
+            ImuData.prototype.gravity = null;
+
+            /**
+             * ImuData magneticField.
+             * @member {bayesmech.vision.IVector3|null|undefined} magneticField
+             * @memberof bayesmech.vision.ImuData
+             * @instance
+             */
+            ImuData.prototype.magneticField = null;
+
+            /**
+             * Creates a new ImuData instance using the specified properties.
+             * @function create
+             * @memberof bayesmech.vision.ImuData
+             * @static
+             * @param {bayesmech.vision.IImuData=} [properties] Properties to set
+             * @returns {bayesmech.vision.ImuData} ImuData instance
+             */
+            ImuData.create = function create(properties) {
+                return new ImuData(properties);
+            };
+
+            /**
+             * Encodes the specified ImuData message. Does not implicitly {@link bayesmech.vision.ImuData.verify|verify} messages.
+             * @function encode
+             * @memberof bayesmech.vision.ImuData
+             * @static
+             * @param {bayesmech.vision.IImuData} message ImuData message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            ImuData.encode = function encode(message, writer) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (message.angularVelocity != null && Object.hasOwnProperty.call(message, "angularVelocity"))
+                    $root.bayesmech.vision.Vector3.encode(message.angularVelocity, writer.uint32(/* id 1, wireType 2 =*/10).fork()).ldelim();
+                if (message.linearAcceleration != null && Object.hasOwnProperty.call(message, "linearAcceleration"))
+                    $root.bayesmech.vision.Vector3.encode(message.linearAcceleration, writer.uint32(/* id 2, wireType 2 =*/18).fork()).ldelim();
+                if (message.gravity != null && Object.hasOwnProperty.call(message, "gravity"))
+                    $root.bayesmech.vision.Vector3.encode(message.gravity, writer.uint32(/* id 3, wireType 2 =*/26).fork()).ldelim();
+                if (message.magneticField != null && Object.hasOwnProperty.call(message, "magneticField"))
+                    $root.bayesmech.vision.Vector3.encode(message.magneticField, writer.uint32(/* id 4, wireType 2 =*/34).fork()).ldelim();
+                return writer;
+            };
+
+            /**
+             * Encodes the specified ImuData message, length delimited. Does not implicitly {@link bayesmech.vision.ImuData.verify|verify} messages.
+             * @function encodeDelimited
+             * @memberof bayesmech.vision.ImuData
+             * @static
+             * @param {bayesmech.vision.IImuData} message ImuData message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            ImuData.encodeDelimited = function encodeDelimited(message, writer) {
+                return this.encode(message, writer).ldelim();
+            };
+
+            /**
+             * Decodes an ImuData message from the specified reader or buffer.
+             * @function decode
+             * @memberof bayesmech.vision.ImuData
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {bayesmech.vision.ImuData} ImuData
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            ImuData.decode = function decode(reader, length, error) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.ImuData();
+                while (reader.pos < end) {
+                    let tag = reader.uint32();
+                    if (tag === error)
+                        break;
+                    switch (tag >>> 3) {
+                    case 1: {
+                            message.angularVelocity = $root.bayesmech.vision.Vector3.decode(reader, reader.uint32());
+                            break;
+                        }
+                    case 2: {
+                            message.linearAcceleration = $root.bayesmech.vision.Vector3.decode(reader, reader.uint32());
+                            break;
+                        }
+                    case 3: {
+                            message.gravity = $root.bayesmech.vision.Vector3.decode(reader, reader.uint32());
+                            break;
+                        }
+                    case 4: {
+                            message.magneticField = $root.bayesmech.vision.Vector3.decode(reader, reader.uint32());
+                            break;
+                        }
+                    default:
+                        reader.skipType(tag & 7);
+                        break;
+                    }
+                }
+                return message;
+            };
+
+            /**
+             * Decodes an ImuData message from the specified reader or buffer, length delimited.
+             * @function decodeDelimited
+             * @memberof bayesmech.vision.ImuData
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @returns {bayesmech.vision.ImuData} ImuData
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            ImuData.decodeDelimited = function decodeDelimited(reader) {
+                if (!(reader instanceof $Reader))
+                    reader = new $Reader(reader);
+                return this.decode(reader, reader.uint32());
+            };
+
+            /**
+             * Verifies an ImuData message.
+             * @function verify
+             * @memberof bayesmech.vision.ImuData
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            ImuData.verify = function verify(message) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (message.angularVelocity != null && message.hasOwnProperty("angularVelocity")) {
+                    let error = $root.bayesmech.vision.Vector3.verify(message.angularVelocity);
+                    if (error)
+                        return "angularVelocity." + error;
+                }
+                if (message.linearAcceleration != null && message.hasOwnProperty("linearAcceleration")) {
+                    let error = $root.bayesmech.vision.Vector3.verify(message.linearAcceleration);
+                    if (error)
+                        return "linearAcceleration." + error;
+                }
+                if (message.gravity != null && message.hasOwnProperty("gravity")) {
+                    let error = $root.bayesmech.vision.Vector3.verify(message.gravity);
+                    if (error)
+                        return "gravity." + error;
+                }
+                if (message.magneticField != null && message.hasOwnProperty("magneticField")) {
+                    let error = $root.bayesmech.vision.Vector3.verify(message.magneticField);
+                    if (error)
+                        return "magneticField." + error;
+                }
+                return null;
+            };
+
+            /**
+             * Creates an ImuData message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof bayesmech.vision.ImuData
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {bayesmech.vision.ImuData} ImuData
+             */
+            ImuData.fromObject = function fromObject(object) {
+                if (object instanceof $root.bayesmech.vision.ImuData)
+                    return object;
+                let message = new $root.bayesmech.vision.ImuData();
+                if (object.angularVelocity != null) {
+                    if (typeof object.angularVelocity !== "object")
+                        throw TypeError(".bayesmech.vision.ImuData.angularVelocity: object expected");
+                    message.angularVelocity = $root.bayesmech.vision.Vector3.fromObject(object.angularVelocity);
+                }
+                if (object.linearAcceleration != null) {
+                    if (typeof object.linearAcceleration !== "object")
+                        throw TypeError(".bayesmech.vision.ImuData.linearAcceleration: object expected");
+                    message.linearAcceleration = $root.bayesmech.vision.Vector3.fromObject(object.linearAcceleration);
+                }
+                if (object.gravity != null) {
+                    if (typeof object.gravity !== "object")
+                        throw TypeError(".bayesmech.vision.ImuData.gravity: object expected");
+                    message.gravity = $root.bayesmech.vision.Vector3.fromObject(object.gravity);
+                }
+                if (object.magneticField != null) {
+                    if (typeof object.magneticField !== "object")
+                        throw TypeError(".bayesmech.vision.ImuData.magneticField: object expected");
+                    message.magneticField = $root.bayesmech.vision.Vector3.fromObject(object.magneticField);
+                }
+                return message;
+            };
+
+            /**
+             * Creates a plain object from an ImuData message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof bayesmech.vision.ImuData
+             * @static
+             * @param {bayesmech.vision.ImuData} message ImuData
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            ImuData.toObject = function toObject(message, options) {
+                if (!options)
+                    options = {};
+                let object = {};
+                if (options.defaults) {
+                    object.angularVelocity = null;
+                    object.linearAcceleration = null;
+                    object.gravity = null;
+                    object.magneticField = null;
+                }
+                if (message.angularVelocity != null && message.hasOwnProperty("angularVelocity"))
+                    object.angularVelocity = $root.bayesmech.vision.Vector3.toObject(message.angularVelocity, options);
+                if (message.linearAcceleration != null && message.hasOwnProperty("linearAcceleration"))
+                    object.linearAcceleration = $root.bayesmech.vision.Vector3.toObject(message.linearAcceleration, options);
+                if (message.gravity != null && message.hasOwnProperty("gravity"))
+                    object.gravity = $root.bayesmech.vision.Vector3.toObject(message.gravity, options);
+                if (message.magneticField != null && message.hasOwnProperty("magneticField"))
+                    object.magneticField = $root.bayesmech.vision.Vector3.toObject(message.magneticField, options);
+                return object;
+            };
+
+            /**
+             * Converts this ImuData to JSON.
+             * @function toJSON
+             * @memberof bayesmech.vision.ImuData
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            ImuData.prototype.toJSON = function toJSON() {
+                return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the default type url for ImuData
+             * @function getTypeUrl
+             * @memberof bayesmech.vision.ImuData
+             * @static
+             * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns {string} The default type url
+             */
+            ImuData.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+                if (typeUrlPrefix === undefined) {
+                    typeUrlPrefix = "type.googleapis.com";
+                }
+                return typeUrlPrefix + "/bayesmech.vision.ImuData";
+            };
+
+            return ImuData;
+        })();
+
+        vision.GpsLocation = (function() {
+
+            /**
+             * Properties of a GpsLocation.
+             * @memberof bayesmech.vision
+             * @interface IGpsLocation
+             * @property {number|null} [latitude] GpsLocation latitude
+             * @property {number|null} [longitude] GpsLocation longitude
+             * @property {number|null} [altitude] GpsLocation altitude
+             * @property {number|null} [accuracy] GpsLocation accuracy
+             * @property {number|null} [bearing] GpsLocation bearing
+             * @property {number|null} [speed] GpsLocation speed
+             * @property {number|Long|null} [timestampMs] GpsLocation timestampMs
+             */
+
+            /**
+             * Constructs a new GpsLocation.
+             * @memberof bayesmech.vision
+             * @classdesc Represents a GpsLocation.
+             * @implements IGpsLocation
+             * @constructor
+             * @param {bayesmech.vision.IGpsLocation=} [properties] Properties to set
+             */
+            function GpsLocation(properties) {
+                if (properties)
+                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null)
+                            this[keys[i]] = properties[keys[i]];
+            }
+
+            /**
+             * GpsLocation latitude.
+             * @member {number} latitude
+             * @memberof bayesmech.vision.GpsLocation
+             * @instance
+             */
+            GpsLocation.prototype.latitude = 0;
+
+            /**
+             * GpsLocation longitude.
+             * @member {number} longitude
+             * @memberof bayesmech.vision.GpsLocation
+             * @instance
+             */
+            GpsLocation.prototype.longitude = 0;
+
+            /**
+             * GpsLocation altitude.
+             * @member {number} altitude
+             * @memberof bayesmech.vision.GpsLocation
+             * @instance
+             */
+            GpsLocation.prototype.altitude = 0;
+
+            /**
+             * GpsLocation accuracy.
+             * @member {number} accuracy
+             * @memberof bayesmech.vision.GpsLocation
+             * @instance
+             */
+            GpsLocation.prototype.accuracy = 0;
+
+            /**
+             * GpsLocation bearing.
+             * @member {number} bearing
+             * @memberof bayesmech.vision.GpsLocation
+             * @instance
+             */
+            GpsLocation.prototype.bearing = 0;
+
+            /**
+             * GpsLocation speed.
+             * @member {number} speed
+             * @memberof bayesmech.vision.GpsLocation
+             * @instance
+             */
+            GpsLocation.prototype.speed = 0;
+
+            /**
+             * GpsLocation timestampMs.
+             * @member {number|Long} timestampMs
+             * @memberof bayesmech.vision.GpsLocation
+             * @instance
+             */
+            GpsLocation.prototype.timestampMs = $util.Long ? $util.Long.fromBits(0,0,false) : 0;
+
+            /**
+             * Creates a new GpsLocation instance using the specified properties.
+             * @function create
+             * @memberof bayesmech.vision.GpsLocation
+             * @static
+             * @param {bayesmech.vision.IGpsLocation=} [properties] Properties to set
+             * @returns {bayesmech.vision.GpsLocation} GpsLocation instance
+             */
+            GpsLocation.create = function create(properties) {
+                return new GpsLocation(properties);
+            };
+
+            /**
+             * Encodes the specified GpsLocation message. Does not implicitly {@link bayesmech.vision.GpsLocation.verify|verify} messages.
+             * @function encode
+             * @memberof bayesmech.vision.GpsLocation
+             * @static
+             * @param {bayesmech.vision.IGpsLocation} message GpsLocation message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            GpsLocation.encode = function encode(message, writer) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (message.latitude != null && Object.hasOwnProperty.call(message, "latitude"))
+                    writer.uint32(/* id 1, wireType 1 =*/9).double(message.latitude);
+                if (message.longitude != null && Object.hasOwnProperty.call(message, "longitude"))
+                    writer.uint32(/* id 2, wireType 1 =*/17).double(message.longitude);
+                if (message.altitude != null && Object.hasOwnProperty.call(message, "altitude"))
+                    writer.uint32(/* id 3, wireType 1 =*/25).double(message.altitude);
+                if (message.accuracy != null && Object.hasOwnProperty.call(message, "accuracy"))
+                    writer.uint32(/* id 4, wireType 5 =*/37).float(message.accuracy);
+                if (message.bearing != null && Object.hasOwnProperty.call(message, "bearing"))
+                    writer.uint32(/* id 5, wireType 5 =*/45).float(message.bearing);
+                if (message.speed != null && Object.hasOwnProperty.call(message, "speed"))
+                    writer.uint32(/* id 6, wireType 5 =*/53).float(message.speed);
+                if (message.timestampMs != null && Object.hasOwnProperty.call(message, "timestampMs"))
+                    writer.uint32(/* id 7, wireType 0 =*/56).int64(message.timestampMs);
+                return writer;
+            };
+
+            /**
+             * Encodes the specified GpsLocation message, length delimited. Does not implicitly {@link bayesmech.vision.GpsLocation.verify|verify} messages.
+             * @function encodeDelimited
+             * @memberof bayesmech.vision.GpsLocation
+             * @static
+             * @param {bayesmech.vision.IGpsLocation} message GpsLocation message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            GpsLocation.encodeDelimited = function encodeDelimited(message, writer) {
+                return this.encode(message, writer).ldelim();
+            };
+
+            /**
+             * Decodes a GpsLocation message from the specified reader or buffer.
+             * @function decode
+             * @memberof bayesmech.vision.GpsLocation
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {bayesmech.vision.GpsLocation} GpsLocation
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            GpsLocation.decode = function decode(reader, length, error) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.GpsLocation();
+                while (reader.pos < end) {
+                    let tag = reader.uint32();
+                    if (tag === error)
+                        break;
+                    switch (tag >>> 3) {
+                    case 1: {
+                            message.latitude = reader.double();
+                            break;
+                        }
+                    case 2: {
+                            message.longitude = reader.double();
+                            break;
+                        }
+                    case 3: {
+                            message.altitude = reader.double();
+                            break;
+                        }
+                    case 4: {
+                            message.accuracy = reader.float();
+                            break;
+                        }
+                    case 5: {
+                            message.bearing = reader.float();
+                            break;
+                        }
+                    case 6: {
+                            message.speed = reader.float();
+                            break;
+                        }
+                    case 7: {
+                            message.timestampMs = reader.int64();
+                            break;
+                        }
+                    default:
+                        reader.skipType(tag & 7);
+                        break;
+                    }
+                }
+                return message;
+            };
+
+            /**
+             * Decodes a GpsLocation message from the specified reader or buffer, length delimited.
+             * @function decodeDelimited
+             * @memberof bayesmech.vision.GpsLocation
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @returns {bayesmech.vision.GpsLocation} GpsLocation
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            GpsLocation.decodeDelimited = function decodeDelimited(reader) {
+                if (!(reader instanceof $Reader))
+                    reader = new $Reader(reader);
+                return this.decode(reader, reader.uint32());
+            };
+
+            /**
+             * Verifies a GpsLocation message.
+             * @function verify
+             * @memberof bayesmech.vision.GpsLocation
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            GpsLocation.verify = function verify(message) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (message.latitude != null && message.hasOwnProperty("latitude"))
+                    if (typeof message.latitude !== "number")
+                        return "latitude: number expected";
+                if (message.longitude != null && message.hasOwnProperty("longitude"))
+                    if (typeof message.longitude !== "number")
+                        return "longitude: number expected";
+                if (message.altitude != null && message.hasOwnProperty("altitude"))
+                    if (typeof message.altitude !== "number")
+                        return "altitude: number expected";
+                if (message.accuracy != null && message.hasOwnProperty("accuracy"))
+                    if (typeof message.accuracy !== "number")
+                        return "accuracy: number expected";
+                if (message.bearing != null && message.hasOwnProperty("bearing"))
+                    if (typeof message.bearing !== "number")
+                        return "bearing: number expected";
+                if (message.speed != null && message.hasOwnProperty("speed"))
+                    if (typeof message.speed !== "number")
+                        return "speed: number expected";
+                if (message.timestampMs != null && message.hasOwnProperty("timestampMs"))
+                    if (!$util.isInteger(message.timestampMs) && !(message.timestampMs && $util.isInteger(message.timestampMs.low) && $util.isInteger(message.timestampMs.high)))
+                        return "timestampMs: integer|Long expected";
+                return null;
+            };
+
+            /**
+             * Creates a GpsLocation message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof bayesmech.vision.GpsLocation
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {bayesmech.vision.GpsLocation} GpsLocation
+             */
+            GpsLocation.fromObject = function fromObject(object) {
+                if (object instanceof $root.bayesmech.vision.GpsLocation)
+                    return object;
+                let message = new $root.bayesmech.vision.GpsLocation();
+                if (object.latitude != null)
+                    message.latitude = Number(object.latitude);
+                if (object.longitude != null)
+                    message.longitude = Number(object.longitude);
+                if (object.altitude != null)
+                    message.altitude = Number(object.altitude);
+                if (object.accuracy != null)
+                    message.accuracy = Number(object.accuracy);
+                if (object.bearing != null)
+                    message.bearing = Number(object.bearing);
+                if (object.speed != null)
+                    message.speed = Number(object.speed);
+                if (object.timestampMs != null)
+                    if ($util.Long)
+                        (message.timestampMs = $util.Long.fromValue(object.timestampMs)).unsigned = false;
+                    else if (typeof object.timestampMs === "string")
+                        message.timestampMs = parseInt(object.timestampMs, 10);
+                    else if (typeof object.timestampMs === "number")
+                        message.timestampMs = object.timestampMs;
+                    else if (typeof object.timestampMs === "object")
+                        message.timestampMs = new $util.LongBits(object.timestampMs.low >>> 0, object.timestampMs.high >>> 0).toNumber();
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a GpsLocation message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof bayesmech.vision.GpsLocation
+             * @static
+             * @param {bayesmech.vision.GpsLocation} message GpsLocation
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            GpsLocation.toObject = function toObject(message, options) {
+                if (!options)
+                    options = {};
+                let object = {};
+                if (options.defaults) {
+                    object.latitude = 0;
+                    object.longitude = 0;
+                    object.altitude = 0;
+                    object.accuracy = 0;
+                    object.bearing = 0;
+                    object.speed = 0;
+                    if ($util.Long) {
+                        let long = new $util.Long(0, 0, false);
+                        object.timestampMs = options.longs === String ? long.toString() : options.longs === Number ? long.toNumber() : long;
+                    } else
+                        object.timestampMs = options.longs === String ? "0" : 0;
+                }
+                if (message.latitude != null && message.hasOwnProperty("latitude"))
+                    object.latitude = options.json && !isFinite(message.latitude) ? String(message.latitude) : message.latitude;
+                if (message.longitude != null && message.hasOwnProperty("longitude"))
+                    object.longitude = options.json && !isFinite(message.longitude) ? String(message.longitude) : message.longitude;
+                if (message.altitude != null && message.hasOwnProperty("altitude"))
+                    object.altitude = options.json && !isFinite(message.altitude) ? String(message.altitude) : message.altitude;
+                if (message.accuracy != null && message.hasOwnProperty("accuracy"))
+                    object.accuracy = options.json && !isFinite(message.accuracy) ? String(message.accuracy) : message.accuracy;
+                if (message.bearing != null && message.hasOwnProperty("bearing"))
+                    object.bearing = options.json && !isFinite(message.bearing) ? String(message.bearing) : message.bearing;
+                if (message.speed != null && message.hasOwnProperty("speed"))
+                    object.speed = options.json && !isFinite(message.speed) ? String(message.speed) : message.speed;
+                if (message.timestampMs != null && message.hasOwnProperty("timestampMs"))
+                    if (typeof message.timestampMs === "number")
+                        object.timestampMs = options.longs === String ? String(message.timestampMs) : message.timestampMs;
+                    else
+                        object.timestampMs = options.longs === String ? $util.Long.prototype.toString.call(message.timestampMs) : options.longs === Number ? new $util.LongBits(message.timestampMs.low >>> 0, message.timestampMs.high >>> 0).toNumber() : message.timestampMs;
+                return object;
+            };
+
+            /**
+             * Converts this GpsLocation to JSON.
+             * @function toJSON
+             * @memberof bayesmech.vision.GpsLocation
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            GpsLocation.prototype.toJSON = function toJSON() {
+                return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the default type url for GpsLocation
+             * @function getTypeUrl
+             * @memberof bayesmech.vision.GpsLocation
+             * @static
+             * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns {string} The default type url
+             */
+            GpsLocation.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+                if (typeUrlPrefix === undefined) {
+                    typeUrlPrefix = "type.googleapis.com";
+                }
+                return typeUrlPrefix + "/bayesmech.vision.GpsLocation";
+            };
+
+            return GpsLocation;
+        })();
+
         vision.Pose = (function() {
 
             /**
@@ -1700,1945 +4025,6 @@ export const bayesmech = $root.bayesmech = (() => {
             return InferredGeometry;
         })();
 
-        vision.PerceiverDataFrame = (function() {
-
-            /**
-             * Properties of a PerceiverDataFrame.
-             * @memberof bayesmech.vision
-             * @interface IPerceiverDataFrame
-             * @property {bayesmech.vision.IPerceiverFrameIdentifier|null} [frameIdentifier] PerceiverDataFrame frameIdentifier
-             * @property {bayesmech.vision.IPose|null} [cameraPose] PerceiverDataFrame cameraPose
-             * @property {bayesmech.vision.IImageFrame|null} [rgbFrame] PerceiverDataFrame rgbFrame
-             * @property {bayesmech.vision.IDepthFrame|null} [depthFrame] PerceiverDataFrame depthFrame
-             * @property {bayesmech.vision.IImuData|null} [imuData] PerceiverDataFrame imuData
-             * @property {bayesmech.vision.ICameraIntrinsics|null} [cameraIntrinsics] PerceiverDataFrame cameraIntrinsics
-             * @property {bayesmech.vision.IInferredGeometry|null} [inferredGeometry] PerceiverDataFrame inferredGeometry
-             */
-
-            /**
-             * Constructs a new PerceiverDataFrame.
-             * @memberof bayesmech.vision
-             * @classdesc Represents a PerceiverDataFrame.
-             * @implements IPerceiverDataFrame
-             * @constructor
-             * @param {bayesmech.vision.IPerceiverDataFrame=} [properties] Properties to set
-             */
-            function PerceiverDataFrame(properties) {
-                if (properties)
-                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
-                        if (properties[keys[i]] != null)
-                            this[keys[i]] = properties[keys[i]];
-            }
-
-            /**
-             * PerceiverDataFrame frameIdentifier.
-             * @member {bayesmech.vision.IPerceiverFrameIdentifier|null|undefined} frameIdentifier
-             * @memberof bayesmech.vision.PerceiverDataFrame
-             * @instance
-             */
-            PerceiverDataFrame.prototype.frameIdentifier = null;
-
-            /**
-             * PerceiverDataFrame cameraPose.
-             * @member {bayesmech.vision.IPose|null|undefined} cameraPose
-             * @memberof bayesmech.vision.PerceiverDataFrame
-             * @instance
-             */
-            PerceiverDataFrame.prototype.cameraPose = null;
-
-            /**
-             * PerceiverDataFrame rgbFrame.
-             * @member {bayesmech.vision.IImageFrame|null|undefined} rgbFrame
-             * @memberof bayesmech.vision.PerceiverDataFrame
-             * @instance
-             */
-            PerceiverDataFrame.prototype.rgbFrame = null;
-
-            /**
-             * PerceiverDataFrame depthFrame.
-             * @member {bayesmech.vision.IDepthFrame|null|undefined} depthFrame
-             * @memberof bayesmech.vision.PerceiverDataFrame
-             * @instance
-             */
-            PerceiverDataFrame.prototype.depthFrame = null;
-
-            /**
-             * PerceiverDataFrame imuData.
-             * @member {bayesmech.vision.IImuData|null|undefined} imuData
-             * @memberof bayesmech.vision.PerceiverDataFrame
-             * @instance
-             */
-            PerceiverDataFrame.prototype.imuData = null;
-
-            /**
-             * PerceiverDataFrame cameraIntrinsics.
-             * @member {bayesmech.vision.ICameraIntrinsics|null|undefined} cameraIntrinsics
-             * @memberof bayesmech.vision.PerceiverDataFrame
-             * @instance
-             */
-            PerceiverDataFrame.prototype.cameraIntrinsics = null;
-
-            /**
-             * PerceiverDataFrame inferredGeometry.
-             * @member {bayesmech.vision.IInferredGeometry|null|undefined} inferredGeometry
-             * @memberof bayesmech.vision.PerceiverDataFrame
-             * @instance
-             */
-            PerceiverDataFrame.prototype.inferredGeometry = null;
-
-            /**
-             * Creates a new PerceiverDataFrame instance using the specified properties.
-             * @function create
-             * @memberof bayesmech.vision.PerceiverDataFrame
-             * @static
-             * @param {bayesmech.vision.IPerceiverDataFrame=} [properties] Properties to set
-             * @returns {bayesmech.vision.PerceiverDataFrame} PerceiverDataFrame instance
-             */
-            PerceiverDataFrame.create = function create(properties) {
-                return new PerceiverDataFrame(properties);
-            };
-
-            /**
-             * Encodes the specified PerceiverDataFrame message. Does not implicitly {@link bayesmech.vision.PerceiverDataFrame.verify|verify} messages.
-             * @function encode
-             * @memberof bayesmech.vision.PerceiverDataFrame
-             * @static
-             * @param {bayesmech.vision.IPerceiverDataFrame} message PerceiverDataFrame message or plain object to encode
-             * @param {$protobuf.Writer} [writer] Writer to encode to
-             * @returns {$protobuf.Writer} Writer
-             */
-            PerceiverDataFrame.encode = function encode(message, writer) {
-                if (!writer)
-                    writer = $Writer.create();
-                if (message.frameIdentifier != null && Object.hasOwnProperty.call(message, "frameIdentifier"))
-                    $root.bayesmech.vision.PerceiverFrameIdentifier.encode(message.frameIdentifier, writer.uint32(/* id 1, wireType 2 =*/10).fork()).ldelim();
-                if (message.cameraPose != null && Object.hasOwnProperty.call(message, "cameraPose"))
-                    $root.bayesmech.vision.Pose.encode(message.cameraPose, writer.uint32(/* id 2, wireType 2 =*/18).fork()).ldelim();
-                if (message.rgbFrame != null && Object.hasOwnProperty.call(message, "rgbFrame"))
-                    $root.bayesmech.vision.ImageFrame.encode(message.rgbFrame, writer.uint32(/* id 3, wireType 2 =*/26).fork()).ldelim();
-                if (message.depthFrame != null && Object.hasOwnProperty.call(message, "depthFrame"))
-                    $root.bayesmech.vision.DepthFrame.encode(message.depthFrame, writer.uint32(/* id 4, wireType 2 =*/34).fork()).ldelim();
-                if (message.imuData != null && Object.hasOwnProperty.call(message, "imuData"))
-                    $root.bayesmech.vision.ImuData.encode(message.imuData, writer.uint32(/* id 5, wireType 2 =*/42).fork()).ldelim();
-                if (message.cameraIntrinsics != null && Object.hasOwnProperty.call(message, "cameraIntrinsics"))
-                    $root.bayesmech.vision.CameraIntrinsics.encode(message.cameraIntrinsics, writer.uint32(/* id 6, wireType 2 =*/50).fork()).ldelim();
-                if (message.inferredGeometry != null && Object.hasOwnProperty.call(message, "inferredGeometry"))
-                    $root.bayesmech.vision.InferredGeometry.encode(message.inferredGeometry, writer.uint32(/* id 7, wireType 2 =*/58).fork()).ldelim();
-                return writer;
-            };
-
-            /**
-             * Encodes the specified PerceiverDataFrame message, length delimited. Does not implicitly {@link bayesmech.vision.PerceiverDataFrame.verify|verify} messages.
-             * @function encodeDelimited
-             * @memberof bayesmech.vision.PerceiverDataFrame
-             * @static
-             * @param {bayesmech.vision.IPerceiverDataFrame} message PerceiverDataFrame message or plain object to encode
-             * @param {$protobuf.Writer} [writer] Writer to encode to
-             * @returns {$protobuf.Writer} Writer
-             */
-            PerceiverDataFrame.encodeDelimited = function encodeDelimited(message, writer) {
-                return this.encode(message, writer).ldelim();
-            };
-
-            /**
-             * Decodes a PerceiverDataFrame message from the specified reader or buffer.
-             * @function decode
-             * @memberof bayesmech.vision.PerceiverDataFrame
-             * @static
-             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
-             * @param {number} [length] Message length if known beforehand
-             * @returns {bayesmech.vision.PerceiverDataFrame} PerceiverDataFrame
-             * @throws {Error} If the payload is not a reader or valid buffer
-             * @throws {$protobuf.util.ProtocolError} If required fields are missing
-             */
-            PerceiverDataFrame.decode = function decode(reader, length, error) {
-                if (!(reader instanceof $Reader))
-                    reader = $Reader.create(reader);
-                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.PerceiverDataFrame();
-                while (reader.pos < end) {
-                    let tag = reader.uint32();
-                    if (tag === error)
-                        break;
-                    switch (tag >>> 3) {
-                    case 1: {
-                            message.frameIdentifier = $root.bayesmech.vision.PerceiverFrameIdentifier.decode(reader, reader.uint32());
-                            break;
-                        }
-                    case 2: {
-                            message.cameraPose = $root.bayesmech.vision.Pose.decode(reader, reader.uint32());
-                            break;
-                        }
-                    case 3: {
-                            message.rgbFrame = $root.bayesmech.vision.ImageFrame.decode(reader, reader.uint32());
-                            break;
-                        }
-                    case 4: {
-                            message.depthFrame = $root.bayesmech.vision.DepthFrame.decode(reader, reader.uint32());
-                            break;
-                        }
-                    case 5: {
-                            message.imuData = $root.bayesmech.vision.ImuData.decode(reader, reader.uint32());
-                            break;
-                        }
-                    case 6: {
-                            message.cameraIntrinsics = $root.bayesmech.vision.CameraIntrinsics.decode(reader, reader.uint32());
-                            break;
-                        }
-                    case 7: {
-                            message.inferredGeometry = $root.bayesmech.vision.InferredGeometry.decode(reader, reader.uint32());
-                            break;
-                        }
-                    default:
-                        reader.skipType(tag & 7);
-                        break;
-                    }
-                }
-                return message;
-            };
-
-            /**
-             * Decodes a PerceiverDataFrame message from the specified reader or buffer, length delimited.
-             * @function decodeDelimited
-             * @memberof bayesmech.vision.PerceiverDataFrame
-             * @static
-             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
-             * @returns {bayesmech.vision.PerceiverDataFrame} PerceiverDataFrame
-             * @throws {Error} If the payload is not a reader or valid buffer
-             * @throws {$protobuf.util.ProtocolError} If required fields are missing
-             */
-            PerceiverDataFrame.decodeDelimited = function decodeDelimited(reader) {
-                if (!(reader instanceof $Reader))
-                    reader = new $Reader(reader);
-                return this.decode(reader, reader.uint32());
-            };
-
-            /**
-             * Verifies a PerceiverDataFrame message.
-             * @function verify
-             * @memberof bayesmech.vision.PerceiverDataFrame
-             * @static
-             * @param {Object.<string,*>} message Plain object to verify
-             * @returns {string|null} `null` if valid, otherwise the reason why it is not
-             */
-            PerceiverDataFrame.verify = function verify(message) {
-                if (typeof message !== "object" || message === null)
-                    return "object expected";
-                if (message.frameIdentifier != null && message.hasOwnProperty("frameIdentifier")) {
-                    let error = $root.bayesmech.vision.PerceiverFrameIdentifier.verify(message.frameIdentifier);
-                    if (error)
-                        return "frameIdentifier." + error;
-                }
-                if (message.cameraPose != null && message.hasOwnProperty("cameraPose")) {
-                    let error = $root.bayesmech.vision.Pose.verify(message.cameraPose);
-                    if (error)
-                        return "cameraPose." + error;
-                }
-                if (message.rgbFrame != null && message.hasOwnProperty("rgbFrame")) {
-                    let error = $root.bayesmech.vision.ImageFrame.verify(message.rgbFrame);
-                    if (error)
-                        return "rgbFrame." + error;
-                }
-                if (message.depthFrame != null && message.hasOwnProperty("depthFrame")) {
-                    let error = $root.bayesmech.vision.DepthFrame.verify(message.depthFrame);
-                    if (error)
-                        return "depthFrame." + error;
-                }
-                if (message.imuData != null && message.hasOwnProperty("imuData")) {
-                    let error = $root.bayesmech.vision.ImuData.verify(message.imuData);
-                    if (error)
-                        return "imuData." + error;
-                }
-                if (message.cameraIntrinsics != null && message.hasOwnProperty("cameraIntrinsics")) {
-                    let error = $root.bayesmech.vision.CameraIntrinsics.verify(message.cameraIntrinsics);
-                    if (error)
-                        return "cameraIntrinsics." + error;
-                }
-                if (message.inferredGeometry != null && message.hasOwnProperty("inferredGeometry")) {
-                    let error = $root.bayesmech.vision.InferredGeometry.verify(message.inferredGeometry);
-                    if (error)
-                        return "inferredGeometry." + error;
-                }
-                return null;
-            };
-
-            /**
-             * Creates a PerceiverDataFrame message from a plain object. Also converts values to their respective internal types.
-             * @function fromObject
-             * @memberof bayesmech.vision.PerceiverDataFrame
-             * @static
-             * @param {Object.<string,*>} object Plain object
-             * @returns {bayesmech.vision.PerceiverDataFrame} PerceiverDataFrame
-             */
-            PerceiverDataFrame.fromObject = function fromObject(object) {
-                if (object instanceof $root.bayesmech.vision.PerceiverDataFrame)
-                    return object;
-                let message = new $root.bayesmech.vision.PerceiverDataFrame();
-                if (object.frameIdentifier != null) {
-                    if (typeof object.frameIdentifier !== "object")
-                        throw TypeError(".bayesmech.vision.PerceiverDataFrame.frameIdentifier: object expected");
-                    message.frameIdentifier = $root.bayesmech.vision.PerceiverFrameIdentifier.fromObject(object.frameIdentifier);
-                }
-                if (object.cameraPose != null) {
-                    if (typeof object.cameraPose !== "object")
-                        throw TypeError(".bayesmech.vision.PerceiverDataFrame.cameraPose: object expected");
-                    message.cameraPose = $root.bayesmech.vision.Pose.fromObject(object.cameraPose);
-                }
-                if (object.rgbFrame != null) {
-                    if (typeof object.rgbFrame !== "object")
-                        throw TypeError(".bayesmech.vision.PerceiverDataFrame.rgbFrame: object expected");
-                    message.rgbFrame = $root.bayesmech.vision.ImageFrame.fromObject(object.rgbFrame);
-                }
-                if (object.depthFrame != null) {
-                    if (typeof object.depthFrame !== "object")
-                        throw TypeError(".bayesmech.vision.PerceiverDataFrame.depthFrame: object expected");
-                    message.depthFrame = $root.bayesmech.vision.DepthFrame.fromObject(object.depthFrame);
-                }
-                if (object.imuData != null) {
-                    if (typeof object.imuData !== "object")
-                        throw TypeError(".bayesmech.vision.PerceiverDataFrame.imuData: object expected");
-                    message.imuData = $root.bayesmech.vision.ImuData.fromObject(object.imuData);
-                }
-                if (object.cameraIntrinsics != null) {
-                    if (typeof object.cameraIntrinsics !== "object")
-                        throw TypeError(".bayesmech.vision.PerceiverDataFrame.cameraIntrinsics: object expected");
-                    message.cameraIntrinsics = $root.bayesmech.vision.CameraIntrinsics.fromObject(object.cameraIntrinsics);
-                }
-                if (object.inferredGeometry != null) {
-                    if (typeof object.inferredGeometry !== "object")
-                        throw TypeError(".bayesmech.vision.PerceiverDataFrame.inferredGeometry: object expected");
-                    message.inferredGeometry = $root.bayesmech.vision.InferredGeometry.fromObject(object.inferredGeometry);
-                }
-                return message;
-            };
-
-            /**
-             * Creates a plain object from a PerceiverDataFrame message. Also converts values to other types if specified.
-             * @function toObject
-             * @memberof bayesmech.vision.PerceiverDataFrame
-             * @static
-             * @param {bayesmech.vision.PerceiverDataFrame} message PerceiverDataFrame
-             * @param {$protobuf.IConversionOptions} [options] Conversion options
-             * @returns {Object.<string,*>} Plain object
-             */
-            PerceiverDataFrame.toObject = function toObject(message, options) {
-                if (!options)
-                    options = {};
-                let object = {};
-                if (options.defaults) {
-                    object.frameIdentifier = null;
-                    object.cameraPose = null;
-                    object.rgbFrame = null;
-                    object.depthFrame = null;
-                    object.imuData = null;
-                    object.cameraIntrinsics = null;
-                    object.inferredGeometry = null;
-                }
-                if (message.frameIdentifier != null && message.hasOwnProperty("frameIdentifier"))
-                    object.frameIdentifier = $root.bayesmech.vision.PerceiverFrameIdentifier.toObject(message.frameIdentifier, options);
-                if (message.cameraPose != null && message.hasOwnProperty("cameraPose"))
-                    object.cameraPose = $root.bayesmech.vision.Pose.toObject(message.cameraPose, options);
-                if (message.rgbFrame != null && message.hasOwnProperty("rgbFrame"))
-                    object.rgbFrame = $root.bayesmech.vision.ImageFrame.toObject(message.rgbFrame, options);
-                if (message.depthFrame != null && message.hasOwnProperty("depthFrame"))
-                    object.depthFrame = $root.bayesmech.vision.DepthFrame.toObject(message.depthFrame, options);
-                if (message.imuData != null && message.hasOwnProperty("imuData"))
-                    object.imuData = $root.bayesmech.vision.ImuData.toObject(message.imuData, options);
-                if (message.cameraIntrinsics != null && message.hasOwnProperty("cameraIntrinsics"))
-                    object.cameraIntrinsics = $root.bayesmech.vision.CameraIntrinsics.toObject(message.cameraIntrinsics, options);
-                if (message.inferredGeometry != null && message.hasOwnProperty("inferredGeometry"))
-                    object.inferredGeometry = $root.bayesmech.vision.InferredGeometry.toObject(message.inferredGeometry, options);
-                return object;
-            };
-
-            /**
-             * Converts this PerceiverDataFrame to JSON.
-             * @function toJSON
-             * @memberof bayesmech.vision.PerceiverDataFrame
-             * @instance
-             * @returns {Object.<string,*>} JSON object
-             */
-            PerceiverDataFrame.prototype.toJSON = function toJSON() {
-                return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
-            };
-
-            /**
-             * Gets the default type url for PerceiverDataFrame
-             * @function getTypeUrl
-             * @memberof bayesmech.vision.PerceiverDataFrame
-             * @static
-             * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
-             * @returns {string} The default type url
-             */
-            PerceiverDataFrame.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
-                if (typeUrlPrefix === undefined) {
-                    typeUrlPrefix = "type.googleapis.com";
-                }
-                return typeUrlPrefix + "/bayesmech.vision.PerceiverDataFrame";
-            };
-
-            return PerceiverDataFrame;
-        })();
-
-        vision.PerceiverFrameIdentifier = (function() {
-
-            /**
-             * Properties of a PerceiverFrameIdentifier.
-             * @memberof bayesmech.vision
-             * @interface IPerceiverFrameIdentifier
-             * @property {number|Long|null} [timestampNs] PerceiverFrameIdentifier timestampNs
-             * @property {number|null} [frameNumber] PerceiverFrameIdentifier frameNumber
-             * @property {string|null} [deviceId] PerceiverFrameIdentifier deviceId
-             */
-
-            /**
-             * Constructs a new PerceiverFrameIdentifier.
-             * @memberof bayesmech.vision
-             * @classdesc Represents a PerceiverFrameIdentifier.
-             * @implements IPerceiverFrameIdentifier
-             * @constructor
-             * @param {bayesmech.vision.IPerceiverFrameIdentifier=} [properties] Properties to set
-             */
-            function PerceiverFrameIdentifier(properties) {
-                if (properties)
-                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
-                        if (properties[keys[i]] != null)
-                            this[keys[i]] = properties[keys[i]];
-            }
-
-            /**
-             * PerceiverFrameIdentifier timestampNs.
-             * @member {number|Long} timestampNs
-             * @memberof bayesmech.vision.PerceiverFrameIdentifier
-             * @instance
-             */
-            PerceiverFrameIdentifier.prototype.timestampNs = $util.Long ? $util.Long.fromBits(0,0,false) : 0;
-
-            /**
-             * PerceiverFrameIdentifier frameNumber.
-             * @member {number} frameNumber
-             * @memberof bayesmech.vision.PerceiverFrameIdentifier
-             * @instance
-             */
-            PerceiverFrameIdentifier.prototype.frameNumber = 0;
-
-            /**
-             * PerceiverFrameIdentifier deviceId.
-             * @member {string} deviceId
-             * @memberof bayesmech.vision.PerceiverFrameIdentifier
-             * @instance
-             */
-            PerceiverFrameIdentifier.prototype.deviceId = "";
-
-            /**
-             * Creates a new PerceiverFrameIdentifier instance using the specified properties.
-             * @function create
-             * @memberof bayesmech.vision.PerceiverFrameIdentifier
-             * @static
-             * @param {bayesmech.vision.IPerceiverFrameIdentifier=} [properties] Properties to set
-             * @returns {bayesmech.vision.PerceiverFrameIdentifier} PerceiverFrameIdentifier instance
-             */
-            PerceiverFrameIdentifier.create = function create(properties) {
-                return new PerceiverFrameIdentifier(properties);
-            };
-
-            /**
-             * Encodes the specified PerceiverFrameIdentifier message. Does not implicitly {@link bayesmech.vision.PerceiverFrameIdentifier.verify|verify} messages.
-             * @function encode
-             * @memberof bayesmech.vision.PerceiverFrameIdentifier
-             * @static
-             * @param {bayesmech.vision.IPerceiverFrameIdentifier} message PerceiverFrameIdentifier message or plain object to encode
-             * @param {$protobuf.Writer} [writer] Writer to encode to
-             * @returns {$protobuf.Writer} Writer
-             */
-            PerceiverFrameIdentifier.encode = function encode(message, writer) {
-                if (!writer)
-                    writer = $Writer.create();
-                if (message.timestampNs != null && Object.hasOwnProperty.call(message, "timestampNs"))
-                    writer.uint32(/* id 1, wireType 0 =*/8).int64(message.timestampNs);
-                if (message.frameNumber != null && Object.hasOwnProperty.call(message, "frameNumber"))
-                    writer.uint32(/* id 2, wireType 0 =*/16).uint32(message.frameNumber);
-                if (message.deviceId != null && Object.hasOwnProperty.call(message, "deviceId"))
-                    writer.uint32(/* id 3, wireType 2 =*/26).string(message.deviceId);
-                return writer;
-            };
-
-            /**
-             * Encodes the specified PerceiverFrameIdentifier message, length delimited. Does not implicitly {@link bayesmech.vision.PerceiverFrameIdentifier.verify|verify} messages.
-             * @function encodeDelimited
-             * @memberof bayesmech.vision.PerceiverFrameIdentifier
-             * @static
-             * @param {bayesmech.vision.IPerceiverFrameIdentifier} message PerceiverFrameIdentifier message or plain object to encode
-             * @param {$protobuf.Writer} [writer] Writer to encode to
-             * @returns {$protobuf.Writer} Writer
-             */
-            PerceiverFrameIdentifier.encodeDelimited = function encodeDelimited(message, writer) {
-                return this.encode(message, writer).ldelim();
-            };
-
-            /**
-             * Decodes a PerceiverFrameIdentifier message from the specified reader or buffer.
-             * @function decode
-             * @memberof bayesmech.vision.PerceiverFrameIdentifier
-             * @static
-             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
-             * @param {number} [length] Message length if known beforehand
-             * @returns {bayesmech.vision.PerceiverFrameIdentifier} PerceiverFrameIdentifier
-             * @throws {Error} If the payload is not a reader or valid buffer
-             * @throws {$protobuf.util.ProtocolError} If required fields are missing
-             */
-            PerceiverFrameIdentifier.decode = function decode(reader, length, error) {
-                if (!(reader instanceof $Reader))
-                    reader = $Reader.create(reader);
-                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.PerceiverFrameIdentifier();
-                while (reader.pos < end) {
-                    let tag = reader.uint32();
-                    if (tag === error)
-                        break;
-                    switch (tag >>> 3) {
-                    case 1: {
-                            message.timestampNs = reader.int64();
-                            break;
-                        }
-                    case 2: {
-                            message.frameNumber = reader.uint32();
-                            break;
-                        }
-                    case 3: {
-                            message.deviceId = reader.string();
-                            break;
-                        }
-                    default:
-                        reader.skipType(tag & 7);
-                        break;
-                    }
-                }
-                return message;
-            };
-
-            /**
-             * Decodes a PerceiverFrameIdentifier message from the specified reader or buffer, length delimited.
-             * @function decodeDelimited
-             * @memberof bayesmech.vision.PerceiverFrameIdentifier
-             * @static
-             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
-             * @returns {bayesmech.vision.PerceiverFrameIdentifier} PerceiverFrameIdentifier
-             * @throws {Error} If the payload is not a reader or valid buffer
-             * @throws {$protobuf.util.ProtocolError} If required fields are missing
-             */
-            PerceiverFrameIdentifier.decodeDelimited = function decodeDelimited(reader) {
-                if (!(reader instanceof $Reader))
-                    reader = new $Reader(reader);
-                return this.decode(reader, reader.uint32());
-            };
-
-            /**
-             * Verifies a PerceiverFrameIdentifier message.
-             * @function verify
-             * @memberof bayesmech.vision.PerceiverFrameIdentifier
-             * @static
-             * @param {Object.<string,*>} message Plain object to verify
-             * @returns {string|null} `null` if valid, otherwise the reason why it is not
-             */
-            PerceiverFrameIdentifier.verify = function verify(message) {
-                if (typeof message !== "object" || message === null)
-                    return "object expected";
-                if (message.timestampNs != null && message.hasOwnProperty("timestampNs"))
-                    if (!$util.isInteger(message.timestampNs) && !(message.timestampNs && $util.isInteger(message.timestampNs.low) && $util.isInteger(message.timestampNs.high)))
-                        return "timestampNs: integer|Long expected";
-                if (message.frameNumber != null && message.hasOwnProperty("frameNumber"))
-                    if (!$util.isInteger(message.frameNumber))
-                        return "frameNumber: integer expected";
-                if (message.deviceId != null && message.hasOwnProperty("deviceId"))
-                    if (!$util.isString(message.deviceId))
-                        return "deviceId: string expected";
-                return null;
-            };
-
-            /**
-             * Creates a PerceiverFrameIdentifier message from a plain object. Also converts values to their respective internal types.
-             * @function fromObject
-             * @memberof bayesmech.vision.PerceiverFrameIdentifier
-             * @static
-             * @param {Object.<string,*>} object Plain object
-             * @returns {bayesmech.vision.PerceiverFrameIdentifier} PerceiverFrameIdentifier
-             */
-            PerceiverFrameIdentifier.fromObject = function fromObject(object) {
-                if (object instanceof $root.bayesmech.vision.PerceiverFrameIdentifier)
-                    return object;
-                let message = new $root.bayesmech.vision.PerceiverFrameIdentifier();
-                if (object.timestampNs != null)
-                    if ($util.Long)
-                        (message.timestampNs = $util.Long.fromValue(object.timestampNs)).unsigned = false;
-                    else if (typeof object.timestampNs === "string")
-                        message.timestampNs = parseInt(object.timestampNs, 10);
-                    else if (typeof object.timestampNs === "number")
-                        message.timestampNs = object.timestampNs;
-                    else if (typeof object.timestampNs === "object")
-                        message.timestampNs = new $util.LongBits(object.timestampNs.low >>> 0, object.timestampNs.high >>> 0).toNumber();
-                if (object.frameNumber != null)
-                    message.frameNumber = object.frameNumber >>> 0;
-                if (object.deviceId != null)
-                    message.deviceId = String(object.deviceId);
-                return message;
-            };
-
-            /**
-             * Creates a plain object from a PerceiverFrameIdentifier message. Also converts values to other types if specified.
-             * @function toObject
-             * @memberof bayesmech.vision.PerceiverFrameIdentifier
-             * @static
-             * @param {bayesmech.vision.PerceiverFrameIdentifier} message PerceiverFrameIdentifier
-             * @param {$protobuf.IConversionOptions} [options] Conversion options
-             * @returns {Object.<string,*>} Plain object
-             */
-            PerceiverFrameIdentifier.toObject = function toObject(message, options) {
-                if (!options)
-                    options = {};
-                let object = {};
-                if (options.defaults) {
-                    if ($util.Long) {
-                        let long = new $util.Long(0, 0, false);
-                        object.timestampNs = options.longs === String ? long.toString() : options.longs === Number ? long.toNumber() : long;
-                    } else
-                        object.timestampNs = options.longs === String ? "0" : 0;
-                    object.frameNumber = 0;
-                    object.deviceId = "";
-                }
-                if (message.timestampNs != null && message.hasOwnProperty("timestampNs"))
-                    if (typeof message.timestampNs === "number")
-                        object.timestampNs = options.longs === String ? String(message.timestampNs) : message.timestampNs;
-                    else
-                        object.timestampNs = options.longs === String ? $util.Long.prototype.toString.call(message.timestampNs) : options.longs === Number ? new $util.LongBits(message.timestampNs.low >>> 0, message.timestampNs.high >>> 0).toNumber() : message.timestampNs;
-                if (message.frameNumber != null && message.hasOwnProperty("frameNumber"))
-                    object.frameNumber = message.frameNumber;
-                if (message.deviceId != null && message.hasOwnProperty("deviceId"))
-                    object.deviceId = message.deviceId;
-                return object;
-            };
-
-            /**
-             * Converts this PerceiverFrameIdentifier to JSON.
-             * @function toJSON
-             * @memberof bayesmech.vision.PerceiverFrameIdentifier
-             * @instance
-             * @returns {Object.<string,*>} JSON object
-             */
-            PerceiverFrameIdentifier.prototype.toJSON = function toJSON() {
-                return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
-            };
-
-            /**
-             * Gets the default type url for PerceiverFrameIdentifier
-             * @function getTypeUrl
-             * @memberof bayesmech.vision.PerceiverFrameIdentifier
-             * @static
-             * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
-             * @returns {string} The default type url
-             */
-            PerceiverFrameIdentifier.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
-                if (typeUrlPrefix === undefined) {
-                    typeUrlPrefix = "type.googleapis.com";
-                }
-                return typeUrlPrefix + "/bayesmech.vision.PerceiverFrameIdentifier";
-            };
-
-            return PerceiverFrameIdentifier;
-        })();
-
-        vision.CameraIntrinsics = (function() {
-
-            /**
-             * Properties of a CameraIntrinsics.
-             * @memberof bayesmech.vision
-             * @interface ICameraIntrinsics
-             * @property {number|null} [fx] CameraIntrinsics fx
-             * @property {number|null} [fy] CameraIntrinsics fy
-             * @property {number|null} [cx] CameraIntrinsics cx
-             * @property {number|null} [cy] CameraIntrinsics cy
-             * @property {number|null} [imageWidth] CameraIntrinsics imageWidth
-             * @property {number|null} [imageHeight] CameraIntrinsics imageHeight
-             * @property {number|null} [depthWidth] CameraIntrinsics depthWidth
-             * @property {number|null} [depthHeight] CameraIntrinsics depthHeight
-             */
-
-            /**
-             * Constructs a new CameraIntrinsics.
-             * @memberof bayesmech.vision
-             * @classdesc Represents a CameraIntrinsics.
-             * @implements ICameraIntrinsics
-             * @constructor
-             * @param {bayesmech.vision.ICameraIntrinsics=} [properties] Properties to set
-             */
-            function CameraIntrinsics(properties) {
-                if (properties)
-                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
-                        if (properties[keys[i]] != null)
-                            this[keys[i]] = properties[keys[i]];
-            }
-
-            /**
-             * CameraIntrinsics fx.
-             * @member {number} fx
-             * @memberof bayesmech.vision.CameraIntrinsics
-             * @instance
-             */
-            CameraIntrinsics.prototype.fx = 0;
-
-            /**
-             * CameraIntrinsics fy.
-             * @member {number} fy
-             * @memberof bayesmech.vision.CameraIntrinsics
-             * @instance
-             */
-            CameraIntrinsics.prototype.fy = 0;
-
-            /**
-             * CameraIntrinsics cx.
-             * @member {number} cx
-             * @memberof bayesmech.vision.CameraIntrinsics
-             * @instance
-             */
-            CameraIntrinsics.prototype.cx = 0;
-
-            /**
-             * CameraIntrinsics cy.
-             * @member {number} cy
-             * @memberof bayesmech.vision.CameraIntrinsics
-             * @instance
-             */
-            CameraIntrinsics.prototype.cy = 0;
-
-            /**
-             * CameraIntrinsics imageWidth.
-             * @member {number} imageWidth
-             * @memberof bayesmech.vision.CameraIntrinsics
-             * @instance
-             */
-            CameraIntrinsics.prototype.imageWidth = 0;
-
-            /**
-             * CameraIntrinsics imageHeight.
-             * @member {number} imageHeight
-             * @memberof bayesmech.vision.CameraIntrinsics
-             * @instance
-             */
-            CameraIntrinsics.prototype.imageHeight = 0;
-
-            /**
-             * CameraIntrinsics depthWidth.
-             * @member {number} depthWidth
-             * @memberof bayesmech.vision.CameraIntrinsics
-             * @instance
-             */
-            CameraIntrinsics.prototype.depthWidth = 0;
-
-            /**
-             * CameraIntrinsics depthHeight.
-             * @member {number} depthHeight
-             * @memberof bayesmech.vision.CameraIntrinsics
-             * @instance
-             */
-            CameraIntrinsics.prototype.depthHeight = 0;
-
-            /**
-             * Creates a new CameraIntrinsics instance using the specified properties.
-             * @function create
-             * @memberof bayesmech.vision.CameraIntrinsics
-             * @static
-             * @param {bayesmech.vision.ICameraIntrinsics=} [properties] Properties to set
-             * @returns {bayesmech.vision.CameraIntrinsics} CameraIntrinsics instance
-             */
-            CameraIntrinsics.create = function create(properties) {
-                return new CameraIntrinsics(properties);
-            };
-
-            /**
-             * Encodes the specified CameraIntrinsics message. Does not implicitly {@link bayesmech.vision.CameraIntrinsics.verify|verify} messages.
-             * @function encode
-             * @memberof bayesmech.vision.CameraIntrinsics
-             * @static
-             * @param {bayesmech.vision.ICameraIntrinsics} message CameraIntrinsics message or plain object to encode
-             * @param {$protobuf.Writer} [writer] Writer to encode to
-             * @returns {$protobuf.Writer} Writer
-             */
-            CameraIntrinsics.encode = function encode(message, writer) {
-                if (!writer)
-                    writer = $Writer.create();
-                if (message.fx != null && Object.hasOwnProperty.call(message, "fx"))
-                    writer.uint32(/* id 1, wireType 5 =*/13).float(message.fx);
-                if (message.fy != null && Object.hasOwnProperty.call(message, "fy"))
-                    writer.uint32(/* id 2, wireType 5 =*/21).float(message.fy);
-                if (message.cx != null && Object.hasOwnProperty.call(message, "cx"))
-                    writer.uint32(/* id 3, wireType 5 =*/29).float(message.cx);
-                if (message.cy != null && Object.hasOwnProperty.call(message, "cy"))
-                    writer.uint32(/* id 4, wireType 5 =*/37).float(message.cy);
-                if (message.imageWidth != null && Object.hasOwnProperty.call(message, "imageWidth"))
-                    writer.uint32(/* id 5, wireType 5 =*/45).float(message.imageWidth);
-                if (message.imageHeight != null && Object.hasOwnProperty.call(message, "imageHeight"))
-                    writer.uint32(/* id 6, wireType 5 =*/53).float(message.imageHeight);
-                if (message.depthWidth != null && Object.hasOwnProperty.call(message, "depthWidth"))
-                    writer.uint32(/* id 7, wireType 5 =*/61).float(message.depthWidth);
-                if (message.depthHeight != null && Object.hasOwnProperty.call(message, "depthHeight"))
-                    writer.uint32(/* id 8, wireType 5 =*/69).float(message.depthHeight);
-                return writer;
-            };
-
-            /**
-             * Encodes the specified CameraIntrinsics message, length delimited. Does not implicitly {@link bayesmech.vision.CameraIntrinsics.verify|verify} messages.
-             * @function encodeDelimited
-             * @memberof bayesmech.vision.CameraIntrinsics
-             * @static
-             * @param {bayesmech.vision.ICameraIntrinsics} message CameraIntrinsics message or plain object to encode
-             * @param {$protobuf.Writer} [writer] Writer to encode to
-             * @returns {$protobuf.Writer} Writer
-             */
-            CameraIntrinsics.encodeDelimited = function encodeDelimited(message, writer) {
-                return this.encode(message, writer).ldelim();
-            };
-
-            /**
-             * Decodes a CameraIntrinsics message from the specified reader or buffer.
-             * @function decode
-             * @memberof bayesmech.vision.CameraIntrinsics
-             * @static
-             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
-             * @param {number} [length] Message length if known beforehand
-             * @returns {bayesmech.vision.CameraIntrinsics} CameraIntrinsics
-             * @throws {Error} If the payload is not a reader or valid buffer
-             * @throws {$protobuf.util.ProtocolError} If required fields are missing
-             */
-            CameraIntrinsics.decode = function decode(reader, length, error) {
-                if (!(reader instanceof $Reader))
-                    reader = $Reader.create(reader);
-                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.CameraIntrinsics();
-                while (reader.pos < end) {
-                    let tag = reader.uint32();
-                    if (tag === error)
-                        break;
-                    switch (tag >>> 3) {
-                    case 1: {
-                            message.fx = reader.float();
-                            break;
-                        }
-                    case 2: {
-                            message.fy = reader.float();
-                            break;
-                        }
-                    case 3: {
-                            message.cx = reader.float();
-                            break;
-                        }
-                    case 4: {
-                            message.cy = reader.float();
-                            break;
-                        }
-                    case 5: {
-                            message.imageWidth = reader.float();
-                            break;
-                        }
-                    case 6: {
-                            message.imageHeight = reader.float();
-                            break;
-                        }
-                    case 7: {
-                            message.depthWidth = reader.float();
-                            break;
-                        }
-                    case 8: {
-                            message.depthHeight = reader.float();
-                            break;
-                        }
-                    default:
-                        reader.skipType(tag & 7);
-                        break;
-                    }
-                }
-                return message;
-            };
-
-            /**
-             * Decodes a CameraIntrinsics message from the specified reader or buffer, length delimited.
-             * @function decodeDelimited
-             * @memberof bayesmech.vision.CameraIntrinsics
-             * @static
-             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
-             * @returns {bayesmech.vision.CameraIntrinsics} CameraIntrinsics
-             * @throws {Error} If the payload is not a reader or valid buffer
-             * @throws {$protobuf.util.ProtocolError} If required fields are missing
-             */
-            CameraIntrinsics.decodeDelimited = function decodeDelimited(reader) {
-                if (!(reader instanceof $Reader))
-                    reader = new $Reader(reader);
-                return this.decode(reader, reader.uint32());
-            };
-
-            /**
-             * Verifies a CameraIntrinsics message.
-             * @function verify
-             * @memberof bayesmech.vision.CameraIntrinsics
-             * @static
-             * @param {Object.<string,*>} message Plain object to verify
-             * @returns {string|null} `null` if valid, otherwise the reason why it is not
-             */
-            CameraIntrinsics.verify = function verify(message) {
-                if (typeof message !== "object" || message === null)
-                    return "object expected";
-                if (message.fx != null && message.hasOwnProperty("fx"))
-                    if (typeof message.fx !== "number")
-                        return "fx: number expected";
-                if (message.fy != null && message.hasOwnProperty("fy"))
-                    if (typeof message.fy !== "number")
-                        return "fy: number expected";
-                if (message.cx != null && message.hasOwnProperty("cx"))
-                    if (typeof message.cx !== "number")
-                        return "cx: number expected";
-                if (message.cy != null && message.hasOwnProperty("cy"))
-                    if (typeof message.cy !== "number")
-                        return "cy: number expected";
-                if (message.imageWidth != null && message.hasOwnProperty("imageWidth"))
-                    if (typeof message.imageWidth !== "number")
-                        return "imageWidth: number expected";
-                if (message.imageHeight != null && message.hasOwnProperty("imageHeight"))
-                    if (typeof message.imageHeight !== "number")
-                        return "imageHeight: number expected";
-                if (message.depthWidth != null && message.hasOwnProperty("depthWidth"))
-                    if (typeof message.depthWidth !== "number")
-                        return "depthWidth: number expected";
-                if (message.depthHeight != null && message.hasOwnProperty("depthHeight"))
-                    if (typeof message.depthHeight !== "number")
-                        return "depthHeight: number expected";
-                return null;
-            };
-
-            /**
-             * Creates a CameraIntrinsics message from a plain object. Also converts values to their respective internal types.
-             * @function fromObject
-             * @memberof bayesmech.vision.CameraIntrinsics
-             * @static
-             * @param {Object.<string,*>} object Plain object
-             * @returns {bayesmech.vision.CameraIntrinsics} CameraIntrinsics
-             */
-            CameraIntrinsics.fromObject = function fromObject(object) {
-                if (object instanceof $root.bayesmech.vision.CameraIntrinsics)
-                    return object;
-                let message = new $root.bayesmech.vision.CameraIntrinsics();
-                if (object.fx != null)
-                    message.fx = Number(object.fx);
-                if (object.fy != null)
-                    message.fy = Number(object.fy);
-                if (object.cx != null)
-                    message.cx = Number(object.cx);
-                if (object.cy != null)
-                    message.cy = Number(object.cy);
-                if (object.imageWidth != null)
-                    message.imageWidth = Number(object.imageWidth);
-                if (object.imageHeight != null)
-                    message.imageHeight = Number(object.imageHeight);
-                if (object.depthWidth != null)
-                    message.depthWidth = Number(object.depthWidth);
-                if (object.depthHeight != null)
-                    message.depthHeight = Number(object.depthHeight);
-                return message;
-            };
-
-            /**
-             * Creates a plain object from a CameraIntrinsics message. Also converts values to other types if specified.
-             * @function toObject
-             * @memberof bayesmech.vision.CameraIntrinsics
-             * @static
-             * @param {bayesmech.vision.CameraIntrinsics} message CameraIntrinsics
-             * @param {$protobuf.IConversionOptions} [options] Conversion options
-             * @returns {Object.<string,*>} Plain object
-             */
-            CameraIntrinsics.toObject = function toObject(message, options) {
-                if (!options)
-                    options = {};
-                let object = {};
-                if (options.defaults) {
-                    object.fx = 0;
-                    object.fy = 0;
-                    object.cx = 0;
-                    object.cy = 0;
-                    object.imageWidth = 0;
-                    object.imageHeight = 0;
-                    object.depthWidth = 0;
-                    object.depthHeight = 0;
-                }
-                if (message.fx != null && message.hasOwnProperty("fx"))
-                    object.fx = options.json && !isFinite(message.fx) ? String(message.fx) : message.fx;
-                if (message.fy != null && message.hasOwnProperty("fy"))
-                    object.fy = options.json && !isFinite(message.fy) ? String(message.fy) : message.fy;
-                if (message.cx != null && message.hasOwnProperty("cx"))
-                    object.cx = options.json && !isFinite(message.cx) ? String(message.cx) : message.cx;
-                if (message.cy != null && message.hasOwnProperty("cy"))
-                    object.cy = options.json && !isFinite(message.cy) ? String(message.cy) : message.cy;
-                if (message.imageWidth != null && message.hasOwnProperty("imageWidth"))
-                    object.imageWidth = options.json && !isFinite(message.imageWidth) ? String(message.imageWidth) : message.imageWidth;
-                if (message.imageHeight != null && message.hasOwnProperty("imageHeight"))
-                    object.imageHeight = options.json && !isFinite(message.imageHeight) ? String(message.imageHeight) : message.imageHeight;
-                if (message.depthWidth != null && message.hasOwnProperty("depthWidth"))
-                    object.depthWidth = options.json && !isFinite(message.depthWidth) ? String(message.depthWidth) : message.depthWidth;
-                if (message.depthHeight != null && message.hasOwnProperty("depthHeight"))
-                    object.depthHeight = options.json && !isFinite(message.depthHeight) ? String(message.depthHeight) : message.depthHeight;
-                return object;
-            };
-
-            /**
-             * Converts this CameraIntrinsics to JSON.
-             * @function toJSON
-             * @memberof bayesmech.vision.CameraIntrinsics
-             * @instance
-             * @returns {Object.<string,*>} JSON object
-             */
-            CameraIntrinsics.prototype.toJSON = function toJSON() {
-                return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
-            };
-
-            /**
-             * Gets the default type url for CameraIntrinsics
-             * @function getTypeUrl
-             * @memberof bayesmech.vision.CameraIntrinsics
-             * @static
-             * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
-             * @returns {string} The default type url
-             */
-            CameraIntrinsics.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
-                if (typeUrlPrefix === undefined) {
-                    typeUrlPrefix = "type.googleapis.com";
-                }
-                return typeUrlPrefix + "/bayesmech.vision.CameraIntrinsics";
-            };
-
-            return CameraIntrinsics;
-        })();
-
-        vision.ImageFrame = (function() {
-
-            /**
-             * Properties of an ImageFrame.
-             * @memberof bayesmech.vision
-             * @interface IImageFrame
-             * @property {Uint8Array|null} [data] ImageFrame data
-             * @property {bayesmech.vision.ImageFrame.ImageFormat|null} [format] ImageFrame format
-             * @property {number|null} [quality] ImageFrame quality
-             */
-
-            /**
-             * Constructs a new ImageFrame.
-             * @memberof bayesmech.vision
-             * @classdesc Represents an ImageFrame.
-             * @implements IImageFrame
-             * @constructor
-             * @param {bayesmech.vision.IImageFrame=} [properties] Properties to set
-             */
-            function ImageFrame(properties) {
-                if (properties)
-                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
-                        if (properties[keys[i]] != null)
-                            this[keys[i]] = properties[keys[i]];
-            }
-
-            /**
-             * ImageFrame data.
-             * @member {Uint8Array} data
-             * @memberof bayesmech.vision.ImageFrame
-             * @instance
-             */
-            ImageFrame.prototype.data = $util.newBuffer([]);
-
-            /**
-             * ImageFrame format.
-             * @member {bayesmech.vision.ImageFrame.ImageFormat} format
-             * @memberof bayesmech.vision.ImageFrame
-             * @instance
-             */
-            ImageFrame.prototype.format = 0;
-
-            /**
-             * ImageFrame quality.
-             * @member {number} quality
-             * @memberof bayesmech.vision.ImageFrame
-             * @instance
-             */
-            ImageFrame.prototype.quality = 0;
-
-            /**
-             * Creates a new ImageFrame instance using the specified properties.
-             * @function create
-             * @memberof bayesmech.vision.ImageFrame
-             * @static
-             * @param {bayesmech.vision.IImageFrame=} [properties] Properties to set
-             * @returns {bayesmech.vision.ImageFrame} ImageFrame instance
-             */
-            ImageFrame.create = function create(properties) {
-                return new ImageFrame(properties);
-            };
-
-            /**
-             * Encodes the specified ImageFrame message. Does not implicitly {@link bayesmech.vision.ImageFrame.verify|verify} messages.
-             * @function encode
-             * @memberof bayesmech.vision.ImageFrame
-             * @static
-             * @param {bayesmech.vision.IImageFrame} message ImageFrame message or plain object to encode
-             * @param {$protobuf.Writer} [writer] Writer to encode to
-             * @returns {$protobuf.Writer} Writer
-             */
-            ImageFrame.encode = function encode(message, writer) {
-                if (!writer)
-                    writer = $Writer.create();
-                if (message.data != null && Object.hasOwnProperty.call(message, "data"))
-                    writer.uint32(/* id 1, wireType 2 =*/10).bytes(message.data);
-                if (message.format != null && Object.hasOwnProperty.call(message, "format"))
-                    writer.uint32(/* id 2, wireType 0 =*/16).int32(message.format);
-                if (message.quality != null && Object.hasOwnProperty.call(message, "quality"))
-                    writer.uint32(/* id 5, wireType 0 =*/40).uint32(message.quality);
-                return writer;
-            };
-
-            /**
-             * Encodes the specified ImageFrame message, length delimited. Does not implicitly {@link bayesmech.vision.ImageFrame.verify|verify} messages.
-             * @function encodeDelimited
-             * @memberof bayesmech.vision.ImageFrame
-             * @static
-             * @param {bayesmech.vision.IImageFrame} message ImageFrame message or plain object to encode
-             * @param {$protobuf.Writer} [writer] Writer to encode to
-             * @returns {$protobuf.Writer} Writer
-             */
-            ImageFrame.encodeDelimited = function encodeDelimited(message, writer) {
-                return this.encode(message, writer).ldelim();
-            };
-
-            /**
-             * Decodes an ImageFrame message from the specified reader or buffer.
-             * @function decode
-             * @memberof bayesmech.vision.ImageFrame
-             * @static
-             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
-             * @param {number} [length] Message length if known beforehand
-             * @returns {bayesmech.vision.ImageFrame} ImageFrame
-             * @throws {Error} If the payload is not a reader or valid buffer
-             * @throws {$protobuf.util.ProtocolError} If required fields are missing
-             */
-            ImageFrame.decode = function decode(reader, length, error) {
-                if (!(reader instanceof $Reader))
-                    reader = $Reader.create(reader);
-                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.ImageFrame();
-                while (reader.pos < end) {
-                    let tag = reader.uint32();
-                    if (tag === error)
-                        break;
-                    switch (tag >>> 3) {
-                    case 1: {
-                            message.data = reader.bytes();
-                            break;
-                        }
-                    case 2: {
-                            message.format = reader.int32();
-                            break;
-                        }
-                    case 5: {
-                            message.quality = reader.uint32();
-                            break;
-                        }
-                    default:
-                        reader.skipType(tag & 7);
-                        break;
-                    }
-                }
-                return message;
-            };
-
-            /**
-             * Decodes an ImageFrame message from the specified reader or buffer, length delimited.
-             * @function decodeDelimited
-             * @memberof bayesmech.vision.ImageFrame
-             * @static
-             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
-             * @returns {bayesmech.vision.ImageFrame} ImageFrame
-             * @throws {Error} If the payload is not a reader or valid buffer
-             * @throws {$protobuf.util.ProtocolError} If required fields are missing
-             */
-            ImageFrame.decodeDelimited = function decodeDelimited(reader) {
-                if (!(reader instanceof $Reader))
-                    reader = new $Reader(reader);
-                return this.decode(reader, reader.uint32());
-            };
-
-            /**
-             * Verifies an ImageFrame message.
-             * @function verify
-             * @memberof bayesmech.vision.ImageFrame
-             * @static
-             * @param {Object.<string,*>} message Plain object to verify
-             * @returns {string|null} `null` if valid, otherwise the reason why it is not
-             */
-            ImageFrame.verify = function verify(message) {
-                if (typeof message !== "object" || message === null)
-                    return "object expected";
-                if (message.data != null && message.hasOwnProperty("data"))
-                    if (!(message.data && typeof message.data.length === "number" || $util.isString(message.data)))
-                        return "data: buffer expected";
-                if (message.format != null && message.hasOwnProperty("format"))
-                    switch (message.format) {
-                    default:
-                        return "format: enum value expected";
-                    case 0:
-                    case 1:
-                    case 2:
-                    case 3:
-                    case 4:
-                    case 5:
-                        break;
-                    }
-                if (message.quality != null && message.hasOwnProperty("quality"))
-                    if (!$util.isInteger(message.quality))
-                        return "quality: integer expected";
-                return null;
-            };
-
-            /**
-             * Creates an ImageFrame message from a plain object. Also converts values to their respective internal types.
-             * @function fromObject
-             * @memberof bayesmech.vision.ImageFrame
-             * @static
-             * @param {Object.<string,*>} object Plain object
-             * @returns {bayesmech.vision.ImageFrame} ImageFrame
-             */
-            ImageFrame.fromObject = function fromObject(object) {
-                if (object instanceof $root.bayesmech.vision.ImageFrame)
-                    return object;
-                let message = new $root.bayesmech.vision.ImageFrame();
-                if (object.data != null)
-                    if (typeof object.data === "string")
-                        $util.base64.decode(object.data, message.data = $util.newBuffer($util.base64.length(object.data)), 0);
-                    else if (object.data.length >= 0)
-                        message.data = object.data;
-                switch (object.format) {
-                default:
-                    if (typeof object.format === "number") {
-                        message.format = object.format;
-                        break;
-                    }
-                    break;
-                case "UNKNOWN":
-                case 0:
-                    message.format = 0;
-                    break;
-                case "BITMAP_RGB":
-                case 1:
-                    message.format = 1;
-                    break;
-                case "BITMAP_RGBA":
-                case 2:
-                    message.format = 2;
-                    break;
-                case "YUV_420":
-                case 3:
-                    message.format = 3;
-                    break;
-                case "JPEG":
-                case 4:
-                    message.format = 4;
-                    break;
-                case "GRAYSCALE":
-                case 5:
-                    message.format = 5;
-                    break;
-                }
-                if (object.quality != null)
-                    message.quality = object.quality >>> 0;
-                return message;
-            };
-
-            /**
-             * Creates a plain object from an ImageFrame message. Also converts values to other types if specified.
-             * @function toObject
-             * @memberof bayesmech.vision.ImageFrame
-             * @static
-             * @param {bayesmech.vision.ImageFrame} message ImageFrame
-             * @param {$protobuf.IConversionOptions} [options] Conversion options
-             * @returns {Object.<string,*>} Plain object
-             */
-            ImageFrame.toObject = function toObject(message, options) {
-                if (!options)
-                    options = {};
-                let object = {};
-                if (options.defaults) {
-                    if (options.bytes === String)
-                        object.data = "";
-                    else {
-                        object.data = [];
-                        if (options.bytes !== Array)
-                            object.data = $util.newBuffer(object.data);
-                    }
-                    object.format = options.enums === String ? "UNKNOWN" : 0;
-                    object.quality = 0;
-                }
-                if (message.data != null && message.hasOwnProperty("data"))
-                    object.data = options.bytes === String ? $util.base64.encode(message.data, 0, message.data.length) : options.bytes === Array ? Array.prototype.slice.call(message.data) : message.data;
-                if (message.format != null && message.hasOwnProperty("format"))
-                    object.format = options.enums === String ? $root.bayesmech.vision.ImageFrame.ImageFormat[message.format] === undefined ? message.format : $root.bayesmech.vision.ImageFrame.ImageFormat[message.format] : message.format;
-                if (message.quality != null && message.hasOwnProperty("quality"))
-                    object.quality = message.quality;
-                return object;
-            };
-
-            /**
-             * Converts this ImageFrame to JSON.
-             * @function toJSON
-             * @memberof bayesmech.vision.ImageFrame
-             * @instance
-             * @returns {Object.<string,*>} JSON object
-             */
-            ImageFrame.prototype.toJSON = function toJSON() {
-                return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
-            };
-
-            /**
-             * Gets the default type url for ImageFrame
-             * @function getTypeUrl
-             * @memberof bayesmech.vision.ImageFrame
-             * @static
-             * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
-             * @returns {string} The default type url
-             */
-            ImageFrame.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
-                if (typeUrlPrefix === undefined) {
-                    typeUrlPrefix = "type.googleapis.com";
-                }
-                return typeUrlPrefix + "/bayesmech.vision.ImageFrame";
-            };
-
-            /**
-             * ImageFormat enum.
-             * @name bayesmech.vision.ImageFrame.ImageFormat
-             * @enum {number}
-             * @property {number} UNKNOWN=0 UNKNOWN value
-             * @property {number} BITMAP_RGB=1 BITMAP_RGB value
-             * @property {number} BITMAP_RGBA=2 BITMAP_RGBA value
-             * @property {number} YUV_420=3 YUV_420 value
-             * @property {number} JPEG=4 JPEG value
-             * @property {number} GRAYSCALE=5 GRAYSCALE value
-             */
-            ImageFrame.ImageFormat = (function() {
-                const valuesById = {}, values = Object.create(valuesById);
-                values[valuesById[0] = "UNKNOWN"] = 0;
-                values[valuesById[1] = "BITMAP_RGB"] = 1;
-                values[valuesById[2] = "BITMAP_RGBA"] = 2;
-                values[valuesById[3] = "YUV_420"] = 3;
-                values[valuesById[4] = "JPEG"] = 4;
-                values[valuesById[5] = "GRAYSCALE"] = 5;
-                return values;
-            })();
-
-            return ImageFrame;
-        })();
-
-        vision.DepthFrame = (function() {
-
-            /**
-             * Properties of a DepthFrame.
-             * @memberof bayesmech.vision
-             * @interface IDepthFrame
-             * @property {Uint8Array|null} [data] DepthFrame data
-             * @property {Uint8Array|null} [confidence] DepthFrame confidence
-             * @property {bayesmech.vision.DepthFrame.DepthFormat|null} [format] DepthFrame format
-             */
-
-            /**
-             * Constructs a new DepthFrame.
-             * @memberof bayesmech.vision
-             * @classdesc Represents a DepthFrame.
-             * @implements IDepthFrame
-             * @constructor
-             * @param {bayesmech.vision.IDepthFrame=} [properties] Properties to set
-             */
-            function DepthFrame(properties) {
-                if (properties)
-                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
-                        if (properties[keys[i]] != null)
-                            this[keys[i]] = properties[keys[i]];
-            }
-
-            /**
-             * DepthFrame data.
-             * @member {Uint8Array} data
-             * @memberof bayesmech.vision.DepthFrame
-             * @instance
-             */
-            DepthFrame.prototype.data = $util.newBuffer([]);
-
-            /**
-             * DepthFrame confidence.
-             * @member {Uint8Array} confidence
-             * @memberof bayesmech.vision.DepthFrame
-             * @instance
-             */
-            DepthFrame.prototype.confidence = $util.newBuffer([]);
-
-            /**
-             * DepthFrame format.
-             * @member {bayesmech.vision.DepthFrame.DepthFormat} format
-             * @memberof bayesmech.vision.DepthFrame
-             * @instance
-             */
-            DepthFrame.prototype.format = 0;
-
-            /**
-             * Creates a new DepthFrame instance using the specified properties.
-             * @function create
-             * @memberof bayesmech.vision.DepthFrame
-             * @static
-             * @param {bayesmech.vision.IDepthFrame=} [properties] Properties to set
-             * @returns {bayesmech.vision.DepthFrame} DepthFrame instance
-             */
-            DepthFrame.create = function create(properties) {
-                return new DepthFrame(properties);
-            };
-
-            /**
-             * Encodes the specified DepthFrame message. Does not implicitly {@link bayesmech.vision.DepthFrame.verify|verify} messages.
-             * @function encode
-             * @memberof bayesmech.vision.DepthFrame
-             * @static
-             * @param {bayesmech.vision.IDepthFrame} message DepthFrame message or plain object to encode
-             * @param {$protobuf.Writer} [writer] Writer to encode to
-             * @returns {$protobuf.Writer} Writer
-             */
-            DepthFrame.encode = function encode(message, writer) {
-                if (!writer)
-                    writer = $Writer.create();
-                if (message.data != null && Object.hasOwnProperty.call(message, "data"))
-                    writer.uint32(/* id 1, wireType 2 =*/10).bytes(message.data);
-                if (message.confidence != null && Object.hasOwnProperty.call(message, "confidence"))
-                    writer.uint32(/* id 2, wireType 2 =*/18).bytes(message.confidence);
-                if (message.format != null && Object.hasOwnProperty.call(message, "format"))
-                    writer.uint32(/* id 3, wireType 0 =*/24).int32(message.format);
-                return writer;
-            };
-
-            /**
-             * Encodes the specified DepthFrame message, length delimited. Does not implicitly {@link bayesmech.vision.DepthFrame.verify|verify} messages.
-             * @function encodeDelimited
-             * @memberof bayesmech.vision.DepthFrame
-             * @static
-             * @param {bayesmech.vision.IDepthFrame} message DepthFrame message or plain object to encode
-             * @param {$protobuf.Writer} [writer] Writer to encode to
-             * @returns {$protobuf.Writer} Writer
-             */
-            DepthFrame.encodeDelimited = function encodeDelimited(message, writer) {
-                return this.encode(message, writer).ldelim();
-            };
-
-            /**
-             * Decodes a DepthFrame message from the specified reader or buffer.
-             * @function decode
-             * @memberof bayesmech.vision.DepthFrame
-             * @static
-             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
-             * @param {number} [length] Message length if known beforehand
-             * @returns {bayesmech.vision.DepthFrame} DepthFrame
-             * @throws {Error} If the payload is not a reader or valid buffer
-             * @throws {$protobuf.util.ProtocolError} If required fields are missing
-             */
-            DepthFrame.decode = function decode(reader, length, error) {
-                if (!(reader instanceof $Reader))
-                    reader = $Reader.create(reader);
-                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.DepthFrame();
-                while (reader.pos < end) {
-                    let tag = reader.uint32();
-                    if (tag === error)
-                        break;
-                    switch (tag >>> 3) {
-                    case 1: {
-                            message.data = reader.bytes();
-                            break;
-                        }
-                    case 2: {
-                            message.confidence = reader.bytes();
-                            break;
-                        }
-                    case 3: {
-                            message.format = reader.int32();
-                            break;
-                        }
-                    default:
-                        reader.skipType(tag & 7);
-                        break;
-                    }
-                }
-                return message;
-            };
-
-            /**
-             * Decodes a DepthFrame message from the specified reader or buffer, length delimited.
-             * @function decodeDelimited
-             * @memberof bayesmech.vision.DepthFrame
-             * @static
-             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
-             * @returns {bayesmech.vision.DepthFrame} DepthFrame
-             * @throws {Error} If the payload is not a reader or valid buffer
-             * @throws {$protobuf.util.ProtocolError} If required fields are missing
-             */
-            DepthFrame.decodeDelimited = function decodeDelimited(reader) {
-                if (!(reader instanceof $Reader))
-                    reader = new $Reader(reader);
-                return this.decode(reader, reader.uint32());
-            };
-
-            /**
-             * Verifies a DepthFrame message.
-             * @function verify
-             * @memberof bayesmech.vision.DepthFrame
-             * @static
-             * @param {Object.<string,*>} message Plain object to verify
-             * @returns {string|null} `null` if valid, otherwise the reason why it is not
-             */
-            DepthFrame.verify = function verify(message) {
-                if (typeof message !== "object" || message === null)
-                    return "object expected";
-                if (message.data != null && message.hasOwnProperty("data"))
-                    if (!(message.data && typeof message.data.length === "number" || $util.isString(message.data)))
-                        return "data: buffer expected";
-                if (message.confidence != null && message.hasOwnProperty("confidence"))
-                    if (!(message.confidence && typeof message.confidence.length === "number" || $util.isString(message.confidence)))
-                        return "confidence: buffer expected";
-                if (message.format != null && message.hasOwnProperty("format"))
-                    switch (message.format) {
-                    default:
-                        return "format: enum value expected";
-                    case 0:
-                    case 1:
-                    case 2:
-                        break;
-                    }
-                return null;
-            };
-
-            /**
-             * Creates a DepthFrame message from a plain object. Also converts values to their respective internal types.
-             * @function fromObject
-             * @memberof bayesmech.vision.DepthFrame
-             * @static
-             * @param {Object.<string,*>} object Plain object
-             * @returns {bayesmech.vision.DepthFrame} DepthFrame
-             */
-            DepthFrame.fromObject = function fromObject(object) {
-                if (object instanceof $root.bayesmech.vision.DepthFrame)
-                    return object;
-                let message = new $root.bayesmech.vision.DepthFrame();
-                if (object.data != null)
-                    if (typeof object.data === "string")
-                        $util.base64.decode(object.data, message.data = $util.newBuffer($util.base64.length(object.data)), 0);
-                    else if (object.data.length >= 0)
-                        message.data = object.data;
-                if (object.confidence != null)
-                    if (typeof object.confidence === "string")
-                        $util.base64.decode(object.confidence, message.confidence = $util.newBuffer($util.base64.length(object.confidence)), 0);
-                    else if (object.confidence.length >= 0)
-                        message.confidence = object.confidence;
-                switch (object.format) {
-                default:
-                    if (typeof object.format === "number") {
-                        message.format = object.format;
-                        break;
-                    }
-                    break;
-                case "DEPTH_FORMAT_UNKNOWN":
-                case 0:
-                    message.format = 0;
-                    break;
-                case "UINT16_MILLIMETERS":
-                case 1:
-                    message.format = 1;
-                    break;
-                case "FLOAT32_METERS":
-                case 2:
-                    message.format = 2;
-                    break;
-                }
-                return message;
-            };
-
-            /**
-             * Creates a plain object from a DepthFrame message. Also converts values to other types if specified.
-             * @function toObject
-             * @memberof bayesmech.vision.DepthFrame
-             * @static
-             * @param {bayesmech.vision.DepthFrame} message DepthFrame
-             * @param {$protobuf.IConversionOptions} [options] Conversion options
-             * @returns {Object.<string,*>} Plain object
-             */
-            DepthFrame.toObject = function toObject(message, options) {
-                if (!options)
-                    options = {};
-                let object = {};
-                if (options.defaults) {
-                    if (options.bytes === String)
-                        object.data = "";
-                    else {
-                        object.data = [];
-                        if (options.bytes !== Array)
-                            object.data = $util.newBuffer(object.data);
-                    }
-                    if (options.bytes === String)
-                        object.confidence = "";
-                    else {
-                        object.confidence = [];
-                        if (options.bytes !== Array)
-                            object.confidence = $util.newBuffer(object.confidence);
-                    }
-                    object.format = options.enums === String ? "DEPTH_FORMAT_UNKNOWN" : 0;
-                }
-                if (message.data != null && message.hasOwnProperty("data"))
-                    object.data = options.bytes === String ? $util.base64.encode(message.data, 0, message.data.length) : options.bytes === Array ? Array.prototype.slice.call(message.data) : message.data;
-                if (message.confidence != null && message.hasOwnProperty("confidence"))
-                    object.confidence = options.bytes === String ? $util.base64.encode(message.confidence, 0, message.confidence.length) : options.bytes === Array ? Array.prototype.slice.call(message.confidence) : message.confidence;
-                if (message.format != null && message.hasOwnProperty("format"))
-                    object.format = options.enums === String ? $root.bayesmech.vision.DepthFrame.DepthFormat[message.format] === undefined ? message.format : $root.bayesmech.vision.DepthFrame.DepthFormat[message.format] : message.format;
-                return object;
-            };
-
-            /**
-             * Converts this DepthFrame to JSON.
-             * @function toJSON
-             * @memberof bayesmech.vision.DepthFrame
-             * @instance
-             * @returns {Object.<string,*>} JSON object
-             */
-            DepthFrame.prototype.toJSON = function toJSON() {
-                return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
-            };
-
-            /**
-             * Gets the default type url for DepthFrame
-             * @function getTypeUrl
-             * @memberof bayesmech.vision.DepthFrame
-             * @static
-             * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
-             * @returns {string} The default type url
-             */
-            DepthFrame.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
-                if (typeUrlPrefix === undefined) {
-                    typeUrlPrefix = "type.googleapis.com";
-                }
-                return typeUrlPrefix + "/bayesmech.vision.DepthFrame";
-            };
-
-            /**
-             * DepthFormat enum.
-             * @name bayesmech.vision.DepthFrame.DepthFormat
-             * @enum {number}
-             * @property {number} DEPTH_FORMAT_UNKNOWN=0 DEPTH_FORMAT_UNKNOWN value
-             * @property {number} UINT16_MILLIMETERS=1 UINT16_MILLIMETERS value
-             * @property {number} FLOAT32_METERS=2 FLOAT32_METERS value
-             */
-            DepthFrame.DepthFormat = (function() {
-                const valuesById = {}, values = Object.create(valuesById);
-                values[valuesById[0] = "DEPTH_FORMAT_UNKNOWN"] = 0;
-                values[valuesById[1] = "UINT16_MILLIMETERS"] = 1;
-                values[valuesById[2] = "FLOAT32_METERS"] = 2;
-                return values;
-            })();
-
-            return DepthFrame;
-        })();
-
-        vision.ImuData = (function() {
-
-            /**
-             * Properties of an ImuData.
-             * @memberof bayesmech.vision
-             * @interface IImuData
-             * @property {bayesmech.vision.IVector3|null} [angularVelocity] ImuData angularVelocity
-             * @property {bayesmech.vision.IVector3|null} [linearAcceleration] ImuData linearAcceleration
-             * @property {bayesmech.vision.IVector3|null} [gravity] ImuData gravity
-             * @property {bayesmech.vision.IVector3|null} [magneticField] ImuData magneticField
-             */
-
-            /**
-             * Constructs a new ImuData.
-             * @memberof bayesmech.vision
-             * @classdesc Represents an ImuData.
-             * @implements IImuData
-             * @constructor
-             * @param {bayesmech.vision.IImuData=} [properties] Properties to set
-             */
-            function ImuData(properties) {
-                if (properties)
-                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
-                        if (properties[keys[i]] != null)
-                            this[keys[i]] = properties[keys[i]];
-            }
-
-            /**
-             * ImuData angularVelocity.
-             * @member {bayesmech.vision.IVector3|null|undefined} angularVelocity
-             * @memberof bayesmech.vision.ImuData
-             * @instance
-             */
-            ImuData.prototype.angularVelocity = null;
-
-            /**
-             * ImuData linearAcceleration.
-             * @member {bayesmech.vision.IVector3|null|undefined} linearAcceleration
-             * @memberof bayesmech.vision.ImuData
-             * @instance
-             */
-            ImuData.prototype.linearAcceleration = null;
-
-            /**
-             * ImuData gravity.
-             * @member {bayesmech.vision.IVector3|null|undefined} gravity
-             * @memberof bayesmech.vision.ImuData
-             * @instance
-             */
-            ImuData.prototype.gravity = null;
-
-            /**
-             * ImuData magneticField.
-             * @member {bayesmech.vision.IVector3|null|undefined} magneticField
-             * @memberof bayesmech.vision.ImuData
-             * @instance
-             */
-            ImuData.prototype.magneticField = null;
-
-            /**
-             * Creates a new ImuData instance using the specified properties.
-             * @function create
-             * @memberof bayesmech.vision.ImuData
-             * @static
-             * @param {bayesmech.vision.IImuData=} [properties] Properties to set
-             * @returns {bayesmech.vision.ImuData} ImuData instance
-             */
-            ImuData.create = function create(properties) {
-                return new ImuData(properties);
-            };
-
-            /**
-             * Encodes the specified ImuData message. Does not implicitly {@link bayesmech.vision.ImuData.verify|verify} messages.
-             * @function encode
-             * @memberof bayesmech.vision.ImuData
-             * @static
-             * @param {bayesmech.vision.IImuData} message ImuData message or plain object to encode
-             * @param {$protobuf.Writer} [writer] Writer to encode to
-             * @returns {$protobuf.Writer} Writer
-             */
-            ImuData.encode = function encode(message, writer) {
-                if (!writer)
-                    writer = $Writer.create();
-                if (message.angularVelocity != null && Object.hasOwnProperty.call(message, "angularVelocity"))
-                    $root.bayesmech.vision.Vector3.encode(message.angularVelocity, writer.uint32(/* id 1, wireType 2 =*/10).fork()).ldelim();
-                if (message.linearAcceleration != null && Object.hasOwnProperty.call(message, "linearAcceleration"))
-                    $root.bayesmech.vision.Vector3.encode(message.linearAcceleration, writer.uint32(/* id 2, wireType 2 =*/18).fork()).ldelim();
-                if (message.gravity != null && Object.hasOwnProperty.call(message, "gravity"))
-                    $root.bayesmech.vision.Vector3.encode(message.gravity, writer.uint32(/* id 3, wireType 2 =*/26).fork()).ldelim();
-                if (message.magneticField != null && Object.hasOwnProperty.call(message, "magneticField"))
-                    $root.bayesmech.vision.Vector3.encode(message.magneticField, writer.uint32(/* id 4, wireType 2 =*/34).fork()).ldelim();
-                return writer;
-            };
-
-            /**
-             * Encodes the specified ImuData message, length delimited. Does not implicitly {@link bayesmech.vision.ImuData.verify|verify} messages.
-             * @function encodeDelimited
-             * @memberof bayesmech.vision.ImuData
-             * @static
-             * @param {bayesmech.vision.IImuData} message ImuData message or plain object to encode
-             * @param {$protobuf.Writer} [writer] Writer to encode to
-             * @returns {$protobuf.Writer} Writer
-             */
-            ImuData.encodeDelimited = function encodeDelimited(message, writer) {
-                return this.encode(message, writer).ldelim();
-            };
-
-            /**
-             * Decodes an ImuData message from the specified reader or buffer.
-             * @function decode
-             * @memberof bayesmech.vision.ImuData
-             * @static
-             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
-             * @param {number} [length] Message length if known beforehand
-             * @returns {bayesmech.vision.ImuData} ImuData
-             * @throws {Error} If the payload is not a reader or valid buffer
-             * @throws {$protobuf.util.ProtocolError} If required fields are missing
-             */
-            ImuData.decode = function decode(reader, length, error) {
-                if (!(reader instanceof $Reader))
-                    reader = $Reader.create(reader);
-                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.ImuData();
-                while (reader.pos < end) {
-                    let tag = reader.uint32();
-                    if (tag === error)
-                        break;
-                    switch (tag >>> 3) {
-                    case 1: {
-                            message.angularVelocity = $root.bayesmech.vision.Vector3.decode(reader, reader.uint32());
-                            break;
-                        }
-                    case 2: {
-                            message.linearAcceleration = $root.bayesmech.vision.Vector3.decode(reader, reader.uint32());
-                            break;
-                        }
-                    case 3: {
-                            message.gravity = $root.bayesmech.vision.Vector3.decode(reader, reader.uint32());
-                            break;
-                        }
-                    case 4: {
-                            message.magneticField = $root.bayesmech.vision.Vector3.decode(reader, reader.uint32());
-                            break;
-                        }
-                    default:
-                        reader.skipType(tag & 7);
-                        break;
-                    }
-                }
-                return message;
-            };
-
-            /**
-             * Decodes an ImuData message from the specified reader or buffer, length delimited.
-             * @function decodeDelimited
-             * @memberof bayesmech.vision.ImuData
-             * @static
-             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
-             * @returns {bayesmech.vision.ImuData} ImuData
-             * @throws {Error} If the payload is not a reader or valid buffer
-             * @throws {$protobuf.util.ProtocolError} If required fields are missing
-             */
-            ImuData.decodeDelimited = function decodeDelimited(reader) {
-                if (!(reader instanceof $Reader))
-                    reader = new $Reader(reader);
-                return this.decode(reader, reader.uint32());
-            };
-
-            /**
-             * Verifies an ImuData message.
-             * @function verify
-             * @memberof bayesmech.vision.ImuData
-             * @static
-             * @param {Object.<string,*>} message Plain object to verify
-             * @returns {string|null} `null` if valid, otherwise the reason why it is not
-             */
-            ImuData.verify = function verify(message) {
-                if (typeof message !== "object" || message === null)
-                    return "object expected";
-                if (message.angularVelocity != null && message.hasOwnProperty("angularVelocity")) {
-                    let error = $root.bayesmech.vision.Vector3.verify(message.angularVelocity);
-                    if (error)
-                        return "angularVelocity." + error;
-                }
-                if (message.linearAcceleration != null && message.hasOwnProperty("linearAcceleration")) {
-                    let error = $root.bayesmech.vision.Vector3.verify(message.linearAcceleration);
-                    if (error)
-                        return "linearAcceleration." + error;
-                }
-                if (message.gravity != null && message.hasOwnProperty("gravity")) {
-                    let error = $root.bayesmech.vision.Vector3.verify(message.gravity);
-                    if (error)
-                        return "gravity." + error;
-                }
-                if (message.magneticField != null && message.hasOwnProperty("magneticField")) {
-                    let error = $root.bayesmech.vision.Vector3.verify(message.magneticField);
-                    if (error)
-                        return "magneticField." + error;
-                }
-                return null;
-            };
-
-            /**
-             * Creates an ImuData message from a plain object. Also converts values to their respective internal types.
-             * @function fromObject
-             * @memberof bayesmech.vision.ImuData
-             * @static
-             * @param {Object.<string,*>} object Plain object
-             * @returns {bayesmech.vision.ImuData} ImuData
-             */
-            ImuData.fromObject = function fromObject(object) {
-                if (object instanceof $root.bayesmech.vision.ImuData)
-                    return object;
-                let message = new $root.bayesmech.vision.ImuData();
-                if (object.angularVelocity != null) {
-                    if (typeof object.angularVelocity !== "object")
-                        throw TypeError(".bayesmech.vision.ImuData.angularVelocity: object expected");
-                    message.angularVelocity = $root.bayesmech.vision.Vector3.fromObject(object.angularVelocity);
-                }
-                if (object.linearAcceleration != null) {
-                    if (typeof object.linearAcceleration !== "object")
-                        throw TypeError(".bayesmech.vision.ImuData.linearAcceleration: object expected");
-                    message.linearAcceleration = $root.bayesmech.vision.Vector3.fromObject(object.linearAcceleration);
-                }
-                if (object.gravity != null) {
-                    if (typeof object.gravity !== "object")
-                        throw TypeError(".bayesmech.vision.ImuData.gravity: object expected");
-                    message.gravity = $root.bayesmech.vision.Vector3.fromObject(object.gravity);
-                }
-                if (object.magneticField != null) {
-                    if (typeof object.magneticField !== "object")
-                        throw TypeError(".bayesmech.vision.ImuData.magneticField: object expected");
-                    message.magneticField = $root.bayesmech.vision.Vector3.fromObject(object.magneticField);
-                }
-                return message;
-            };
-
-            /**
-             * Creates a plain object from an ImuData message. Also converts values to other types if specified.
-             * @function toObject
-             * @memberof bayesmech.vision.ImuData
-             * @static
-             * @param {bayesmech.vision.ImuData} message ImuData
-             * @param {$protobuf.IConversionOptions} [options] Conversion options
-             * @returns {Object.<string,*>} Plain object
-             */
-            ImuData.toObject = function toObject(message, options) {
-                if (!options)
-                    options = {};
-                let object = {};
-                if (options.defaults) {
-                    object.angularVelocity = null;
-                    object.linearAcceleration = null;
-                    object.gravity = null;
-                    object.magneticField = null;
-                }
-                if (message.angularVelocity != null && message.hasOwnProperty("angularVelocity"))
-                    object.angularVelocity = $root.bayesmech.vision.Vector3.toObject(message.angularVelocity, options);
-                if (message.linearAcceleration != null && message.hasOwnProperty("linearAcceleration"))
-                    object.linearAcceleration = $root.bayesmech.vision.Vector3.toObject(message.linearAcceleration, options);
-                if (message.gravity != null && message.hasOwnProperty("gravity"))
-                    object.gravity = $root.bayesmech.vision.Vector3.toObject(message.gravity, options);
-                if (message.magneticField != null && message.hasOwnProperty("magneticField"))
-                    object.magneticField = $root.bayesmech.vision.Vector3.toObject(message.magneticField, options);
-                return object;
-            };
-
-            /**
-             * Converts this ImuData to JSON.
-             * @function toJSON
-             * @memberof bayesmech.vision.ImuData
-             * @instance
-             * @returns {Object.<string,*>} JSON object
-             */
-            ImuData.prototype.toJSON = function toJSON() {
-                return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
-            };
-
-            /**
-             * Gets the default type url for ImuData
-             * @function getTypeUrl
-             * @memberof bayesmech.vision.ImuData
-             * @static
-             * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
-             * @returns {string} The default type url
-             */
-            ImuData.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
-                if (typeUrlPrefix === undefined) {
-                    typeUrlPrefix = "type.googleapis.com";
-                }
-                return typeUrlPrefix + "/bayesmech.vision.ImuData";
-            };
-
-            return ImuData;
-        })();
-
         vision.SegmentationResponse = (function() {
 
             /**
@@ -4493,6 +4879,235 @@ export const bayesmech = $root.bayesmech = (() => {
             };
 
             return SegmentationRequest;
+        })();
+
+        vision.SlamPosition = (function() {
+
+            /**
+             * Properties of a SlamPosition.
+             * @memberof bayesmech.vision
+             * @interface ISlamPosition
+             * @property {number|null} [x] SlamPosition x
+             * @property {number|null} [y] SlamPosition y
+             */
+
+            /**
+             * Constructs a new SlamPosition.
+             * @memberof bayesmech.vision
+             * @classdesc Represents a SlamPosition.
+             * @implements ISlamPosition
+             * @constructor
+             * @param {bayesmech.vision.ISlamPosition=} [properties] Properties to set
+             */
+            function SlamPosition(properties) {
+                if (properties)
+                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null)
+                            this[keys[i]] = properties[keys[i]];
+            }
+
+            /**
+             * SlamPosition x.
+             * @member {number} x
+             * @memberof bayesmech.vision.SlamPosition
+             * @instance
+             */
+            SlamPosition.prototype.x = 0;
+
+            /**
+             * SlamPosition y.
+             * @member {number} y
+             * @memberof bayesmech.vision.SlamPosition
+             * @instance
+             */
+            SlamPosition.prototype.y = 0;
+
+            /**
+             * Creates a new SlamPosition instance using the specified properties.
+             * @function create
+             * @memberof bayesmech.vision.SlamPosition
+             * @static
+             * @param {bayesmech.vision.ISlamPosition=} [properties] Properties to set
+             * @returns {bayesmech.vision.SlamPosition} SlamPosition instance
+             */
+            SlamPosition.create = function create(properties) {
+                return new SlamPosition(properties);
+            };
+
+            /**
+             * Encodes the specified SlamPosition message. Does not implicitly {@link bayesmech.vision.SlamPosition.verify|verify} messages.
+             * @function encode
+             * @memberof bayesmech.vision.SlamPosition
+             * @static
+             * @param {bayesmech.vision.ISlamPosition} message SlamPosition message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            SlamPosition.encode = function encode(message, writer) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (message.x != null && Object.hasOwnProperty.call(message, "x"))
+                    writer.uint32(/* id 1, wireType 5 =*/13).float(message.x);
+                if (message.y != null && Object.hasOwnProperty.call(message, "y"))
+                    writer.uint32(/* id 2, wireType 5 =*/21).float(message.y);
+                return writer;
+            };
+
+            /**
+             * Encodes the specified SlamPosition message, length delimited. Does not implicitly {@link bayesmech.vision.SlamPosition.verify|verify} messages.
+             * @function encodeDelimited
+             * @memberof bayesmech.vision.SlamPosition
+             * @static
+             * @param {bayesmech.vision.ISlamPosition} message SlamPosition message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            SlamPosition.encodeDelimited = function encodeDelimited(message, writer) {
+                return this.encode(message, writer).ldelim();
+            };
+
+            /**
+             * Decodes a SlamPosition message from the specified reader or buffer.
+             * @function decode
+             * @memberof bayesmech.vision.SlamPosition
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {bayesmech.vision.SlamPosition} SlamPosition
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            SlamPosition.decode = function decode(reader, length, error) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.SlamPosition();
+                while (reader.pos < end) {
+                    let tag = reader.uint32();
+                    if (tag === error)
+                        break;
+                    switch (tag >>> 3) {
+                    case 1: {
+                            message.x = reader.float();
+                            break;
+                        }
+                    case 2: {
+                            message.y = reader.float();
+                            break;
+                        }
+                    default:
+                        reader.skipType(tag & 7);
+                        break;
+                    }
+                }
+                return message;
+            };
+
+            /**
+             * Decodes a SlamPosition message from the specified reader or buffer, length delimited.
+             * @function decodeDelimited
+             * @memberof bayesmech.vision.SlamPosition
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @returns {bayesmech.vision.SlamPosition} SlamPosition
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            SlamPosition.decodeDelimited = function decodeDelimited(reader) {
+                if (!(reader instanceof $Reader))
+                    reader = new $Reader(reader);
+                return this.decode(reader, reader.uint32());
+            };
+
+            /**
+             * Verifies a SlamPosition message.
+             * @function verify
+             * @memberof bayesmech.vision.SlamPosition
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            SlamPosition.verify = function verify(message) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (message.x != null && message.hasOwnProperty("x"))
+                    if (typeof message.x !== "number")
+                        return "x: number expected";
+                if (message.y != null && message.hasOwnProperty("y"))
+                    if (typeof message.y !== "number")
+                        return "y: number expected";
+                return null;
+            };
+
+            /**
+             * Creates a SlamPosition message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof bayesmech.vision.SlamPosition
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {bayesmech.vision.SlamPosition} SlamPosition
+             */
+            SlamPosition.fromObject = function fromObject(object) {
+                if (object instanceof $root.bayesmech.vision.SlamPosition)
+                    return object;
+                let message = new $root.bayesmech.vision.SlamPosition();
+                if (object.x != null)
+                    message.x = Number(object.x);
+                if (object.y != null)
+                    message.y = Number(object.y);
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a SlamPosition message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof bayesmech.vision.SlamPosition
+             * @static
+             * @param {bayesmech.vision.SlamPosition} message SlamPosition
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            SlamPosition.toObject = function toObject(message, options) {
+                if (!options)
+                    options = {};
+                let object = {};
+                if (options.defaults) {
+                    object.x = 0;
+                    object.y = 0;
+                }
+                if (message.x != null && message.hasOwnProperty("x"))
+                    object.x = options.json && !isFinite(message.x) ? String(message.x) : message.x;
+                if (message.y != null && message.hasOwnProperty("y"))
+                    object.y = options.json && !isFinite(message.y) ? String(message.y) : message.y;
+                return object;
+            };
+
+            /**
+             * Converts this SlamPosition to JSON.
+             * @function toJSON
+             * @memberof bayesmech.vision.SlamPosition
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            SlamPosition.prototype.toJSON = function toJSON() {
+                return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the default type url for SlamPosition
+             * @function getTypeUrl
+             * @memberof bayesmech.vision.SlamPosition
+             * @static
+             * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns {string} The default type url
+             */
+            SlamPosition.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+                if (typeUrlPrefix === undefined) {
+                    typeUrlPrefix = "type.googleapis.com";
+                }
+                return typeUrlPrefix + "/bayesmech.vision.SlamPosition";
+            };
+
+            return SlamPosition;
         })();
 
         return vision;

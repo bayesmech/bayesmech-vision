@@ -91,6 +91,9 @@ dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
 
+    // Location (FusedLocationProvider)
+    implementation 'com.google.android.gms:play-services-location:21.3.0'
+
     // WebSocket
     implementation 'com.squareup.okhttp3:okhttp:4.12.0'
 

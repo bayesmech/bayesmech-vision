@@ -4,7 +4,7 @@ import type {
   TrajectoryPoint, CameraPose, CameraIntrinsics, ImuData, Vec3,
 } from '../types'
 import { dashboardWs } from '../services/websocket'
-import { startPlayback } from '../services/api'
+import { startPlayback, switchToLive as apiSwitchToLive } from '../services/api'
 import { bytesToBlobUrl, maskToBlobUrl } from '../services/proto'
 import { bayesmech } from '../proto/bundle'
 
@@ -200,6 +200,19 @@ class FrameDecoder {
       }
     }
 
+    const gps = proto.gpsLocation
+    if (gps && (gps.latitude !== 0 || gps.longitude !== 0)) {
+      frame.gps = {
+        latitude: gps.latitude ?? 0,
+        longitude: gps.longitude ?? 0,
+        altitude: gps.altitude ?? 0,
+        accuracy: gps.accuracy ?? 0,
+        bearing: gps.bearing ?? 0,
+        speed: gps.speed ?? 0,
+        timestamp_ms: Number(gps.timestampMs ?? 0),
+      }
+    }
+
     return frame
   }
 
@@ -342,12 +355,13 @@ interface FrameRecord {
   hasMag: boolean
   hasIntrinsics: boolean
   hasGeometry: boolean
+  hasGps: boolean
 }
 
 const ZERO_COVERAGE: CoverageStats = {
   windowSize: 0, depth: 0, pose: 0, linearAccel: 0,
   angularVelocity: 0, gravity: 0, magneticField: 0,
-  intrinsicsCount: 0, geometry: 0,
+  intrinsicsCount: 0, geometry: 0, gps: 0,
 }
 
 class CoverageTracker {
@@ -368,6 +382,7 @@ class CoverageTracker {
       hasGeometry:
         (frame.inferred_geometry?.plane_count ?? 0) > 0 ||
         (frame.inferred_geometry?.point_cloud_count ?? 0) > 0,
+      hasGps: !!frame.gps,
     })
     if (this.records.length > COVERAGE_WINDOW) this.records.shift()
   }
@@ -387,6 +402,7 @@ class CoverageTracker {
       magneticField: pct(r => r.hasMag),
       intrinsicsCount: this.totalIntrinsics,
       geometry: pct(r => r.hasGeometry),
+      gps: pct(r => r.hasGps),
     }
   }
 
@@ -428,6 +444,7 @@ interface DashboardState {
   skipForward: () => void
   skipBackward: () => void
   loadRecording: (filename: string) => Promise<void>
+  switchToLive: () => Promise<void>
 }
 
 const DashboardContext = createContext<DashboardState | undefined>(undefined)
@@ -593,26 +610,23 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   }, [])
 
   const seekTo = useCallback((index: number) => {
-    const max = isLiveRef.current ? frameCountRef.current : totalFramesRef.current
+    if (isLiveRef.current) return
+    const max = totalFramesRef.current
     const clamped = Math.max(0, Math.min(index, Math.max(max - 1, 0)))
     currentIndexRef.current = clamped
     setCurrentIndex(clamped)
-    if (!isLiveRef.current) {
-      setFrameCount(clamped + 1)
-      seekPendingRef.current = true
-    }
+    setFrameCount(clamped + 1)
+    seekPendingRef.current = true
     dashboardWs.seek(clamped, clamped + 1)
   }, [])
 
   const play = useCallback(() => {
     if (isLiveRef.current) {
-      // Jump to latest when resuming live
-      const idx = frameCountRef.current - 1
-      if (idx >= 0) {
-        currentIndexRef.current = idx
-        setCurrentIndex(idx)
-      }
-    } else if (currentIndexRef.current >= totalFramesRef.current - 1 && totalFramesRef.current > 0) {
+      // Live: just start displaying incoming frames
+      setIsPlaying(true)
+      return
+    }
+    if (currentIndexRef.current >= totalFramesRef.current - 1 && totalFramesRef.current > 0) {
       // At end of file: restart from beginning
       currentIndexRef.current = 0
       setCurrentIndex(0)
@@ -632,11 +646,13 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   }, [])
 
   const skipForward = useCallback(() => {
+    if (isLiveRef.current) return
     const jump = Math.round(10 * serverFpsRef.current)
     seekTo(currentIndexRef.current + jump)
   }, [seekTo])
 
   const skipBackward = useCallback(() => {
+    if (isLiveRef.current) return
     const jump = Math.round(10 * serverFpsRef.current)
     seekTo(currentIndexRef.current - jump)
   }, [seekTo])
@@ -679,6 +695,41 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     seekPendingRef.current = true
     dashboardWs.seek(0, 1)
     setIsPlaying(true)
+  }, [])
+
+  const switchToLive = useCallback(async () => {
+    // Reset all state
+    frameBuffer.current.destroy()
+    frameBuffer.current = new FrameBuffer()
+    annotationBuffer.current.destroy()
+    annotationBuffer.current = new AnnotationBuffer()
+    coverageTracker.current.destroy()
+    coverageTracker.current = new CoverageTracker()
+    frameCountRef.current = 0
+    totalFramesRef.current = 0
+    currentIndexRef.current = 0
+    frameTimestamps.current = []
+
+    setFrameCount(0)
+    setTotalFrames(0)
+    setCurrentIndex(0)
+    setFps(0)
+    setDisplayedFrame(null)
+    setDisplayedAnnotation(null)
+    setTrajectoryPositions([])
+    setFirstTimestampNs(0)
+    setLastTimestampNs(0)
+    setCoverageStats(ZERO_COVERAGE)
+
+    // Tell server to switch to live
+    await apiSwitchToLive()
+
+    // Set live mode
+    isLiveRef.current = true
+    setIsLive(true)
+    setIsPlaying(true)
+
+    dashboardWs.getStats()
   }, [])
 
   // Client-driven playback for file recordings.
@@ -753,7 +804,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       isLive, trajectoryPositions, firstTimestampNs, lastTimestampNs,
       getFrame, getAnnotation, requestFrame, requestAnnotation,
       currentIndex, totalFrames, isPlaying, serverFps,
-      play, pause, seekTo, skipForward, skipBackward, loadRecording,
+      play, pause, seekTo, skipForward, skipBackward, loadRecording, switchToLive,
     }}>
       {children}
     </DashboardContext.Provider>

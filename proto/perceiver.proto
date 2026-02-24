@@ -29,6 +29,9 @@ message PerceiverDataFrame {
 
   // ARCore-inferred spatial geometry (planes, point cloud).
   InferredGeometry inferred_geometry = 7;
+
+  // GPS location from the device.
+  GpsLocation gps_location = 8;
 }
 
 message PerceiverFrameIdentifier {
@@ -85,4 +88,14 @@ message ImuData {
   Vector3 linear_acceleration = 2;  // obtained from raw acceleration by ARCore primitive
   Vector3 gravity = 3;              // obtained from raw accelerometer by ARCore primitive
   Vector3 magnetic_field = 4;
+}
+
+message GpsLocation {
+  double latitude = 1;
+  double longitude = 2;
+  double altitude = 3;       // meters above WGS84 ellipsoid
+  float accuracy = 4;        // horizontal accuracy in meters
+  float bearing = 5;         // degrees from north (0-360)
+  float speed = 6;           // meters per second
+  int64 timestamp_ms = 7;    // UTC milliseconds since epoch (from Location.getTime())
 }

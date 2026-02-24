@@ -209,6 +209,15 @@ async def stop_playback():
     return {"status": "stopped"}
 
 
+@app.post("/api/playback/live")
+async def switch_to_live():
+    await store.stop_replay()
+    store.clear()
+    store.set_source("live")
+    await annotator.stop()
+    return {"status": "live"}
+
+
 @app.get("/api/playback/status")
 async def playback_status():
     return {

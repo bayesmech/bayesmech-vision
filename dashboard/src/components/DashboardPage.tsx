@@ -6,6 +6,7 @@ import MotionChart from './MotionChart'
 import InfoCard from './InfoCard'
 import CoveragePanel from './CoveragePanel'
 import TrajectoryCanvas from './TrajectoryCanvas'
+import GpsMapViewer from './GpsMapViewer'
 import type { ImuData } from '../types'
 
 const XYZ = ['X', 'Y', 'Z']
@@ -113,6 +114,14 @@ const DashboardPage = () => {
           value={displayedFrame?.inferred_geometry?.point_cloud_count ?? 0}
           label="Point Cloud Pts"
         />
+        <InfoCard
+          value={
+            displayedFrame?.gps
+              ? `${displayedFrame.gps.latitude.toFixed(4)}, ${displayedFrame.gps.longitude.toFixed(4)}`
+              : 'N/A'
+          }
+          label="GPS Position"
+        />
       </div>
 
       {/* Signal coverage */}
@@ -136,8 +145,17 @@ const DashboardPage = () => {
         ))}
       </div>
 
-      {/* Trajectory */}
-      <TrajectoryCanvas />
+      {/* Trajectory & GPS map */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))',
+          gap: '1rem',
+        }}
+      >
+        <TrajectoryCanvas />
+        <GpsMapViewer gps={displayedFrame?.gps} />
+      </div>
     </section>
   )
 }

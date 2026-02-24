@@ -1,27 +1,39 @@
 package com.bayesmech.camalytics.sensors
 
+import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import android.os.Looper
 import android.util.Log
+import androidx.core.content.ContextCompat
+import com.bayesmech.vision.GpsLocation
 import com.bayesmech.vision.ImuData
 import com.bayesmech.vision.Vector3
+import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationCallback
+import com.google.android.gms.location.LocationRequest
+import com.google.android.gms.location.LocationResult
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
 import java.util.concurrent.atomic.AtomicReference
 
 /**
- * Collects real-time sensor data from Android motion sensors.
+ * Collects real-time sensor data from Android motion sensors and GPS.
  *
  * Manages listeners for:
  * - Gyroscope (angular velocity)
  * - Gravity (gravity vector, OS-fused)
  * - Linear Acceleration (acceleration without gravity, OS-fused)
  * - Magnetometer (raw magnetic field, for server-side orientation fusion)
+ * - GPS location (via FusedLocationProviderClient)
  *
  * Thread-safe - sensor values are stored atomically and can be read from any thread.
  */
-class SensorDataCollector(context: Context) : SensorEventListener {
+class SensorDataCollector(private val context: Context) : SensorEventListener {
     private val TAG = "SensorDataCollector"
 
     private val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
@@ -37,6 +49,11 @@ class SensorDataCollector(context: Context) : SensorEventListener {
     private val magneticField = AtomicReference(FloatArray(3) { 0f })
     private val gravity = AtomicReference(FloatArray(3) { 0f })
     private val linearAcceleration = AtomicReference(FloatArray(3) { 0f })
+
+    // GPS
+    private var fusedLocationClient: FusedLocationProviderClient? = null
+    private val currentLocation = AtomicReference<GpsLocation?>(null)
+    private var locationCallback: LocationCallback? = null
 
     private var isCollecting = false
 
@@ -84,6 +101,8 @@ class SensorDataCollector(context: Context) : SensorEventListener {
             Log.w(TAG, "✗ Linear acceleration sensor not available")
         }
 
+        startLocationUpdates()
+
         isCollecting = true
         Log.i(TAG, "Started collecting from $sensorsRegistered sensors")
     }
@@ -94,6 +113,7 @@ class SensorDataCollector(context: Context) : SensorEventListener {
     fun stopCollecting() {
         if (!isCollecting) return
         sensorManager.unregisterListener(this)
+        stopLocationUpdates()
         isCollecting = false
         Log.i(TAG, "Stopped collecting sensor data")
     }
@@ -112,6 +132,67 @@ class SensorDataCollector(context: Context) : SensorEventListener {
             Log.w(TAG, "Sensor ${sensor.name} accuracy is unreliable")
         }
     }
+
+    // ── GPS / Location ─────────────────────────────────────────────────────
+
+    private fun hasLocationPermission(): Boolean {
+        return ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) ==
+                PackageManager.PERMISSION_GRANTED
+    }
+
+    private fun startLocationUpdates() {
+        if (!hasLocationPermission()) {
+            Log.w(TAG, "✗ Location permission not granted — skipping GPS")
+            return
+        }
+
+        try {
+            fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
+
+            val locationRequest = LocationRequest.Builder(
+                Priority.PRIORITY_HIGH_ACCURACY, 1000L
+            ).setMinUpdateIntervalMillis(500L).build()
+
+            locationCallback = object : LocationCallback() {
+                override fun onLocationResult(result: LocationResult) {
+                    val loc = result.lastLocation ?: return
+                    val gps = GpsLocation.newBuilder()
+                        .setLatitude(loc.latitude)
+                        .setLongitude(loc.longitude)
+                        .setAltitude(loc.altitude)
+                        .setAccuracy(loc.accuracy)
+                        .setBearing(loc.bearing)
+                        .setSpeed(loc.speed)
+                        .setTimestampMs(loc.time)
+                        .build()
+                    currentLocation.set(gps)
+                }
+            }
+
+            fusedLocationClient?.requestLocationUpdates(
+                locationRequest, locationCallback!!, Looper.getMainLooper()
+            )
+            Log.i(TAG, "✓ GPS location updates registered")
+        } catch (e: SecurityException) {
+            Log.e(TAG, "SecurityException requesting location updates", e)
+        }
+    }
+
+    private fun stopLocationUpdates() {
+        locationCallback?.let { cb ->
+            fusedLocationClient?.removeLocationUpdates(cb)
+        }
+        locationCallback = null
+        fusedLocationClient = null
+    }
+
+    /**
+     * Get current GPS location as a GpsLocation protobuf message, or null if no fix yet.
+     * Thread-safe.
+     */
+    fun getCurrentGpsLocation(): GpsLocation? = currentLocation.get()
+
+    // ── IMU Data ────────────────────────────────────────────────────────────
 
     /**
      * Get current sensor data as ImuData protobuf message.
@@ -151,10 +232,13 @@ class SensorDataCollector(context: Context) : SensorEventListener {
         val linAccel = linearAcceleration.get()
         val angVel = angularVelocity.get()
         val grav = gravity.get()
-        return "Accel: [%.2f, %.2f, %.2f] m/s², Gyro: [%.2f, %.2f, %.2f] rad/s, Gravity: [%.2f, %.2f, %.2f] m/s²".format(
+        val gps = currentLocation.get()
+        val gpsStr = if (gps != null) "GPS: %.6f, %.6f".format(gps.latitude, gps.longitude) else "GPS: N/A"
+        return "Accel: [%.2f, %.2f, %.2f] m/s², Gyro: [%.2f, %.2f, %.2f] rad/s, Gravity: [%.2f, %.2f, %.2f] m/s², %s".format(
             linAccel[0], linAccel[1], linAccel[2],
             angVel[0], angVel[1], angVel[2],
-            grav[0], grav[1], grav[2]
+            grav[0], grav[1], grav[2],
+            gpsStr
         )
     }
 }

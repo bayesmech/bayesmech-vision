@@ -44,6 +44,16 @@ export interface ImuData {
   magnetic_field?: Vec3
 }
 
+export interface GpsLocation {
+  latitude: number
+  longitude: number
+  altitude: number
+  accuracy: number
+  bearing: number
+  speed: number
+  timestamp_ms: number
+}
+
 export interface TrackedPoint {
   x: number
   y: number
@@ -122,6 +132,7 @@ export interface DecodedFrame {
   camera_intrinsics?: CameraIntrinsics
   imu?: ImuData
   inferred_geometry?: InferredGeometry
+  gps?: GpsLocation
 }
 
 // === Signal coverage over a rolling window of frames ===
@@ -136,6 +147,7 @@ export interface CoverageStats {
   magneticField: number
   intrinsicsCount: number   // cumulative frames that carried intrinsics
   geometry: number
+  gps: number
 }
 
 export interface DecodedAnnotation {

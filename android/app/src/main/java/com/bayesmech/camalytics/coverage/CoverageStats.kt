@@ -8,5 +8,6 @@ data class CoverageStats(
     val cameraIntrinsicsCount: Int = 0,
     val poseCoverage: Float = 0f,
     val inferredGeometryCoverage: Float = 0f,
+    val gpsCoverage: Float = 0f,
     val averageFps: Float = 0f
 )

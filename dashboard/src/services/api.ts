@@ -26,6 +26,11 @@ export async function stopPlayback(): Promise<void> {
   if (!res.ok) throw new Error(`Failed to stop playback: ${res.status}`)
 }
 
+export async function switchToLive(): Promise<void> {
+  const res = await fetch('/api/playback/live', { method: 'POST' })
+  if (!res.ok) throw new Error(`Failed to switch to live: ${res.status}`)
+}
+
 export async function uploadRecording(file: File): Promise<void> {
   const formData = new FormData()
   formData.append('file', file)

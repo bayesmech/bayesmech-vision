@@ -4,7 +4,7 @@ import { useDashboard } from '../context/DashboardContext'
 import type { RecordingInfo } from '../types'
 
 const LoadButton: React.FC = () => {
-  const { loadRecording } = useDashboard()
+  const { loadRecording, isLive, switchToLive } = useDashboard()
   const [open, setOpen] = useState(false)
   const [recordings, setRecordings] = useState<RecordingInfo[]>([])
   const [loading, setLoading] = useState(false)
@@ -35,6 +35,16 @@ const LoadButton: React.FC = () => {
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Unknown error'
       alert(`Playback failed: ${msg}`)
+    }
+  }
+
+  const handleSwitchToLive = async () => {
+    setOpen(false)
+    try {
+      await switchToLive()
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Unknown error'
+      alert(`Switch to live failed: ${msg}`)
     }
   }
 
@@ -118,6 +128,61 @@ const LoadButton: React.FC = () => {
 
             {/* Content */}
             <div style={{ overflowY: 'auto', flex: 1 }}>
+              {/* Live stream option */}
+              <div
+                onClick={isLive ? () => setOpen(false) : handleSwitchToLive}
+                style={{
+                  padding: '0.75rem 1.25rem',
+                  borderBottom: '1px solid #222',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.75rem',
+                  transition: 'background 0.1s',
+                  background: isLive ? 'rgba(238, 0, 51, 0.08)' : 'transparent',
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.background = isLive ? 'rgba(238, 0, 51, 0.12)' : '#111'}
+                onMouseLeave={(e) => e.currentTarget.style.background = isLive ? 'rgba(238, 0, 51, 0.08)' : 'transparent'}
+              >
+                <span style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: '50%',
+                  background: isLive ? '#e03' : '#555',
+                  flexShrink: 0,
+                  boxShadow: isLive ? '0 0 6px rgba(238, 0, 51, 0.6)' : 'none',
+                }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{
+                    fontSize: '0.82rem',
+                    color: isLive ? '#ff6680' : '#e0e0e0',
+                    fontWeight: 600,
+                  }}>
+                    Live Stream
+                  </div>
+                  <div style={{
+                    fontSize: '0.68rem',
+                    color: '#505050',
+                    marginTop: '0.2rem',
+                  }}>
+                    {isLive ? 'Currently active' : 'Switch to live camera feed'}
+                  </div>
+                </div>
+                {isLive && (
+                  <span style={{
+                    fontSize: '0.6rem',
+                    fontWeight: 600,
+                    padding: '0.15rem 0.4rem',
+                    border: '1px solid #e03',
+                    color: '#e03',
+                    letterSpacing: '0.08em',
+                    flexShrink: 0,
+                  }}>
+                    ACTIVE
+                  </span>
+                )}
+              </div>
+
               {loading && (
                 <div style={msgStyle}>Loading...</div>
               )}

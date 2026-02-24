@@ -1,9 +1,13 @@
 package com.bayesmech.camalytics
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -35,6 +39,7 @@ class MainActivity : AppCompatActivity() {
     companion object {
         private const val TAG = "MainActivity"
         private const val COVERAGE_POLL_INTERVAL_MS = 1000L
+        private const val LOCATION_PERMISSION_CODE = 1
     }
 
     val appViewModel: AppViewModel by viewModels()
@@ -98,6 +103,9 @@ class MainActivity : AppCompatActivity() {
         }
         arCoreSessionHelper.beforeSessionResume = ::configureSession
         lifecycle.addObserver(arCoreSessionHelper)
+
+        // ── Location permission ───────────────────────────────────────────────
+        requestLocationPermission()
 
         // ── Renderer setup ──────────────────────────────────────────────────
         renderer = DatagrabRenderer(this)
@@ -200,6 +208,18 @@ class MainActivity : AppCompatActivity() {
             .commit()
     }
 
+    private fun requestLocationPermission() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+            != PackageManager.PERMISSION_GRANTED
+        ) {
+            ActivityCompat.requestPermissions(
+                this,
+                arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION),
+                LOCATION_PERMISSION_CODE
+            )
+        }
+    }
+
     override fun onRequestPermissionsResult(
         requestCode: Int,
         permissions: Array<String>,
@@ -211,6 +231,13 @@ class MainActivity : AppCompatActivity() {
                 CameraPermissionHelper.launchPermissionSettings(this)
             }
             finish()
+        }
+        if (requestCode == LOCATION_PERMISSION_CODE) {
+            if (results.isNotEmpty() && results[0] == PackageManager.PERMISSION_GRANTED) {
+                Log.i(TAG, "Location permission granted")
+            } else {
+                Log.w(TAG, "Location permission denied — GPS data will not be collected")
+            }
         }
     }
 

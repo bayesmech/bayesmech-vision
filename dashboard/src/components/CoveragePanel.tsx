@@ -16,6 +16,7 @@ const ROWS: SignalRow[] = [
   { label: 'Gravity',           value: s => `${s.gravity}%`,          pct: s => s.gravity },
   { label: 'Magnetic Field',    value: s => `${s.magneticField}%`,    pct: s => s.magneticField },
   { label: 'Geometry',          value: s => `${s.geometry}%`,         pct: s => s.geometry },
+  { label: 'GPS',               value: s => `${s.gps}%`,              pct: s => s.gps },
   { label: 'Intrinsics',        value: s => `${s.intrinsicsCount} frames`, pct: _ => null },
 ]
 
