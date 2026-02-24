@@ -28,7 +28,7 @@ from segmentation.segmentation_service import segmentation_service, encode_mask_
 
 # Setup logging
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
@@ -297,12 +297,14 @@ async def stream_websocket(websocket: WebSocket, session_id: str = None):
                     continue
 
                 # Add frame to segmentation service (async, non-blocking)
-                frame_number = request.frame_identifier.frame_number
+                fid = request.frame_identifier
                 asyncio.create_task(
                     segmentation_service.add_frame(
                         session_id,
                         rgb_frame,
-                        frame_number
+                        fid.frame_number,
+                        timestamp_ns=fid.timestamp_ns,
+                        device_id=fid.device_id,
                     )
                 )
 
@@ -325,7 +327,9 @@ async def broadcast_segmentation_result(
     session_id: str,
     masks: Dict[str, np.ndarray],
     prompt_type: str,
-    frame_number: int = 0
+    frame_number: int = 0,
+    timestamp_ns: int = 0,
+    device_id: str = "",
 ):
     """
     Broadcast segmentation results to connected WebSocket
@@ -335,18 +339,21 @@ async def broadcast_segmentation_result(
         masks: Dictionary of object_id -> mask (numpy array)
         prompt_type: Type of prompt used
         frame_number: Frame number
+        timestamp_ns: Original frame timestamp (0 = use wall clock)
+        device_id: Original device ID (empty = use session_id)
     """
     if session_id not in sessions:
+        logger.debug(f"broadcast_segmentation_result: session {session_id} not in sessions, skipping")
         return
 
     try:
         # Build SegmentationResponse protobuf
         response = segmentation_pb2.SegmentationResponse()
 
-        # Set frame identifier
+        # Set frame identifier — use original values when available
         response.frame_identifier.frame_number = frame_number
-        response.frame_identifier.timestamp_ns = int(time.time() * 1e9)
-        response.frame_identifier.device_id = session_id
+        response.frame_identifier.timestamp_ns = timestamp_ns or int(time.time() * 1e9)
+        response.frame_identifier.device_id = device_id or session_id
 
         # Map prompt_type to trigger_type enum
         TriggerType = segmentation_pb2.SegmentationResponse.SegmentationTriggerType
@@ -375,20 +382,24 @@ async def broadcast_segmentation_result(
                 mask_msg.confidence = float(np.mean(mask_array))
 
         # Send binary protobuf
-        await sessions[session_id]['ws'].send_bytes(response.SerializeToString())
+        data = response.SerializeToString()
+        logger.info(f"Broadcasting result: frame={frame_number}, masks={len(response.masks)}, bytes={len(data)}")
+        await sessions[session_id]['ws'].send_bytes(data)
 
     except Exception as e:
-        logger.warning(f"Failed to broadcast result to {session_id}: {e}")
+        logger.warning(f"Failed to broadcast result to {session_id}: {e}", exc_info=True)
 
 
 # Set callback for automatic result broadcasting
 segmentation_service.set_result_callback(
-    lambda client_id, masks, prompt, frame_num=0: asyncio.create_task(
+    lambda client_id, masks, prompt, frame_num=0, timestamp_ns=0, device_id="": asyncio.create_task(
         broadcast_segmentation_result(
             session_id=client_id,
-            masks=masks,  # Use actual numpy array masks
+            masks=masks,
             prompt_type=prompt,
-            frame_number=frame_num
+            frame_number=frame_num,
+            timestamp_ns=timestamp_ns,
+            device_id=device_id,
         )
     )
 )

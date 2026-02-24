@@ -1,9 +1,10 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react'
 import type {
   ConnectionStatus, DecodedFrame, DecodedAnnotation, CoverageStats,
-  CameraPose, CameraIntrinsics, ImuData, InferredGeometry, Vec3,
+  TrajectoryPoint, CameraPose, CameraIntrinsics, ImuData, Vec3,
 } from '../types'
 import { dashboardWs } from '../services/websocket'
+import { startPlayback } from '../services/api'
 import { bytesToBlobUrl, maskToBlobUrl } from '../services/proto'
 import { bayesmech } from '../proto/bundle'
 
@@ -143,7 +144,7 @@ class FrameDecoder {
       }
 
       if (dw > 0 && dh > 0) {
-        const dataUrl = this.decodeDepthToDataUrl(depth.data as Uint8Array, depth.format, dw, dh)
+        const dataUrl = this.decodeDepthToDataUrl(depth.data as Uint8Array, depth.format ?? 0, dw, dh)
         if (dataUrl) frame.depthBlobUrl = dataUrl
       }
     }
@@ -171,7 +172,32 @@ class FrameDecoder {
       frame.inferred_geometry = {
         plane_count: geom.planes?.length ?? 0,
         point_cloud_count: geom.pointCloud?.length ?? 0,
-      } as InferredGeometry
+        point_cloud: (geom.pointCloud ?? []).map(tp => ({
+          x: tp.point?.x ?? 0,
+          y: tp.point?.y ?? 0,
+          z: tp.point?.z ?? 0,
+          confidence: tp.confidence ?? 0,
+        })),
+        planes: (geom.planes ?? []).map(p => ({
+          type: p.type ?? 0,
+          polygon: (p.polygon ?? []).map(v => ({ x: v.x ?? 0, y: v.y ?? 0, z: v.z ?? 0 })),
+          center_pose: p.centerPose ? {
+            position: {
+              x: p.centerPose.position?.x ?? 0,
+              y: p.centerPose.position?.y ?? 0,
+              z: p.centerPose.position?.z ?? 0,
+            },
+            rotation: {
+              x: p.centerPose.rotation?.x ?? 0,
+              y: p.centerPose.rotation?.y ?? 0,
+              z: p.centerPose.rotation?.z ?? 0,
+              w: p.centerPose.rotation?.w ?? 1,
+            },
+          } : undefined,
+          extent_x: p.extentX ?? 0,
+          extent_z: p.extentZ ?? 0,
+        })),
+      }
     }
 
     return frame
@@ -376,11 +402,16 @@ class CoverageTracker {
 
 interface DashboardState {
   connectionStatus: ConnectionStatus
-  latestFrame: DecodedFrame | null
-  latestSegBlobUrl: string | null
+  displayedFrame: DecodedFrame | null
+  displayedAnnotation: DecodedAnnotation | null
   frameCount: number
   fps: number
   coverageStats: CoverageStats
+  isLive: boolean
+  // Trajectory
+  trajectoryPositions: TrajectoryPoint[]
+  firstTimestampNs: number
+  lastTimestampNs: number
   // Buffer access
   getFrame: (frameNumber: number) => DecodedFrame | null
   getAnnotation: (frameNumber: number) => DecodedAnnotation | null
@@ -396,6 +427,7 @@ interface DashboardState {
   seekTo: (index: number) => void
   skipForward: () => void
   skipBackward: () => void
+  loadRecording: (filename: string) => Promise<void>
 }
 
 const DashboardContext = createContext<DashboardState | undefined>(undefined)
@@ -404,10 +436,11 @@ const FPS_WINDOW_SIZE = 10
 
 export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('Disconnected')
-  const [latestFrame, setLatestFrame] = useState<DecodedFrame | null>(null)
-  const [latestSegBlobUrl, setLatestSegBlobUrl] = useState<string | null>(null)
+  const [displayedFrame, setDisplayedFrame] = useState<DecodedFrame | null>(null)
+  const [displayedAnnotation, setDisplayedAnnotation] = useState<DecodedAnnotation | null>(null)
   const [frameCount, setFrameCount] = useState(0)
   const [fps, setFps] = useState(0)
+  const [isLive, setIsLive] = useState(false)
 
   // Playback state
   const [currentIndex, setCurrentIndex] = useState(0)
@@ -415,6 +448,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [isPlaying, setIsPlaying] = useState(false)
   const [serverFps, setServerFps] = useState(30)
   const playIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  // Trajectory & timestamps
+  const [trajectoryPositions, setTrajectoryPositions] = useState<TrajectoryPoint[]>([])
+  const [firstTimestampNs, setFirstTimestampNs] = useState(0)
+  const [lastTimestampNs, setLastTimestampNs] = useState(0)
 
   const [coverageStats, setCoverageStats] = useState<CoverageStats>(ZERO_COVERAGE)
 
@@ -424,14 +462,62 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const decoder = useRef(new FrameDecoder())
   const coverageTracker = useRef(new CoverageTracker())
 
+  // Refs for access inside callbacks without stale closures
+  const isPlayingRef = useRef(false)
+  const isLiveRef = useRef(false)
+  const frameCountRef = useRef(0)
+  const totalFramesRef = useRef(0)
+  const serverFpsRef = useRef(30)
+  const currentIndexRef = useRef(0)
+  const displayedFrameRef = useRef<DecodedFrame | null>(null)
+  // Set when seekTo/skip sends a seek request, cleared when the response arrives.
+  // This lets handleFrames distinguish "I asked for this" from "server pushed this".
+  const seekPendingRef = useRef(false)
+
+  useEffect(() => { isPlayingRef.current = isPlaying }, [isPlaying])
+  useEffect(() => { isLiveRef.current = isLive }, [isLive])
+
+  const updateDisplayedFrame = useCallback((frame: DecodedFrame | null) => {
+    displayedFrameRef.current = frame
+    setDisplayedFrame(frame)
+    // Update annotation to match
+    if (frame) {
+      const ann = annotationBuffer.current.get(frame.frame_number)
+      setDisplayedAnnotation(ann)
+    } else {
+      setDisplayedAnnotation(null)
+    }
+  }, [])
+
   const handleFrames = useCallback((frames: bayesmech.vision.PerceiverDataFrame[]) => {
     for (const proto of frames) {
       const frame = decoder.current.decodeFrame(proto)
       frameBuffer.current.push(frame)
       coverageTracker.current.record(frame)
     }
-    setLatestFrame(frameBuffer.current.latest())
-    setFrameCount((c) => c + frames.length)
+
+    const latest = frameBuffer.current.latest()
+
+    if (isLiveRef.current) {
+      // Live mode: frameCount = total received, display follows when playing
+      frameCountRef.current += frames.length
+      setFrameCount(frameCountRef.current)
+      if (isPlayingRef.current && latest) {
+        updateDisplayedFrame(latest)
+        currentIndexRef.current = latest.frame_number
+        setCurrentIndex(latest.frame_number)
+      }
+    } else {
+      // File mode: only update display if we're playing OR this is a seek response.
+      // Ignore unsolicited server pushes (e.g. leftover replay, initial connection frame).
+      if (isPlayingRef.current && latest) {
+        updateDisplayedFrame(latest)
+      } else if (seekPendingRef.current && latest) {
+        seekPendingRef.current = false
+        updateDisplayedFrame(latest)
+      }
+      // frameCount in file mode is driven by currentIndex, not WS traffic
+    }
 
     const now = performance.now()
     frameTimestamps.current.push(now)
@@ -443,21 +529,47 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       const elapsed = (ts[ts.length - 1] - ts[0]) / 1000
       setFps(Math.round(((ts.length - 1) / elapsed) * 10) / 10)
     }
-  }, [])
+  }, [updateDisplayedFrame])
 
   const handleAnnotations = useCallback((annotations: bayesmech.vision.SegmentationResponse[]) => {
     for (const proto of annotations) {
       const annotation = decoder.current.decodeAnnotation(proto)
       if (annotation) annotationBuffer.current.set(annotation)
     }
-    setLatestSegBlobUrl(annotationBuffer.current.latest()?.blobUrl ?? null)
+    // If new annotation matches the currently displayed frame, update
+    const current = displayedFrameRef.current
+    if (current) {
+      const ann = annotationBuffer.current.get(current.frame_number)
+      if (ann) setDisplayedAnnotation(ann)
+    }
   }, [])
 
   const handleStats = useCallback((stats: Record<string, unknown>) => {
     const bf = stats.buffered_frames as number | undefined
     const rfps = stats.recording_fps as number | undefined
-    if (bf !== undefined) setTotalFrames(bf)
-    if (rfps !== undefined && rfps > 0) setServerFps(rfps)
+    const source = stats.source as string | undefined
+    const fts = stats.first_timestamp_ns as number | undefined
+    const lts = stats.last_timestamp_ns as number | undefined
+
+    if (bf !== undefined) {
+      totalFramesRef.current = bf
+      setTotalFrames(bf)
+    }
+    if (rfps !== undefined && rfps > 0) {
+      serverFpsRef.current = rfps
+      setServerFps(rfps)
+    }
+    if (source !== undefined) {
+      const live = source === 'live'
+      isLiveRef.current = live
+      setIsLive(live)
+    }
+    if (fts !== undefined) setFirstTimestampNs(fts)
+    if (lts !== undefined) setLastTimestampNs(lts)
+  }, [])
+
+  const handleTrajectory = useCallback((positions: TrajectoryPoint[]) => {
+    setTrajectoryPositions(positions)
   }, [])
 
   const getFrame = useCallback((frameNumber: number): DecodedFrame | null => {
@@ -481,12 +593,33 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   }, [])
 
   const seekTo = useCallback((index: number) => {
-    const clamped = Math.max(0, Math.min(index, totalFrames - 1))
+    const max = isLiveRef.current ? frameCountRef.current : totalFramesRef.current
+    const clamped = Math.max(0, Math.min(index, Math.max(max - 1, 0)))
+    currentIndexRef.current = clamped
     setCurrentIndex(clamped)
+    if (!isLiveRef.current) {
+      setFrameCount(clamped + 1)
+      seekPendingRef.current = true
+    }
     dashboardWs.seek(clamped, clamped + 1)
-  }, [totalFrames])
+  }, [])
 
   const play = useCallback(() => {
+    if (isLiveRef.current) {
+      // Jump to latest when resuming live
+      const idx = frameCountRef.current - 1
+      if (idx >= 0) {
+        currentIndexRef.current = idx
+        setCurrentIndex(idx)
+      }
+    } else if (currentIndexRef.current >= totalFramesRef.current - 1 && totalFramesRef.current > 0) {
+      // At end of file: restart from beginning
+      currentIndexRef.current = 0
+      setCurrentIndex(0)
+      setFrameCount(1)
+      seekPendingRef.current = true
+      dashboardWs.seek(0, 1)
+    }
     setIsPlaying(true)
   }, [])
 
@@ -499,29 +632,70 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   }, [])
 
   const skipForward = useCallback(() => {
-    const jump = Math.round(10 * serverFps)
-    seekTo(currentIndex + jump)
-  }, [currentIndex, serverFps, seekTo])
+    const jump = Math.round(10 * serverFpsRef.current)
+    seekTo(currentIndexRef.current + jump)
+  }, [seekTo])
 
   const skipBackward = useCallback(() => {
-    const jump = Math.round(10 * serverFps)
-    seekTo(currentIndex - jump)
-  }, [currentIndex, serverFps, seekTo])
+    const jump = Math.round(10 * serverFpsRef.current)
+    seekTo(currentIndexRef.current - jump)
+  }, [seekTo])
 
-  // Auto-advance when playing
+  const loadRecording = useCallback(async (filename: string) => {
+    // Reset all state
+    frameBuffer.current.destroy()
+    frameBuffer.current = new FrameBuffer()
+    annotationBuffer.current.destroy()
+    annotationBuffer.current = new AnnotationBuffer()
+    coverageTracker.current.destroy()
+    coverageTracker.current = new CoverageTracker()
+    frameCountRef.current = 0
+    totalFramesRef.current = 0
+    currentIndexRef.current = 0
+    frameTimestamps.current = []
+
+    setFrameCount(0)
+    setTotalFrames(0)
+    setCurrentIndex(0)
+    setFps(0)
+    setDisplayedFrame(null)
+    setDisplayedAnnotation(null)
+    setTrajectoryPositions([])
+    setFirstTimestampNs(0)
+    setLastTimestampNs(0)
+    setCoverageStats(ZERO_COVERAGE)
+
+    // Load on server
+    await startPlayback(filename)
+
+    // Request stats and trajectory
+    dashboardWs.getStats()
+    dashboardWs.getTrajectory()
+
+    // Seek to frame 0 and start playing
+    currentIndexRef.current = 0
+    setCurrentIndex(0)
+    setFrameCount(1)
+    seekPendingRef.current = true
+    dashboardWs.seek(0, 1)
+    setIsPlaying(true)
+  }, [])
+
+  // Client-driven playback for file recordings.
+  // Always client-driven — server never pushes replay frames for files.
   useEffect(() => {
-    if (isPlaying) {
+    if (isPlaying && !isLive && totalFrames > 0) {
       playIntervalRef.current = setInterval(() => {
-        setCurrentIndex((prev) => {
-          const next = prev + 1
-          if (next >= totalFrames) {
-            setIsPlaying(false)
-            return prev
-          }
-          dashboardWs.seek(next, next + 1)
-          return next
-        })
-      }, 1000 / serverFps)
+        const next = currentIndexRef.current + 1
+        if (next >= totalFramesRef.current) {
+          setIsPlaying(false)
+          return
+        }
+        currentIndexRef.current = next
+        setCurrentIndex(next)
+        setFrameCount(next + 1)
+        dashboardWs.seek(next, next + 1)
+      }, 1000 / serverFpsRef.current)
     } else if (playIntervalRef.current) {
       clearInterval(playIntervalRef.current)
       playIntervalRef.current = null
@@ -532,12 +706,20 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         playIntervalRef.current = null
       }
     }
-  }, [isPlaying, serverFps, totalFrames])
+  }, [isPlaying, isLive, serverFps, totalFrames])
 
   useEffect(() => {
     const timer = setInterval(() => {
       setCoverageStats(coverageTracker.current.getStats())
     }, 1000)
+    return () => clearInterval(timer)
+  }, [])
+
+  // Poll stats every 3s so isLive and totalFrames stay current
+  useEffect(() => {
+    const timer = setInterval(() => {
+      dashboardWs.getStats()
+    }, 3000)
     return () => clearInterval(timer)
   }, [])
 
@@ -547,6 +729,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const unsubAnnotations = dashboardWs.addAnnotationListener(handleAnnotations)
     const unsubStatus = dashboardWs.addStatusListener(setConnectionStatus)
     const unsubStats = dashboardWs.addStatsListener(handleStats)
+    const unsubTrajectory = dashboardWs.addTrajectoryListener(handleTrajectory)
 
     dashboardWs.getStats()
 
@@ -555,20 +738,22 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       unsubAnnotations()
       unsubStatus()
       unsubStats()
+      unsubTrajectory()
       dashboardWs.disconnect()
       frameBuffer.current.destroy()
       annotationBuffer.current.destroy()
       coverageTracker.current.destroy()
       if (playIntervalRef.current) clearInterval(playIntervalRef.current)
     }
-  }, [handleFrames, handleAnnotations, handleStats])
+  }, [handleFrames, handleAnnotations, handleStats, handleTrajectory])
 
   return (
     <DashboardContext.Provider value={{
-      connectionStatus, latestFrame, latestSegBlobUrl, frameCount, fps, coverageStats,
+      connectionStatus, displayedFrame, displayedAnnotation, frameCount, fps, coverageStats,
+      isLive, trajectoryPositions, firstTimestampNs, lastTimestampNs,
       getFrame, getAnnotation, requestFrame, requestAnnotation,
       currentIndex, totalFrames, isPlaying, serverFps,
-      play, pause, seekTo, skipForward, skipBackward,
+      play, pause, seekTo, skipForward, skipBackward, loadRecording,
     }}>
       {children}
     </DashboardContext.Provider>

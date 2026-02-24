@@ -1,5 +1,6 @@
 import { useDashboard } from '../context/DashboardContext'
 import StreamViewer from './StreamViewer'
+import GeometryStreamViewer from './GeometryStreamViewer'
 import PlaybackControls from './PlaybackControls'
 import MotionChart from './MotionChart'
 import InfoCard from './InfoCard'
@@ -22,15 +23,18 @@ const SENSOR_CHARTS: {
 ]
 
 const DashboardPage = () => {
-  const { latestFrame, latestSegBlobUrl, frameCount, fps } = useDashboard()
+  const { displayedFrame, displayedAnnotation, frameCount, fps } = useDashboard()
 
-  const source = latestFrame?.source ?? 'none'
-  const deviceId = latestFrame?.device_id
-    ? latestFrame.device_id.slice(0, 8)
+  const source = displayedFrame?.source ?? 'none'
+  const deviceId = displayedFrame?.device_id
+    ? displayedFrame.device_id.slice(0, 8)
     : 'N/A'
 
   return (
     <section className="stream-section">
+      {/* Playback controls — full width, above all streams */}
+      <PlaybackControls />
+
       {/* Video streams */}
       <div
         className="streams-grid"
@@ -44,7 +48,7 @@ const DashboardPage = () => {
         <StreamViewer
           title="RGB Stream"
           badge="RGB"
-          blobUrl={latestFrame?.rgbBlobUrl}
+          blobUrl={displayedFrame?.rgbBlobUrl}
           placeholderIcon={'🎥'}
           placeholderText="Waiting for RGB frames..."
         />
@@ -52,7 +56,7 @@ const DashboardPage = () => {
         <StreamViewer
           title="Depth Map"
           badge="DEPTH"
-          blobUrl={latestFrame?.depthBlobUrl}
+          blobUrl={displayedFrame?.depthBlobUrl}
           placeholderIcon={'🌊'}
           placeholderText="Waiting for depth frames..."
         />
@@ -60,14 +64,33 @@ const DashboardPage = () => {
         <StreamViewer
           title="Segmentation"
           badge="SEG"
-          blobUrl={latestSegBlobUrl ?? undefined}
+          blobUrl={displayedAnnotation?.blobUrl}
           placeholderIcon={'🧩'}
           placeholderText="Waiting for segmentation masks..."
         />
-      </div>
 
-      {/* Playback controls */}
-      <PlaybackControls />
+        <GeometryStreamViewer
+          title="Point Cloud"
+          badge="PCD"
+          placeholderIcon={'✦'}
+          placeholderText="Waiting for point cloud data..."
+          mode="point_cloud"
+          cameraPose={displayedFrame?.camera_pose}
+          cameraIntrinsics={displayedFrame?.camera_intrinsics}
+          geometry={displayedFrame?.inferred_geometry}
+        />
+
+        <GeometryStreamViewer
+          title="Plane Detection"
+          badge="PLANE"
+          placeholderIcon={'⬛'}
+          placeholderText="Waiting for plane data..."
+          mode="planes"
+          cameraPose={displayedFrame?.camera_pose}
+          cameraIntrinsics={displayedFrame?.camera_intrinsics}
+          geometry={displayedFrame?.inferred_geometry}
+        />
+      </div>
 
       {/* Info cards */}
       <div
@@ -82,6 +105,14 @@ const DashboardPage = () => {
         <InfoCard value={fps.toFixed(1)} label="FPS" />
         <InfoCard value={source} label="Source" />
         <InfoCard value={deviceId} label="Device ID" />
+        <InfoCard
+          value={displayedFrame?.inferred_geometry?.plane_count ?? 0}
+          label="Planes Detected"
+        />
+        <InfoCard
+          value={displayedFrame?.inferred_geometry?.point_cloud_count ?? 0}
+          label="Point Cloud Pts"
+        />
       </div>
 
       {/* Signal coverage */}

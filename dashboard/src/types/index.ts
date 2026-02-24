@@ -44,9 +44,28 @@ export interface ImuData {
   magnetic_field?: Vec3
 }
 
+export interface TrackedPoint {
+  x: number
+  y: number
+  z: number
+  confidence: number
+}
+
+export interface InferredPlane {
+  /** 0=unknown, 1=horiz_upward, 2=horiz_downward, 3=vertical */
+  type: number
+  /** Polygon boundary vertices in plane-local space (x, 0, z). Apply center_pose to get world coords. */
+  polygon: Vec3[]
+  center_pose?: CameraPose
+  extent_x: number
+  extent_z: number
+}
+
 export interface InferredGeometry {
   plane_count: number
   point_cloud_count: number
+  point_cloud: TrackedPoint[]
+  planes: InferredPlane[]
 }
 
 // === Chart data ===
@@ -76,13 +95,17 @@ export interface StreamStats {
   buffered_frames: number
   fps: number
   is_replaying: boolean
+  first_timestamp_ns: number
+  last_timestamp_ns: number
   intrinsics: CameraIntrinsics | null
 }
 
 export interface RecordingInfo {
   filename: string
+  name: string
   size_mb: number
-  modified: number
+  recorded_at: number
+  has_segmentation: boolean
 }
 
 // === Decoded frame for UI consumption ===

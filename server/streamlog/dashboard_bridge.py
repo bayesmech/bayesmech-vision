@@ -168,6 +168,10 @@ class DashboardBridge:
                         PREFIX_ANNOTATION + _seg_io.encode(annotations)
                     )
 
+        elif action == "get_trajectory":
+            positions = self._store.compute_trajectory()
+            await ws.send_text(json.dumps({"type": "trajectory", "positions": positions}))
+
         elif action == "get_annotations":
             annotations = self._annotator.all_annotations()
             if annotations:

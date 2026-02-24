@@ -5,6 +5,7 @@ recording I/O, and timed replay.
 
 import asyncio
 import logging
+import math
 import time
 from pathlib import Path
 from typing import Callable, Literal
@@ -26,6 +27,47 @@ PerceiverDataFrame = perceiver_pb2.PerceiverDataFrame
 CameraIntrinsics = perceiver_pb2.CameraIntrinsics
 
 _frame_io = ProtoIO(PerceiverDataFrame)
+
+
+# ── Gravity-aligned trajectory helpers ────────────────────────────────────
+
+def _compute_gravity_rotation(gx: float, gy: float, gz: float) -> list[float] | None:
+    """Compute a 3x3 rotation (flat row-major) aligning gravity with -Z via Rodrigues."""
+    length = math.sqrt(gx * gx + gy * gy + gz * gz)
+    if length < 1e-9:
+        return None
+    nx, ny, nz = gx / length, gy / length, gz / length
+    # target: -Z
+    dot = -nz
+    if dot > 1 - 1e-9:
+        return [1, 0, 0, 0, 1, 0, 0, 0, 1]
+    if dot < -1 + 1e-9:
+        return [1, 0, 0, 0, -1, 0, 0, 0, -1]
+    # cross product n x (0,0,-1)
+    kx = ny * (-1) - nz * 0
+    ky = nz * 0 - nx * (-1)
+    kz = nx * 0 - ny * 0
+    k_len = math.sqrt(kx * kx + ky * ky + kz * kz)
+    kx /= k_len
+    ky /= k_len
+    kz /= k_len
+    cos_a = dot
+    sin_a = k_len
+    omc = 1 - cos_a
+    return [
+        cos_a + kx * kx * omc, kx * ky * omc - kz * sin_a, kx * kz * omc + ky * sin_a,
+        ky * kx * omc + kz * sin_a, cos_a + ky * ky * omc, ky * kz * omc - kx * sin_a,
+        kz * kx * omc - ky * sin_a, kz * ky * omc + kx * sin_a, cos_a + kz * kz * omc,
+    ]
+
+
+def _rotate_vector(rotation: list[float], x: float, y: float, z: float) -> tuple[float, float, float]:
+    """Apply a flat 3x3 row-major rotation to (x,y,z)."""
+    return (
+        rotation[0] * x + rotation[1] * y + rotation[2] * z,
+        rotation[3] * x + rotation[4] * y + rotation[5] * z,
+        rotation[6] * x + rotation[7] * y + rotation[8] * z,
+    )
 
 
 class FrameStore:
@@ -218,7 +260,46 @@ class FrameStore:
             if self._source == "file":
                 self._source = "none"
 
+    # ── Trajectory ─────────────────────────────────────────────────────────
+
+    def compute_trajectory(self) -> list[dict]:
+        """Compute gravity-aligned 2D positions for all frames."""
+        rotation: list[float] | None = None
+        positions: list[dict] = []
+        for frame in self._frames:
+            pose = frame.camera_pose
+            if not pose or not pose.HasField("position"):
+                positions.append({"x": 0.0, "y": 0.0})
+                continue
+            px, py, pz = pose.position.x, pose.position.y, pose.position.z
+            # Try to get gravity rotation from IMU data
+            if rotation is None and frame.HasField("imu_data"):
+                imu = frame.imu_data
+                if imu.HasField("gravity"):
+                    rotation = _compute_gravity_rotation(
+                        imu.gravity.x, imu.gravity.y, imu.gravity.z
+                    )
+            if rotation is not None:
+                rx, ry, _rz = _rotate_vector(rotation, px, py, pz)
+                positions.append({"x": round(rx, 6), "y": round(ry, 6)})
+            else:
+                # Fallback: XZ plane
+                positions.append({"x": round(px, 6), "y": round(pz, 6)})
+        return positions
+
     # ── Stats ─────────────────────────────────────────────────────────────
+
+    @property
+    def first_timestamp_ns(self) -> int:
+        if not self._frames:
+            return 0
+        return self._frames[0].frame_identifier.timestamp_ns
+
+    @property
+    def last_timestamp_ns(self) -> int:
+        if not self._frames:
+            return 0
+        return self._frames[-1].frame_identifier.timestamp_ns
 
     @property
     def recording_fps(self) -> float:
@@ -242,6 +323,8 @@ class FrameStore:
             "fps": round(self.fps, 1),
             "recording_fps": round(self.recording_fps, 1),
             "is_replaying": self.is_replaying,
+            "first_timestamp_ns": self.first_timestamp_ns,
+            "last_timestamp_ns": self.last_timestamp_ns,
             "intrinsics": {
                 "fx": intr.fx, "fy": intr.fy,
                 "cx": intr.cx, "cy": intr.cy,

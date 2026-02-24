@@ -16,20 +16,20 @@ interface MotionChartProps {
 }
 
 const MotionChart = ({ title, yAxisLabel, field, axisLabels, yMin, yMax }: MotionChartProps) => {
-  const { latestFrame } = useDashboard()
+  const { displayedFrame } = useDashboard()
   const { datasets, xMin, xMax, addPoint } = useChartData(axisLabels.length)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const chartRef = useRef<Chart | null>(null)
 
   // Extract IMU data and push to chart buffer
   useEffect(() => {
-    const data = latestFrame?.imu?.[field]
+    const data = displayedFrame?.imu?.[field]
     if (!data) return
 
     const record = data as unknown as Record<string, number>
     const values = axisLabels.map((label) => record[label.toLowerCase()] ?? 0)
     addPoint(values)
-  }, [latestFrame, field, axisLabels, addPoint])
+  }, [displayedFrame, field, axisLabels, addPoint])
 
   // Create the Chart.js instance once
   useEffect(() => {

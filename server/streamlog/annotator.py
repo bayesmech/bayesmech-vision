@@ -39,7 +39,10 @@ def _key(fid: perceiver_pb2.PerceiverFrameIdentifier) -> AnnotationKey:
 
 
 def _seg_path(recording_path: Path) -> Path:
-    """recordings/foo.pb -> recordings/foo.seg.pb"""
+    """recordings/YYYYMMDD_HHMMSS.vis.pb -> recordings/YYYYMMDD_HHMMSS.seg.pb"""
+    name = recording_path.name
+    if name.endswith(".vis.pb"):
+        return recording_path.parent / (name.removesuffix(".vis.pb") + ".seg.pb")
     return recording_path.with_suffix(".seg.pb")
 
 

@@ -33,12 +33,11 @@ const CoverageRow: React.FC<{ row: SignalRow; stats: CoverageStats }> = ({ row, 
         {row.label}
       </div>
       {pct !== null ? (
-        <div style={{ flex: 1, background: 'rgba(255,255,255,0.08)', borderRadius: '3px', height: '6px', overflow: 'hidden' }}>
+        <div style={{ flex: 1, background: 'rgba(255,255,255,0.06)', height: '4px', overflow: 'hidden' }}>
           <div style={{
             width: `${pct}%`,
             height: '100%',
             background: barColor(pct),
-            borderRadius: '3px',
             transition: 'width 0.4s ease, background 0.4s ease',
           }} />
         </div>
@@ -65,10 +64,9 @@ const CoveragePanel: React.FC = () => {
         </span>
       </div>
       <div style={{
-        background: 'var(--card-bg)',
-        borderRadius: '8px',
+        background: 'var(--bg-card)',
         padding: '0.75rem 1rem',
-        border: '1px solid rgba(255,255,255,0.07)',
+        border: '1px solid var(--border)',
       }}>
         {ROWS.map(row => (
           <CoverageRow key={row.label} row={row} stats={coverageStats} />

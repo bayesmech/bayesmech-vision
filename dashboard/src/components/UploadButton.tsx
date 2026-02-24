@@ -1,55 +1,207 @@
-import React, { useRef } from 'react'
-import { uploadRecording } from '../services/api'
+import React, { useState, useEffect, useCallback } from 'react'
+import { fetchRecordings } from '../services/api'
+import { useDashboard } from '../context/DashboardContext'
+import type { RecordingInfo } from '../types'
 
-const UploadButton: React.FC = () => {
-  const fileInputRef = useRef<HTMLInputElement>(null)
+const LoadButton: React.FC = () => {
+  const { loadRecording } = useDashboard()
+  const [open, setOpen] = useState(false)
+  const [recordings, setRecordings] = useState<RecordingInfo[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  const handleClick = () => {
-    fileInputRef.current?.click()
+  const load = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const data = await fetchRecordings()
+      setRecordings(data.recordings)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load recordings')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  const handleOpen = () => {
+    setOpen(true)
+    load()
   }
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-
-    // Validate .pb extension
-    if (!file.name.endsWith('.pb')) {
-      alert('Invalid file type. Please select a .pb recording file.')
-      // Reset the input
-      if (fileInputRef.current) fileInputRef.current.value = ''
-      return
-    }
-
+  const handleSelect = async (filename: string) => {
+    setOpen(false)
     try {
-      await uploadRecording(file)
-      alert(`Recording "${file.name}" uploaded successfully.`)
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Unknown error'
-      alert(`Upload failed: ${message}`)
+      await loadRecording(filename)
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Unknown error'
+      alert(`Playback failed: ${msg}`)
     }
+  }
 
-    // Reset the input so the same file can be re-selected
-    if (fileInputRef.current) fileInputRef.current.value = ''
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [open])
+
+  const formatDate = (ts: number) => {
+    const d = new Date(ts * 1000)
+    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+      + ' ' + d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
   }
 
   return (
     <>
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept=".pb"
-        style={{ display: 'none' }}
-        onChange={handleFileChange}
-      />
-      <button
-        className="theme-toggle"
-        onClick={handleClick}
-        title="Upload recording (.pb)"
-      >
-        {'\u{1F4C1}'}
-      </button>
+      <button onClick={handleOpen} style={btnStyle}>LOAD</button>
+
+      {open && (
+        <div
+          onClick={() => setOpen(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.85)',
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: '#0a0a0a',
+              border: '1px solid #1a1a1a',
+              width: '100%',
+              maxWidth: 560,
+              maxHeight: '70vh',
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden',
+            }}
+          >
+            {/* Header */}
+            <div style={{
+              padding: '1rem 1.25rem',
+              borderBottom: '1px solid #1a1a1a',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+            }}>
+              <span style={{
+                fontSize: '0.8rem',
+                fontWeight: 600,
+                color: '#00ff88',
+                textTransform: 'uppercase',
+                letterSpacing: '0.1em',
+              }}>
+                Recordings
+              </span>
+              <button
+                onClick={() => setOpen(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#707070',
+                  fontSize: '1rem',
+                  cursor: 'pointer',
+                  padding: '0.25rem',
+                  lineHeight: 1,
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Content */}
+            <div style={{ overflowY: 'auto', flex: 1 }}>
+              {loading && (
+                <div style={msgStyle}>Loading...</div>
+              )}
+              {error && (
+                <div style={{ ...msgStyle, color: '#ff3344' }}>{error}</div>
+              )}
+              {!loading && !error && recordings.length === 0 && (
+                <div style={msgStyle}>No recordings found</div>
+              )}
+              {!loading && !error && recordings.map((rec) => (
+                <div
+                  key={rec.filename}
+                  onClick={() => handleSelect(rec.filename)}
+                  style={{
+                    padding: '0.75rem 1.25rem',
+                    borderBottom: '1px solid #111',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.75rem',
+                    transition: 'background 0.1s',
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = '#111'}
+                  onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                >
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{
+                      fontSize: '0.82rem',
+                      color: '#e0e0e0',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                    }}>
+                      {rec.name}
+                    </div>
+                    <div style={{
+                      fontSize: '0.68rem',
+                      color: '#505050',
+                      marginTop: '0.2rem',
+                    }}>
+                      {rec.size_mb} MB &middot; {formatDate(rec.recorded_at)}
+                    </div>
+                  </div>
+                  {rec.has_segmentation && (
+                    <span style={{
+                      fontSize: '0.6rem',
+                      fontWeight: 600,
+                      padding: '0.15rem 0.4rem',
+                      border: '1px solid #00ff88',
+                      color: '#00ff88',
+                      letterSpacing: '0.08em',
+                      flexShrink: 0,
+                    }}>
+                      SEG
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </>
   )
 }
 
-export default UploadButton
+const btnStyle: React.CSSProperties = {
+  background: 'transparent',
+  border: '1px solid #00ff88',
+  color: '#00ff88',
+  fontSize: '0.75rem',
+  fontWeight: 600,
+  cursor: 'pointer',
+  padding: '0.4rem 0.8rem',
+  letterSpacing: '0.08em',
+  fontFamily: 'inherit',
+  marginRight: '0.5rem',
+}
+
+const msgStyle: React.CSSProperties = {
+  padding: '2rem',
+  textAlign: 'center',
+  fontSize: '0.8rem',
+  color: '#707070',
+}
+
+export default LoadButton

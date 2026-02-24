@@ -17,8 +17,11 @@ POST /api/upload_recording  Upload .pb file and start replay
 
 import asyncio
 import logging
+import re
 import sys
 import yaml
+from contextlib import asynccontextmanager
+from datetime import datetime
 from pathlib import Path
 
 from fastapi import FastAPI, UploadFile, File, HTTPException, WebSocket, WebSocketDisconnect
@@ -66,20 +69,17 @@ annotator.set_annotation_callback(bridge.broadcast_annotation)
 
 # ── Application ───────────────────────────────────────────────────────────────
 
-app = FastAPI(title="BayesMech Vision Server", version="3.0.0")
+@asynccontextmanager
+async def _lifespan(app: FastAPI):
+    await annotator.connect()
+    yield
+    await annotator.close()
+
+
+app = FastAPI(title="BayesMech Vision Server", version="3.0.0", lifespan=_lifespan)
 app.add_middleware(
     CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"],
 )
-
-
-@app.on_event("startup")
-async def _startup():
-    await annotator.connect()
-
-
-@app.on_event("shutdown")
-async def _shutdown():
-    await annotator.close()
 
 
 # ── WebSocket: AR stream (Android -> server) ─────────────────────────────────
@@ -137,17 +137,29 @@ async def get_stream_stats():
     return store.stats()
 
 
+_FILENAME_DATE_RE = re.compile(r"(\d{8}_\d{6})")
+
+def _parse_recording_timestamp(name: str, fallback_mtime: float) -> float:
+    """Extract epoch seconds from a YYYYMMDD_HHMMSS pattern in the filename."""
+    m = _FILENAME_DATE_RE.search(name)
+    if m:
+        try:
+            return datetime.strptime(m.group(1), "%Y%m%d_%H%M%S").timestamp()
+        except ValueError:
+            pass
+    return fallback_mtime
+
 @app.get("/api/recordings")
 async def list_recordings():
-    files = sorted(RECORDINGS_DIR.glob("*.pb"), key=lambda p: p.stat().st_mtime, reverse=True)
-    # Exclude .seg.pb files
-    files = [p for p in files if not p.name.endswith(".seg.pb")]
+    files = sorted(RECORDINGS_DIR.glob("*.vis.pb"), key=lambda p: p.stat().st_mtime, reverse=True)
     return {
         "recordings": [
             {
                 "filename": p.name,
+                "name": p.name.removesuffix(".vis.pb"),
                 "size_mb": round(p.stat().st_size / (1024 ** 2), 2),
-                "modified": p.stat().st_mtime,
+                "recorded_at": _parse_recording_timestamp(p.name, p.stat().st_mtime),
+                "has_segmentation": (p.parent / (p.name.removesuffix(".vis.pb") + ".seg.pb")).exists(),
             }
             for p in files
         ]
@@ -187,11 +199,6 @@ async def start_playback(request: dict):
 
     annotator.annotate_recording(frames)
 
-    # Start timed replay to subscribers
-    await store.start_replay(
-        speed=float(request.get("speed", 1.0)),
-        loop=bool(request.get("loop", False)),
-    )
     return {"status": "started", "filename": filename, "frames": count}
 
 
@@ -241,7 +248,6 @@ async def upload_recording(file: UploadFile = File(...)):
 
     annotator.annotate_recording(frames)
 
-    await store.start_replay(speed=1.0, loop=False)
     return {"status": "uploaded_and_playing", "filename": file.filename, "size": len(content), "frames": count}
 
 

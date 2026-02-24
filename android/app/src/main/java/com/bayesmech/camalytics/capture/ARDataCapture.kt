@@ -124,13 +124,11 @@ class ARDataCapture(
 
         builder.cameraPose = CameraDataExtractor.extractCameraPose(camera)
 
-        if (frameNumber == 0) {
-            val depthWidth = depthImage?.width ?: imageWidth
-            val depthHeight = depthImage?.height ?: imageHeight
-            builder.cameraIntrinsics = CameraDataExtractor.extractCameraIntrinsics(
-                camera, depthWidth, depthHeight
-            )
-        }
+        val depthWidth = depthImage?.width ?: imageWidth
+        val depthHeight = depthImage?.height ?: imageHeight
+        builder.cameraIntrinsics = CameraDataExtractor.extractCameraIntrinsics(
+            camera, depthWidth, depthHeight
+        )
 
         if (currentQuality.sendRgb && config.sendRgbFrames && cameraFrameBitmap != null) {
             builder.rgbFrame = CameraDataExtractor.extractRgbFrame(

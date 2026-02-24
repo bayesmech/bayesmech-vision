@@ -32,7 +32,7 @@ const StreamViewer: React.FC<StreamViewerProps> = ({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          borderRadius: 4,
+          borderRadius: 0,
           overflow: 'hidden',
           position: 'relative',
         }}

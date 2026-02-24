@@ -52,11 +52,13 @@ class StreamingSession:
         self.is_segmenting = False  # Lock to prevent overlapping tasks
         self.auto_segmentation_initialized = False  # Track if auto-segmentation has been triggered
 
-    async def add_frame(self, rgb_frame: np.ndarray, frame_number: int):
+    async def add_frame(self, rgb_frame: np.ndarray, frame_number: int, timestamp_ns: int = 0, device_id: str = ""):
         """Add new frame to buffer"""
         self.frame_buffer.append({
             'frame': rgb_frame,
-            'frame_number': frame_number
+            'frame_number': frame_number,
+            'timestamp_ns': timestamp_ns,
+            'device_id': device_id,
         })
 
     async def should_segment(self, frame_number: int) -> bool:
@@ -170,11 +172,13 @@ class SegmentationService:
                 print(f"  wget https://dl.fbaipublicfiles.com/segment_anything_2/092824/sam2.1_hiera_{variant}.pt")
                 return False
 
-            print(f"Loading SAM2 {sam2_config['variant']} variant...")
+            vos_optimized = sam2_config.get('vos_optimized', False)
+            print(f"Loading SAM2 {sam2_config['variant']} variant (vos_optimized={vos_optimized})...")
             self.video_predictor = build_sam2_video_predictor(
                 config_file=config_file,
                 ckpt_path=checkpoint_path,
                 device=self.device,
+                vos_optimized=vos_optimized,
             )
 
             video_predictor = self.video_predictor
@@ -235,14 +239,14 @@ class SegmentationService:
             print(f"Created {self.model_type.upper()} streaming session for client {client_id}")
             return session
 
-    async def add_frame(self, client_id: str, rgb_frame: np.ndarray, frame_number: int):
+    async def add_frame(self, client_id: str, rgb_frame: np.ndarray, frame_number: int, timestamp_ns: int = 0, device_id: str = ""):
         """Add frame to client's buffer"""
         if client_id not in self.sessions:
             await self.create_session(client_id)
             print(f"✓ Created new {self.model_type.upper()} session for {client_id}, buffer ready for segmentation")
 
         session = self.sessions[client_id]
-        await session.add_frame(rgb_frame, frame_number)
+        await session.add_frame(rgb_frame, frame_number, timestamp_ns, device_id)
 
         # Log every 30 frames
         if frame_number % 30 == 0:
@@ -304,13 +308,20 @@ class SegmentationService:
 
             print(f"  [AUTO-SEGMENT] Initialized with {len(masks)} detected objects")
 
-            # Broadcast initial results
-            if self.on_segmentation_result and masks:
-                # Pass raw numpy masks, not encoded
+            # Now propagate through the full buffer to get masks for all frames
+            if masks and len(session.frame_buffer) > 1:
+                print(f"  [AUTO-SEGMENT] Propagating through {len(session.frame_buffer)} buffered frames")
+                await self.propagate_segmentation(client_id)
+            elif self.on_segmentation_result and masks:
+                # Only 1 frame — broadcast the init result directly
+                latest = session.frame_buffer[-1]
                 await self.on_segmentation_result(
                     client_id=client_id,
                     masks=masks,
-                    prompt="auto_segment_grid"
+                    prompt="auto_segment_grid",
+                    frame_num=latest['frame_number'],
+                    timestamp_ns=latest.get('timestamp_ns', 0),
+                    device_id=latest.get('device_id', ''),
                 )
 
         except Exception as e:
@@ -618,17 +629,27 @@ class SegmentationService:
 
         video_segments = await asyncio.to_thread(_run_propagation)
 
-        if video_segments and latest_frame_idx in video_segments:
+        if not video_segments:
+            return
+
+        # Update session with latest frame's masks
+        if latest_frame_idx in video_segments:
             session.latest_masks = video_segments[latest_frame_idx]
             session.last_segmentation_frame = session.frame_buffer[latest_frame_idx]['frame_number']
 
-            if self.on_segmentation_result:
-                await self.on_segmentation_result(
-                    client_id=session.client_id,
-                    masks=session.latest_masks,
-                    prompt="auto_propagation",
-                    frame_num=session.last_segmentation_frame,
-                )
+        # Broadcast results for ALL frames in the buffer, not just the latest
+        if self.on_segmentation_result:
+            for frame_idx in sorted(video_segments.keys()):
+                if frame_idx < len(session.frame_buffer):
+                    buf_entry = session.frame_buffer[frame_idx]
+                    await self.on_segmentation_result(
+                        client_id=session.client_id,
+                        masks=video_segments[frame_idx],
+                        prompt="auto_propagation",
+                        frame_num=buf_entry['frame_number'],
+                        timestamp_ns=buf_entry.get('timestamp_ns', 0),
+                        device_id=buf_entry.get('device_id', ''),
+                    )
 
 
     def composite_rgb_with_masks(self, rgb_frame: np.ndarray, masks: Dict[str, np.ndarray]) -> np.ndarray:
