@@ -68,6 +68,7 @@ const DashboardPage = () => {
           blobUrl={displayedAnnotation?.blobUrl}
           placeholderIcon={'🧩'}
           placeholderText="Waiting for segmentation masks..."
+          holdLastMs={3000}
         />
 
         <GeometryStreamViewer

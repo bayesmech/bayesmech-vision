@@ -59,9 +59,7 @@ RECORDINGS_DIR.mkdir(exist_ok=True)
 # ── Components ────────────────────────────────────────────────────────────────
 
 store = FrameStore()
-annotator = Annotator(
-    host=config.get("segmentation", {}).get("host", "http://127.0.0.1:8081"),
-)
+annotator = Annotator()
 bridge = DashboardBridge(store, annotator)
 
 # Wire: annotation results -> broadcast to dashboards

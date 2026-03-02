@@ -15,6 +15,8 @@ import com.bayesmech.camalytics.network.StreamConfig
 import com.bayesmech.camalytics.recording.RecordingManager
 import com.bayesmech.camalytics.coverage.CoverageTracker
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import com.bayesmech.camalytics.sensors.SensorDataCollector
 
@@ -31,6 +33,7 @@ class ARDataCapture(
     private val TAG = "ARDataCapture"
     private var frameNumber = 0
     private var lastSentTimestamp = 0L
+    private val frameMutex = Mutex()
     private val bandwidthMonitor = BandwidthMonitor()
     private var currentQuality = QualityLevel.HIGH
 
@@ -45,10 +48,19 @@ class ARDataCapture(
         imageHeight: Int
     ) = withContext(Dispatchers.IO) {
         try {
-            val now = System.nanoTime()
-            val minInterval = (1_000_000_000 / currentQuality.targetFps).toLong()
-            if (now - lastSentTimestamp < minInterval) {
-                return@withContext
+            // Mutex protects the throttle check + frameNumber increment so concurrent
+            // coroutines from onDrawFrame() cannot both pass the interval check and
+            // produce duplicate frame numbers.
+            val capturedFrameNumber: Int
+            frameMutex.withLock {
+                val now = System.nanoTime()
+                val minInterval = (1_000_000_000 / currentQuality.targetFps).toLong()
+                if (now - lastSentTimestamp < minInterval) {
+                    return@withContext
+                }
+                lastSentTimestamp = now
+                capturedFrameNumber = frameNumber
+                frameNumber++
             }
 
             if (config.enableAdaptiveQuality) {
@@ -60,7 +72,8 @@ class ARDataCapture(
 
             val perceiverFrame = buildPerceiverDataFrame(
                 frame, session, camera, cameraFrameBitmap, depthImage, pointCloudData,
-                imageWidth, imageHeight, enableDepth, enableGeometry
+                imageWidth, imageHeight, enableDepth, enableGeometry,
+                capturedFrameNumber
             )
 
             if (recordingManager.isRecording()) {
@@ -71,8 +84,6 @@ class ARDataCapture(
 
             val frameSize = perceiverFrame.serializedSize
             bandwidthMonitor.recordSent(frameSize)
-
-            lastSentTimestamp = now
 
             // Record coverage for this frame
             val imuData = sensorCollector.getCurrentImuData()
@@ -89,10 +100,8 @@ class ARDataCapture(
                 hasGps = perceiverFrame.hasGpsLocation()
             )
 
-            frameNumber++
-
-            if (frameNumber % 30 == 0) {
-                Log.i(TAG, "Sent frame $frameNumber, quality: $currentQuality, " +
+            if (capturedFrameNumber % 30 == 0) {
+                Log.i(TAG, "Sent frame $capturedFrameNumber, quality: $currentQuality, " +
                         "bandwidth: ${"%.2f".format(bandwidthMonitor.getCurrentBandwidthMbps())} Mbps")
                 Log.i(TAG, "  Sensors: ${sensorCollector.getSensorSummary()}")
                 Log.i(TAG, "  Coverage: ${coverageTracker.getStats()}")
@@ -113,13 +122,14 @@ class ARDataCapture(
         imageWidth: Int,
         imageHeight: Int,
         enableDepth: Boolean,
-        enableGeometry: Boolean
+        enableGeometry: Boolean,
+        frameNum: Int
     ): PerceiverDataFrame {
         val builder = PerceiverDataFrame.newBuilder()
 
         builder.frameIdentifier = PerceiverFrameIdentifier.newBuilder()
             .setTimestampNs(frame.timestamp)
-            .setFrameNumber(frameNumber)
+            .setFrameNumber(frameNum)
             .setDeviceId(deviceId)
             .build()
 

@@ -5,7 +5,7 @@ import type {
 } from '../types'
 import { dashboardWs } from '../services/websocket'
 import { startPlayback, switchToLive as apiSwitchToLive } from '../services/api'
-import { bytesToBlobUrl, maskToBlobUrl } from '../services/proto'
+import { bytesToBlobUrl, compositeMasksToDataUrl } from '../services/proto'
 import { bayesmech } from '../proto/bundle'
 
 // =====================================================================
@@ -218,9 +218,11 @@ class FrameDecoder {
 
   decodeAnnotation(proto: bayesmech.vision.SegmentationResponse): DecodedAnnotation | null {
     const frameNumber = proto.frameIdentifier?.frameNumber ?? 0
-    const firstMask = proto.masks?.[0]
-    if (!firstMask?.maskData || firstMask.maskData.length === 0) return null
-    return { frameNumber, blobUrl: maskToBlobUrl(firstMask.maskData as Uint8Array) }
+    const masks = proto.masks
+    if (!masks || masks.length === 0) return null
+    const dataUrl = compositeMasksToDataUrl(masks)
+    if (!dataUrl) return null
+    return { frameNumber, blobUrl: dataUrl }
   }
 }
 
