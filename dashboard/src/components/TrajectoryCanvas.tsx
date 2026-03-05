@@ -1,54 +1,78 @@
-import React, { useRef, useEffect } from 'react'
+import React, { useRef, useEffect, useMemo } from 'react'
 import { useDashboard } from '../context/DashboardContext'
 import { useTrajectory } from '../hooks/useTrajectory'
-import { drawTrajectory } from '../utils/trajectory'
+import { drawTrajectory, rescaleIfNeeded } from '../utils/trajectory'
 
 const CANVAS_WIDTH = 800
 const CANVAS_HEIGHT = 600
 
 const TrajectoryCanvas: React.FC = () => {
-  const { latestFrame } = useDashboard()
+  const { displayedFrame, isLive, trajectoryPositions, currentIndex } = useDashboard()
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const trajectory = useTrajectory(CANVAS_WIDTH, CANVAS_HEIGHT)
+  const liveTrajectory = useTrajectory(CANVAS_WIDTH, CANVAS_HEIGHT)
 
-  // Add position when new frame arrives with camera + motion data
+  // Live mode: accumulate positions from displayedFrame
   useEffect(() => {
-    if (!latestFrame?.camera || !latestFrame?.motion) return
-    trajectory.addPosition(latestFrame.camera, latestFrame.motion)
+    if (!isLive) return
+    if (!displayedFrame?.camera_pose) return
+    liveTrajectory.addPosition(displayedFrame.camera_pose, displayedFrame.imu)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [latestFrame])
+  }, [displayedFrame, isLive])
 
-  // Redraw trajectory when state changes
+  // File mode: compute visible points and stable scaling from all trajectory positions
+  const fileView = useMemo(() => {
+    if (isLive || trajectoryPositions.length === 0) return null
+    const visible = trajectoryPositions.slice(0, currentIndex + 1)
+    // Scale computed from ALL positions for a stable viewport
+    const { scale, offsetX, offsetY } = rescaleIfNeeded(
+      trajectoryPositions, CANVAS_WIDTH, CANVAS_HEIGHT, 1
+    )
+    return { visible, scale, offset: { x: offsetX, y: offsetY } }
+  }, [isLive, trajectoryPositions, currentIndex])
+
+  // Draw
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
-
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
-    drawTrajectory(ctx, canvas, trajectory.points, trajectory.scale, trajectory.offset)
-  }, [trajectory.points, trajectory.scale, trajectory.offset])
+    if (isLive) {
+      drawTrajectory(ctx, canvas, liveTrajectory.points, liveTrajectory.scale, liveTrajectory.offset)
+    } else if (fileView) {
+      drawTrajectory(ctx, canvas, fileView.visible, fileView.scale, fileView.offset)
+    }
+  }, [isLive, liveTrajectory.points, liveTrajectory.scale, liveTrajectory.offset, fileView])
 
-  const currentPos = trajectory.currentPosition
+  const currentPos = isLive
+    ? liveTrajectory.currentPosition
+    : (fileView && fileView.visible.length > 0
+        ? fileView.visible[fileView.visible.length - 1]
+        : null)
+
+  const pointCount = isLive ? liveTrajectory.points.length : (fileView?.visible.length ?? 0)
+  const scaleVal = isLive ? liveTrajectory.scale : (fileView?.scale ?? 1)
 
   return (
     <div className="stream-card">
       <div className="stream-header">
         <span className="stream-title">Camera Trajectory</span>
-        <button
-          className="theme-toggle"
-          onClick={trajectory.clear}
-          style={{ marginLeft: 'auto', fontSize: '0.8rem', padding: '0.25rem 0.5rem' }}
-        >
-          Clear
-        </button>
+        {isLive && (
+          <button
+            className="theme-toggle"
+            onClick={liveTrajectory.clear}
+            style={{ marginLeft: 'auto', fontSize: '0.8rem', padding: '0.25rem 0.5rem' }}
+          >
+            Clear
+          </button>
+        )}
       </div>
       <div style={{ padding: '0.5rem' }}>
         <canvas
           ref={canvasRef}
           width={CANVAS_WIDTH}
           height={CANVAS_HEIGHT}
-          style={{ width: '100%', height: 'auto', borderRadius: 4 }}
+          style={{ width: '100%', height: 'auto' }}
         />
         <div
           className="trajectory-info"
@@ -64,8 +88,8 @@ const TrajectoryCanvas: React.FC = () => {
           <span>
             Position: {currentPos ? `(${currentPos.x.toFixed(3)}, ${currentPos.y.toFixed(3)})` : 'N/A'}
           </span>
-          <span>Points: {trajectory.points.length}</span>
-          <span>Scale: {trajectory.scale.toFixed(2)}</span>
+          <span>Points: {pointCount}</span>
+          <span>Scale: {scaleVal.toFixed(2)}</span>
         </div>
       </div>
     </div>

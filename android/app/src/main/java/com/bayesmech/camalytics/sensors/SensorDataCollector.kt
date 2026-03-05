@@ -1,81 +1,74 @@
 package com.bayesmech.camalytics.sensors
 
+import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import android.os.Looper
 import android.util.Log
-import ar_stream.ArStream
+import androidx.core.content.ContextCompat
+import com.bayesmech.vision.GpsLocation
+import com.bayesmech.vision.ImuData
+import com.bayesmech.vision.Vector3
+import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationCallback
+import com.google.android.gms.location.LocationRequest
+import com.google.android.gms.location.LocationResult
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
 import java.util.concurrent.atomic.AtomicReference
 
 /**
- * Collects real-time sensor data from Android motion sensors.
- * 
+ * Collects real-time sensor data from Android motion sensors and GPS.
+ *
  * Manages listeners for:
- * - Accelerometer (linear acceleration including gravity)
  * - Gyroscope (angular velocity)
- * - Magnetometer (magnetic field)
- * - Gravity (gravity vector)
- * - Linear Acceleration (acceleration without gravity)
- * 
+ * - Gravity (gravity vector, OS-fused)
+ * - Linear Acceleration (acceleration without gravity, OS-fused)
+ * - Magnetometer (raw magnetic field, for server-side orientation fusion)
+ * - GPS location (via FusedLocationProviderClient)
+ *
  * Thread-safe - sensor values are stored atomically and can be read from any thread.
  */
-class SensorDataCollector(context: Context) : SensorEventListener {
+class SensorDataCollector(private val context: Context) : SensorEventListener {
     private val TAG = "SensorDataCollector"
-    
+
     private val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
-    
+
     // Sensors
-    private val accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
     private val gyroscope = sensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE)
     private val magnetometer = sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD)
     private val gravitySensor = sensorManager.getDefaultSensor(Sensor.TYPE_GRAVITY)
     private val linearAccelSensor = sensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION)
-    
-    // Atomic references for thread-safe access to sensor values
-    private val acceleration = AtomicReference(FloatArray(3) { 0f })
+
+    // Atomic references for thread-safe access
     private val angularVelocity = AtomicReference(FloatArray(3) { 0f })
     private val magneticField = AtomicReference(FloatArray(3) { 0f })
     private val gravity = AtomicReference(FloatArray(3) { 0f })
     private val linearAcceleration = AtomicReference(FloatArray(3) { 0f })
-    
-    // Orientation (computed from accelerometer + magnetometer)
-    private val rotationMatrix = FloatArray(9)
-    private val orientationAngles = FloatArray(3)
-    private val orientation = AtomicReference(FloatArray(4) { 0f }) // Quaternion
-    
-    // Velocity computation
-    private val velocityFromPose = AtomicReference(FloatArray(3) { 0f }) // From ARCore pose differentiation
-    private val velocityFromAccel = AtomicReference(FloatArray(3) { 0f }) // From acceleration integration
-    private var lastPosePosition: FloatArray? = null
-    private var lastPoseTime: Long = 0
-    private var lastAccelTime: Long = 0
-    
+
+    // GPS
+    private var fusedLocationClient: FusedLocationProviderClient? = null
+    private val currentLocation = AtomicReference<GpsLocation?>(null)
+    private var locationCallback: LocationCallback? = null
+
     private var isCollecting = false
-    
+
     /**
      * Start collecting sensor data.
-     * Registers listeners for all available sensors at SENSOR_DELAY_GAME rate (~50Hz).
+     * Registers listeners at SENSOR_DELAY_GAME rate (~50Hz).
      */
     fun startCollecting() {
         if (isCollecting) {
             Log.w(TAG, "Already collecting sensor data")
             return
         }
-        
+
         var sensorsRegistered = 0
-        
-        // Register accelerometer
-        if (accelerometer != null) {
-            sensorManager.registerListener(this, accelerometer, SensorManager.SENSOR_DELAY_GAME)
-            sensorsRegistered++
-            Log.i(TAG, "✓ Accelerometer registered")
-        } else {
-            Log.w(TAG, "✗ Accelerometer not available")
-        }
-        
-        // Register gyroscope
+
         if (gyroscope != null) {
             sensorManager.registerListener(this, gyroscope, SensorManager.SENSOR_DELAY_GAME)
             sensorsRegistered++
@@ -83,8 +76,7 @@ class SensorDataCollector(context: Context) : SensorEventListener {
         } else {
             Log.w(TAG, "✗ Gyroscope not available")
         }
-        
-        // Register magnetometer
+
         if (magnetometer != null) {
             sensorManager.registerListener(this, magnetometer, SensorManager.SENSOR_DELAY_GAME)
             sensorsRegistered++
@@ -92,8 +84,7 @@ class SensorDataCollector(context: Context) : SensorEventListener {
         } else {
             Log.w(TAG, "✗ Magnetometer not available")
         }
-        
-        // Register gravity sensor
+
         if (gravitySensor != null) {
             sensorManager.registerListener(this, gravitySensor, SensorManager.SENSOR_DELAY_GAME)
             sensorsRegistered++
@@ -101,8 +92,7 @@ class SensorDataCollector(context: Context) : SensorEventListener {
         } else {
             Log.w(TAG, "✗ Gravity sensor not available")
         }
-        
-        // Register linear acceleration sensor
+
         if (linearAccelSensor != null) {
             sensorManager.registerListener(this, linearAccelSensor, SensorManager.SENSOR_DELAY_GAME)
             sensorsRegistered++
@@ -110,226 +100,145 @@ class SensorDataCollector(context: Context) : SensorEventListener {
         } else {
             Log.w(TAG, "✗ Linear acceleration sensor not available")
         }
-        
+
+        startLocationUpdates()
+
         isCollecting = true
         Log.i(TAG, "Started collecting from $sensorsRegistered sensors")
     }
-    
+
     /**
      * Stop collecting sensor data.
-     * Unregisters all sensor listeners.
      */
     fun stopCollecting() {
-        if (!isCollecting) {
-            return
-        }
-        
+        if (!isCollecting) return
         sensorManager.unregisterListener(this)
+        stopLocationUpdates()
         isCollecting = false
         Log.i(TAG, "Stopped collecting sensor data")
     }
-    
+
     override fun onSensorChanged(event: SensorEvent) {
         when (event.sensor.type) {
-            Sensor.TYPE_ACCELEROMETER -> {
-                acceleration.set(event.values.clone())
-                updateOrientation()
-            }
-            Sensor.TYPE_GYROSCOPE -> {
-                angularVelocity.set(event.values.clone())
-            }
-            Sensor.TYPE_MAGNETIC_FIELD -> {
-                magneticField.set(event.values.clone())
-                updateOrientation()
-            }
-            Sensor.TYPE_GRAVITY -> {
-                gravity.set(event.values.clone())
-            }
-            Sensor.TYPE_LINEAR_ACCELERATION -> {
-                linearAcceleration.set(event.values.clone())
-                updateVelocityFromAccel(event.values)
-            }
+            Sensor.TYPE_GYROSCOPE -> angularVelocity.set(event.values.clone())
+            Sensor.TYPE_MAGNETIC_FIELD -> magneticField.set(event.values.clone())
+            Sensor.TYPE_GRAVITY -> gravity.set(event.values.clone())
+            Sensor.TYPE_LINEAR_ACCELERATION -> linearAcceleration.set(event.values.clone())
         }
     }
-    
+
     override fun onAccuracyChanged(sensor: Sensor, accuracy: Int) {
-        // Log accuracy changes if needed
         if (accuracy == SensorManager.SENSOR_STATUS_UNRELIABLE) {
             Log.w(TAG, "Sensor ${sensor.name} accuracy is unreliable")
         }
     }
-    
-    /**
-     * Compute orientation quaternion from accelerometer and magnetometer.
-     * Uses rotation matrix computed from gravity and magnetic field vectors.
-     */
-    private fun updateOrientation() {
-        val accel = acceleration.get()
-        val mag = magneticField.get()
-        
-        if (accel.all { it == 0f } || mag.all { it == 0f }) {
-            return  // Not enough data yet
-        }
-        
-        // Get rotation matrix from accelerometer and magnetometer
-        val success = SensorManager.getRotationMatrix(
-            rotationMatrix, 
-            null, 
-            accel, 
-            mag
-        )
-        
-        if (success) {
-            // Convert rotation matrix to quaternion
-            val quat = rotationMatrixToQuaternion(rotationMatrix)
-            orientation.set(quat)
-        }
+
+    // ── GPS / Location ─────────────────────────────────────────────────────
+
+    private fun hasLocationPermission(): Boolean {
+        return ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) ==
+                PackageManager.PERMISSION_GRANTED
     }
-    
-    /**
-     * Convert 3x3 rotation matrix to quaternion [x, y, z, w]
-     */
-    private fun rotationMatrixToQuaternion(matrix: FloatArray): FloatArray {
-        val w = Math.sqrt((1.0 + matrix[0] + matrix[4] + matrix[8]) / 4.0).toFloat()
-        val x = (matrix[7] - matrix[5]) / (4 * w)
-        val y = (matrix[2] - matrix[6]) / (4 * w)
-        val z = (matrix[3] - matrix[1]) / (4 * w)
-        return floatArrayOf(x, y, z, w)
-    }
-    
-    /**
-     * Update velocity estimate from ARCore camera pose.
-     * Call this with the current camera pose to compute velocity via differentiation.
-     * 
-     * @param translation Current camera position [x, y, z] in meters
-     */
-    fun updateVelocityFromPose(translation: FloatArray) {
-        val currentTime = System.nanoTime()
-        
-        if (lastPosePosition != null && lastPoseTime > 0) {
-            val dt = (currentTime - lastPoseTime) / 1e9 // Convert to seconds
-            
-            if (dt > 0 && dt < 0.5) { // Only compute if time delta is reasonable
-                val vx = (translation[0] - lastPosePosition!![0]) / dt.toFloat()
-                val vy = (translation[1] - lastPosePosition!![1]) / dt.toFloat()
-                val vz = (translation[2] - lastPosePosition!![2]) / dt.toFloat()
-                
-                velocityFromPose.set(floatArrayOf(vx, vy, vz))
+
+    private fun startLocationUpdates() {
+        if (!hasLocationPermission()) {
+            Log.w(TAG, "✗ Location permission not granted — skipping GPS")
+            return
+        }
+
+        try {
+            fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
+
+            val locationRequest = LocationRequest.Builder(
+                Priority.PRIORITY_HIGH_ACCURACY, 1000L
+            ).setMinUpdateIntervalMillis(500L).build()
+
+            locationCallback = object : LocationCallback() {
+                override fun onLocationResult(result: LocationResult) {
+                    val loc = result.lastLocation ?: return
+                    val gps = GpsLocation.newBuilder()
+                        .setLatitude(loc.latitude)
+                        .setLongitude(loc.longitude)
+                        .setAltitude(loc.altitude)
+                        .setAccuracy(loc.accuracy)
+                        .setBearing(loc.bearing)
+                        .setSpeed(loc.speed)
+                        .setTimestampMs(loc.time)
+                        .build()
+                    currentLocation.set(gps)
+                }
             }
+
+            fusedLocationClient?.requestLocationUpdates(
+                locationRequest, locationCallback!!, Looper.getMainLooper()
+            )
+            Log.i(TAG, "✓ GPS location updates registered")
+        } catch (e: SecurityException) {
+            Log.e(TAG, "SecurityException requesting location updates", e)
         }
-        
-        lastPosePosition = translation.clone()
-        lastPoseTime = currentTime
     }
-    
+
+    private fun stopLocationUpdates() {
+        locationCallback?.let { cb ->
+            fusedLocationClient?.removeLocationUpdates(cb)
+        }
+        locationCallback = null
+        fusedLocationClient = null
+    }
+
     /**
-     * Update velocity estimate from acceleration integration.
-     * Called automatically when linear acceleration sensor updates.
-     * 
-     * @param acceleration Current linear acceleration [x, y, z] in m/s²
+     * Get current GPS location as a GpsLocation protobuf message, or null if no fix yet.
+     * Thread-safe.
      */
-    private fun updateVelocityFromAccel(acceleration: FloatArray) {
-        val currentTime = System.nanoTime()
-        
-        if (lastAccelTime > 0) {
-            val dt = (currentTime - lastAccelTime) / 1e9 // Convert to seconds
-            
-            if (dt > 0 && dt < 0.5) { // Only integrate if time delta is reasonable
-                val currentVel = velocityFromAccel.get()
-                val vx = currentVel[0] + acceleration[0] * dt.toFloat()
-                val vy = currentVel[1] + acceleration[1] * dt.toFloat()
-                val vz = currentVel[2] + acceleration[2] * dt.toFloat()
-                
-                velocityFromAccel.set(floatArrayOf(vx, vy, vz))
-            }
-        }
-        
-        lastAccelTime = currentTime
-    }
-    
+    fun getCurrentGpsLocation(): GpsLocation? = currentLocation.get()
+
+    // ── IMU Data ────────────────────────────────────────────────────────────
+
     /**
-     * Get current sensor data as protobuf MotionData message.
+     * Get current sensor data as ImuData protobuf message.
      * Thread-safe - can be called from any thread.
      */
-    fun getCurrentMotionData(): ArStream.MotionData {
-        val builder = ArStream.MotionData.newBuilder()
-        
-        // Linear velocity from ARCore pose differentiation
-        val velPose = velocityFromPose.get()
-        if (velPose.any { it != 0f }) {
-            builder.linearVelocityPose = ArStream.Vector3.newBuilder()
-                .setX(velPose[0])
-                .setY(velPose[1])
-                .setZ(velPose[2])
-                .build()
-        }
-        
-        // Linear velocity from acceleration integration
-        val velAccel = velocityFromAccel.get()
-        if (velAccel.any { it != 0f }) {
-            builder.linearVelocityAccel = ArStream.Vector3.newBuilder()
-                .setX(velAccel[0])
-                .setY(velAccel[1])
-                .setZ(velAccel[2])
-                .build()
-        }
-        
-        // Linear acceleration (use linear accel sensor if available, otherwise raw accel)
-        val linAccel = linearAcceleration.get()
-        if (linAccel.any { it != 0f }) {
-            builder.linearAcceleration = ArStream.Vector3.newBuilder()
-                .setX(linAccel[0])
-                .setY(linAccel[1])
-                .setZ(linAccel[2])
-                .build()
-        }
-        
-        // Angular velocity (from gyroscope)
+    fun getCurrentImuData(): ImuData {
+        val builder = ImuData.newBuilder()
+
         val angVel = angularVelocity.get()
         if (angVel.any { it != 0f }) {
-            builder.angularVelocity = ArStream.Vector3.newBuilder()
-                .setX(angVel[0])
-                .setY(angVel[1])
-                .setZ(angVel[2])
-                .build()
+            builder.angularVelocity = Vector3.newBuilder()
+                .setX(angVel[0]).setY(angVel[1]).setZ(angVel[2]).build()
         }
-        
-        // Gravity vector
+
+        val linAccel = linearAcceleration.get()
+        if (linAccel.any { it != 0f }) {
+            builder.linearAcceleration = Vector3.newBuilder()
+                .setX(linAccel[0]).setY(linAccel[1]).setZ(linAccel[2]).build()
+        }
+
         val grav = gravity.get()
         if (grav.any { it != 0f }) {
-            builder.gravity = ArStream.Vector3.newBuilder()
-                .setX(grav[0])
-                .setY(grav[1])
-                .setZ(grav[2])
-                .build()
+            builder.gravity = Vector3.newBuilder()
+                .setX(grav[0]).setY(grav[1]).setZ(grav[2]).build()
         }
-        
-        // Orientation (quaternion)
-        val orient = orientation.get()
-        if (orient.any { it != 0f }) {
-            builder.orientation = ArStream.Quaternion.newBuilder()
-                .setX(orient[0])
-                .setY(orient[1])
-                .setZ(orient[2])
-                .setW(orient[3])
-                .build()
+
+        val mag = magneticField.get()
+        if (mag.any { it != 0f }) {
+            builder.magneticField = Vector3.newBuilder()
+                .setX(mag[0]).setY(mag[1]).setZ(mag[2]).build()
         }
-        
+
         return builder.build()
     }
-    
-    /**
-     * Get a human-readable summary of current sensor values for logging.
-     */
+
     fun getSensorSummary(): String {
         val linAccel = linearAcceleration.get()
         val angVel = angularVelocity.get()
         val grav = gravity.get()
-        
-        return "Accel: [%.2f, %.2f, %.2f] m/s², Gyro: [%.2f, %.2f, %.2f] rad/s, Gravity: [%.2f, %.2f, %.2f] m/s²".format(
+        val gps = currentLocation.get()
+        val gpsStr = if (gps != null) "GPS: %.6f, %.6f".format(gps.latitude, gps.longitude) else "GPS: N/A"
+        return "Accel: [%.2f, %.2f, %.2f] m/s², Gyro: [%.2f, %.2f, %.2f] rad/s, Gravity: [%.2f, %.2f, %.2f] m/s², %s".format(
             linAccel[0], linAccel[1], linAccel[2],
             angVel[0], angVel[1], angVel[2],
-            grav[0], grav[1], grav[2]
+            grav[0], grav[1], grav[2],
+            gpsStr
         )
     }
 }
