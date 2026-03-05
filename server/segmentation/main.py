@@ -35,6 +35,10 @@ SAM2 setup (one-time):
 
 import argparse
 import os
+
+# Must be set before any CUDA context is created (before torch is imported).
+os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
+
 import struct
 import sys
 import time
@@ -335,7 +339,6 @@ def run_sam3(args, frames: list, out_path: Path, sample_every: int) -> tuple[int
     dtype = torch.bfloat16 if dtype_str == "bfloat16" else torch.float32
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
     local_model_dir = Path(__file__).parent / "models" / "sam3"
     model_source = str(local_model_dir) if local_model_dir.exists() else "facebook/sam3"
 
@@ -345,10 +348,36 @@ def run_sam3(args, frames: list, out_path: Path, sample_every: int) -> tuple[int
     else:
         print(f"(Loading from local: {local_model_dir})")
     t0 = time.time()
-    from transformers import Sam3VideoModel, Sam3VideoProcessor
+    from transformers import Sam3VideoConfig, Sam3VideoModel, Sam3VideoProcessor
+
     processor = Sam3VideoProcessor.from_pretrained(model_source)
-    model = Sam3VideoModel.from_pretrained(model_source).to(device, dtype=dtype)
+
+    # Load pretrained config, then patch behavioral parameters from yaml.
+    # Only thresholds/caps are touched — no architectural shapes change — so
+    # pretrained weights load without any key mismatches.
+    config = Sam3VideoConfig.from_pretrained(model_source)
+    tracker_cfg = _CONFIG["model"]["sam3"].get("tracker", {})
+    patched = []
+    for key, val in tracker_cfg.items():
+        if hasattr(config, key):
+            setattr(config, key, val)
+            patched.append(f"{key}={val}")
+    if patched:
+        print(f"  Config overrides: {', '.join(patched)}")
+
+    # Use Flash Attention 2 if available (reduces attention VRAM); fall back silently.
+    _fa2_kwargs = {"attn_implementation": "flash_attention_2"}
+    try:
+        model = Sam3VideoModel.from_pretrained(
+            model_source, config=config, dtype=dtype, **_fa2_kwargs
+        ).to(device)
+        print("  Attention: Flash Attention 2")
+    except Exception:
+        model = Sam3VideoModel.from_pretrained(
+            model_source, config=config, dtype=dtype
+        ).to(device)
     model.eval()
+
     print(f"SAM3 loaded in {time.time()-t0:.1f}s")
     if torch.cuda.is_available():
         print(f"VRAM: {torch.cuda.memory_allocated()/1024**3:.2f} GB allocated")
@@ -360,17 +389,24 @@ def run_sam3(args, frames: list, out_path: Path, sample_every: int) -> tuple[int
     else:
         concepts = args.text.split()
     infer_h = _CONFIG["model"]["sam3"].get("inference_height")
+    session_reset_frames = tracker_cfg.get("session_reset_frames", 100)
     print(f"\nConcepts: {concepts}  (sampling every {sample_every} frames)")
+    print(f"Session reset every {session_reset_frames} frames to bound VRAM growth")
     if infer_h:
         print(f"Downsampling frames to height={infer_h}px before inference")
 
-    session = processor.init_video_session(
-        inference_device=device,
-        processing_device="cpu",
-        video_storage_device="cpu",
-        dtype=dtype,
-    )
-    processor.add_text_prompt(session, concepts)
+    def _new_session():
+        sess = processor.init_video_session(
+            inference_device=device,
+            processing_device="cpu",
+            video_storage_device="cpu",
+            dtype=dtype,
+        )
+        processor.add_text_prompt(sess, concepts)
+        return sess
+
+    session = _new_session()
+    frames_in_session = 0
 
     total_results = 0
     total_masks = 0
@@ -379,12 +415,25 @@ def run_sam3(args, frames: list, out_path: Path, sample_every: int) -> tuple[int
 
     with tqdm(total=len(frames), desc="Annotating (SAM3)", unit="frame") as progress:
         for global_idx, proto_frame in enumerate(frames):
+            # Periodically reset session to free accumulated per-object VRAM
+            if frames_in_session >= session_reset_frames:
+                del session
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
+                session = _new_session()
+                frames_in_session = 0
+
             rgb = decode_frame_rgb(proto_frame)
             if infer_h:
                 h, w = rgb.shape[:2]
                 infer_w = int(w * infer_h / h)
                 rgb = cv2.resize(rgb, (infer_w, infer_h), interpolation=cv2.INTER_AREA)
             inputs = processor(images=Image.fromarray(rgb), return_tensors="pt").to(device)
+
+            # Release fragmented reserved-but-unallocated CUDA memory before each
+            # forward pass so the NMS allocation spike has the full budget available.
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
 
             with torch.inference_mode():
                 raw_out = model(
@@ -394,6 +443,7 @@ def run_sam3(args, frames: list, out_path: Path, sample_every: int) -> tuple[int
             outputs = processor.postprocess_outputs(
                 session, raw_out, original_sizes=inputs.original_sizes,
             )
+            frames_in_session += 1
 
             if global_idx % sample_every != 0:  # sampling gate
                 progress.update(1)

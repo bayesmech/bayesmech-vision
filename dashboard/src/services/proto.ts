@@ -116,7 +116,7 @@ export function compositeMasksToDataUrl(
   const n = width * height
 
   for (const { objId, mask } of decoded) {
-    const color = MASK_COLORS[(objId - 1) % MASK_COLORS.length]
+    const color = MASK_COLORS[((objId % MASK_COLORS.length) + MASK_COLORS.length) % MASK_COLORS.length]
     for (let i = 0; i < n; i++) {
       if (mask[i]) {
         const off = i * 4

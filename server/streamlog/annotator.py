@@ -11,6 +11,7 @@ To generate annotations offline:
     uv run python segmentation/segmentation/main.py recordings/<name>.vis.pb
 """
 
+import bisect
 import logging
 import sys
 from pathlib import Path
@@ -58,6 +59,8 @@ class Annotator:
 
     def __init__(self, **_kwargs) -> None:
         self._annotations: dict[AnnotationKey, SegmentationResponse] = {}
+        self._by_frame_number: dict[int, SegmentationResponse] = {}
+        self._sorted_fns: list[int] = []
         self._recording_path: Optional[Path] = None
         self._annotation_callback: Optional[Callable] = None
 
@@ -81,6 +84,8 @@ class Annotator:
     def load_annotations(self, recording_path: Path) -> int:
         """Load existing .seg.pb file into memory dict. Returns count loaded."""
         self._annotations.clear()
+        self._by_frame_number.clear()
+        self._sorted_fns.clear()
         self._recording_path = recording_path
         seg_file = _seg_path(recording_path)
         if not seg_file.exists():
@@ -91,6 +96,9 @@ class Annotator:
         for resp in responses:
             k = _key(resp.frame_identifier)
             self._annotations[k] = resp
+            fn = resp.frame_identifier.frame_number
+            self._by_frame_number[fn] = resp
+        self._sorted_fns = sorted(self._by_frame_number.keys())
         logger.info(f"Loaded {len(responses)} annotations from {seg_file.name}")
         return len(responses)
 
@@ -108,6 +116,13 @@ class Annotator:
 
     def get_annotation(self, ts: int, fn: int) -> Optional[SegmentationResponse]:
         return self._annotations.get((ts, fn))
+
+    def get_annotation_floor(self, fn: int) -> Optional[SegmentationResponse]:
+        """Return the annotation for the largest frame_number <= fn."""
+        idx = bisect.bisect_right(self._sorted_fns, fn) - 1
+        if idx < 0:
+            return None
+        return self._by_frame_number.get(self._sorted_fns[idx])
 
     def has_annotation(self, ts: int, fn: int) -> bool:
         return (ts, fn) in self._annotations

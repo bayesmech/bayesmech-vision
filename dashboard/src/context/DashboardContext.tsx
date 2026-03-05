@@ -292,9 +292,27 @@ class FrameBuffer {
 
 const ANNOTATION_BUFFER_CAPACITY = 200
 
+/** Index of first element strictly greater than value (standard upper_bound). */
+function upperBound(arr: number[], value: number): number {
+  let lo = 0, hi = arr.length
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1
+    if (arr[mid] <= value) lo = mid + 1
+    else hi = mid
+  }
+  return lo
+}
+
+/** Index of value in sorted arr, or -1 if absent. */
+function sortedIndexOf(arr: number[], value: number): number {
+  const pos = upperBound(arr, value) - 1
+  return (pos >= 0 && arr[pos] === value) ? pos : -1
+}
+
 class AnnotationBuffer {
   private annotations = new Map<number, DecodedAnnotation>()
-  private insertionOrder: number[] = []
+  private insertionOrder: number[] = []  // eviction ring, insertion order
+  private sortedKeys: number[] = []      // ascending-sorted frame numbers, for floor search
   readonly capacity: number
 
   constructor(capacity = ANNOTATION_BUFFER_CAPACITY) {
@@ -315,17 +333,24 @@ class AnnotationBuffer {
         URL.revokeObjectURL(evicted.blobUrl)
         this.annotations.delete(oldest)
       }
+      const si = sortedIndexOf(this.sortedKeys, oldest)
+      if (si >= 0) this.sortedKeys.splice(si, 1)
     }
     this.insertionOrder.push(key)
+    this.sortedKeys.splice(upperBound(this.sortedKeys, key), 0, key)
     this.annotations.set(key, annotation)
   }
 
+  /** Return the annotation for the largest stored frameNumber <= frameNumber. */
   get(frameNumber: number): DecodedAnnotation | null {
-    return this.annotations.get(frameNumber) ?? null
+    const pos = upperBound(this.sortedKeys, frameNumber) - 1
+    if (pos < 0) return null
+    return this.annotations.get(this.sortedKeys[pos]) ?? null
   }
 
+  /** True if any annotation exists with frameNumber <= frameNumber. */
   has(frameNumber: number): boolean {
-    return this.annotations.has(frameNumber)
+    return upperBound(this.sortedKeys, frameNumber) > 0
   }
 
   latest(): DecodedAnnotation | null {
@@ -339,6 +364,7 @@ class AnnotationBuffer {
     }
     this.annotations.clear()
     this.insertionOrder = []
+    this.sortedKeys = []
   }
 }
 

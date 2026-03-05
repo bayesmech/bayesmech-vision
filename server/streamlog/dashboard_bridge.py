@@ -148,16 +148,18 @@ class DashboardBridge:
                 payload = PREFIX_FRAME + _frame_io.encode(frames)
                 await ws.send_bytes(payload)
 
-                # Send matching annotations so segmentation pane stays in sync
+                # Send matching annotations so segmentation pane stays in sync.
+                # Use floor lookup so sparse annotations (e.g. every 30th frame)
+                # are resolved to the nearest prior annotated frame.
                 annotations = []
                 for f in frames:
                     fid = f.frame_identifier
-                    ann = self._annotator.get_annotation(fid.timestamp_ns, fid.frame_number)
+                    ann = self._annotator.get_annotation_floor(fid.frame_number)
                     if ann is not None:
                         annotations.append(ann)
                     else:
                         logger.debug(
-                            f"seek: no annotation for ts={fid.timestamp_ns} fn={fid.frame_number}"
+                            f"seek: no annotation at or before fn={fid.frame_number}"
                         )
                 logger.info(
                     f"seek [{start}:{end}] → {len(frames)} frames, {len(annotations)} annotations "
