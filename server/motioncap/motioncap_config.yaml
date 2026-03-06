@@ -1,0 +1,44 @@
+# Motion capture configuration for main.py
+
+stabilization:
+  # Preferred method. "auto" selects the best available per-frame.
+  # Other values force a specific method regardless of available data.
+  method: "auto"             # auto | depth | plane | points | pose | flow
+
+  # Minimum number of projected point-cloud points required to use POINT_RANSAC.
+  min_points_for_ransac: 6
+
+  # Minimum confidence threshold for point-cloud points to be used.
+  point_confidence_threshold: 0.5
+
+  # Assumed scene depth (metres) when no depth frame is available (POSE_APPROX method).
+  assumed_depth_m: 1.5
+
+  # RANSAC reprojection error threshold (pixels).
+  ransac_threshold_px: 3.0
+
+reference:
+  # "first"   — always warp relative to frame 0 (good for nearly-static camera)
+  # "rolling" — compare each frame to the frame N steps earlier (good for moving camera)
+  strategy: "rolling"
+  rolling_gap: 5            # frames apart when strategy="rolling"
+
+heatmap:
+  # Pixel-difference threshold below which motion is treated as noise (0–255).
+  noise_threshold: 12
+
+  # Gaussian smoothing kernel size (must be odd).
+  blur_kernel: 15
+
+  # Temporal accumulation: running-max over this many frames (1 = no accumulation).
+  accumulation_window: 1
+
+output:
+  # Overlay alpha for the heatmap blended onto the original frame (0.0–1.0).
+  overlay_alpha: 0.5
+
+  # Crop black borders introduced by warping.
+  crop_borders: false
+
+  # Video codec for .mp4 output.
+  video_codec: "mp4v"

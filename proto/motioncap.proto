@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+package bayesmech.vision;
+
+option java_multiple_files = true;
+option java_package = "com.bayesmech.vision";
+
+import "primitives.proto";
+import "perceiver.proto";
+
+// Request to compute a motion heatmap for a single frame relative to a reference.
+// For offline batch processing this is derived from the vis.pb recording;
+// the proto is defined here for future live-streaming use.
+message MotionCaptureRequest {
+  PerceiverFrameIdentifier frame_identifier = 1;
+  ImageFrame current_frame = 2;     // Current frame to analyse
+  ImageFrame reference_frame = 3;   // Reference (background) frame to compare against
+}
+
+// Per-frame motion heatmap: pixels with high values moved independently of the camera.
+message MotionCaptureResponse {
+
+  // Encoded heatmap — same length-prefix format used by SegmentationMask.mask_data:
+  //   [height: uint32 LE][width: uint32 LE][zlib(uint8 array, row-major)]
+  // Values 0–255: 0 = no motion, 255 = maximum detected motion.
+  message MotionHeatmap {
+    bytes heatmap_data = 1;   // Compressed heatmap (see encoding above)
+    float max_motion_raw = 2; // Pre-normalisation peak pixel difference (for calibration)
+  }
+
+  // Which stabilization method was used to remove camera motion before differencing.
+  enum StabilizationMethod {
+    STABILIZATION_UNKNOWN = 0;
+    DEPTH_WARP    = 1;  // Per-pixel warp from depth + 6DOF pose (most accurate)
+    PLANE_HOMO    = 2;  // Plane homography H = K(R - tnᵀ/d)K⁻¹
+    POINT_RANSAC  = 3;  // RANSAC homography from projected point cloud
+    POSE_APPROX   = 4;  // Approximate homography: rotation + translation at assumed depth
+    OPTICAL_FLOW  = 5;  // 2D optical-flow dominant background homography (fallback)
+  }
+
+  PerceiverFrameIdentifier frame_identifier = 1;
+  MotionHeatmap heatmap = 2;
+  StabilizationMethod method_used = 3;
+  float stabilization_confidence = 4;  // 0.0–1.0: quality of background removal
+}
