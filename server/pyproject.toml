@@ -8,7 +8,7 @@ dependencies = [
     # Web framework
     "fastapi==0.109.0",
     "uvicorn[standard]==0.27.0",
-    "websockets==12.0",
+    "websockets>=13.0",
     # Serialization
     "protobuf==4.25.1",
     # Image processing
@@ -31,6 +31,11 @@ dependencies = [
     # Utilities
     "python-multipart==0.0.6",
     "aiohttp>=3.13.3",
+    # Gemini video analysis + MCP
+    "google-genai>=0.8.0",
+    "fastmcp>=2.0.0",
+    "anthropic>=0.40.0",
+    "openai>=1.50.0",
 ]
 
 [project.optional-dependencies]
