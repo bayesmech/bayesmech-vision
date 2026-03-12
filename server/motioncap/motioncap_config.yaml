@@ -1,44 +1,42 @@
 # Motion capture configuration for main.py
 
+# Used by analysis/homography/main.py (pixel_map / _compute_H in geometry.py)
 stabilization:
-  # Preferred method. "auto" selects the best available per-frame.
-  # Other values force a specific method regardless of available data.
-  method: "auto"             # auto | depth | plane | points | pose | flow
-
-  # Minimum number of projected point-cloud points required to use POINT_RANSAC.
   min_points_for_ransac: 6
-
-  # Minimum confidence threshold for point-cloud points to be used.
   point_confidence_threshold: 0.5
-
-  # Assumed scene depth (metres) when no depth frame is available (POSE_APPROX method).
   assumed_depth_m: 1.5
-
-  # RANSAC reprojection error threshold (pixels).
   ransac_threshold_px: 3.0
 
 reference:
-  # "first"   — always warp relative to frame 0 (good for nearly-static camera)
-  # "rolling" — compare each frame to the frame N steps earlier (good for moving camera)
-  strategy: "rolling"
-  rolling_gap: 5            # frames apart when strategy="rolling"
+  # "consecutive" — compare each frame to the immediately preceding frame (default)
+  # "rolling"     — compare each frame to one N frames earlier
+  # "time"        — compare each frame to the closest frame ~time_delta_s seconds earlier
+  # "first"       — always compare against frame 0
+  strategy: "consecutive"
+  time_delta_s: 1.5         # used only when strategy="time"
+  rolling_gap: 30           # used only when strategy="rolling"
 
-heatmap:
-  # Pixel-difference threshold below which motion is treated as noise (0–255).
-  noise_threshold: 12
+raft:
+  variant: "large"          # "large" (21 MB) or "small" (5 MB)
+  iters: 20                 # recurrent update iterations (more = slower, more accurate)
+  assumed_depth_m: 1.5      # fallback scene depth when ARCore depth frame is absent
+  residual_threshold_px: 2.0  # residual magnitude (px) below this is treated as noise
 
-  # Gaussian smoothing kernel size (must be odd).
-  blur_kernel: 15
+  # Background subtraction mode:
+  #   "pose"      — subtract per-pixel prediction from ARCore pose + depth (best quality)
+  #   "consensus" — subtract per-frame median flow (no pose required)
+  #   "absolute"  — no subtraction; raw flow magnitude
+  subtraction_mode: "consensus"
 
-  # Temporal accumulation: running-max over this many frames (1 = no accumulation).
-  accumulation_window: 1
+  # Gaussian blur applied to the residual map before writing
+  blur_kernel: 9           # must be odd; larger = smoother heatmap blobs
+
+normalization:
+  # Use a single scale across the whole recording so that quiet frames are
+  # dark and active frames are bright.  Set percentile < 100 to avoid one
+  # extreme outlier frame controlling the scale.
+  percentile: 99            # 99th percentile of per-frame peak residuals → global scale
 
 output:
-  # Overlay alpha for the heatmap blended onto the original frame (0.0–1.0).
-  overlay_alpha: 0.5
-
-  # Crop black borders introduced by warping.
-  crop_borders: false
-
-  # Video codec for .mp4 output.
+  overlay_alpha: 0.5        # heatmap blend weight over RGB (0=no overlay, 1=full heatmap)
   video_codec: "mp4v"
