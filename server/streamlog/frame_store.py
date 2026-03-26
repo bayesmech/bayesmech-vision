@@ -287,6 +287,48 @@ class FrameStore:
                 positions.append({"x": round(px, 6), "y": round(pz, 6)})
         return positions
 
+    # ── Sensor data ────────────────────────────────────────────────────────
+
+    def compute_sensor_data(self) -> list[dict]:
+        """Return compact per-frame IMU + GPS data for all frames."""
+        result = []
+        for frame in self._frames:
+            entry: dict = {
+                "ts": frame.frame_identifier.timestamp_ns,
+                "fn": frame.frame_identifier.frame_number,
+            }
+            if frame.HasField("imu_data"):
+                imu = frame.imu_data
+                imu_entry: dict = {}
+                if imu.HasField("linear_acceleration"):
+                    la = imu.linear_acceleration
+                    imu_entry["linear_acceleration"] = {"x": la.x, "y": la.y, "z": la.z}
+                if imu.HasField("angular_velocity"):
+                    av = imu.angular_velocity
+                    imu_entry["angular_velocity"] = {"x": av.x, "y": av.y, "z": av.z}
+                if imu.HasField("gravity"):
+                    g = imu.gravity
+                    imu_entry["gravity"] = {"x": g.x, "y": g.y, "z": g.z}
+                if imu.HasField("magnetic_field"):
+                    mf = imu.magnetic_field
+                    imu_entry["magnetic_field"] = {"x": mf.x, "y": mf.y, "z": mf.z}
+                if imu_entry:
+                    entry["imu"] = imu_entry
+            if frame.HasField("gps_location"):
+                gps = frame.gps_location
+                if gps.latitude != 0.0 or gps.longitude != 0.0:
+                    entry["gps"] = {
+                        "latitude": gps.latitude,
+                        "longitude": gps.longitude,
+                        "altitude": gps.altitude,
+                        "accuracy": gps.accuracy,
+                        "bearing": gps.bearing,
+                        "speed": gps.speed,
+                        "timestamp_ms": gps.timestamp_ms,
+                    }
+            result.append(entry)
+        return result
+
     # ── Stats ─────────────────────────────────────────────────────────────
 
     @property

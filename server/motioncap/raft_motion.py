@@ -179,6 +179,34 @@ def _pose_predicted_flow(h: int, w: int,
     return pred_flow
 
 
+# ── Shared background subtraction ────────────────────────────────────────────
+
+def _subtract_background(
+    flow: np.ndarray,
+    h: int, w: int,
+    cfg: dict,
+    K: np.ndarray | None,
+    R_ref: np.ndarray | None, t_ref: np.ndarray | None,
+    R_curr: np.ndarray | None, t_curr: np.ndarray | None,
+    depth: np.ndarray | None,
+    subtraction_mode: str,
+) -> np.ndarray:
+    """Apply background subtraction to a flow field; return float32 residual (H, W)."""
+    assumed_depth = cfg.get("raft", {}).get("assumed_depth_m", 1.5)
+    if subtraction_mode == "absolute":
+        res_u, res_v = flow[..., 0], flow[..., 1]
+    elif (subtraction_mode == "pose"
+          and K is not None and R_ref is not None and R_curr is not None):
+        pred  = _pose_predicted_flow(h, w, K, R_ref, t_ref, R_curr, t_curr,
+                                     depth, assumed_depth)
+        res_u = flow[..., 0] - pred[..., 0]
+        res_v = flow[..., 1] - pred[..., 1]
+    else:
+        res_u = flow[..., 0] - float(np.median(flow[..., 0]))
+        res_v = flow[..., 1] - float(np.median(flow[..., 1]))
+    return np.sqrt(res_u ** 2 + res_v ** 2).astype(np.float32)
+
+
 # ── Public API ────────────────────────────────────────────────────────────────
 
 def compute_residual(img_ref: np.ndarray,
@@ -206,30 +234,50 @@ def compute_residual(img_ref: np.ndarray,
         residual  float32 (H, W) — raw residual in pixels (not thresholded / normalised)
         max_raw   float           — peak residual value across the frame
     """
-    raft_cfg      = cfg.get("raft", {})
-    iters         = raft_cfg.get("iters", 20)
-    assumed_depth = raft_cfg.get("assumed_depth_m", 1.5)
-
-    h, w = img_ref.shape[:2]
-
-    # 1. Dense optical flow (actual motion of every pixel)
-    flow = compute_flow(img_ref, img_curr, model, device, iters=iters)
-
-    # 2. Background subtraction
-    if subtraction_mode == "absolute":
-        res_u = flow[..., 0]
-        res_v = flow[..., 1]
-    elif subtraction_mode == "pose" and K is not None and R_ref is not None and R_curr is not None:
-        pred = _pose_predicted_flow(h, w, K,
-                                    R_ref, t_ref, R_curr, t_curr,
-                                    depth, assumed_depth)
-        res_u = flow[..., 0] - pred[..., 0]
-        res_v = flow[..., 1] - pred[..., 1]
-    else:
-        # "consensus" or pose fallback: subtract per-frame median flow
-        res_u = flow[..., 0] - float(np.median(flow[..., 0]))
-        res_v = flow[..., 1] - float(np.median(flow[..., 1]))
-
-    # 3. Residual magnitude
-    residual = np.sqrt(res_u ** 2 + res_v ** 2).astype(np.float32)
+    iters = cfg.get("raft", {}).get("iters", 20)
+    h, w  = img_ref.shape[:2]
+    flow  = compute_flow(img_ref, img_curr, model, device, iters=iters)
+    residual = _subtract_background(
+        flow, h, w, cfg, K, R_ref, t_ref, R_curr, t_curr, depth, subtraction_mode)
     return residual, float(residual.max())
+
+
+@torch.no_grad()
+def compute_residual_and_flow_small(
+    img_ref: np.ndarray,
+    img_curr: np.ndarray,
+    model: torch.nn.Module,
+    device: torch.device,
+    cfg: dict,
+    K: np.ndarray | None = None,
+    R_ref: np.ndarray | None = None,
+    t_ref: np.ndarray | None = None,
+    R_curr: np.ndarray | None = None,
+    t_curr: np.ndarray | None = None,
+    depth: np.ndarray | None = None,
+    subtraction_mode: str = "pose",
+) -> tuple[np.ndarray, float, np.ndarray]:
+    """
+    Like compute_residual but also returns the raw flow downsampled to
+    feature-map resolution for use as centroid motion predictors.
+
+    Returns:
+        residual    float32 (H, W)      — background-subtracted magnitude
+        max_raw     float               — peak residual value
+        flow_small  float16 (H//8, W//8, 2) — raw RAFT flow (dx, dy) at 1/8 scale
+    """
+    iters = cfg.get("raft", {}).get("iters", 20)
+    h, w  = img_ref.shape[:2]
+    flow  = compute_flow(img_ref, img_curr, model, device, iters=iters)
+
+    # Downsample raw flow to feature-map resolution
+    fh, fw = h // 8, w // 8
+    flow_u = cv2.resize(flow[..., 0].astype(np.float32), (fw, fh),
+                        interpolation=cv2.INTER_AREA)
+    flow_v = cv2.resize(flow[..., 1].astype(np.float32), (fw, fh),
+                        interpolation=cv2.INTER_AREA)
+    flow_small = np.stack([flow_u, flow_v], axis=-1).astype(np.float16)
+
+    residual = _subtract_background(
+        flow, h, w, cfg, K, R_ref, t_ref, R_curr, t_curr, depth, subtraction_mode)
+    return residual, float(residual.max()), flow_small

@@ -42,4 +42,27 @@ message MotionCaptureResponse {
   MotionHeatmap heatmap = 2;
   StabilizationMethod method_used = 3;
   float stabilization_confidence = 4;  // 0.0–1.0: quality of background removal
+
+  // Track summary — populated in a single trailing record appended after all heatmap
+  // frames.  Heatmap is absent in this record; detect via len(tracks) > 0.
+  repeated MotionTrack tracks = 5;
+  uint32 total_frames = 6;  // total heatmap frames (only set in tracks summary record)
+}
+
+// A single centroid observation for one track at one frame.
+message MotionTrackPoint {
+  uint32 frame_idx = 1;
+  float cx = 2;
+  float cy = 3;
+  uint32 area = 4;
+  bool interpolated = 5;
+}
+
+// A persistent object track across the recording.
+message MotionTrack {
+  uint32 track_id = 1;
+  uint32 detected_frames = 2;
+  uint32 total_positions = 3;
+  float presence_fraction = 4;
+  repeated MotionTrackPoint positions = 5;
 }

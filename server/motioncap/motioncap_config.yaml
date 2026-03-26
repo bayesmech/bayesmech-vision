@@ -1,5 +1,15 @@
 # Motion capture configuration for main.py
 
+# ── Pipeline control ──────────────────────────────────────────────────────────
+pipeline:
+  # regenerate_raft: true  → always run RAFT (slow, GPU)
+  #                  false → load heatmaps from an existing .motion.pb instead
+  regenerate_raft: true
+
+  # regenerate_tracking: true  → always re-run the tracker on the heatmaps
+  #                      false → reuse tracks already stored in the .motion.pb
+  regenerate_tracking: true
+
 # Used by analysis/homography/main.py (pixel_map / _compute_H in geometry.py)
 stabilization:
   min_points_for_ransac: 6
@@ -40,3 +50,61 @@ normalization:
 output:
   overlay_alpha: 0.5        # heatmap blend weight over RGB (0=no overlay, 1=full heatmap)
   video_codec: "mp4v"
+
+# ── Persistent object tracker (track_motion.py) ───────────────────────────────
+tracking:
+  # Temporal consistency filter
+  temporal_window: 5          # number of past frames to check for persistent motion
+  neighborhood_sigma: 15      # gaussian blur radius (px) for spatial neighborhood check
+  motion_threshold_norm: 0.08 # normalised threshold (0–1) for "motion present" in past frames
+  combined_base_weight: 0.25  # minimum weight for current frame even with no temporal history
+                              # combined = h_current * (base_weight + (1 - base_weight) * T)
+
+  # Blob detection
+  persistence_threshold: 0.06 # threshold on combined map to binarise for blob detection
+  morphology_close_size: 15   # morphological closing kernel (px) to fill small gaps in blobs
+  min_blob_area: 100          # minimum connected-component area (px²)
+  max_blob_area: 80000        # maximum connected-component area (px²)
+
+  # Track association
+  max_tracking_distance: 200  # max centroid-to-centroid distance (px) to extend a track
+                              # (pendulum can move 100–200 px between consecutive frames)
+  max_gap_frames: 25          # max consecutive frames a track may go undetected before death
+
+  # Persistence filter
+  # Only detected (non-interpolated) frames count toward this fraction.
+  # Set low because the pendulum is invisible when stationary at its extremes.
+  min_presence_fraction: 0.05 # track must appear in at least this fraction of all frames
+
+  # Visualization
+  trajectory_tail_frames: 30  # number of past positions to draw as a trajectory tail
+
+  # ── Appearance-aware matching (requires features.enabled: true) ─────────────
+  # Combined cost = lambda_spatial * spatial_norm + lambda_appearance * (1 - cosine_sim)
+  # Set lambda_appearance: 0.0 to disable appearance matching (pure spatial, old behaviour)
+  lambda_spatial:             1.0   # weight for normalised spatial distance
+  lambda_appearance:          0.4   # weight for appearance dissimilarity
+
+  # Rolling descriptor bank maintained per active track
+  feature_bank_size:          20    # number of recent descriptors averaged for mean descriptor
+
+  # Re-ID: a lost track is revived when cosine_sim >= this threshold
+  reid_similarity_threshold:  0.75  # higher = stricter; 1.0 = never re-ID
+
+  # Max number of dead-track feature banks retained in memory
+  max_lost_banks:             32
+
+  # Appearance gate on merge_tracks: merged track-ends must have cosine_sim >= this
+  # Set 0.0 to disable (spatial gate only, matching original merge behaviour)
+  merge_appearance_threshold: 0.6
+
+# ── Feature extraction pass ───────────────────────────────────────────────────
+features:
+  # Run RAFT feature encoder in Pass 3 (requires regenerate_raft: true).
+  # Extracts per-blob 256-dim appearance descriptors and stores downsampled
+  # flow vectors for centroid motion prediction.
+  enabled: true
+
+  # Store downsampled flow grid (H/8 × W/8 × 2) per frame.
+  # Memory: ~57 KB/frame × N_frames  (e.g. 63 MB for 1105 frames)
+  store_flow_small: true
