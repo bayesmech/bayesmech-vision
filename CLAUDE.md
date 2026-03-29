@@ -49,6 +49,18 @@ npx pbjs -t static-module -w commonjs -o src/proto/bundle.js \
 npx pbts -o src/proto/bundle.d.ts src/proto/bundle.js
 ```
 
+### Analysis Tools (Python)
+
+```bash
+# Interactive homography analysis — two frames side-by-side, hover for point correspondence
+cd server
+uv run python ../analysis/homography/main.py ../recordings/<name>.vis.pb
+
+# Motion heatmap (offline batch)
+cd server
+uv run python motioncap/main.py ../recordings/<name>.vis.pb --output-video
+```
+
 ## Architecture
 
 ### Data Flow

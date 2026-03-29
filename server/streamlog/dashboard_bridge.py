@@ -174,6 +174,10 @@ class DashboardBridge:
             positions = self._store.compute_trajectory()
             await ws.send_text(json.dumps({"type": "trajectory", "positions": positions}))
 
+        elif action == "get_sensor_data":
+            frames = self._store.compute_sensor_data()
+            await ws.send_text(json.dumps({"type": "sensor_data", "frames": frames}))
+
         elif action == "get_annotations":
             annotations = self._annotator.all_annotations()
             if annotations:
