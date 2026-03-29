@@ -32,6 +32,9 @@ message PerceiverDataFrame {
 
   // GPS location from the device.
   GpsLocation gps_location = 8;
+
+  // Optional free-text annotation entered by the user during a recording session.
+  string user_text_input = 9;
 }
 
 message PerceiverFrameIdentifier {

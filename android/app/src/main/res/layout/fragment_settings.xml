@@ -55,12 +55,24 @@
                 style="@style/SettingsCard"
                 android:background="@drawable/card_background">
 
-                <ImageView style="@style/SettingsCardIcon"
+                <ImageView
+                    android:id="@+id/profile_photo_small"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    android:layout_marginEnd="12dp"
+                    android:background="@drawable/circle_crop"
+                    android:clipToOutline="true"
+                    android:scaleType="centerCrop"
                     android:src="@drawable/ic_person" />
                 <LinearLayout style="@style/SettingsCardText">
-                    <TextView style="@style/SettingsCardTitle" android:text="User Profile" />
-                    <TextView style="@style/SettingsCardSubtitle"
-                        android:text="Account services and preferences" />
+                    <TextView
+                        android:id="@+id/card_user_name"
+                        style="@style/SettingsCardTitle"
+                        android:text="Signed In" />
+                    <TextView
+                        android:id="@+id/card_user_email"
+                        style="@style/SettingsCardSubtitle"
+                        android:text="" />
                 </LinearLayout>
                 <ImageView style="@style/SettingsCardChevron" />
             </LinearLayout>
@@ -563,7 +575,69 @@
             android:visibility="gone" />
     </FrameLayout>
 
-    <!-- ═══ GENERIC PLACEHOLDER PAGE (Profile / About) ═══ -->
+    <!-- ═══ USER PROFILE PAGE ═══ -->
+    <LinearLayout
+        android:id="@+id/page_user_profile"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:padding="32dp"
+        android:gravity="top|center_horizontal"
+        android:visibility="gone">
+
+        <ImageView
+            android:id="@+id/profile_photo_large"
+            android:layout_width="80dp"
+            android:layout_height="80dp"
+            android:layout_marginTop="24dp"
+            android:background="@drawable/circle_crop"
+            android:clipToOutline="true"
+            android:scaleType="centerCrop"
+            android:src="@drawable/ic_person" />
+
+        <TextView
+            android:id="@+id/profile_name"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:textColor="@color/text_primary"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:gravity="center" />
+
+        <TextView
+            android:id="@+id/profile_email"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:textColor="@color/text_secondary"
+            android:textSize="14sp"
+            android:gravity="center" />
+
+        <LinearLayout
+            android:id="@+id/sign_out_button"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:layout_marginTop="48dp"
+            android:background="@drawable/input_background"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:clickable="true"
+            android:focusable="true">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Sign Out"
+                android:textColor="@color/text_primary"
+                android:textSize="15sp"
+                android:textStyle="bold" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <!-- ═══ GENERIC PLACEHOLDER PAGE (About) ═══ -->
     <LinearLayout
         android:id="@+id/page_generic"
         android:layout_width="match_parent"

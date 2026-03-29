@@ -18,13 +18,14 @@ POST /api/upload_recording  Upload .pb file and start replay
 import asyncio
 import logging
 import re
+import struct
 import sys
 import yaml
 from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
 
-from fastapi import FastAPI, UploadFile, File, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Request, Response, UploadFile, File, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
@@ -34,6 +35,7 @@ sys.path.append(str(_project_root))
 sys.path.append(str(_project_root / "proto"))
 sys.path.append(str(_server_root))
 from proto import perceiver_pb2
+from proto import insightgen_pb2
 
 from streamlog.frame_store import FrameStore
 from streamlog.annotator import Annotator
@@ -147,6 +149,42 @@ def _parse_recording_timestamp(name: str, fallback_mtime: float) -> float:
             pass
     return fallback_mtime
 
+def _extract_thumbnail(pb_path: Path) -> bytes | None:
+    """Return RGB bytes of the frame at ~20 s into the recording (best-effort)."""
+    target_ns = 20 * 1_000_000_000
+    start_ns = None
+    last_frame_data = None
+    try:
+        with open(pb_path, "rb") as f:
+            while True:
+                header = f.read(4)
+                if len(header) < 4:
+                    break
+                (length,) = struct.unpack(">I", header)
+                if length == 0 or length > 10 * 1024 * 1024:
+                    f.seek(f.tell() - 3)
+                    continue
+                data = f.read(length)
+                if len(data) < length:
+                    break
+                frame = perceiver_pb2.PerceiverDataFrame()
+                try:
+                    frame.ParseFromString(data)
+                except Exception:
+                    continue
+                if not frame.HasField("frame_identifier") or not frame.HasField("rgb_frame"):
+                    continue
+                ts = frame.frame_identifier.timestamp_ns
+                if start_ns is None:
+                    start_ns = ts
+                last_frame_data = frame.rgb_frame.data
+                if ts - start_ns >= target_ns:
+                    return last_frame_data
+    except Exception as e:
+        logger.warning(f"Thumbnail extraction failed for {pb_path}: {e}")
+    return last_frame_data
+
+
 @app.get("/api/recordings")
 async def list_recordings():
     files = sorted(RECORDINGS_DIR.glob("*.vis.pb"), key=lambda p: p.stat().st_mtime, reverse=True)
@@ -162,6 +200,56 @@ async def list_recordings():
             for p in files
         ]
     }
+
+
+@app.post("/api/insightgen/recordings")
+async def insightgen_list_recordings(request: Request):
+    body = await request.body()
+    req = insightgen_pb2.ListRecordingsRequest()
+    if body:
+        try:
+            req.ParseFromString(body)
+        except Exception:
+            pass
+    logger.info(f"insightgen: fetching recordings for user={req.username!r}")
+
+    recordings_map: dict[str, insightgen_pb2.DataList] = {}
+
+    for pb_path in RECORDINGS_DIR.glob("*.vis.pb"):
+        base_name = pb_path.name.split(".")[0]
+        thumb = _extract_thumbnail(pb_path)
+        dl = insightgen_pb2.DataList(
+            file_name=base_name,
+            is_segmentation_available=False,
+            is_genspark_available=False,
+            is_motioncap_available=False,
+        )
+        if thumb:
+            dl.image_frame = thumb
+        recordings_map[base_name] = dl
+
+    for file_path in RECORDINGS_DIR.glob("*"):
+        if not file_path.is_file() or file_path.name.endswith(".vis.pb"):
+            continue
+        name = file_path.name
+        parts = name.split(".")
+        if len(parts) < 2:
+            continue
+        base_name = parts[0]
+        if base_name not in recordings_map:
+            continue
+        if ".seg.pb" in name:
+            recordings_map[base_name].is_segmentation_available = True
+        elif ".vis.genspark." in name and name.endswith(".txt"):
+            recordings_map[base_name].is_genspark_available = True
+        elif ".motion.pb" in name or ".motion.mp4" in name:
+            recordings_map[base_name].is_motioncap_available = True
+
+    resp = insightgen_pb2.ListRecordingsResponse()
+    resp.recordings.extend(
+        sorted(recordings_map.values(), key=lambda r: r.file_name, reverse=True)
+    )
+    return Response(content=resp.SerializeToString(), media_type="application/x-protobuf")
 
 
 @app.post("/api/playback/start")

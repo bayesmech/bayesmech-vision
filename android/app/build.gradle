@@ -16,12 +16,13 @@
 apply plugin: 'com.android.application'
 apply plugin: 'kotlin-android'
 apply plugin: 'com.google.protobuf'
+apply plugin: 'com.google.gms.google-services'
 
 android {
-    namespace "com.bayesmech.camalytics"
+    namespace "com.bayesmech.vision"
     compileSdkVersion 36
     defaultConfig {
-        applicationId "com.bayesmech.camalytics"
+        applicationId "com.bayesmech.vision"
 
         // AR Optional apps must declare minSdkVersion >= 14.
         // AR Required apps must declare minSdkVersion >= 24.
@@ -93,6 +94,9 @@ dependencies {
 
     // Location (FusedLocationProvider)
     implementation 'com.google.android.gms:play-services-location:21.3.0'
+
+    // Google Sign-In
+    implementation 'com.google.android.gms:play-services-auth:21.2.0'
 
     // WebSocket
     implementation 'com.squareup.okhttp3:okhttp:4.12.0'

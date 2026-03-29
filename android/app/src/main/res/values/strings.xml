@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string translatable="false" name="app_name">BayesMech Vision</string>
+    <string translatable="false" name="app_name">Vision</string>
+
+    <!-- Google Sign-In — replace with your OAuth 2.0 Web Client ID from Google Cloud Console -->
+    <string name="default_web_client_id">YOUR_WEB_CLIENT_ID.apps.googleusercontent.com</string>
 
     <!-- ARCore error messages (used in MainActivity) -->
     <string name="error_arcore_not_installed">Please install Google Play Services for AR</string>

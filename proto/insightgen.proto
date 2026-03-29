@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package bayesmech.vision;
+
+option java_multiple_files = true;
+option java_package = "com.bayesmech.vision";
+
+message DataList {
+  string file_name = 1;
+  bool is_segmentation_available = 2;
+  bool is_genspark_available = 3;
+  bool is_motioncap_available = 4;
+  bytes image_frame = 5;
+}
+
+message ListRecordingsRequest {
+  string username = 1;
+  string auth_token = 2;
+}
+
+message ListRecordingsResponse {
+  repeated DataList recordings = 1;
+}
+
+service InsightgenService {
+  rpc ListRecordings(ListRecordingsRequest) returns (ListRecordingsResponse);
+}
