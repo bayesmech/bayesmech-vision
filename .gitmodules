@@ -1,0 +1,36 @@
+[submodule "server/mapmind/libs/rtabmap"]
+	path = server/mapmind/libs/rtabmap
+	url = https://github.com/introlab/rtabmap.git
+[submodule "server/mapmind/libs/protobuf"]
+	path = server/mapmind/libs/protobuf
+	url = https://github.com/protocolbuffers/protobuf.git
+[submodule "server/mapmind/libs/yaml-cpp"]
+	path = server/mapmind/libs/yaml-cpp
+	url = https://github.com/jbeder/yaml-cpp.git
+[submodule "server/mapmind/libs/opencv"]
+	path = server/mapmind/libs/opencv
+	url = https://github.com/opencv/opencv.git
+[submodule "server/mapmind/libs/eigen"]
+	path = server/mapmind/libs/eigen
+	url = https://gitlab.com/libeigen/eigen.git
+[submodule "server/mapmind/libs/pcl"]
+	path = server/mapmind/libs/pcl
+	url = https://github.com/PointCloudLibrary/pcl.git
+[submodule "server/mapmind/libs/zlib"]
+	path = server/mapmind/libs/zlib
+	url = https://github.com/madler/zlib.git
+[submodule "server/mapmind/libs/qhull"]
+	path = server/mapmind/libs/qhull
+	url = https://github.com/qhull/qhull.git
+[submodule "server/mapmind/libs/flann"]
+	path = server/mapmind/libs/flann
+	url = https://github.com/flann-lib/flann.git
+[submodule "server/mapmind/libs/boost"]
+	path = server/mapmind/libs/boost
+	url = https://github.com/boostorg/boost.git
+[submodule "server/mapmind/libs/abseil-cpp"]
+	path = server/mapmind/libs/abseil-cpp
+	url = https://github.com/abseil/abseil-cpp.git
+[submodule "server/splatscene/motion-blender-gs"]
+	path = server/splatscene/motion-blender-gs
+	url = https://github.com/mlzxy/motion-blender-gs.git

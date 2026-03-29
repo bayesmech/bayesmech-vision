@@ -1,0 +1,112 @@
+syntax = "proto3";
+
+package bayesmech.vision;
+
+option java_multiple_files = true;
+option java_package = "com.bayesmech.vision";
+
+import "primitives.proto";
+import "perceiver.proto";
+
+// ── Wrapper for heterogeneous records in a single file ────────────────────────
+
+message MapMindRecord {
+  oneof record {
+    MapMindFrame  frame  = 1;
+    MapMindResult result = 2;
+  }
+}
+
+// ── Per-frame localization ────────────────────────────────────────────────────
+
+message MapMindFrame {
+  PerceiverFrameIdentifier frame_identifier = 1;
+
+  // SLAM-corrected 6DOF pose (may differ from ARCore pose)
+  Pose slam_pose = 2;
+
+  // Track coordinates
+  float track_progress    = 3;   // arc-length s in metres from start
+  float lateral_offset    = 4;   // signed d in metres; +right of travel
+  float left_width        = 5;   // metres from centerline to left edge
+  float right_width       = 6;   // metres from centerline to right edge
+  float confidence        = 7;   // 0–1 localization confidence
+
+  // Debug / analysis
+  uint32 centerline_index = 8;   // nearest centerline point index
+  float  ground_height    = 9;   // height above ground plane (metres)
+  bool   is_keyframe      = 10;  // was this a SLAM keyframe?
+
+  // Per-frame dense data (populated by dense backends like DROID-SLAM)
+  bytes  depth_map_data   = 20;  // optional: compressed dense depth map
+  uint32 depth_map_width  = 21;
+  uint32 depth_map_height = 22;
+}
+
+// ── 3D Point Cloud ────────────────────────────────────────────────────────────
+
+message PointCloud {
+  // Flat arrays: point i is at (xs[i], ys[i], zs[i]) with color (rs[i], gs[i], bs[i])
+  repeated float  xs = 1 [packed = true];
+  repeated float  ys = 2 [packed = true];
+  repeated float  zs = 3 [packed = true];
+  repeated uint32 rs = 4 [packed = true];  // 0-255
+  repeated uint32 gs = 5 [packed = true];
+  repeated uint32 bs = 6 [packed = true];
+
+  // Optional per-point normals (for dense backends)
+  repeated float nxs = 7 [packed = true];
+  repeated float nys = 8 [packed = true];
+  repeated float nzs = 9 [packed = true];
+
+  // Optional per-point confidence (0–1)
+  repeated float confidences = 10 [packed = true];
+}
+
+// ── Track Map ─────────────────────────────────────────────────────────────────
+
+message TrackMap {
+  // Ordered centerline in world frame
+  repeated Vector3 centerline_points      = 1;
+  repeated float   centerline_arc_lengths = 2 [packed = true];
+  repeated float   left_widths            = 3 [packed = true];
+  repeated float   right_widths           = 4 [packed = true];
+
+  // Ground plane: ax + by + cz = d
+  float ground_plane_a = 5;
+  float ground_plane_b = 6;
+  float ground_plane_c = 7;
+  float ground_plane_d = 8;
+
+  float total_length   = 9;
+  bool  loop_closed    = 10;
+
+  // GPS anchor for geo-referencing
+  double gps_origin_lat = 11;
+  double gps_origin_lon = 12;
+
+  // BEV road mask as compressed image (for visualization/debug)
+  bytes   bev_road_mask    = 20;
+  uint32  bev_width        = 21;
+  uint32  bev_height       = 22;
+  float   bev_resolution_m = 23;  // metres per pixel
+  Vector3 bev_origin       = 24;  // world-frame origin of BEV grid
+}
+
+// ── Result summary (trailing record) ──────────────────────────────────────────
+
+message MapMindResult {
+  TrackMap   map              = 1;
+  PointCloud point_cloud      = 2;   // full 3D point cloud from SLAM
+  uint32     total_frames     = 3;
+  uint32     keyframe_count   = 4;
+  float      processing_time_s = 5;
+
+  // SLAM backend metadata
+  string slam_backend  = 10;  // "dpv-slam", "droid-slam", etc.
+  string slam_config   = 11;  // "fast" or "default"
+  uint32 loop_closures = 12;  // number of loop closures detected
+
+  // Dense mesh (future: DROID-SLAM + TSDF fusion)
+  bytes mesh_data = 20;  // optional: serialized mesh (PLY bytes)
+}
