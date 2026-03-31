@@ -3,16 +3,20 @@ BayesMech Vision Server
 
 Endpoints
 ---------
-WS  /ar-stream          Android device -> push PerceiverDataFrame protos
-WS  /ws/dashboard       Dashboard <- binary protobuf stream + annotations
-GET /api/health         Server status
-GET /api/stream         FrameStore stats
-GET /api/recordings     List saved .pb recordings
-POST /api/playback/start   Load a recording into the store
-POST /api/playback/stop    Stop active replay
-GET /api/playback/status   Replay status
-POST /api/upload_recording  Upload .pb file and start replay
-/   (static)            React dashboard (dashboard/dist/)
+WS  /ar-stream               Android device -> push PerceiverDataFrame protos
+WS  /ws/dashboard            Dashboard <- binary protobuf stream + annotations
+GET /api/health              Server status
+GET /api/stream              FrameStore stats
+GET /api/recordings          List saved .pb recordings
+POST /api/playback/start     Load a recording into the store
+POST /api/playback/stop      Stop active replay
+GET /api/playback/status     Replay status
+POST /api/upload_recording   Upload .pb file and start replay
+POST /api/insightgen/recordings  List recordings (protobuf, with thumbnails)
+GET  /api/insightgen/insight     Return GensparkSummary for a recording
+GET  /api/insightgen/video       Return InsightVideoResponse (JPEG frames) for a recording
+POST /api/insightgen/chat        Follow-up chat with Gemini (bootstrapped from analysis)
+/   (static)                React dashboard (dashboard/dist/)
 """
 
 import asyncio
@@ -40,6 +44,9 @@ from proto import insightgen_pb2
 from streamlog.frame_store import FrameStore
 from streamlog.annotator import Annotator
 from streamlog.dashboard_bridge import DashboardBridge
+from streamlog.video_layers import LAYER_REGISTRY, MotioncapVideoLayer
+from streamlog.highlight_clipper import extract_highlights, clip_frame_indices
+from streamlog.chat_manager import ChatManager
 
 # ── Logging ───────────────────────────────────────────────────────────────────
 
@@ -63,6 +70,14 @@ RECORDINGS_DIR.mkdir(exist_ok=True)
 store = FrameStore()
 annotator = Annotator()
 bridge = DashboardBridge(store, annotator)
+
+# Load genspark config for chat follow-up
+_genspark_config_path = _server_root / "genspark" / "genspark_config.yaml"
+_genspark_config: dict = {}
+if _genspark_config_path.exists():
+    with open(_genspark_config_path) as _f:
+        _genspark_config = yaml.safe_load(_f) or {}
+chat_manager = ChatManager(_genspark_config.get("gemini", {}))
 
 # Wire: annotation results -> broadcast to dashboards
 annotator.set_annotation_callback(bridge.broadcast_annotation)
@@ -240,7 +255,7 @@ async def insightgen_list_recordings(request: Request):
             continue
         if ".seg.pb" in name:
             recordings_map[base_name].is_segmentation_available = True
-        elif ".vis.genspark." in name and name.endswith(".txt"):
+        elif name == f"{base_name}.genspark.pb":
             recordings_map[base_name].is_genspark_available = True
         elif ".motion.pb" in name or ".motion.mp4" in name:
             recordings_map[base_name].is_motioncap_available = True
@@ -250,6 +265,151 @@ async def insightgen_list_recordings(request: Request):
         sorted(recordings_map.values(), key=lambda r: r.file_name, reverse=True)
     )
     return Response(content=resp.SerializeToString(), media_type="application/x-protobuf")
+
+
+@app.get("/api/insightgen/insight")
+async def insightgen_insight(file: str):
+    """Return the GensparkSummary for a specific recording (file=YYYYMMDD_HHMMSS)."""
+    # Sanitise: only allow the base filename, no path traversal
+    safe_name = Path(file).name
+    pb_path = RECORDINGS_DIR / f"{safe_name}.genspark.pb"
+    if not pb_path.exists():
+        return Response(status_code=404)
+    try:
+        raw = pb_path.read_bytes()
+        full = insightgen_pb2.GensparkResponse()
+        full.ParseFromString(raw)
+        summary_bytes = full.summary.SerializeToString()
+        if not summary_bytes:
+            # Summary not yet generated — run genspark/main.py to produce it
+            return Response(status_code=404)
+        return Response(content=summary_bytes, media_type="application/x-protobuf")
+    except Exception as e:
+        logger.error(f"insightgen_insight error for {safe_name}: {e}")
+        return Response(status_code=500)
+
+
+@app.get("/api/insightgen/video")
+async def insightgen_video(file: str, layer: str = "raw"):
+    """
+    Return an InsightVideoResponse (protobuf) containing JPEG frames for a recording.
+
+    Parameters
+    ----------
+    file  : base filename, e.g. 20260302_191856
+    layer : "raw" (default) or "understanding" (motioncap overlay)
+
+    The set of frames returned is controlled by insightgen.video.highlights_only
+    in config.yaml.  When true, only frames within scene_emphasis windows are
+    included; when false, all frames are returned.
+
+    Both layers return the same frame indices so that Video / Understanding tabs
+    in the app are frame-aligned and seek in sync.
+    """
+    import asyncio
+
+    safe_name = Path(file).name
+    vis_path = RECORDINGS_DIR / f"{safe_name}.vis.pb"
+    if not vis_path.exists():
+        return Response(status_code=404)
+
+    layer_key = layer.lower()
+    if layer_key not in LAYER_REGISTRY:
+        raise HTTPException(status_code=400, detail=f"Unknown layer: {layer!r}")
+
+    video_cfg = config.get("insightgen", {}).get("video", {})
+    highlights_only: bool = video_cfg.get("highlights_only", True)
+    jpeg_quality: int = video_cfg.get("jpeg_quality", 75)
+    max_width: int = video_cfg.get("max_width", 480)
+    overlay_alpha: float = video_cfg.get("overlay_alpha", 0.5)
+    tail_length: int = video_cfg.get("tail_length", 30)
+
+    try:
+        # Determine which frames to include
+        from streamlog.protoio import ProtoIO
+        from proto import perceiver_pb2 as _pb2
+        _vis_io = ProtoIO(_pb2.PerceiverDataFrame)
+        vis_frames = await asyncio.get_event_loop().run_in_executor(
+            None, _vis_io.read_file, vis_path
+        )
+
+        timestamps_ns = [f.frame_identifier.timestamp_ns for f in vis_frames]
+
+        # Compute FPS from timestamps (fall back to 30)
+        fps = 30.0
+        if len(timestamps_ns) >= 2:
+            total_s = (timestamps_ns[-1] - timestamps_ns[0]) / 1e9
+            if total_s > 0:
+                fps = round((len(timestamps_ns) - 1) / total_s, 2)
+
+        # Highlight clipping
+        genspark_path = RECORDINGS_DIR / f"{safe_name}.genspark.pb"
+        highlights = extract_highlights(genspark_path)
+        if highlights_only:
+            frame_indices = clip_frame_indices(timestamps_ns, highlights)
+        else:
+            frame_indices = list(range(len(timestamps_ns)))
+
+        # Build the video layer
+        if layer_key == "understanding":
+            layer_obj = MotioncapVideoLayer(
+                overlay_alpha=overlay_alpha, tail_length=tail_length
+            )
+        else:
+            layer_obj = LAYER_REGISTRY[layer_key]()
+
+        rendered = await asyncio.get_event_loop().run_in_executor(
+            None,
+            lambda: layer_obj.render_frames(vis_path, frame_indices, jpeg_quality, max_width),
+        )
+
+        # Build response proto
+        resp = insightgen_pb2.InsightVideoResponse(fps=fps)
+        for ts, jpeg in rendered:
+            resp.frames.append(insightgen_pb2.VideoFrame(timestamp_ns=ts, jpeg_data=jpeg))
+        resp.segments.extend(highlights)
+
+        logger.info(
+            f"insightgen_video: {safe_name} layer={layer_key} "
+            f"frames={len(rendered)} fps={fps} highlights={len(highlights)}"
+        )
+        return Response(content=resp.SerializeToString(), media_type="application/x-protobuf")
+
+    except Exception as exc:
+        logger.error(f"insightgen_video error ({safe_name}, {layer}): {exc}", exc_info=True)
+        return Response(status_code=500)
+
+
+@app.post("/api/insightgen/chat")
+async def insightgen_chat(request: Request):
+    """
+    Follow-up chat with Gemini, bootstrapped from the existing analysis.
+
+    Body (JSON): {"file": "20260302_191856", "message": "...", "session_id": "..."}
+    Response (JSON): {"response": "...", "session_id": "..."}
+    """
+    body = await request.json()
+    file_name = body.get("file", "")
+    message = body.get("message", "")
+    session_id = body.get("session_id")
+
+    if not file_name or not message:
+        raise HTTPException(status_code=400, detail="Missing file or message")
+
+    safe_name = Path(file_name).name
+    genspark_path = RECORDINGS_DIR / f"{safe_name}.genspark.pb"
+    if not genspark_path.exists():
+        raise HTTPException(status_code=404, detail="No analysis found for this recording")
+
+    try:
+        response_text, session_id = await asyncio.get_event_loop().run_in_executor(
+            None,
+            lambda: chat_manager.handle_message(genspark_path, safe_name, message, session_id),
+        )
+        return {"response": response_text, "session_id": session_id}
+    except Exception as exc:
+        logger.error(f"insightgen_chat error ({safe_name}): {exc}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(exc))
 
 
 @app.post("/api/playback/start")

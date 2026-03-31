@@ -17,18 +17,11 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.bayesmech.vision.R
 import com.bayesmech.vision.databinding.FragmentLibraryBinding
-import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.bayesmech.vision.DataList
-import com.bayesmech.vision.ListRecordingsRequest
-import com.bayesmech.vision.ListRecordingsResponse
 import com.google.android.material.card.MaterialCardView
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -38,9 +31,9 @@ class LibraryFragment : Fragment() {
     private val binding get() = _binding!!
 
     private val viewModel: AppViewModel by activityViewModels()
-    private val client = OkHttpClient()
     private var allRecordings: List<DataList> = emptyList()
     private lateinit var adapter: RecordingsAdapter
+    private var pollingJob: Job? = null
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -63,57 +56,48 @@ class LibraryFragment : Fragment() {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
             override fun afterTextChanged(s: Editable?) {
-                val query = s?.toString()?.trim() ?: ""
-                val filtered = if (query.isEmpty()) {
-                    allRecordings
-                } else {
-                    allRecordings.filter { it.fileName.contains(query, ignoreCase = true) }
-                }
-                adapter.submitList(filtered)
+                applyFilter(s?.toString()?.trim() ?: "")
             }
         })
 
-        fetchRecordings()
-    }
-
-    private fun fetchRecordings() {
-        lifecycleScope.launch(Dispatchers.IO) {
-            try {
-                // Construct protobuf request using signed-in Google account
-                val account = GoogleSignIn.getLastSignedInAccount(requireContext())
-                val reqProto = ListRecordingsRequest.newBuilder()
-                    .setUsername(account?.displayName ?: account?.email ?: "unknown")
-                    .setAuthToken(account?.id ?: "")
-                    .build()
-
-                val requestBody = reqProto.toByteArray().toRequestBody("application/x-protobuf".toMediaType())
-                val request = Request.Builder()
-                    .url(buildInsightgenUrl(viewModel.serverUrl.value))
-                    .post(requestBody)
-                    .build()
-
-                val response = client.newCall(request).execute()
-                if (response.isSuccessful) {
-                    val bodyStream = response.body?.byteStream()
-                    if (bodyStream != null) {
-                        val pbResponse = ListRecordingsResponse.parseFrom(bodyStream)
-                        allRecordings = pbResponse.recordingsList
-                        withContext(Dispatchers.Main) {
-                            adapter.submitList(allRecordings)
-                        }
-                    }
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
+        // Immediately show cached recordings from ViewModel, update as new fetches arrive
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewModel.recordings.collect { recordings ->
+                allRecordings = recordings
+                applyFilter(binding.searchInput.text?.toString()?.trim() ?: "")
             }
         }
     }
 
-    private fun buildInsightgenUrl(wsBaseUrl: String): String {
-        val httpBase = wsBaseUrl.trimEnd('/')
-            .replaceFirst("wss://", "https://")
-            .replaceFirst("ws://", "http://")
-        return "$httpBase/api/insightgen/recordings"
+    override fun onResume() {
+        super.onResume()
+        startPolling()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        stopPolling()
+    }
+
+    private fun startPolling() {
+        pollingJob?.cancel()
+        pollingJob = viewLifecycleOwner.lifecycleScope.launch {
+            while (true) {
+                viewModel.fetchRecordings()
+                delay(10_000)
+            }
+        }
+    }
+
+    private fun stopPolling() {
+        pollingJob?.cancel()
+        pollingJob = null
+    }
+
+    private fun applyFilter(query: String) {
+        val filtered = if (query.isEmpty()) allRecordings
+                       else allRecordings.filter { it.fileName.contains(query, ignoreCase = true) }
+        adapter.submitList(filtered)
     }
 
     override fun onDestroyView() {

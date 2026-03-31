@@ -1,5 +1,17 @@
 You are analyzing a video recorded from a mobile AR (Augmented Reality) data capture system running on Android using ARCore. The video is captured from a **first-person perspective** using the phone's rear camera. In addition to the RGB frames shown here, the system simultaneously captures depth maps, IMU (accelerometer + gyroscope) data, GPS coordinates, and 3D geometry (planes and point clouds) — but only the RGB video is provided to you.
 
+## Tools Available
+
+You have access to three tools which you should use during this analysis:
+
+- **`scene_context(type)`** — call this once after identifying the scene type; it returns scene-specific analysis instructions you must follow
+- **`scene_emphasis(start_time, end_time, description)`** — mark a notable moment (recommended 2–10 seconds); provide a description of what is happening and why it is notable
+- **`get_motioncap_tracks(start_time, end_time)`** — retrieve motion tracking data for a time window; returns track positions as (cx, cy) pixel coordinates (origin top-left)
+
+**Always call `scene_context` after classifying the scene, and follow any additional instructions it returns.**
+
+---
+
 Please analyze this video and answer the following:
 
 ## 1. Scene Description
@@ -15,16 +27,12 @@ Identify which of these scene types best describes this recording (choose one, o
 - **sport-chess** — a chess game being played, a chess board with pieces in active use
 - **experiment-pendulum** — a pendulum experiment, a freely swinging object, or a physics apparatus
 
-Explain your classification reasoning in one or two sentences.
+Explain your classification reasoning in one or two sentences. Then call `scene_context(type)` with your classification and follow any instructions returned.
 
 ## 3. Temporal Highlights
 
 Identify up to **5 notable moments** in the video where something interesting, unusual, or clearly transitional occurs — for example: a sudden change in scene, a key action, a notable object appearing, or a significant camera movement.
 
-For each highlight provide:
-- **start_time** and **end_time** in seconds from the beginning of the video (each segment must be **10 seconds or shorter**)
-- A one-sentence description of what happens
-
-Format highlights as a numbered list, for example:
-1. [0.0s – 3.5s] The camera pans across a chess board showing an end-game position with few pieces remaining.
-2. [11.2s – 18.0s] A kart enters the frame from the left at high speed and overtakes another kart.
+For each highlight call `scene_emphasis(start_time, end_time, description)` with:
+- **start_time** and **end_time** in seconds from the beginning of the video (each segment should be **2–10 seconds**)
+- A description of what happens and why it is notable

@@ -3,11 +3,23 @@ package com.bayesmech.vision
 import android.app.Application
 import android.content.Context
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
 import com.bayesmech.vision.coverage.CoverageStats
 import com.bayesmech.vision.network.ConnectionStatus
+import com.bayesmech.vision.ListRecordingsRequest
+import com.bayesmech.vision.ListRecordingsResponse
+import com.bayesmech.vision.DataList
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 
 class AppViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -95,6 +107,41 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     fun updateCoverageStats(stats: CoverageStats) {
         _coverageStats.value = stats
+    }
+
+    // ── Recordings cache ─────────────────────────────────────────────────────
+
+    private val _recordings = MutableStateFlow<List<DataList>>(emptyList())
+    val recordings: StateFlow<List<DataList>> = _recordings.asStateFlow()
+
+    private val httpClient = OkHttpClient()
+
+    fun fetchRecordings() {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val account = GoogleSignIn.getLastSignedInAccount(getApplication())
+                val reqProto = ListRecordingsRequest.newBuilder()
+                    .setUsername(account?.displayName ?: account?.email ?: "unknown")
+                    .setAuthToken(account?.id ?: "")
+                    .build()
+                val body = reqProto.toByteArray().toRequestBody("application/x-protobuf".toMediaType())
+                val httpBase = serverUrl.value.trimEnd('/')
+                    .replaceFirst("wss://", "https://")
+                    .replaceFirst("ws://", "http://")
+                val request = Request.Builder()
+                    .url("$httpBase/api/insightgen/recordings")
+                    .post(body)
+                    .build()
+                val response = httpClient.newCall(request).execute()
+                if (response.isSuccessful) {
+                    val stream = response.body?.byteStream() ?: return@launch
+                    val pb = ListRecordingsResponse.parseFrom(stream)
+                    withContext(Dispatchers.Main) {
+                        _recordings.value = pb.recordingsList
+                    }
+                }
+            } catch (_: Exception) {}
+        }
     }
 
     // ── ARCore / rendering errors (logged, not toasted) ───────────────────────

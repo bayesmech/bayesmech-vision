@@ -8,3 +8,11 @@ buffer:
 
 segmentation:
   host: "http://127.0.0.1:8081"
+
+insightgen:
+  video:
+    highlights_only: true     # Send only scene_emphasis windows; false = full recording
+    jpeg_quality: 75          # JPEG encoding quality for rendered frames (0-100)
+    max_width: 480            # Downscale frames to this width before encoding (0 = no limit)
+    overlay_alpha: 0.5        # Heatmap blend weight for the understanding layer
+    tail_length: 30           # Motioncap track tail length in frames

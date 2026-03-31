@@ -98,6 +98,10 @@ dependencies {
     // Google Sign-In
     implementation 'com.google.android.gms:play-services-auth:21.2.0'
 
+    // Markdown rendering (core + tables plugin)
+    implementation 'io.noties.markwon:core:4.6.2'
+    implementation 'io.noties.markwon:ext-tables:4.6.2'
+
     // WebSocket
     implementation 'com.squareup.okhttp3:okhttp:4.12.0'
 
