@@ -15,6 +15,7 @@ POST /api/upload_recording   Upload .pb file and start replay
 POST /api/insightgen/recordings  List recordings (protobuf, with thumbnails)
 GET  /api/insightgen/insight     Return GensparkSummary for a recording
 GET  /api/insightgen/video       Return InsightVideoResponse (JPEG frames) for a recording
+GET  /api/insightgen/chat        Return persisted ChatHistory proto for a recording
 POST /api/insightgen/chat        Follow-up chat with Gemini (bootstrapped from analysis)
 /   (static)                React dashboard (dashboard/dist/)
 """
@@ -77,7 +78,7 @@ _genspark_config: dict = {}
 if _genspark_config_path.exists():
     with open(_genspark_config_path) as _f:
         _genspark_config = yaml.safe_load(_f) or {}
-chat_manager = ChatManager(_genspark_config.get("gemini", {}))
+chat_manager = ChatManager(_genspark_config.get("gemini", {}), RECORDINGS_DIR)
 
 # Wire: annotation results -> broadcast to dashboards
 annotator.set_annotation_callback(bridge.broadcast_annotation)
@@ -378,6 +379,19 @@ async def insightgen_video(file: str, layer: str = "raw"):
     except Exception as exc:
         logger.error(f"insightgen_video error ({safe_name}, {layer}): {exc}", exc_info=True)
         return Response(status_code=500)
+
+
+@app.get("/api/insightgen/chat")
+async def insightgen_chat_history(file: str):
+    """Return the persisted ChatHistory proto for a recording."""
+    safe_name = Path(file).name
+    chat_path = RECORDINGS_DIR / f"{safe_name}.chat.pb"
+    if not chat_path.exists():
+        return Response(
+            content=insightgen_pb2.ChatHistory().SerializeToString(),
+            media_type="application/x-protobuf",
+        )
+    return Response(content=chat_path.read_bytes(), media_type="application/x-protobuf")
 
 
 @app.post("/api/insightgen/chat")

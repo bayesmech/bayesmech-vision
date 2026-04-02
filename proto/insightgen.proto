@@ -72,3 +72,17 @@ message InsightVideoResponse {
   float fps = 2;
   repeated HighlightSegment segments = 3;  // highlight windows (for seek bar decoration)
 }
+
+// ── Chat history ──────────────────────────────────────────────────────────────
+
+message ChatTurn {
+  string role = 1;           // "user" or "model"
+  string text = 2;
+  int64 timestamp_ns = 3;
+}
+
+message ChatHistory {
+  string file_name = 1;
+  repeated ChatTurn turns = 2;
+  string gemini_cache_name = 3;  // Gemini CachedContent.name; empty if not yet created or expired
+}

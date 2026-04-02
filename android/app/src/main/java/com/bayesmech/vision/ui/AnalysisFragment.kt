@@ -21,6 +21,7 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.lifecycleScope
 import com.bayesmech.vision.AppViewModel
+import com.bayesmech.vision.ChatHistory
 import com.bayesmech.vision.DataList
 import com.bayesmech.vision.GensparkSummary
 import com.bayesmech.vision.InsightVideoResponse
@@ -28,7 +29,9 @@ import com.bayesmech.vision.MainActivity
 import com.bayesmech.vision.R
 import com.bayesmech.vision.databinding.FragmentAnalysisBinding
 import com.google.android.material.tabs.TabLayout
+import android.util.TypedValue
 import io.noties.markwon.Markwon
+import io.noties.markwon.ext.latex.JLatexMathPlugin
 import io.noties.markwon.ext.tables.TablePlugin
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -127,8 +130,16 @@ class AnalysisFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        val textSizePx = TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_SP, 15f, resources.displayMetrics
+        )
         markwon = Markwon.builder(requireContext())
             .usePlugin(TablePlugin.create(requireContext()))
+            .usePlugin(JLatexMathPlugin.create(textSizePx) { builder ->
+                builder.theme()
+                    .blockFitCanvas(true)
+                    .textColor(android.graphics.Color.WHITE)
+            })
             .build()
 
         binding.backButton.setOnClickListener {
@@ -142,6 +153,7 @@ class AnalysisFragment : Fragment() {
         setupInput()
         fetchSummary()
         fetchVideoLayer(TAB_VIDEO)
+        fetchChatHistory()
     }
 
     override fun onPause() {
@@ -339,7 +351,7 @@ class AnalysisFragment : Fragment() {
                 binding.summaryTitle.visibility = View.VISIBLE
             }
 
-            markwon.setMarkdown(binding.summaryBody, buildMarkdown(summary))
+            markwon.setMarkdown(binding.summaryBody, preprocessLatex(buildMarkdown(summary)))
             binding.summaryBody.visibility = View.VISIBLE
             binding.summaryLoading.visibility = View.GONE
         }
@@ -429,7 +441,7 @@ class AnalysisFragment : Fragment() {
         if (isUser) {
             bubble.text = text
         } else {
-            markwon.setMarkdown(bubble, text)
+            markwon.setMarkdown(bubble, preprocessLatex(text))
         }
 
         wrapper.addView(bubble)
@@ -480,6 +492,72 @@ class AnalysisFragment : Fragment() {
     private fun dpToPx(dp: Int): Int =
         (dp * resources.displayMetrics.density).toInt()
 
+    // ── Chat history fetch ───────────────────────────────────────────────────
+
+    /**
+     * Convert all LaTeX delimiters to the multi-line block format that
+     * JLatexMathBlockParser reliably handles:
+     *
+     *   $$
+     *   formula
+     *   $$
+     *
+     * Why multi-line? Markwon's block parser only closes a $$ block when it
+     * sees $$ at the START of a new line. A single-line "$$formula$$" is opened
+     * (consuming "$$") but never closed, so the rest of the line becomes a raw
+     * paragraph — causing the double-render. Multi-line avoids this entirely.
+     *
+     * The inline parser ($...$) is not used because JLatexMathInlineProcessor
+     * silently returns null for Gemini's output patterns, leaving raw text.
+     *
+     * Handles:
+     *  - \[...\]  display math (LaTeX standard)
+     *  - \(...\)  inline math  (LaTeX standard)
+     *  - $$...$$  single-line block
+     *  - $...$    inline
+     */
+    private fun preprocessLatex(text: String): String {
+        // Each replacement converts to "\n$$\nformula\n$$\n" (block element on its own lines)
+        fun block(formula: String) = "\n\$\$\n${formula.trim()}\n\$\$\n"
+
+        return text
+            .replace(Regex("""\\\[([\s\S]+?)\\\]"""))    { block(it.groupValues[1]) }
+            .replace(Regex("""\\\((.+?)\\\)"""))          { block(it.groupValues[1]) }
+            .replace(Regex("""\$\$([^\n]+?)\$\$"""))      { block(it.groupValues[1]) }
+            .replace(Regex("""\$([^$\n]+?)\$"""))         { block(it.groupValues[1]) }
+    }
+
+    private fun showSendButton() {
+        binding.sendLoading.visibility = View.GONE
+        binding.sendButton.visibility = View.VISIBLE
+    }
+
+    private fun fetchChatHistory() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            val history = withContext(Dispatchers.IO) {
+                runCatching {
+                    val httpBase = viewModel.serverUrl.value.trimEnd('/')
+                        .replaceFirst("wss://", "https://")
+                        .replaceFirst("ws://", "http://")
+                    val url = "$httpBase/api/insightgen/chat?file=${recording.fileName}"
+                    val req = Request.Builder().url(url).get().build()
+                    val resp = httpClient.newCall(req).execute()
+                    if (!resp.isSuccessful) return@runCatching null
+                    val bytes = resp.body?.bytes() ?: return@runCatching null
+                    ChatHistory.parseFrom(bytes)
+                }.getOrNull()
+            }
+
+            if (history != null && history.turnsCount > 0) {
+                for (turn in history.turnsList) {
+                    addChatBubble(turn.text, isUser = turn.role == "user")
+                }
+            }
+
+            showSendButton()
+        }
+    }
+
     // ── Follow-up API call ───────────────────────────────────────────────────
 
     private fun sendFollowUp(text: String) {
@@ -519,3 +597,4 @@ class AnalysisFragment : Fragment() {
         }
     }
 }
+
