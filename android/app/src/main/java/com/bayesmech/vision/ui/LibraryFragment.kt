@@ -19,8 +19,6 @@ import com.bayesmech.vision.R
 import com.bayesmech.vision.databinding.FragmentLibraryBinding
 import com.bayesmech.vision.DataList
 import com.google.android.material.card.MaterialCardView
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -33,7 +31,6 @@ class LibraryFragment : Fragment() {
     private val viewModel: AppViewModel by activityViewModels()
     private var allRecordings: List<DataList> = emptyList()
     private lateinit var adapter: RecordingsAdapter
-    private var pollingJob: Job? = null
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -60,38 +57,28 @@ class LibraryFragment : Fragment() {
             }
         })
 
-        // Immediately show cached recordings from ViewModel, update as new fetches arrive
+        // Show cached recordings immediately; update list whenever a fetch completes
         viewLifecycleOwner.lifecycleScope.launch {
             viewModel.recordings.collect { recordings ->
                 allRecordings = recordings
                 applyFilter(binding.searchInput.text?.toString()?.trim() ?: "")
             }
         }
-    }
 
-    override fun onResume() {
-        super.onResume()
-        startPolling()
-    }
-
-    override fun onPause() {
-        super.onPause()
-        stopPolling()
-    }
-
-    private fun startPolling() {
-        pollingJob?.cancel()
-        pollingJob = viewLifecycleOwner.lifecycleScope.launch {
-            while (true) {
-                viewModel.fetchRecordings()
-                delay(10_000)
+        // Drive the SwipeRefreshLayout spinner from ViewModel state
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewModel.isRefreshing.collect { refreshing ->
+                binding.swipeRefresh.isRefreshing = refreshing
             }
         }
-    }
 
-    private fun stopPolling() {
-        pollingJob?.cancel()
-        pollingJob = null
+        // Pull-to-refresh triggers a manual reload
+        binding.swipeRefresh.setOnRefreshListener {
+            viewModel.fetchRecordings()
+        }
+
+        // Auto-fetch once on first open
+        viewModel.fetchRecordings()
     }
 
     private fun applyFilter(query: String) {
@@ -102,6 +89,7 @@ class LibraryFragment : Fragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
+        binding.swipeRefresh.setOnRefreshListener(null)
         _binding = null
     }
 }

@@ -10,6 +10,7 @@ import com.bayesmech.vision.ListRecordingsRequest
 import com.bayesmech.vision.ListRecordingsResponse
 import com.bayesmech.vision.DataList
 import com.google.android.gms.auth.api.signin.GoogleSignIn
+import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -114,9 +115,26 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     private val _recordings = MutableStateFlow<List<DataList>>(emptyList())
     val recordings: StateFlow<List<DataList>> = _recordings.asStateFlow()
 
+    private val _isRefreshing = MutableStateFlow(false)
+    val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
+
     private val httpClient = OkHttpClient()
 
+    init {
+        // Load persisted recordings so the library is usable immediately on first open
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val file = File(getApplication<Application>().filesDir, "recordings_cache.pb")
+                if (file.exists()) {
+                    val pb = ListRecordingsResponse.parseFrom(file.readBytes())
+                    _recordings.value = pb.recordingsList
+                }
+            } catch (_: Exception) {}
+        }
+    }
+
     fun fetchRecordings() {
+        _isRefreshing.value = true
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val account = GoogleSignIn.getLastSignedInAccount(getApplication())
@@ -134,13 +152,20 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                     .build()
                 val response = httpClient.newCall(request).execute()
                 if (response.isSuccessful) {
-                    val stream = response.body?.byteStream() ?: return@launch
-                    val pb = ListRecordingsResponse.parseFrom(stream)
-                    withContext(Dispatchers.Main) {
-                        _recordings.value = pb.recordingsList
+                    val stream = response.body?.byteStream() ?: run {
+                        _isRefreshing.value = false
+                        return@launch
                     }
+                    val pb = ListRecordingsResponse.parseFrom(stream)
+                    _recordings.value = pb.recordingsList
+                    // Persist to disk for offline use
+                    try {
+                        val file = File(getApplication<Application>().filesDir, "recordings_cache.pb")
+                        file.writeBytes(pb.toByteArray())
+                    } catch (_: Exception) {}
                 }
             } catch (_: Exception) {}
+            _isRefreshing.value = false
         }
     }
 
