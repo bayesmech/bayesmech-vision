@@ -48,8 +48,9 @@ from pathlib import Path
 
 _server_root = Path(__file__).resolve().parent.parent
 _project_root = _server_root.parent
-sys.path.insert(0, str(_project_root))
-sys.path.insert(0, str(_server_root))
+for _p in (str(_project_root), str(_project_root / "proto"), str(_server_root)):
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
 
 import cv2
 import numpy as np

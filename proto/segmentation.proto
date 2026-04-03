@@ -5,7 +5,6 @@ package bayesmech.vision;
 option java_multiple_files = true;
 option java_package = "com.bayesmech.vision";
 
-import "primitives.proto";
 import "perceiver.proto";
 
 message SegmentationResponse {
