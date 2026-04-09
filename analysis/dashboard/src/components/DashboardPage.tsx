@@ -4,7 +4,6 @@ import GeometryStreamViewer from './GeometryStreamViewer'
 import PlaybackControls from './PlaybackControls'
 import MotionChart from './MotionChart'
 import InfoCard from './InfoCard'
-import CoveragePanel from './CoveragePanel'
 import TrajectoryCanvas from './TrajectoryCanvas'
 import GpsMapViewer from './GpsMapViewer'
 import type { ImuData } from '../types'
@@ -123,11 +122,6 @@ const DashboardPage = () => {
           }
           label="GPS Position"
         />
-      </div>
-
-      {/* Signal coverage */}
-      <div style={{ marginBottom: '1.5rem' }}>
-        <CoveragePanel />
       </div>
 
       {/* Sensor charts */}

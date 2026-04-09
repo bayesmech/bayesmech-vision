@@ -1,0 +1,88 @@
+syntax = "proto3";
+
+package bayesmech.vision;
+
+option java_multiple_files = true;
+option java_package = "com.bayesmech.vision";
+
+message DataList {
+  string file_name = 1;
+  bool is_segmentation_available = 2;
+  bool is_genspark_available = 3;
+  bool is_motioncap_available = 4;
+  bytes image_frame = 5;
+}
+
+message ListRecordingsRequest {
+  string username = 1;
+  string auth_token = 2;
+}
+
+message ListRecordingsResponse {
+  repeated DataList recordings = 1;
+}
+
+service InsightgenService {
+  rpc ListRecordings(ListRecordingsRequest) returns (ListRecordingsResponse);
+}
+
+message GensparkToolCall {
+  string tool_name = 1;
+  string arguments_json = 2;  // JSON-encoded args as sent by the model
+  string result = 3;           // Text returned to the model
+}
+
+message GensparkTurn {
+  string text = 1;                         // Model's text output (may be empty if only tool calls)
+  repeated GensparkToolCall tool_calls = 2;
+}
+
+message GensparkParameter {
+  string name = 1;
+  string value = 2;
+  string unit = 3;
+}
+
+message GensparkSummary {
+  string title = 1;
+  string text = 2;           // Markdown body (excluding title)
+  repeated GensparkParameter parameters = 3;
+}
+
+message GensparkResponse {
+  repeated GensparkTurn turns = 1;
+  GensparkSummary summary = 2;
+}
+
+// ── Video playback ────────────────────────────────────────────────────────────
+
+message VideoFrame {
+  uint64 timestamp_ns = 1;
+  bytes jpeg_data = 2;
+}
+
+message HighlightSegment {
+  float start_time = 1;   // seconds from recording start
+  float end_time = 2;
+  string description = 3;
+}
+
+message InsightVideoResponse {
+  repeated VideoFrame frames = 1;
+  float fps = 2;
+  repeated HighlightSegment segments = 3;  // highlight windows (for seek bar decoration)
+}
+
+// ── Chat history ──────────────────────────────────────────────────────────────
+
+message ChatTurn {
+  string role = 1;           // "user" or "model"
+  string text = 2;
+  int64 timestamp_ns = 3;
+}
+
+message ChatHistory {
+  string file_name = 1;
+  repeated ChatTurn turns = 2;
+  string gemini_cache_name = 3;  // Gemini CachedContent.name; empty if not yet created or expired
+}

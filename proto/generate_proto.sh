@@ -11,12 +11,12 @@ if python -c "import grpc_tools" 2>/dev/null; then
     python -m grpc_tools.protoc \
         -I. \
         --python_out=. \
-        primitives.proto perceiver.proto spatial.proto segmentation.proto motioncap.proto
+        primitives.proto perceiver.proto spatial.proto segmentation.proto motioncap.proto insightgen.proto reconstruction.proto
 else
     protoc \
         -I. \
         --python_out=. \
-        primitives.proto perceiver.proto spatial.proto segmentation.proto motioncap.proto
+        primitives.proto perceiver.proto spatial.proto segmentation.proto motioncap.proto insightgen.proto reconstruction.proto
 fi
 
 # Regenerate __init__.py
@@ -27,6 +27,8 @@ from . import perceiver_pb2
 from . import spatial_pb2
 from . import segmentation_pb2
 from . import motioncap_pb2
+from . import insightgen_pb2
+from . import reconstruction_pb2
 EOF
 
 echo "Proto files generated successfully."

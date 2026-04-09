@@ -58,10 +58,11 @@
                 android:paddingEnd="10dp"
                 android:paddingTop="4dp"
                 android:paddingBottom="4dp"
-                android:text="● LIVE"
+                android:text="● REC"
                 android:textColor="@color/text_primary"
                 android:textSize="12sp"
-                android:textStyle="bold" />
+                android:textStyle="bold"
+                android:visibility="gone" />
 
             <!-- Recording elapsed time — bottom-left inside viewport (kept away from fullscreen btn) -->
             <TextView
@@ -120,7 +121,7 @@
                 android:hint="Type your message here..."
                 android:inputType="textMultiLine|textCapSentences"
                 android:padding="16dp"
-                android:paddingTop="64dp"
+                android:paddingTop="96dp"
                 android:paddingBottom="64dp"
                 android:textColor="@color/text_primary"
                 android:textColorHint="@color/text_secondary"

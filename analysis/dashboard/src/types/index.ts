@@ -154,3 +154,17 @@ export interface DecodedAnnotation {
   frameNumber: number
   blobUrl: string
 }
+
+// === Precomputed sensor data for file-mode playback ===
+
+export interface SensorFrameData {
+  fn: number          // frame_number
+  ts: number          // timestamp_ns (as number — large ints may lose precision but acceptable for display)
+  imu?: {
+    linear_acceleration?: Vec3
+    angular_velocity?: Vec3
+    gravity?: Vec3
+    magnetic_field?: Vec3
+  }
+  gps?: GpsLocation
+}

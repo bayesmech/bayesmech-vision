@@ -171,11 +171,11 @@ class DashboardBridge:
                     )
 
         elif action == "get_trajectory":
-            positions = self._store.compute_trajectory()
+            positions = await asyncio.to_thread(self._store.compute_trajectory)
             await ws.send_text(json.dumps({"type": "trajectory", "positions": positions}))
 
         elif action == "get_sensor_data":
-            frames = self._store.compute_sensor_data()
+            frames = await asyncio.to_thread(self._store.compute_sensor_data)
             await ws.send_text(json.dumps({"type": "sensor_data", "frames": frames}))
 
         elif action == "get_annotations":

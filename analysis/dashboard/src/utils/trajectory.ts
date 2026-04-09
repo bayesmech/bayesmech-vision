@@ -138,14 +138,18 @@ export function rescaleIfNeeded(
 /**
  * Draws the full trajectory visualisation on a 2D canvas context.
  * Includes: background grid, crosshair, path with gradient opacity,
- * start marker (green), end marker (red), and current-position dot.
+ * start marker (green), and optional current-position marker (white dot).
+ *
+ * @param highlightIndex  Index into `points` to mark as the current position.
+ *                        Defaults to the last point if omitted.
  */
 export function drawTrajectory(
   ctx: CanvasRenderingContext2D,
   canvas: HTMLCanvasElement,
   points: TrajectoryPoint[],
   scale: number,
-  offset: { x: number; y: number }
+  offset: { x: number; y: number },
+  highlightIndex?: number
 ): void {
   const w = canvas.width
   const h = canvas.height
@@ -241,21 +245,19 @@ export function drawTrajectory(
   ctx.font = '10px monospace'
   ctx.fillText('START', start.cx + 10, start.cy - 6)
 
-  // --- End marker / current position (red) ---
-  const end = toCanvas(points[totalPoints - 1])
-  ctx.fillStyle = '#ff4444'
+  // --- Current position marker (white dot) ---
+  const hi = highlightIndex !== undefined
+    ? Math.max(0, Math.min(highlightIndex, totalPoints - 1))
+    : totalPoints - 1
+  const cur = toCanvas(points[hi])
+  ctx.fillStyle = '#ffffff'
   ctx.beginPath()
-  ctx.arc(end.cx, end.cy, 6, 0, Math.PI * 2)
+  ctx.arc(cur.cx, cur.cy, 6, 0, Math.PI * 2)
   ctx.fill()
 
-  // Pulsing ring effect for current position
-  ctx.strokeStyle = 'rgba(255, 68, 68, 0.5)'
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)'
   ctx.lineWidth = 2
   ctx.beginPath()
-  ctx.arc(end.cx, end.cy, 10, 0, Math.PI * 2)
+  ctx.arc(cur.cx, cur.cy, 10, 0, Math.PI * 2)
   ctx.stroke()
-
-  ctx.fillStyle = '#fff'
-  ctx.font = '10px monospace'
-  ctx.fillText('NOW', end.cx + 14, end.cy - 6)
 }
