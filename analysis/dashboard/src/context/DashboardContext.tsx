@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react'
 import type {
   ConnectionStatus, DecodedFrame, DecodedAnnotation, CoverageStats,
-  TrajectoryPoint, CameraPose, CameraIntrinsics, ImuData, Vec3,
+  TrajectoryPoint, CameraPose, CameraIntrinsics, ImuData, Vec3, SensorFrameData,
 } from '../types'
 import { dashboardWs } from '../services/websocket'
 import { startPlayback, switchToLive as apiSwitchToLive } from '../services/api'
@@ -91,7 +91,7 @@ class FrameDecoder {
     return canvas.toDataURL('image/png')
   }
 
-  decodeFrame(proto: bayesmech.vision.PerceiverDataFrame): DecodedFrame {
+  decodeFrame(proto: bayesmech.vision.PerceiverDataFrame, skipDepth = false): DecodedFrame {
     const id = proto.frameIdentifier
     const frame: DecodedFrame = {
       source: 'file',
@@ -122,7 +122,7 @@ class FrameDecoder {
 
     const depth = proto.depthFrame
     frame.hasDepthData = (depth?.data?.length ?? 0) > 0
-    if (frame.hasDepthData && depth?.data) {
+    if (!skipDepth && frame.hasDepthData && depth?.data) {
       this.depthLogCount++
 
       const bytesPerPixel = depth.format === DepthFormat.FLOAT32_METERS ? 4 : 2
@@ -456,6 +456,8 @@ interface DashboardState {
   trajectoryPositions: TrajectoryPoint[]
   firstTimestampNs: number
   lastTimestampNs: number
+  // Precomputed sensor data (available after recording load)
+  sensorData: SensorFrameData[]
   // Buffer access
   getFrame: (frameNumber: number) => DecodedFrame | null
   getAnnotation: (frameNumber: number) => DecodedAnnotation | null
@@ -499,6 +501,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [firstTimestampNs, setFirstTimestampNs] = useState(0)
   const [lastTimestampNs, setLastTimestampNs] = useState(0)
 
+  // Precomputed sensor data (loaded once per recording)
+  const [sensorData, setSensorData] = useState<SensorFrameData[]>([])
+
   const [coverageStats, setCoverageStats] = useState<CoverageStats>(ZERO_COVERAGE)
 
   const frameTimestamps = useRef<number[]>([])
@@ -535,10 +540,20 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   }, [])
 
   const handleFrames = useCallback((frames: bayesmech.vision.PerceiverDataFrame[]) => {
+    // In file mode, only process frames when we actually asked for them.
+    // Drop any unsolicited server pushes (e.g. live frames from a connected device).
+    const shouldProcess = isLiveRef.current || seekPendingRef.current || isPlayingRef.current
+    if (!shouldProcess) return
+
+    const skipDepth = !isLiveRef.current
+
     for (const proto of frames) {
-      const frame = decoder.current.decodeFrame(proto)
+      const frame = decoder.current.decodeFrame(proto, skipDepth)
       frameBuffer.current.push(frame)
-      coverageTracker.current.record(frame)
+      if (isLiveRef.current) {
+        // Coverage tracking only meaningful in live mode
+        coverageTracker.current.record(frame)
+      }
     }
 
     const latest = frameBuffer.current.latest()
@@ -554,7 +569,6 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       }
     } else {
       // File mode: only update display if we're playing OR this is a seek response.
-      // Ignore unsolicited server pushes (e.g. leftover replay, initial connection frame).
       if (isPlayingRef.current && latest) {
         updateDisplayedFrame(latest)
       } else if (seekPendingRef.current && latest) {
@@ -615,6 +629,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const handleTrajectory = useCallback((positions: TrajectoryPoint[]) => {
     setTrajectoryPositions(positions)
+  }, [])
+
+  const handleSensorData = useCallback((frames: SensorFrameData[]) => {
+    setSensorData(frames)
   }, [])
 
   const getFrame = useCallback((frameNumber: number): DecodedFrame | null => {
@@ -708,13 +726,15 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setFirstTimestampNs(0)
     setLastTimestampNs(0)
     setCoverageStats(ZERO_COVERAGE)
+    setSensorData([])
 
     // Load on server
     await startPlayback(filename)
 
-    // Request stats and trajectory
+    // Request stats, full trajectory, and full sensor data (precomputed once)
     dashboardWs.getStats()
     dashboardWs.getTrajectory()
+    dashboardWs.getSensorData()
 
     // Seek to frame 0 and start playing
     currentIndexRef.current = 0
@@ -809,6 +829,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const unsubStatus = dashboardWs.addStatusListener(setConnectionStatus)
     const unsubStats = dashboardWs.addStatsListener(handleStats)
     const unsubTrajectory = dashboardWs.addTrajectoryListener(handleTrajectory)
+    const unsubSensorData = dashboardWs.addSensorDataListener(handleSensorData)
 
     dashboardWs.getStats()
 
@@ -818,18 +839,19 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       unsubStatus()
       unsubStats()
       unsubTrajectory()
+      unsubSensorData()
       dashboardWs.disconnect()
       frameBuffer.current.destroy()
       annotationBuffer.current.destroy()
       coverageTracker.current.destroy()
       if (playIntervalRef.current) clearInterval(playIntervalRef.current)
     }
-  }, [handleFrames, handleAnnotations, handleStats, handleTrajectory])
+  }, [handleFrames, handleAnnotations, handleStats, handleTrajectory, handleSensorData])
 
   return (
     <DashboardContext.Provider value={{
       connectionStatus, displayedFrame, displayedAnnotation, frameCount, fps, coverageStats,
-      isLive, trajectoryPositions, firstTimestampNs, lastTimestampNs,
+      isLive, trajectoryPositions, firstTimestampNs, lastTimestampNs, sensorData,
       getFrame, getAnnotation, requestFrame, requestAnnotation,
       currentIndex, totalFrames, isPlaying, serverFps,
       play, pause, seekTo, skipForward, skipBackward, loadRecording, switchToLive,

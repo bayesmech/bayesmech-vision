@@ -19,18 +19,16 @@ const TrajectoryCanvas: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [displayedFrame, isLive])
 
-  // File mode: compute visible points and stable scaling from all trajectory positions
-  const fileView = useMemo(() => {
+  // File mode: compute scale once from ALL trajectory points (not per-seek)
+  const fileScale = useMemo(() => {
     if (isLive || trajectoryPositions.length === 0) return null
-    const visible = trajectoryPositions.slice(0, currentIndex + 1)
-    // Scale computed from ALL positions for a stable viewport
     const { scale, offsetX, offsetY } = rescaleIfNeeded(
       trajectoryPositions, CANVAS_WIDTH, CANVAS_HEIGHT, 1
     )
-    return { visible, scale, offset: { x: offsetX, y: offsetY } }
-  }, [isLive, trajectoryPositions, currentIndex])
+    return { scale, offset: { x: offsetX, y: offsetY } }
+  }, [isLive, trajectoryPositions])  // intentionally excludes currentIndex
 
-  // Draw
+  // Draw — reruns on seek (currentIndex) but rescale is already computed above
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
@@ -39,19 +37,19 @@ const TrajectoryCanvas: React.FC = () => {
 
     if (isLive) {
       drawTrajectory(ctx, canvas, liveTrajectory.points, liveTrajectory.scale, liveTrajectory.offset)
-    } else if (fileView) {
-      drawTrajectory(ctx, canvas, fileView.visible, fileView.scale, fileView.offset)
+    } else if (fileScale && trajectoryPositions.length > 0) {
+      drawTrajectory(ctx, canvas, trajectoryPositions, fileScale.scale, fileScale.offset, currentIndex)
     }
-  }, [isLive, liveTrajectory.points, liveTrajectory.scale, liveTrajectory.offset, fileView])
+  }, [isLive, liveTrajectory.points, liveTrajectory.scale, liveTrajectory.offset, fileScale, trajectoryPositions, currentIndex])
 
   const currentPos = isLive
     ? liveTrajectory.currentPosition
-    : (fileView && fileView.visible.length > 0
-        ? fileView.visible[fileView.visible.length - 1]
+    : (trajectoryPositions.length > 0
+        ? trajectoryPositions[Math.max(0, Math.min(currentIndex, trajectoryPositions.length - 1))]
         : null)
 
-  const pointCount = isLive ? liveTrajectory.points.length : (fileView?.visible.length ?? 0)
-  const scaleVal = isLive ? liveTrajectory.scale : (fileView?.scale ?? 1)
+  const pointCount = isLive ? liveTrajectory.points.length : trajectoryPositions.length
+  const scaleVal = isLive ? liveTrajectory.scale : (fileScale?.scale ?? 1)
 
   return (
     <div className="stream-card">

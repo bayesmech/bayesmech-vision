@@ -1,4 +1,4 @@
-import type { ConnectionStatus, TrajectoryPoint } from '../types'
+import type { ConnectionStatus, TrajectoryPoint, SensorFrameData } from '../types'
 import { bayesmech } from '../proto/bundle'
 import { PREFIX_FRAME, PREFIX_ANNOTATION, decodeFrames, decodeAnnotations } from './proto'
 
@@ -6,6 +6,7 @@ export type FrameListener = (frames: bayesmech.vision.PerceiverDataFrame[]) => v
 export type AnnotationListener = (annotations: bayesmech.vision.SegmentationResponse[]) => void
 export type StatsListener = (stats: Record<string, unknown>) => void
 export type TrajectoryListener = (positions: TrajectoryPoint[]) => void
+export type SensorDataListener = (frames: SensorFrameData[]) => void
 type StatusListener = (status: ConnectionStatus) => void
 
 class DashboardWebSocketService {
@@ -14,6 +15,7 @@ class DashboardWebSocketService {
   private annotationListeners: Set<AnnotationListener> = new Set()
   private statsListeners: Set<StatsListener> = new Set()
   private trajectoryListeners: Set<TrajectoryListener> = new Set()
+  private sensorDataListeners: Set<SensorDataListener> = new Set()
   private statusListeners: Set<StatusListener> = new Set()
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null
   private intentionalClose = false
@@ -98,6 +100,10 @@ class DashboardWebSocketService {
     this.send({ action: 'get_trajectory' })
   }
 
+  getSensorData(): void {
+    this.send({ action: 'get_sensor_data' })
+  }
+
   getAnnotationForFrame(frameNumber: number): void {
     this.send({ action: 'get_annotations', frame_number: frameNumber })
   }
@@ -122,6 +128,11 @@ class DashboardWebSocketService {
   addTrajectoryListener(cb: TrajectoryListener): () => void {
     this.trajectoryListeners.add(cb)
     return () => { this.trajectoryListeners.delete(cb) }
+  }
+
+  addSensorDataListener(cb: SensorDataListener): () => void {
+    this.sensorDataListeners.add(cb)
+    return () => { this.sensorDataListeners.delete(cb) }
   }
 
   addStatusListener(cb: StatusListener): () => void {
@@ -158,6 +169,9 @@ class DashboardWebSocketService {
       } else if (msg.type === 'trajectory') {
         const positions = msg.positions as TrajectoryPoint[]
         this.trajectoryListeners.forEach((cb) => cb(positions))
+      } else if (msg.type === 'sensor_data') {
+        const frames = msg.frames as SensorFrameData[]
+        this.sensorDataListeners.forEach((cb) => cb(frames))
       }
     } catch {
       // Ignore non-JSON
