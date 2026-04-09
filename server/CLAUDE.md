@@ -32,6 +32,12 @@ uv run python motioncap/main.py ../recordings/<name>.vis.pb
 uv run python genspark/main.py ../recordings/<name>.vis.pb
 uv run python genspark/main.py ../recordings/<name>.vis.pb --provider claude
 
+# 3D reconstruction: COLMAP SfM + Gaussian Splatting
+uv run python reconstruct/main.py ../recordings/<name>.vis.pb
+uv run python reconstruct/main.py ../recordings/<name>.vis.pb --no-splat   # COLMAP only
+uv run python reconstruct/main.py ../recordings/<name>.vis.pb --max-frames 100 --sample-every 10  # quick test
+uv run python reconstruct/main.py ../recordings/<name>.vis.pb --dense-mvs   # + dense MVS (requires colmap binary)
+
 # Homography analysis (interactive, from server/)
 uv run python ../analysis/homography/main.py ../recordings/<name>.vis.pb
 ```
@@ -59,6 +65,7 @@ huggingface-cli login
 | `segmentation/` | Offline SAM2/SAM3 annotator → writes `.seg.pb` |
 | `motioncap/` | Offline RAFT optical-flow motion heatmap → writes `.motion.pb` |
 | `genspark/` | Offline AI video analysis (Gemini/Claude/OpenAI) |
+| `reconstruct/` | Offline COLMAP SfM + Gaussian Splatting → writes `.recon/`, `.splat.ply`, `.recon.pb` |
 
 ## Motion Capture (`motioncap/`)
 
