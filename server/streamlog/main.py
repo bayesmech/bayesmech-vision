@@ -73,7 +73,7 @@ annotator = Annotator()
 bridge = DashboardBridge(store, annotator)
 
 # Load genspark config for chat follow-up
-_genspark_config_path = _server_root / "genspark" / "genspark_config.yaml"
+_genspark_config_path = _server_root / "genspark" / "config.yaml"
 _genspark_config: dict = {}
 if _genspark_config_path.exists():
     with open(_genspark_config_path) as _f:
@@ -165,6 +165,19 @@ def _parse_recording_timestamp(name: str, fallback_mtime: float) -> float:
             pass
     return fallback_mtime
 
+def _parse_title(folder_name: str) -> str:
+    """Extract human-readable title from a YYYYMMDD_HHMMSS_some_random_text folder name.
+
+    Examples:
+        "20260302_191856_karting_practice" -> "Karting practice"
+        "20260302_191856"                  -> "20260302_191856"  (no suffix, return as-is)
+    """
+    parts = folder_name.split("_")
+    if len(parts) > 2:
+        text = " ".join(parts[2:])
+        return text[0].upper() + text[1:] if text else folder_name
+    return folder_name
+
 def _extract_thumbnail(pb_path: Path) -> bytes | None:
     """Return RGB bytes of the frame at ~20 s into the recording (best-effort)."""
     target_ns = 20 * 1_000_000_000
@@ -203,19 +216,24 @@ def _extract_thumbnail(pb_path: Path) -> bytes | None:
 
 @app.get("/api/recordings")
 async def list_recordings():
-    files = sorted(RECORDINGS_DIR.glob("*.vis.pb"), key=lambda p: p.stat().st_mtime, reverse=True)
-    return {
-        "recordings": [
-            {
-                "filename": p.name,
-                "name": p.name.removesuffix(".vis.pb"),
-                "size_mb": round(p.stat().st_size / (1024 ** 2), 2),
-                "recorded_at": _parse_recording_timestamp(p.name, p.stat().st_mtime),
-                "has_segmentation": (p.parent / (p.name.removesuffix(".vis.pb") + ".seg.pb")).exists(),
-            }
-            for p in files
-        ]
-    }
+    dirs = sorted(
+        [d for d in RECORDINGS_DIR.iterdir() if d.is_dir()],
+        key=lambda d: d.stat().st_mtime,
+        reverse=True,
+    )
+    recordings = []
+    for d in dirs:
+        vis = d / f"{d.name}.vis.pb"
+        if not vis.exists():
+            continue
+        recordings.append({
+            "name": d.name,
+            "title": _parse_title(d.name),
+            "size_mb": round(vis.stat().st_size / (1024 ** 2), 2),
+            "recorded_at": _parse_recording_timestamp(d.name, d.stat().st_mtime),
+            "has_segmentation": (d / f"{d.name}.seg.pb").exists(),
+        })
+    return {"recordings": recordings}
 
 
 @app.post("/api/insightgen/recordings")
@@ -231,35 +249,26 @@ async def insightgen_list_recordings(request: Request):
 
     recordings_map: dict[str, insightgen_pb2.DataList] = {}
 
-    for pb_path in RECORDINGS_DIR.glob("*.vis.pb"):
-        base_name = pb_path.name.split(".")[0]
-        thumb = _extract_thumbnail(pb_path)
+    for d in RECORDINGS_DIR.iterdir():
+        if not d.is_dir():
+            continue
+        vis = d / f"{d.name}.vis.pb"
+        if not vis.exists():
+            continue
+        base_name = d.name
+        thumb = _extract_thumbnail(vis)
         dl = insightgen_pb2.DataList(
             file_name=base_name,
-            is_segmentation_available=False,
-            is_genspark_available=False,
-            is_motioncap_available=False,
+            is_segmentation_available=(d / f"{base_name}.seg.pb").exists(),
+            is_genspark_available=(d / f"{base_name}.genspark.pb").exists(),
+            is_motioncap_available=(
+                (d / f"{base_name}.motion.pb").exists()
+                or (d / f"{base_name}.motion.mp4").exists()
+            ),
         )
         if thumb:
             dl.image_frame = thumb
         recordings_map[base_name] = dl
-
-    for file_path in RECORDINGS_DIR.glob("*"):
-        if not file_path.is_file() or file_path.name.endswith(".vis.pb"):
-            continue
-        name = file_path.name
-        parts = name.split(".")
-        if len(parts) < 2:
-            continue
-        base_name = parts[0]
-        if base_name not in recordings_map:
-            continue
-        if ".seg.pb" in name:
-            recordings_map[base_name].is_segmentation_available = True
-        elif name == f"{base_name}.genspark.pb":
-            recordings_map[base_name].is_genspark_available = True
-        elif ".motion.pb" in name or ".motion.mp4" in name:
-            recordings_map[base_name].is_motioncap_available = True
 
     resp = insightgen_pb2.ListRecordingsResponse()
     resp.recordings.extend(
@@ -273,7 +282,7 @@ async def insightgen_insight(file: str):
     """Return the GensparkSummary for a specific recording (file=YYYYMMDD_HHMMSS)."""
     # Sanitise: only allow the base filename, no path traversal
     safe_name = Path(file).name
-    pb_path = RECORDINGS_DIR / f"{safe_name}.genspark.pb"
+    pb_path = RECORDINGS_DIR / safe_name / f"{safe_name}.genspark.pb"
     if not pb_path.exists():
         return Response(status_code=404)
     try:
@@ -310,7 +319,7 @@ async def insightgen_video(file: str, layer: str = "raw"):
     import asyncio
 
     safe_name = Path(file).name
-    vis_path = RECORDINGS_DIR / f"{safe_name}.vis.pb"
+    vis_path = RECORDINGS_DIR / safe_name / f"{safe_name}.vis.pb"
     if not vis_path.exists():
         return Response(status_code=404)
 
@@ -344,7 +353,7 @@ async def insightgen_video(file: str, layer: str = "raw"):
                 fps = round((len(timestamps_ns) - 1) / total_s, 2)
 
         # Highlight clipping
-        genspark_path = RECORDINGS_DIR / f"{safe_name}.genspark.pb"
+        genspark_path = RECORDINGS_DIR / safe_name / f"{safe_name}.genspark.pb"
         highlights = extract_highlights(genspark_path)
         if highlights_only:
             frame_indices = clip_frame_indices(timestamps_ns, highlights)
@@ -385,7 +394,7 @@ async def insightgen_video(file: str, layer: str = "raw"):
 async def insightgen_chat_history(file: str):
     """Return the persisted ChatHistory proto for a recording."""
     safe_name = Path(file).name
-    chat_path = RECORDINGS_DIR / f"{safe_name}.chat.pb"
+    chat_path = RECORDINGS_DIR / safe_name / f"{safe_name}.chat.pb"
     if not chat_path.exists():
         return Response(
             content=insightgen_pb2.ChatHistory().SerializeToString(),
@@ -411,7 +420,7 @@ async def insightgen_chat(request: Request):
         raise HTTPException(status_code=400, detail="Missing file or message")
 
     safe_name = Path(file_name).name
-    genspark_path = RECORDINGS_DIR / f"{safe_name}.genspark.pb"
+    genspark_path = RECORDINGS_DIR / safe_name / f"{safe_name}.genspark.pb"
     if not genspark_path.exists():
         raise HTTPException(status_code=404, detail="No analysis found for this recording")
 
@@ -428,12 +437,13 @@ async def insightgen_chat(request: Request):
 
 @app.post("/api/playback/start")
 async def start_playback(request: dict):
-    filename = request.get("filename")
-    if not filename:
-        raise HTTPException(status_code=400, detail="Missing filename")
-    path = RECORDINGS_DIR / filename
+    name = request.get("name")
+    if not name:
+        raise HTTPException(status_code=400, detail="Missing name")
+    safe_name = Path(name).name  # prevent path traversal
+    path = RECORDINGS_DIR / safe_name / f"{safe_name}.vis.pb"
     if not path.exists():
-        raise HTTPException(status_code=404, detail=f"Recording not found: {filename}")
+        raise HTTPException(status_code=404, detail=f"Recording not found: {safe_name}")
 
     await store.stop_replay()
     count = store.load_recording(path)
@@ -459,7 +469,7 @@ async def start_playback(request: dict):
 
     annotator.annotate_recording(frames)
 
-    return {"status": "started", "filename": filename, "frames": count}
+    return {"status": "started", "name": safe_name, "frames": count}
 
 
 @app.post("/api/playback/stop")
@@ -488,12 +498,15 @@ async def playback_status():
 
 @app.post("/api/upload_recording")
 async def upload_recording(file: UploadFile = File(...)):
-    if not file.filename.endswith(".pb"):
-        raise HTTPException(status_code=400, detail="Expected a .pb file")
-    dest = RECORDINGS_DIR / file.filename
+    if not file.filename.endswith(".vis.pb"):
+        raise HTTPException(status_code=400, detail="Expected a .vis.pb file")
+    recording_name = file.filename.removesuffix(".vis.pb")
+    folder = RECORDINGS_DIR / recording_name
+    folder.mkdir(parents=True, exist_ok=True)
+    dest = folder / file.filename
     content = await file.read()
     dest.write_bytes(content)
-    logger.info(f"Uploaded {file.filename} ({len(content) / 1024:.1f} KB)")
+    logger.info(f"Uploaded {file.filename} → {dest} ({len(content) / 1024:.1f} KB)")
 
     count = store.load_recording(dest)
     ann_count = annotator.load_annotations(dest)
@@ -517,12 +530,12 @@ async def upload_recording(file: UploadFile = File(...)):
 
     annotator.annotate_recording(frames)
 
-    return {"status": "uploaded_and_playing", "filename": file.filename, "size": len(content), "frames": count}
+    return {"status": "uploaded_and_playing", "name": recording_name, "size": len(content), "frames": count}
 
 
 # ── Static files ──────────────────────────────────────────────────────────────
 
-_dashboard_dist = _project_root / "dashboard" / "dist"
+_dashboard_dist = _project_root / "analysis" / "dashboard" / "dist"
 if _dashboard_dist.exists():
     app.mount("/", StaticFiles(directory=str(_dashboard_dist), html=True), name="dashboard")
 else:

@@ -12,11 +12,11 @@ export async function fetchRecordings(): Promise<{ recordings: RecordingInfo[] }
   return res.json() as Promise<{ recordings: RecordingInfo[] }>
 }
 
-export async function startPlayback(filename: string, speed = 1.0, loop = false): Promise<void> {
+export async function startPlayback(name: string, speed = 1.0, loop = false): Promise<void> {
   const res = await fetch('/api/playback/start', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ filename, speed, loop }),
+    body: JSON.stringify({ name, speed, loop }),
   })
   if (!res.ok) throw new Error(`Failed to start playback: ${res.status}`)
 }

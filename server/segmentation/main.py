@@ -65,7 +65,7 @@ from streamlog.protoio import ProtoIO
 _frame_io = ProtoIO(perceiver_pb2.PerceiverDataFrame)
 _seg_io = ProtoIO(segmentation_pb2.SegmentationResponse)
 
-_config_path = Path(__file__).parent / "segmentation_config.yaml"
+_config_path = Path(__file__).parent / "config.yaml"
 with open(_config_path) as f:
     _CONFIG = yaml.safe_load(f)
 

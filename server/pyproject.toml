@@ -1,8 +1,7 @@
 [project]
-name = "bayesmech_camalytics"
+name = "bayesmech_vision"
 version = "0.1.0"
-description = "BayesMech CamAlytics - AR Stream Server with SAM3 Video Segmentation"
-readme = "README.md"
+description = "BayesMech Vision - AR Stream Server with SAM3 Video Segmentation"
 requires-python = ">=3.12"
 dependencies = [
     # Web framework

@@ -10,36 +10,38 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 # Vision server
 uv run python streamlog/main.py   # (or from project root: uv run python server/streamlog/main.py)
 
+# Recordings are now stored in per-folder structure: recordings/<name>/<name>.vis.pb
+
 # Segmentation — SAM3 (text prompts, requires HuggingFace login)
-uv run python segmentation/main.py ../recordings/<name>.vis.pb --model sam3 --text "chair person"
+uv run python segmentation/main.py ../recordings/<name>/<name>.vis.pb --model sam3 --text "chair person"
 
 # Segmentation — SAM2 (grid prompts, requires model checkpoint)
-uv run python segmentation/main.py ../recordings/<name>.vis.pb --model sam2 --variant small
+uv run python segmentation/main.py ../recordings/<name>/<name>.vis.pb --model sam2 --variant small
 
 # Segmentation — quick test (first N frames, emit every Nth)
-uv run python segmentation/main.py ../recordings/<name>.vis.pb --model sam3 --text "object" \
+uv run python segmentation/main.py ../recordings/<name>/<name>.vis.pb --model sam3 --text "object" \
     --max-frames 200 --sample-every 5
 
 # Motion capture: RAFT heatmaps + tracking (unified)
-uv run python motioncap/main.py ../recordings/<name>.vis.pb
-uv run python motioncap/main.py ../recordings/<name>.vis.pb --output-video
-uv run python motioncap/main.py ../recordings/<name>.vis.pb --max-frames 200 --output-video
+uv run python motioncap/main.py ../recordings/<name>/<name>.vis.pb
+uv run python motioncap/main.py ../recordings/<name>/<name>.vis.pb --output-video
+uv run python motioncap/main.py ../recordings/<name>/<name>.vis.pb --max-frames 200 --output-video
 
-# Re-run only tracking (set regenerate_raft: false in motioncap_config.yaml first)
-uv run python motioncap/main.py ../recordings/<name>.vis.pb
+# Re-run only tracking (set regenerate_raft: false in motioncap/config.yaml first)
+uv run python motioncap/main.py ../recordings/<name>/<name>.vis.pb
 
 # AI video analysis (Gemini / Claude / OpenAI)
-uv run python genspark/main.py ../recordings/<name>.vis.pb
-uv run python genspark/main.py ../recordings/<name>.vis.pb --provider claude
+uv run python genspark/main.py ../recordings/<name>/<name>.vis.pb
+uv run python genspark/main.py ../recordings/<name>/<name>.vis.pb --provider claude
 
 # 3D reconstruction: COLMAP SfM + Gaussian Splatting
-uv run python reconstruct/main.py ../recordings/<name>.vis.pb
-uv run python reconstruct/main.py ../recordings/<name>.vis.pb --no-splat   # COLMAP only
-uv run python reconstruct/main.py ../recordings/<name>.vis.pb --max-frames 100 --sample-every 10  # quick test
-uv run python reconstruct/main.py ../recordings/<name>.vis.pb --dense-mvs   # + dense MVS (requires colmap binary)
+uv run python reconstruct/main.py ../recordings/<name>/<name>.vis.pb
+uv run python reconstruct/main.py ../recordings/<name>/<name>.vis.pb --no-splat   # COLMAP only
+uv run python reconstruct/main.py ../recordings/<name>/<name>.vis.pb --max-frames 100 --sample-every 10  # quick test
+uv run python reconstruct/main.py ../recordings/<name>/<name>.vis.pb --dense-mvs   # + dense MVS (requires colmap binary)
 
 # Homography analysis (interactive, from server/)
-uv run python ../analysis/homography/main.py ../recordings/<name>.vis.pb
+uv run python ../analysis/homography/main.py ../recordings/<name>/<name>.vis.pb
 ```
 
 ## One-time Setup
@@ -78,14 +80,14 @@ Unified pipeline via `motioncap/main.py` — two sequential steps, one output fi
 
 - **Step 2 — Tracker** (`tracker.py`): temporal consistency filter + blob detection + nearest-neighbour tracking with velocity prediction. Merges fragmented tracks and interpolates gaps.
 
-- **Pipeline flags** (`motioncap_config.yaml` → `pipeline` section):
+- **Pipeline flags** (`motioncap/config.yaml` → `pipeline` section):
   - `pipeline.regenerate_raft: false` — skip RAFT, load heatmaps from existing `.motion.pb`
   - `pipeline.regenerate_tracking: false` — skip tracker, load tracks from existing `.motion.pb`
   - Use `regenerate_raft: false` to quickly re-tune tracking parameters without re-running slow RAFT
 
-Output: `recordings/<name>.motion.pb` — per-frame heatmap records followed by a single tracks-summary record (`MotionCaptureResponse` with `tracks` field populated, detected via `len(resp.tracks) > 0`)
+Output: `recordings/<name>/<name>.motion.pb` — per-frame heatmap records followed by a single tracks-summary record (`MotionCaptureResponse` with `tracks` field populated, detected via `len(resp.tracks) > 0`)
 
-Optional: `recordings/<name>.motion.mp4` — heatmap overlay on RGB with coloured trajectory tails
+Optional: `recordings/<name>/<name>.motion.mp4` — heatmap overlay on RGB with coloured trajectory tails
 
 Also available: **SIFT** (`sift_motion.py`): feature-based, no GPU required.
 
@@ -94,9 +96,9 @@ Also available: **SIFT** (`sift_motion.py`): feature-based, no GPU required.
 - **SAM3** (default): streaming per-frame, text/concept prompts via `--text "..."`, bfloat16 required on 6 GB VRAM GPUs. `trigger_type = TEXT`.
 - **SAM2**: chunked 100-frame processing with grid point prompts + mask handoff between chunks. `trigger_type = PROPAGATION`.
 - Both backends process every frame for tracker continuity; only emit every `--sample-every` frames.
-- Config: `segmentation/segmentation_config.yaml` — `model.sam3.dtype`, `sampling.sample_every_x_frames`
+- Config: `segmentation/config.yaml` — `model.sam3.dtype`, `sampling.sample_every_x_frames`
 
-Output: `recordings/<name>.seg.pb` (length-delimited `SegmentationResponse` protos)
+Output: `recordings/<name>/<name>.seg.pb` (length-delimited `SegmentationResponse` protos)
 
 ## AI Analysis (`genspark/`)
 
@@ -106,7 +108,7 @@ Sends a `.vis.pb` recording to a vision LLM for analysis against a prompt in `ge
 - **claude**: evenly-sampled frames as base64 JPEG images; needs `ANTHROPIC_API_KEY`
 - **openai**: evenly-sampled frames as base64 JPEG images; needs `OPENAI_API_KEY`
 
-Config: `genspark/genspark_config.yaml` — provider, video resolution/fps/duration, model names.
+Config: `genspark/config.yaml` — provider, video resolution/fps/duration, model names.
 
 ## Path Convention
 

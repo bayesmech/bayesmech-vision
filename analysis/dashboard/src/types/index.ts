@@ -111,8 +111,8 @@ export interface StreamStats {
 }
 
 export interface RecordingInfo {
-  filename: string
   name: string
+  title: string
   size_mb: number
   recorded_at: number
   has_segmentation: boolean

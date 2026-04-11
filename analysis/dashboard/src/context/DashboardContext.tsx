@@ -473,7 +473,7 @@ interface DashboardState {
   seekTo: (index: number) => void
   skipForward: () => void
   skipBackward: () => void
-  loadRecording: (filename: string) => Promise<void>
+  loadRecording: (name: string) => Promise<void>
   switchToLive: () => Promise<void>
 }
 
@@ -703,7 +703,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     seekTo(currentIndexRef.current - jump)
   }, [seekTo])
 
-  const loadRecording = useCallback(async (filename: string) => {
+  const loadRecording = useCallback(async (name: string) => {
     // Reset all state
     frameBuffer.current.destroy()
     frameBuffer.current = new FrameBuffer()
@@ -729,7 +729,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setSensorData([])
 
     // Load on server
-    await startPlayback(filename)
+    await startPlayback(name)
 
     // Request stats, full trajectory, and full sensor data (precomputed once)
     dashboardWs.getStats()

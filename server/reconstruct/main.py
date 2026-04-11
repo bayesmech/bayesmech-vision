@@ -44,7 +44,7 @@ log = logging.getLogger(__name__)
 
 _frame_io = ProtoIO(perceiver_pb2.PerceiverDataFrame)
 
-_config_path = Path(__file__).parent / "reconstruct_config.yaml"
+_config_path = Path(__file__).parent / "config.yaml"
 with open(_config_path) as _f:
     _CONFIG = yaml.safe_load(_f)
 
