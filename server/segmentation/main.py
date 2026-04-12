@@ -144,7 +144,7 @@ class InMemoryImageLoader:
 
 
 def build_inference_state(predictor, image_loader: InMemoryImageLoader,
-                          offload_video_to_cpu=True, offload_state_to_cpu=False):
+                          offload_video_to_cpu=False, offload_state_to_cpu=False):
     """Build SAM2 inference_state from in-memory tensors."""
     device = predictor.device
     inference_state = {
@@ -389,18 +389,15 @@ def run_sam3(args, frames: list, out_path: Path, sample_every: int) -> tuple[int
         concepts = [c.strip() for c in args.text.split(",") if c.strip()]
     else:
         concepts = args.text.split()
-    infer_h = _CONFIG["model"]["sam3"].get("inference_height")
-    session_reset_frames = tracker_cfg.get("session_reset_frames", 100)
+    session_reset_frames = tracker_cfg.get("session_reset_frames", 2000)
     print(f"\nConcepts: {concepts}  (sampling every {sample_every} frames)")
-    print(f"Session reset every {session_reset_frames} frames to bound VRAM growth")
-    if infer_h:
-        print(f"Downsampling frames to height={infer_h}px before inference")
+    print(f"Session reset every {session_reset_frames} frames")
 
     def _new_session():
         sess = processor.init_video_session(
             inference_device=device,
-            processing_device="cpu",
-            video_storage_device="cpu",
+            processing_device=device,
+            video_storage_device=device,
             dtype=dtype,
         )
         processor.add_text_prompt(sess, concepts)
@@ -425,16 +422,7 @@ def run_sam3(args, frames: list, out_path: Path, sample_every: int) -> tuple[int
                 frames_in_session = 0
 
             rgb = decode_frame_rgb(proto_frame)
-            if infer_h:
-                h, w = rgb.shape[:2]
-                infer_w = int(w * infer_h / h)
-                rgb = cv2.resize(rgb, (infer_w, infer_h), interpolation=cv2.INTER_AREA)
             inputs = processor(images=Image.fromarray(rgb), return_tensors="pt").to(device)
-
-            # Release fragmented reserved-but-unallocated CUDA memory before each
-            # forward pass so the NMS allocation spike has the full budget available.
-            if torch.cuda.is_available():
-                torch.cuda.empty_cache()
 
             with torch.inference_mode():
                 raw_out = model(
@@ -459,6 +447,12 @@ def run_sam3(args, frames: list, out_path: Path, sample_every: int) -> tuple[int
             obj_ids = outputs["object_ids"].tolist() if hasattr(outputs["object_ids"], "tolist") else list(outputs["object_ids"])
             scores = outputs["scores"]
             masks = outputs["masks"]
+            # Invert prompt_to_obj_ids → obj_id_to_label for O(1) lookup per mask
+            obj_id_to_label = {
+                oid: label
+                for label, oids in outputs.get("prompt_to_obj_ids", {}).items()
+                for oid in oids
+            }
 
             for i, obj_id in enumerate(obj_ids):
                 score = float(scores[i])
@@ -472,6 +466,7 @@ def run_sam3(args, frames: list, out_path: Path, sample_every: int) -> tuple[int
                 m.pixel_count = int(mask.sum())
                 m.confidence = score
                 m.mask_data = encode_mask_compressed(mask)
+                m.label = obj_id_to_label.get(int(obj_id), "")
 
             if resp.masks:
                 batch.append(resp)

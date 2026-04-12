@@ -1,20 +1,22 @@
 /*eslint-disable block-scoped-var, id-length, no-control-regex, no-magic-numbers, no-prototype-builtins, no-redeclare, no-shadow, no-var, sort-vars*/
-import * as $protobuf from "protobufjs/minimal";
+"use strict";
+
+var $protobuf = require("protobufjs/minimal");
 
 // Common aliases
-const $Reader = $protobuf.Reader, $Writer = $protobuf.Writer, $util = $protobuf.util;
+var $Reader = $protobuf.Reader, $Writer = $protobuf.Writer, $util = $protobuf.util;
 
 // Exported root namespace
-const $root = $protobuf.roots["default"] || ($protobuf.roots["default"] = {});
+var $root = $protobuf.roots["default"] || ($protobuf.roots["default"] = {});
 
-export const bayesmech = $root.bayesmech = (() => {
+$root.bayesmech = (function() {
 
     /**
      * Namespace bayesmech.
      * @exports bayesmech
      * @namespace
      */
-    const bayesmech = {};
+    var bayesmech = {};
 
     bayesmech.vision = (function() {
 
@@ -23,7 +25,773 @@ export const bayesmech = $root.bayesmech = (() => {
          * @memberof bayesmech
          * @namespace
          */
-        const vision = {};
+        var vision = {};
+
+        vision.Pose = (function() {
+
+            /**
+             * Properties of a Pose.
+             * @memberof bayesmech.vision
+             * @interface IPose
+             * @property {bayesmech.vision.IVector3|null} [position] Pose position
+             * @property {bayesmech.vision.IQuaternion|null} [rotation] Pose rotation
+             */
+
+            /**
+             * Constructs a new Pose.
+             * @memberof bayesmech.vision
+             * @classdesc Represents a Pose.
+             * @implements IPose
+             * @constructor
+             * @param {bayesmech.vision.IPose=} [properties] Properties to set
+             */
+            function Pose(properties) {
+                if (properties)
+                    for (var keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null)
+                            this[keys[i]] = properties[keys[i]];
+            }
+
+            /**
+             * Pose position.
+             * @member {bayesmech.vision.IVector3|null|undefined} position
+             * @memberof bayesmech.vision.Pose
+             * @instance
+             */
+            Pose.prototype.position = null;
+
+            /**
+             * Pose rotation.
+             * @member {bayesmech.vision.IQuaternion|null|undefined} rotation
+             * @memberof bayesmech.vision.Pose
+             * @instance
+             */
+            Pose.prototype.rotation = null;
+
+            /**
+             * Creates a new Pose instance using the specified properties.
+             * @function create
+             * @memberof bayesmech.vision.Pose
+             * @static
+             * @param {bayesmech.vision.IPose=} [properties] Properties to set
+             * @returns {bayesmech.vision.Pose} Pose instance
+             */
+            Pose.create = function create(properties) {
+                return new Pose(properties);
+            };
+
+            /**
+             * Encodes the specified Pose message. Does not implicitly {@link bayesmech.vision.Pose.verify|verify} messages.
+             * @function encode
+             * @memberof bayesmech.vision.Pose
+             * @static
+             * @param {bayesmech.vision.IPose} message Pose message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            Pose.encode = function encode(message, writer) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (message.position != null && Object.hasOwnProperty.call(message, "position"))
+                    $root.bayesmech.vision.Vector3.encode(message.position, writer.uint32(/* id 1, wireType 2 =*/10).fork()).ldelim();
+                if (message.rotation != null && Object.hasOwnProperty.call(message, "rotation"))
+                    $root.bayesmech.vision.Quaternion.encode(message.rotation, writer.uint32(/* id 2, wireType 2 =*/18).fork()).ldelim();
+                return writer;
+            };
+
+            /**
+             * Encodes the specified Pose message, length delimited. Does not implicitly {@link bayesmech.vision.Pose.verify|verify} messages.
+             * @function encodeDelimited
+             * @memberof bayesmech.vision.Pose
+             * @static
+             * @param {bayesmech.vision.IPose} message Pose message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            Pose.encodeDelimited = function encodeDelimited(message, writer) {
+                return this.encode(message, writer).ldelim();
+            };
+
+            /**
+             * Decodes a Pose message from the specified reader or buffer.
+             * @function decode
+             * @memberof bayesmech.vision.Pose
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {bayesmech.vision.Pose} Pose
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            Pose.decode = function decode(reader, length, error) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                var end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.Pose();
+                while (reader.pos < end) {
+                    var tag = reader.uint32();
+                    if (tag === error)
+                        break;
+                    switch (tag >>> 3) {
+                    case 1: {
+                            message.position = $root.bayesmech.vision.Vector3.decode(reader, reader.uint32());
+                            break;
+                        }
+                    case 2: {
+                            message.rotation = $root.bayesmech.vision.Quaternion.decode(reader, reader.uint32());
+                            break;
+                        }
+                    default:
+                        reader.skipType(tag & 7);
+                        break;
+                    }
+                }
+                return message;
+            };
+
+            /**
+             * Decodes a Pose message from the specified reader or buffer, length delimited.
+             * @function decodeDelimited
+             * @memberof bayesmech.vision.Pose
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @returns {bayesmech.vision.Pose} Pose
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            Pose.decodeDelimited = function decodeDelimited(reader) {
+                if (!(reader instanceof $Reader))
+                    reader = new $Reader(reader);
+                return this.decode(reader, reader.uint32());
+            };
+
+            /**
+             * Verifies a Pose message.
+             * @function verify
+             * @memberof bayesmech.vision.Pose
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            Pose.verify = function verify(message) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (message.position != null && message.hasOwnProperty("position")) {
+                    var error = $root.bayesmech.vision.Vector3.verify(message.position);
+                    if (error)
+                        return "position." + error;
+                }
+                if (message.rotation != null && message.hasOwnProperty("rotation")) {
+                    var error = $root.bayesmech.vision.Quaternion.verify(message.rotation);
+                    if (error)
+                        return "rotation." + error;
+                }
+                return null;
+            };
+
+            /**
+             * Creates a Pose message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof bayesmech.vision.Pose
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {bayesmech.vision.Pose} Pose
+             */
+            Pose.fromObject = function fromObject(object) {
+                if (object instanceof $root.bayesmech.vision.Pose)
+                    return object;
+                var message = new $root.bayesmech.vision.Pose();
+                if (object.position != null) {
+                    if (typeof object.position !== "object")
+                        throw TypeError(".bayesmech.vision.Pose.position: object expected");
+                    message.position = $root.bayesmech.vision.Vector3.fromObject(object.position);
+                }
+                if (object.rotation != null) {
+                    if (typeof object.rotation !== "object")
+                        throw TypeError(".bayesmech.vision.Pose.rotation: object expected");
+                    message.rotation = $root.bayesmech.vision.Quaternion.fromObject(object.rotation);
+                }
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a Pose message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof bayesmech.vision.Pose
+             * @static
+             * @param {bayesmech.vision.Pose} message Pose
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            Pose.toObject = function toObject(message, options) {
+                if (!options)
+                    options = {};
+                var object = {};
+                if (options.defaults) {
+                    object.position = null;
+                    object.rotation = null;
+                }
+                if (message.position != null && message.hasOwnProperty("position"))
+                    object.position = $root.bayesmech.vision.Vector3.toObject(message.position, options);
+                if (message.rotation != null && message.hasOwnProperty("rotation"))
+                    object.rotation = $root.bayesmech.vision.Quaternion.toObject(message.rotation, options);
+                return object;
+            };
+
+            /**
+             * Converts this Pose to JSON.
+             * @function toJSON
+             * @memberof bayesmech.vision.Pose
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            Pose.prototype.toJSON = function toJSON() {
+                return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the default type url for Pose
+             * @function getTypeUrl
+             * @memberof bayesmech.vision.Pose
+             * @static
+             * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns {string} The default type url
+             */
+            Pose.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+                if (typeUrlPrefix === undefined) {
+                    typeUrlPrefix = "type.googleapis.com";
+                }
+                return typeUrlPrefix + "/bayesmech.vision.Pose";
+            };
+
+            return Pose;
+        })();
+
+        vision.Vector3 = (function() {
+
+            /**
+             * Properties of a Vector3.
+             * @memberof bayesmech.vision
+             * @interface IVector3
+             * @property {number|null} [x] Vector3 x
+             * @property {number|null} [y] Vector3 y
+             * @property {number|null} [z] Vector3 z
+             */
+
+            /**
+             * Constructs a new Vector3.
+             * @memberof bayesmech.vision
+             * @classdesc Represents a Vector3.
+             * @implements IVector3
+             * @constructor
+             * @param {bayesmech.vision.IVector3=} [properties] Properties to set
+             */
+            function Vector3(properties) {
+                if (properties)
+                    for (var keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null)
+                            this[keys[i]] = properties[keys[i]];
+            }
+
+            /**
+             * Vector3 x.
+             * @member {number} x
+             * @memberof bayesmech.vision.Vector3
+             * @instance
+             */
+            Vector3.prototype.x = 0;
+
+            /**
+             * Vector3 y.
+             * @member {number} y
+             * @memberof bayesmech.vision.Vector3
+             * @instance
+             */
+            Vector3.prototype.y = 0;
+
+            /**
+             * Vector3 z.
+             * @member {number} z
+             * @memberof bayesmech.vision.Vector3
+             * @instance
+             */
+            Vector3.prototype.z = 0;
+
+            /**
+             * Creates a new Vector3 instance using the specified properties.
+             * @function create
+             * @memberof bayesmech.vision.Vector3
+             * @static
+             * @param {bayesmech.vision.IVector3=} [properties] Properties to set
+             * @returns {bayesmech.vision.Vector3} Vector3 instance
+             */
+            Vector3.create = function create(properties) {
+                return new Vector3(properties);
+            };
+
+            /**
+             * Encodes the specified Vector3 message. Does not implicitly {@link bayesmech.vision.Vector3.verify|verify} messages.
+             * @function encode
+             * @memberof bayesmech.vision.Vector3
+             * @static
+             * @param {bayesmech.vision.IVector3} message Vector3 message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            Vector3.encode = function encode(message, writer) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (message.x != null && Object.hasOwnProperty.call(message, "x"))
+                    writer.uint32(/* id 1, wireType 5 =*/13).float(message.x);
+                if (message.y != null && Object.hasOwnProperty.call(message, "y"))
+                    writer.uint32(/* id 2, wireType 5 =*/21).float(message.y);
+                if (message.z != null && Object.hasOwnProperty.call(message, "z"))
+                    writer.uint32(/* id 3, wireType 5 =*/29).float(message.z);
+                return writer;
+            };
+
+            /**
+             * Encodes the specified Vector3 message, length delimited. Does not implicitly {@link bayesmech.vision.Vector3.verify|verify} messages.
+             * @function encodeDelimited
+             * @memberof bayesmech.vision.Vector3
+             * @static
+             * @param {bayesmech.vision.IVector3} message Vector3 message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            Vector3.encodeDelimited = function encodeDelimited(message, writer) {
+                return this.encode(message, writer).ldelim();
+            };
+
+            /**
+             * Decodes a Vector3 message from the specified reader or buffer.
+             * @function decode
+             * @memberof bayesmech.vision.Vector3
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {bayesmech.vision.Vector3} Vector3
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            Vector3.decode = function decode(reader, length, error) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                var end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.Vector3();
+                while (reader.pos < end) {
+                    var tag = reader.uint32();
+                    if (tag === error)
+                        break;
+                    switch (tag >>> 3) {
+                    case 1: {
+                            message.x = reader.float();
+                            break;
+                        }
+                    case 2: {
+                            message.y = reader.float();
+                            break;
+                        }
+                    case 3: {
+                            message.z = reader.float();
+                            break;
+                        }
+                    default:
+                        reader.skipType(tag & 7);
+                        break;
+                    }
+                }
+                return message;
+            };
+
+            /**
+             * Decodes a Vector3 message from the specified reader or buffer, length delimited.
+             * @function decodeDelimited
+             * @memberof bayesmech.vision.Vector3
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @returns {bayesmech.vision.Vector3} Vector3
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            Vector3.decodeDelimited = function decodeDelimited(reader) {
+                if (!(reader instanceof $Reader))
+                    reader = new $Reader(reader);
+                return this.decode(reader, reader.uint32());
+            };
+
+            /**
+             * Verifies a Vector3 message.
+             * @function verify
+             * @memberof bayesmech.vision.Vector3
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            Vector3.verify = function verify(message) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (message.x != null && message.hasOwnProperty("x"))
+                    if (typeof message.x !== "number")
+                        return "x: number expected";
+                if (message.y != null && message.hasOwnProperty("y"))
+                    if (typeof message.y !== "number")
+                        return "y: number expected";
+                if (message.z != null && message.hasOwnProperty("z"))
+                    if (typeof message.z !== "number")
+                        return "z: number expected";
+                return null;
+            };
+
+            /**
+             * Creates a Vector3 message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof bayesmech.vision.Vector3
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {bayesmech.vision.Vector3} Vector3
+             */
+            Vector3.fromObject = function fromObject(object) {
+                if (object instanceof $root.bayesmech.vision.Vector3)
+                    return object;
+                var message = new $root.bayesmech.vision.Vector3();
+                if (object.x != null)
+                    message.x = Number(object.x);
+                if (object.y != null)
+                    message.y = Number(object.y);
+                if (object.z != null)
+                    message.z = Number(object.z);
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a Vector3 message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof bayesmech.vision.Vector3
+             * @static
+             * @param {bayesmech.vision.Vector3} message Vector3
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            Vector3.toObject = function toObject(message, options) {
+                if (!options)
+                    options = {};
+                var object = {};
+                if (options.defaults) {
+                    object.x = 0;
+                    object.y = 0;
+                    object.z = 0;
+                }
+                if (message.x != null && message.hasOwnProperty("x"))
+                    object.x = options.json && !isFinite(message.x) ? String(message.x) : message.x;
+                if (message.y != null && message.hasOwnProperty("y"))
+                    object.y = options.json && !isFinite(message.y) ? String(message.y) : message.y;
+                if (message.z != null && message.hasOwnProperty("z"))
+                    object.z = options.json && !isFinite(message.z) ? String(message.z) : message.z;
+                return object;
+            };
+
+            /**
+             * Converts this Vector3 to JSON.
+             * @function toJSON
+             * @memberof bayesmech.vision.Vector3
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            Vector3.prototype.toJSON = function toJSON() {
+                return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the default type url for Vector3
+             * @function getTypeUrl
+             * @memberof bayesmech.vision.Vector3
+             * @static
+             * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns {string} The default type url
+             */
+            Vector3.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+                if (typeUrlPrefix === undefined) {
+                    typeUrlPrefix = "type.googleapis.com";
+                }
+                return typeUrlPrefix + "/bayesmech.vision.Vector3";
+            };
+
+            return Vector3;
+        })();
+
+        vision.Quaternion = (function() {
+
+            /**
+             * Properties of a Quaternion.
+             * @memberof bayesmech.vision
+             * @interface IQuaternion
+             * @property {number|null} [x] Quaternion x
+             * @property {number|null} [y] Quaternion y
+             * @property {number|null} [z] Quaternion z
+             * @property {number|null} [w] Quaternion w
+             */
+
+            /**
+             * Constructs a new Quaternion.
+             * @memberof bayesmech.vision
+             * @classdesc Represents a Quaternion.
+             * @implements IQuaternion
+             * @constructor
+             * @param {bayesmech.vision.IQuaternion=} [properties] Properties to set
+             */
+            function Quaternion(properties) {
+                if (properties)
+                    for (var keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null)
+                            this[keys[i]] = properties[keys[i]];
+            }
+
+            /**
+             * Quaternion x.
+             * @member {number} x
+             * @memberof bayesmech.vision.Quaternion
+             * @instance
+             */
+            Quaternion.prototype.x = 0;
+
+            /**
+             * Quaternion y.
+             * @member {number} y
+             * @memberof bayesmech.vision.Quaternion
+             * @instance
+             */
+            Quaternion.prototype.y = 0;
+
+            /**
+             * Quaternion z.
+             * @member {number} z
+             * @memberof bayesmech.vision.Quaternion
+             * @instance
+             */
+            Quaternion.prototype.z = 0;
+
+            /**
+             * Quaternion w.
+             * @member {number} w
+             * @memberof bayesmech.vision.Quaternion
+             * @instance
+             */
+            Quaternion.prototype.w = 0;
+
+            /**
+             * Creates a new Quaternion instance using the specified properties.
+             * @function create
+             * @memberof bayesmech.vision.Quaternion
+             * @static
+             * @param {bayesmech.vision.IQuaternion=} [properties] Properties to set
+             * @returns {bayesmech.vision.Quaternion} Quaternion instance
+             */
+            Quaternion.create = function create(properties) {
+                return new Quaternion(properties);
+            };
+
+            /**
+             * Encodes the specified Quaternion message. Does not implicitly {@link bayesmech.vision.Quaternion.verify|verify} messages.
+             * @function encode
+             * @memberof bayesmech.vision.Quaternion
+             * @static
+             * @param {bayesmech.vision.IQuaternion} message Quaternion message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            Quaternion.encode = function encode(message, writer) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (message.x != null && Object.hasOwnProperty.call(message, "x"))
+                    writer.uint32(/* id 1, wireType 5 =*/13).float(message.x);
+                if (message.y != null && Object.hasOwnProperty.call(message, "y"))
+                    writer.uint32(/* id 2, wireType 5 =*/21).float(message.y);
+                if (message.z != null && Object.hasOwnProperty.call(message, "z"))
+                    writer.uint32(/* id 3, wireType 5 =*/29).float(message.z);
+                if (message.w != null && Object.hasOwnProperty.call(message, "w"))
+                    writer.uint32(/* id 4, wireType 5 =*/37).float(message.w);
+                return writer;
+            };
+
+            /**
+             * Encodes the specified Quaternion message, length delimited. Does not implicitly {@link bayesmech.vision.Quaternion.verify|verify} messages.
+             * @function encodeDelimited
+             * @memberof bayesmech.vision.Quaternion
+             * @static
+             * @param {bayesmech.vision.IQuaternion} message Quaternion message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            Quaternion.encodeDelimited = function encodeDelimited(message, writer) {
+                return this.encode(message, writer).ldelim();
+            };
+
+            /**
+             * Decodes a Quaternion message from the specified reader or buffer.
+             * @function decode
+             * @memberof bayesmech.vision.Quaternion
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {bayesmech.vision.Quaternion} Quaternion
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            Quaternion.decode = function decode(reader, length, error) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                var end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.Quaternion();
+                while (reader.pos < end) {
+                    var tag = reader.uint32();
+                    if (tag === error)
+                        break;
+                    switch (tag >>> 3) {
+                    case 1: {
+                            message.x = reader.float();
+                            break;
+                        }
+                    case 2: {
+                            message.y = reader.float();
+                            break;
+                        }
+                    case 3: {
+                            message.z = reader.float();
+                            break;
+                        }
+                    case 4: {
+                            message.w = reader.float();
+                            break;
+                        }
+                    default:
+                        reader.skipType(tag & 7);
+                        break;
+                    }
+                }
+                return message;
+            };
+
+            /**
+             * Decodes a Quaternion message from the specified reader or buffer, length delimited.
+             * @function decodeDelimited
+             * @memberof bayesmech.vision.Quaternion
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @returns {bayesmech.vision.Quaternion} Quaternion
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            Quaternion.decodeDelimited = function decodeDelimited(reader) {
+                if (!(reader instanceof $Reader))
+                    reader = new $Reader(reader);
+                return this.decode(reader, reader.uint32());
+            };
+
+            /**
+             * Verifies a Quaternion message.
+             * @function verify
+             * @memberof bayesmech.vision.Quaternion
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            Quaternion.verify = function verify(message) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (message.x != null && message.hasOwnProperty("x"))
+                    if (typeof message.x !== "number")
+                        return "x: number expected";
+                if (message.y != null && message.hasOwnProperty("y"))
+                    if (typeof message.y !== "number")
+                        return "y: number expected";
+                if (message.z != null && message.hasOwnProperty("z"))
+                    if (typeof message.z !== "number")
+                        return "z: number expected";
+                if (message.w != null && message.hasOwnProperty("w"))
+                    if (typeof message.w !== "number")
+                        return "w: number expected";
+                return null;
+            };
+
+            /**
+             * Creates a Quaternion message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof bayesmech.vision.Quaternion
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {bayesmech.vision.Quaternion} Quaternion
+             */
+            Quaternion.fromObject = function fromObject(object) {
+                if (object instanceof $root.bayesmech.vision.Quaternion)
+                    return object;
+                var message = new $root.bayesmech.vision.Quaternion();
+                if (object.x != null)
+                    message.x = Number(object.x);
+                if (object.y != null)
+                    message.y = Number(object.y);
+                if (object.z != null)
+                    message.z = Number(object.z);
+                if (object.w != null)
+                    message.w = Number(object.w);
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a Quaternion message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof bayesmech.vision.Quaternion
+             * @static
+             * @param {bayesmech.vision.Quaternion} message Quaternion
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            Quaternion.toObject = function toObject(message, options) {
+                if (!options)
+                    options = {};
+                var object = {};
+                if (options.defaults) {
+                    object.x = 0;
+                    object.y = 0;
+                    object.z = 0;
+                    object.w = 0;
+                }
+                if (message.x != null && message.hasOwnProperty("x"))
+                    object.x = options.json && !isFinite(message.x) ? String(message.x) : message.x;
+                if (message.y != null && message.hasOwnProperty("y"))
+                    object.y = options.json && !isFinite(message.y) ? String(message.y) : message.y;
+                if (message.z != null && message.hasOwnProperty("z"))
+                    object.z = options.json && !isFinite(message.z) ? String(message.z) : message.z;
+                if (message.w != null && message.hasOwnProperty("w"))
+                    object.w = options.json && !isFinite(message.w) ? String(message.w) : message.w;
+                return object;
+            };
+
+            /**
+             * Converts this Quaternion to JSON.
+             * @function toJSON
+             * @memberof bayesmech.vision.Quaternion
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            Quaternion.prototype.toJSON = function toJSON() {
+                return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the default type url for Quaternion
+             * @function getTypeUrl
+             * @memberof bayesmech.vision.Quaternion
+             * @static
+             * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns {string} The default type url
+             */
+            Quaternion.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+                if (typeUrlPrefix === undefined) {
+                    typeUrlPrefix = "type.googleapis.com";
+                }
+                return typeUrlPrefix + "/bayesmech.vision.Quaternion";
+            };
+
+            return Quaternion;
+        })();
 
         vision.PerceiverDataFrame = (function() {
 
@@ -39,6 +807,7 @@ export const bayesmech = $root.bayesmech = (() => {
              * @property {bayesmech.vision.ICameraIntrinsics|null} [cameraIntrinsics] PerceiverDataFrame cameraIntrinsics
              * @property {bayesmech.vision.IInferredGeometry|null} [inferredGeometry] PerceiverDataFrame inferredGeometry
              * @property {bayesmech.vision.IGpsLocation|null} [gpsLocation] PerceiverDataFrame gpsLocation
+             * @property {string|null} [userTextInput] PerceiverDataFrame userTextInput
              */
 
             /**
@@ -51,7 +820,7 @@ export const bayesmech = $root.bayesmech = (() => {
              */
             function PerceiverDataFrame(properties) {
                 if (properties)
-                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                    for (var keys = Object.keys(properties), i = 0; i < keys.length; ++i)
                         if (properties[keys[i]] != null)
                             this[keys[i]] = properties[keys[i]];
             }
@@ -121,6 +890,14 @@ export const bayesmech = $root.bayesmech = (() => {
             PerceiverDataFrame.prototype.gpsLocation = null;
 
             /**
+             * PerceiverDataFrame userTextInput.
+             * @member {string} userTextInput
+             * @memberof bayesmech.vision.PerceiverDataFrame
+             * @instance
+             */
+            PerceiverDataFrame.prototype.userTextInput = "";
+
+            /**
              * Creates a new PerceiverDataFrame instance using the specified properties.
              * @function create
              * @memberof bayesmech.vision.PerceiverDataFrame
@@ -160,6 +937,8 @@ export const bayesmech = $root.bayesmech = (() => {
                     $root.bayesmech.vision.InferredGeometry.encode(message.inferredGeometry, writer.uint32(/* id 7, wireType 2 =*/58).fork()).ldelim();
                 if (message.gpsLocation != null && Object.hasOwnProperty.call(message, "gpsLocation"))
                     $root.bayesmech.vision.GpsLocation.encode(message.gpsLocation, writer.uint32(/* id 8, wireType 2 =*/66).fork()).ldelim();
+                if (message.userTextInput != null && Object.hasOwnProperty.call(message, "userTextInput"))
+                    writer.uint32(/* id 9, wireType 2 =*/74).string(message.userTextInput);
                 return writer;
             };
 
@@ -190,9 +969,9 @@ export const bayesmech = $root.bayesmech = (() => {
             PerceiverDataFrame.decode = function decode(reader, length, error) {
                 if (!(reader instanceof $Reader))
                     reader = $Reader.create(reader);
-                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.PerceiverDataFrame();
+                var end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.PerceiverDataFrame();
                 while (reader.pos < end) {
-                    let tag = reader.uint32();
+                    var tag = reader.uint32();
                     if (tag === error)
                         break;
                     switch (tag >>> 3) {
@@ -226,6 +1005,10 @@ export const bayesmech = $root.bayesmech = (() => {
                         }
                     case 8: {
                             message.gpsLocation = $root.bayesmech.vision.GpsLocation.decode(reader, reader.uint32());
+                            break;
+                        }
+                    case 9: {
+                            message.userTextInput = reader.string();
                             break;
                         }
                     default:
@@ -264,45 +1047,48 @@ export const bayesmech = $root.bayesmech = (() => {
                 if (typeof message !== "object" || message === null)
                     return "object expected";
                 if (message.frameIdentifier != null && message.hasOwnProperty("frameIdentifier")) {
-                    let error = $root.bayesmech.vision.PerceiverFrameIdentifier.verify(message.frameIdentifier);
+                    var error = $root.bayesmech.vision.PerceiverFrameIdentifier.verify(message.frameIdentifier);
                     if (error)
                         return "frameIdentifier." + error;
                 }
                 if (message.cameraPose != null && message.hasOwnProperty("cameraPose")) {
-                    let error = $root.bayesmech.vision.Pose.verify(message.cameraPose);
+                    var error = $root.bayesmech.vision.Pose.verify(message.cameraPose);
                     if (error)
                         return "cameraPose." + error;
                 }
                 if (message.rgbFrame != null && message.hasOwnProperty("rgbFrame")) {
-                    let error = $root.bayesmech.vision.ImageFrame.verify(message.rgbFrame);
+                    var error = $root.bayesmech.vision.ImageFrame.verify(message.rgbFrame);
                     if (error)
                         return "rgbFrame." + error;
                 }
                 if (message.depthFrame != null && message.hasOwnProperty("depthFrame")) {
-                    let error = $root.bayesmech.vision.DepthFrame.verify(message.depthFrame);
+                    var error = $root.bayesmech.vision.DepthFrame.verify(message.depthFrame);
                     if (error)
                         return "depthFrame." + error;
                 }
                 if (message.imuData != null && message.hasOwnProperty("imuData")) {
-                    let error = $root.bayesmech.vision.ImuData.verify(message.imuData);
+                    var error = $root.bayesmech.vision.ImuData.verify(message.imuData);
                     if (error)
                         return "imuData." + error;
                 }
                 if (message.cameraIntrinsics != null && message.hasOwnProperty("cameraIntrinsics")) {
-                    let error = $root.bayesmech.vision.CameraIntrinsics.verify(message.cameraIntrinsics);
+                    var error = $root.bayesmech.vision.CameraIntrinsics.verify(message.cameraIntrinsics);
                     if (error)
                         return "cameraIntrinsics." + error;
                 }
                 if (message.inferredGeometry != null && message.hasOwnProperty("inferredGeometry")) {
-                    let error = $root.bayesmech.vision.InferredGeometry.verify(message.inferredGeometry);
+                    var error = $root.bayesmech.vision.InferredGeometry.verify(message.inferredGeometry);
                     if (error)
                         return "inferredGeometry." + error;
                 }
                 if (message.gpsLocation != null && message.hasOwnProperty("gpsLocation")) {
-                    let error = $root.bayesmech.vision.GpsLocation.verify(message.gpsLocation);
+                    var error = $root.bayesmech.vision.GpsLocation.verify(message.gpsLocation);
                     if (error)
                         return "gpsLocation." + error;
                 }
+                if (message.userTextInput != null && message.hasOwnProperty("userTextInput"))
+                    if (!$util.isString(message.userTextInput))
+                        return "userTextInput: string expected";
                 return null;
             };
 
@@ -317,7 +1103,7 @@ export const bayesmech = $root.bayesmech = (() => {
             PerceiverDataFrame.fromObject = function fromObject(object) {
                 if (object instanceof $root.bayesmech.vision.PerceiverDataFrame)
                     return object;
-                let message = new $root.bayesmech.vision.PerceiverDataFrame();
+                var message = new $root.bayesmech.vision.PerceiverDataFrame();
                 if (object.frameIdentifier != null) {
                     if (typeof object.frameIdentifier !== "object")
                         throw TypeError(".bayesmech.vision.PerceiverDataFrame.frameIdentifier: object expected");
@@ -358,6 +1144,8 @@ export const bayesmech = $root.bayesmech = (() => {
                         throw TypeError(".bayesmech.vision.PerceiverDataFrame.gpsLocation: object expected");
                     message.gpsLocation = $root.bayesmech.vision.GpsLocation.fromObject(object.gpsLocation);
                 }
+                if (object.userTextInput != null)
+                    message.userTextInput = String(object.userTextInput);
                 return message;
             };
 
@@ -373,7 +1161,7 @@ export const bayesmech = $root.bayesmech = (() => {
             PerceiverDataFrame.toObject = function toObject(message, options) {
                 if (!options)
                     options = {};
-                let object = {};
+                var object = {};
                 if (options.defaults) {
                     object.frameIdentifier = null;
                     object.cameraPose = null;
@@ -383,6 +1171,7 @@ export const bayesmech = $root.bayesmech = (() => {
                     object.cameraIntrinsics = null;
                     object.inferredGeometry = null;
                     object.gpsLocation = null;
+                    object.userTextInput = "";
                 }
                 if (message.frameIdentifier != null && message.hasOwnProperty("frameIdentifier"))
                     object.frameIdentifier = $root.bayesmech.vision.PerceiverFrameIdentifier.toObject(message.frameIdentifier, options);
@@ -400,6 +1189,8 @@ export const bayesmech = $root.bayesmech = (() => {
                     object.inferredGeometry = $root.bayesmech.vision.InferredGeometry.toObject(message.inferredGeometry, options);
                 if (message.gpsLocation != null && message.hasOwnProperty("gpsLocation"))
                     object.gpsLocation = $root.bayesmech.vision.GpsLocation.toObject(message.gpsLocation, options);
+                if (message.userTextInput != null && message.hasOwnProperty("userTextInput"))
+                    object.userTextInput = message.userTextInput;
                 return object;
             };
 
@@ -453,7 +1244,7 @@ export const bayesmech = $root.bayesmech = (() => {
              */
             function PerceiverFrameIdentifier(properties) {
                 if (properties)
-                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                    for (var keys = Object.keys(properties), i = 0; i < keys.length; ++i)
                         if (properties[keys[i]] != null)
                             this[keys[i]] = properties[keys[i]];
             }
@@ -542,9 +1333,9 @@ export const bayesmech = $root.bayesmech = (() => {
             PerceiverFrameIdentifier.decode = function decode(reader, length, error) {
                 if (!(reader instanceof $Reader))
                     reader = $Reader.create(reader);
-                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.PerceiverFrameIdentifier();
+                var end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.PerceiverFrameIdentifier();
                 while (reader.pos < end) {
-                    let tag = reader.uint32();
+                    var tag = reader.uint32();
                     if (tag === error)
                         break;
                     switch (tag >>> 3) {
@@ -618,7 +1409,7 @@ export const bayesmech = $root.bayesmech = (() => {
             PerceiverFrameIdentifier.fromObject = function fromObject(object) {
                 if (object instanceof $root.bayesmech.vision.PerceiverFrameIdentifier)
                     return object;
-                let message = new $root.bayesmech.vision.PerceiverFrameIdentifier();
+                var message = new $root.bayesmech.vision.PerceiverFrameIdentifier();
                 if (object.timestampNs != null)
                     if ($util.Long)
                         (message.timestampNs = $util.Long.fromValue(object.timestampNs)).unsigned = false;
@@ -647,10 +1438,10 @@ export const bayesmech = $root.bayesmech = (() => {
             PerceiverFrameIdentifier.toObject = function toObject(message, options) {
                 if (!options)
                     options = {};
-                let object = {};
+                var object = {};
                 if (options.defaults) {
                     if ($util.Long) {
-                        let long = new $util.Long(0, 0, false);
+                        var long = new $util.Long(0, 0, false);
                         object.timestampNs = options.longs === String ? long.toString() : options.longs === Number ? long.toNumber() : long;
                     } else
                         object.timestampNs = options.longs === String ? "0" : 0;
@@ -724,7 +1515,7 @@ export const bayesmech = $root.bayesmech = (() => {
              */
             function CameraIntrinsics(properties) {
                 if (properties)
-                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                    for (var keys = Object.keys(properties), i = 0; i < keys.length; ++i)
                         if (properties[keys[i]] != null)
                             this[keys[i]] = properties[keys[i]];
             }
@@ -863,9 +1654,9 @@ export const bayesmech = $root.bayesmech = (() => {
             CameraIntrinsics.decode = function decode(reader, length, error) {
                 if (!(reader instanceof $Reader))
                     reader = $Reader.create(reader);
-                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.CameraIntrinsics();
+                var end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.CameraIntrinsics();
                 while (reader.pos < end) {
-                    let tag = reader.uint32();
+                    var tag = reader.uint32();
                     if (tag === error)
                         break;
                     switch (tag >>> 3) {
@@ -974,7 +1765,7 @@ export const bayesmech = $root.bayesmech = (() => {
             CameraIntrinsics.fromObject = function fromObject(object) {
                 if (object instanceof $root.bayesmech.vision.CameraIntrinsics)
                     return object;
-                let message = new $root.bayesmech.vision.CameraIntrinsics();
+                var message = new $root.bayesmech.vision.CameraIntrinsics();
                 if (object.fx != null)
                     message.fx = Number(object.fx);
                 if (object.fy != null)
@@ -1006,7 +1797,7 @@ export const bayesmech = $root.bayesmech = (() => {
             CameraIntrinsics.toObject = function toObject(message, options) {
                 if (!options)
                     options = {};
-                let object = {};
+                var object = {};
                 if (options.defaults) {
                     object.fx = 0;
                     object.fy = 0;
@@ -1086,7 +1877,7 @@ export const bayesmech = $root.bayesmech = (() => {
              */
             function ImageFrame(properties) {
                 if (properties)
-                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                    for (var keys = Object.keys(properties), i = 0; i < keys.length; ++i)
                         if (properties[keys[i]] != null)
                             this[keys[i]] = properties[keys[i]];
             }
@@ -1175,9 +1966,9 @@ export const bayesmech = $root.bayesmech = (() => {
             ImageFrame.decode = function decode(reader, length, error) {
                 if (!(reader instanceof $Reader))
                     reader = $Reader.create(reader);
-                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.ImageFrame();
+                var end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.ImageFrame();
                 while (reader.pos < end) {
-                    let tag = reader.uint32();
+                    var tag = reader.uint32();
                     if (tag === error)
                         break;
                     switch (tag >>> 3) {
@@ -1260,7 +2051,7 @@ export const bayesmech = $root.bayesmech = (() => {
             ImageFrame.fromObject = function fromObject(object) {
                 if (object instanceof $root.bayesmech.vision.ImageFrame)
                     return object;
-                let message = new $root.bayesmech.vision.ImageFrame();
+                var message = new $root.bayesmech.vision.ImageFrame();
                 if (object.data != null)
                     if (typeof object.data === "string")
                         $util.base64.decode(object.data, message.data = $util.newBuffer($util.base64.length(object.data)), 0);
@@ -1315,7 +2106,7 @@ export const bayesmech = $root.bayesmech = (() => {
             ImageFrame.toObject = function toObject(message, options) {
                 if (!options)
                     options = {};
-                let object = {};
+                var object = {};
                 if (options.defaults) {
                     if (options.bytes === String)
                         object.data = "";
@@ -1374,7 +2165,7 @@ export const bayesmech = $root.bayesmech = (() => {
              * @property {number} GRAYSCALE=5 GRAYSCALE value
              */
             ImageFrame.ImageFormat = (function() {
-                const valuesById = {}, values = Object.create(valuesById);
+                var valuesById = {}, values = Object.create(valuesById);
                 values[valuesById[0] = "UNKNOWN"] = 0;
                 values[valuesById[1] = "BITMAP_RGB"] = 1;
                 values[valuesById[2] = "BITMAP_RGBA"] = 2;
@@ -1408,7 +2199,7 @@ export const bayesmech = $root.bayesmech = (() => {
              */
             function DepthFrame(properties) {
                 if (properties)
-                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                    for (var keys = Object.keys(properties), i = 0; i < keys.length; ++i)
                         if (properties[keys[i]] != null)
                             this[keys[i]] = properties[keys[i]];
             }
@@ -1497,9 +2288,9 @@ export const bayesmech = $root.bayesmech = (() => {
             DepthFrame.decode = function decode(reader, length, error) {
                 if (!(reader instanceof $Reader))
                     reader = $Reader.create(reader);
-                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.DepthFrame();
+                var end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.DepthFrame();
                 while (reader.pos < end) {
-                    let tag = reader.uint32();
+                    var tag = reader.uint32();
                     if (tag === error)
                         break;
                     switch (tag >>> 3) {
@@ -1579,7 +2370,7 @@ export const bayesmech = $root.bayesmech = (() => {
             DepthFrame.fromObject = function fromObject(object) {
                 if (object instanceof $root.bayesmech.vision.DepthFrame)
                     return object;
-                let message = new $root.bayesmech.vision.DepthFrame();
+                var message = new $root.bayesmech.vision.DepthFrame();
                 if (object.data != null)
                     if (typeof object.data === "string")
                         $util.base64.decode(object.data, message.data = $util.newBuffer($util.base64.length(object.data)), 0);
@@ -1625,7 +2416,7 @@ export const bayesmech = $root.bayesmech = (() => {
             DepthFrame.toObject = function toObject(message, options) {
                 if (!options)
                     options = {};
-                let object = {};
+                var object = {};
                 if (options.defaults) {
                     if (options.bytes === String)
                         object.data = "";
@@ -1687,7 +2478,7 @@ export const bayesmech = $root.bayesmech = (() => {
              * @property {number} FLOAT32_METERS=2 FLOAT32_METERS value
              */
             DepthFrame.DepthFormat = (function() {
-                const valuesById = {}, values = Object.create(valuesById);
+                var valuesById = {}, values = Object.create(valuesById);
                 values[valuesById[0] = "DEPTH_FORMAT_UNKNOWN"] = 0;
                 values[valuesById[1] = "UINT16_MILLIMETERS"] = 1;
                 values[valuesById[2] = "FLOAT32_METERS"] = 2;
@@ -1719,7 +2510,7 @@ export const bayesmech = $root.bayesmech = (() => {
              */
             function ImuData(properties) {
                 if (properties)
-                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                    for (var keys = Object.keys(properties), i = 0; i < keys.length; ++i)
                         if (properties[keys[i]] != null)
                             this[keys[i]] = properties[keys[i]];
             }
@@ -1818,9 +2609,9 @@ export const bayesmech = $root.bayesmech = (() => {
             ImuData.decode = function decode(reader, length, error) {
                 if (!(reader instanceof $Reader))
                     reader = $Reader.create(reader);
-                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.ImuData();
+                var end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.ImuData();
                 while (reader.pos < end) {
-                    let tag = reader.uint32();
+                    var tag = reader.uint32();
                     if (tag === error)
                         break;
                     switch (tag >>> 3) {
@@ -1876,22 +2667,22 @@ export const bayesmech = $root.bayesmech = (() => {
                 if (typeof message !== "object" || message === null)
                     return "object expected";
                 if (message.angularVelocity != null && message.hasOwnProperty("angularVelocity")) {
-                    let error = $root.bayesmech.vision.Vector3.verify(message.angularVelocity);
+                    var error = $root.bayesmech.vision.Vector3.verify(message.angularVelocity);
                     if (error)
                         return "angularVelocity." + error;
                 }
                 if (message.linearAcceleration != null && message.hasOwnProperty("linearAcceleration")) {
-                    let error = $root.bayesmech.vision.Vector3.verify(message.linearAcceleration);
+                    var error = $root.bayesmech.vision.Vector3.verify(message.linearAcceleration);
                     if (error)
                         return "linearAcceleration." + error;
                 }
                 if (message.gravity != null && message.hasOwnProperty("gravity")) {
-                    let error = $root.bayesmech.vision.Vector3.verify(message.gravity);
+                    var error = $root.bayesmech.vision.Vector3.verify(message.gravity);
                     if (error)
                         return "gravity." + error;
                 }
                 if (message.magneticField != null && message.hasOwnProperty("magneticField")) {
-                    let error = $root.bayesmech.vision.Vector3.verify(message.magneticField);
+                    var error = $root.bayesmech.vision.Vector3.verify(message.magneticField);
                     if (error)
                         return "magneticField." + error;
                 }
@@ -1909,7 +2700,7 @@ export const bayesmech = $root.bayesmech = (() => {
             ImuData.fromObject = function fromObject(object) {
                 if (object instanceof $root.bayesmech.vision.ImuData)
                     return object;
-                let message = new $root.bayesmech.vision.ImuData();
+                var message = new $root.bayesmech.vision.ImuData();
                 if (object.angularVelocity != null) {
                     if (typeof object.angularVelocity !== "object")
                         throw TypeError(".bayesmech.vision.ImuData.angularVelocity: object expected");
@@ -1945,7 +2736,7 @@ export const bayesmech = $root.bayesmech = (() => {
             ImuData.toObject = function toObject(message, options) {
                 if (!options)
                     options = {};
-                let object = {};
+                var object = {};
                 if (options.defaults) {
                     object.angularVelocity = null;
                     object.linearAcceleration = null;
@@ -2017,7 +2808,7 @@ export const bayesmech = $root.bayesmech = (() => {
              */
             function GpsLocation(properties) {
                 if (properties)
-                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                    for (var keys = Object.keys(properties), i = 0; i < keys.length; ++i)
                         if (properties[keys[i]] != null)
                             this[keys[i]] = properties[keys[i]];
             }
@@ -2146,9 +2937,9 @@ export const bayesmech = $root.bayesmech = (() => {
             GpsLocation.decode = function decode(reader, length, error) {
                 if (!(reader instanceof $Reader))
                     reader = $Reader.create(reader);
-                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.GpsLocation();
+                var end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.GpsLocation();
                 while (reader.pos < end) {
-                    let tag = reader.uint32();
+                    var tag = reader.uint32();
                     if (tag === error)
                         break;
                     switch (tag >>> 3) {
@@ -2250,7 +3041,7 @@ export const bayesmech = $root.bayesmech = (() => {
             GpsLocation.fromObject = function fromObject(object) {
                 if (object instanceof $root.bayesmech.vision.GpsLocation)
                     return object;
-                let message = new $root.bayesmech.vision.GpsLocation();
+                var message = new $root.bayesmech.vision.GpsLocation();
                 if (object.latitude != null)
                     message.latitude = Number(object.latitude);
                 if (object.longitude != null)
@@ -2287,7 +3078,7 @@ export const bayesmech = $root.bayesmech = (() => {
             GpsLocation.toObject = function toObject(message, options) {
                 if (!options)
                     options = {};
-                let object = {};
+                var object = {};
                 if (options.defaults) {
                     object.latitude = 0;
                     object.longitude = 0;
@@ -2296,7 +3087,7 @@ export const bayesmech = $root.bayesmech = (() => {
                     object.bearing = 0;
                     object.speed = 0;
                     if ($util.Long) {
-                        let long = new $util.Long(0, 0, false);
+                        var long = new $util.Long(0, 0, false);
                         object.timestampMs = options.longs === String ? long.toString() : options.longs === Number ? long.toNumber() : long;
                     } else
                         object.timestampMs = options.longs === String ? "0" : 0;
@@ -2350,772 +3141,6 @@ export const bayesmech = $root.bayesmech = (() => {
             return GpsLocation;
         })();
 
-        vision.Pose = (function() {
-
-            /**
-             * Properties of a Pose.
-             * @memberof bayesmech.vision
-             * @interface IPose
-             * @property {bayesmech.vision.IVector3|null} [position] Pose position
-             * @property {bayesmech.vision.IQuaternion|null} [rotation] Pose rotation
-             */
-
-            /**
-             * Constructs a new Pose.
-             * @memberof bayesmech.vision
-             * @classdesc Represents a Pose.
-             * @implements IPose
-             * @constructor
-             * @param {bayesmech.vision.IPose=} [properties] Properties to set
-             */
-            function Pose(properties) {
-                if (properties)
-                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
-                        if (properties[keys[i]] != null)
-                            this[keys[i]] = properties[keys[i]];
-            }
-
-            /**
-             * Pose position.
-             * @member {bayesmech.vision.IVector3|null|undefined} position
-             * @memberof bayesmech.vision.Pose
-             * @instance
-             */
-            Pose.prototype.position = null;
-
-            /**
-             * Pose rotation.
-             * @member {bayesmech.vision.IQuaternion|null|undefined} rotation
-             * @memberof bayesmech.vision.Pose
-             * @instance
-             */
-            Pose.prototype.rotation = null;
-
-            /**
-             * Creates a new Pose instance using the specified properties.
-             * @function create
-             * @memberof bayesmech.vision.Pose
-             * @static
-             * @param {bayesmech.vision.IPose=} [properties] Properties to set
-             * @returns {bayesmech.vision.Pose} Pose instance
-             */
-            Pose.create = function create(properties) {
-                return new Pose(properties);
-            };
-
-            /**
-             * Encodes the specified Pose message. Does not implicitly {@link bayesmech.vision.Pose.verify|verify} messages.
-             * @function encode
-             * @memberof bayesmech.vision.Pose
-             * @static
-             * @param {bayesmech.vision.IPose} message Pose message or plain object to encode
-             * @param {$protobuf.Writer} [writer] Writer to encode to
-             * @returns {$protobuf.Writer} Writer
-             */
-            Pose.encode = function encode(message, writer) {
-                if (!writer)
-                    writer = $Writer.create();
-                if (message.position != null && Object.hasOwnProperty.call(message, "position"))
-                    $root.bayesmech.vision.Vector3.encode(message.position, writer.uint32(/* id 1, wireType 2 =*/10).fork()).ldelim();
-                if (message.rotation != null && Object.hasOwnProperty.call(message, "rotation"))
-                    $root.bayesmech.vision.Quaternion.encode(message.rotation, writer.uint32(/* id 2, wireType 2 =*/18).fork()).ldelim();
-                return writer;
-            };
-
-            /**
-             * Encodes the specified Pose message, length delimited. Does not implicitly {@link bayesmech.vision.Pose.verify|verify} messages.
-             * @function encodeDelimited
-             * @memberof bayesmech.vision.Pose
-             * @static
-             * @param {bayesmech.vision.IPose} message Pose message or plain object to encode
-             * @param {$protobuf.Writer} [writer] Writer to encode to
-             * @returns {$protobuf.Writer} Writer
-             */
-            Pose.encodeDelimited = function encodeDelimited(message, writer) {
-                return this.encode(message, writer).ldelim();
-            };
-
-            /**
-             * Decodes a Pose message from the specified reader or buffer.
-             * @function decode
-             * @memberof bayesmech.vision.Pose
-             * @static
-             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
-             * @param {number} [length] Message length if known beforehand
-             * @returns {bayesmech.vision.Pose} Pose
-             * @throws {Error} If the payload is not a reader or valid buffer
-             * @throws {$protobuf.util.ProtocolError} If required fields are missing
-             */
-            Pose.decode = function decode(reader, length, error) {
-                if (!(reader instanceof $Reader))
-                    reader = $Reader.create(reader);
-                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.Pose();
-                while (reader.pos < end) {
-                    let tag = reader.uint32();
-                    if (tag === error)
-                        break;
-                    switch (tag >>> 3) {
-                    case 1: {
-                            message.position = $root.bayesmech.vision.Vector3.decode(reader, reader.uint32());
-                            break;
-                        }
-                    case 2: {
-                            message.rotation = $root.bayesmech.vision.Quaternion.decode(reader, reader.uint32());
-                            break;
-                        }
-                    default:
-                        reader.skipType(tag & 7);
-                        break;
-                    }
-                }
-                return message;
-            };
-
-            /**
-             * Decodes a Pose message from the specified reader or buffer, length delimited.
-             * @function decodeDelimited
-             * @memberof bayesmech.vision.Pose
-             * @static
-             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
-             * @returns {bayesmech.vision.Pose} Pose
-             * @throws {Error} If the payload is not a reader or valid buffer
-             * @throws {$protobuf.util.ProtocolError} If required fields are missing
-             */
-            Pose.decodeDelimited = function decodeDelimited(reader) {
-                if (!(reader instanceof $Reader))
-                    reader = new $Reader(reader);
-                return this.decode(reader, reader.uint32());
-            };
-
-            /**
-             * Verifies a Pose message.
-             * @function verify
-             * @memberof bayesmech.vision.Pose
-             * @static
-             * @param {Object.<string,*>} message Plain object to verify
-             * @returns {string|null} `null` if valid, otherwise the reason why it is not
-             */
-            Pose.verify = function verify(message) {
-                if (typeof message !== "object" || message === null)
-                    return "object expected";
-                if (message.position != null && message.hasOwnProperty("position")) {
-                    let error = $root.bayesmech.vision.Vector3.verify(message.position);
-                    if (error)
-                        return "position." + error;
-                }
-                if (message.rotation != null && message.hasOwnProperty("rotation")) {
-                    let error = $root.bayesmech.vision.Quaternion.verify(message.rotation);
-                    if (error)
-                        return "rotation." + error;
-                }
-                return null;
-            };
-
-            /**
-             * Creates a Pose message from a plain object. Also converts values to their respective internal types.
-             * @function fromObject
-             * @memberof bayesmech.vision.Pose
-             * @static
-             * @param {Object.<string,*>} object Plain object
-             * @returns {bayesmech.vision.Pose} Pose
-             */
-            Pose.fromObject = function fromObject(object) {
-                if (object instanceof $root.bayesmech.vision.Pose)
-                    return object;
-                let message = new $root.bayesmech.vision.Pose();
-                if (object.position != null) {
-                    if (typeof object.position !== "object")
-                        throw TypeError(".bayesmech.vision.Pose.position: object expected");
-                    message.position = $root.bayesmech.vision.Vector3.fromObject(object.position);
-                }
-                if (object.rotation != null) {
-                    if (typeof object.rotation !== "object")
-                        throw TypeError(".bayesmech.vision.Pose.rotation: object expected");
-                    message.rotation = $root.bayesmech.vision.Quaternion.fromObject(object.rotation);
-                }
-                return message;
-            };
-
-            /**
-             * Creates a plain object from a Pose message. Also converts values to other types if specified.
-             * @function toObject
-             * @memberof bayesmech.vision.Pose
-             * @static
-             * @param {bayesmech.vision.Pose} message Pose
-             * @param {$protobuf.IConversionOptions} [options] Conversion options
-             * @returns {Object.<string,*>} Plain object
-             */
-            Pose.toObject = function toObject(message, options) {
-                if (!options)
-                    options = {};
-                let object = {};
-                if (options.defaults) {
-                    object.position = null;
-                    object.rotation = null;
-                }
-                if (message.position != null && message.hasOwnProperty("position"))
-                    object.position = $root.bayesmech.vision.Vector3.toObject(message.position, options);
-                if (message.rotation != null && message.hasOwnProperty("rotation"))
-                    object.rotation = $root.bayesmech.vision.Quaternion.toObject(message.rotation, options);
-                return object;
-            };
-
-            /**
-             * Converts this Pose to JSON.
-             * @function toJSON
-             * @memberof bayesmech.vision.Pose
-             * @instance
-             * @returns {Object.<string,*>} JSON object
-             */
-            Pose.prototype.toJSON = function toJSON() {
-                return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
-            };
-
-            /**
-             * Gets the default type url for Pose
-             * @function getTypeUrl
-             * @memberof bayesmech.vision.Pose
-             * @static
-             * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
-             * @returns {string} The default type url
-             */
-            Pose.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
-                if (typeUrlPrefix === undefined) {
-                    typeUrlPrefix = "type.googleapis.com";
-                }
-                return typeUrlPrefix + "/bayesmech.vision.Pose";
-            };
-
-            return Pose;
-        })();
-
-        vision.Vector3 = (function() {
-
-            /**
-             * Properties of a Vector3.
-             * @memberof bayesmech.vision
-             * @interface IVector3
-             * @property {number|null} [x] Vector3 x
-             * @property {number|null} [y] Vector3 y
-             * @property {number|null} [z] Vector3 z
-             */
-
-            /**
-             * Constructs a new Vector3.
-             * @memberof bayesmech.vision
-             * @classdesc Represents a Vector3.
-             * @implements IVector3
-             * @constructor
-             * @param {bayesmech.vision.IVector3=} [properties] Properties to set
-             */
-            function Vector3(properties) {
-                if (properties)
-                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
-                        if (properties[keys[i]] != null)
-                            this[keys[i]] = properties[keys[i]];
-            }
-
-            /**
-             * Vector3 x.
-             * @member {number} x
-             * @memberof bayesmech.vision.Vector3
-             * @instance
-             */
-            Vector3.prototype.x = 0;
-
-            /**
-             * Vector3 y.
-             * @member {number} y
-             * @memberof bayesmech.vision.Vector3
-             * @instance
-             */
-            Vector3.prototype.y = 0;
-
-            /**
-             * Vector3 z.
-             * @member {number} z
-             * @memberof bayesmech.vision.Vector3
-             * @instance
-             */
-            Vector3.prototype.z = 0;
-
-            /**
-             * Creates a new Vector3 instance using the specified properties.
-             * @function create
-             * @memberof bayesmech.vision.Vector3
-             * @static
-             * @param {bayesmech.vision.IVector3=} [properties] Properties to set
-             * @returns {bayesmech.vision.Vector3} Vector3 instance
-             */
-            Vector3.create = function create(properties) {
-                return new Vector3(properties);
-            };
-
-            /**
-             * Encodes the specified Vector3 message. Does not implicitly {@link bayesmech.vision.Vector3.verify|verify} messages.
-             * @function encode
-             * @memberof bayesmech.vision.Vector3
-             * @static
-             * @param {bayesmech.vision.IVector3} message Vector3 message or plain object to encode
-             * @param {$protobuf.Writer} [writer] Writer to encode to
-             * @returns {$protobuf.Writer} Writer
-             */
-            Vector3.encode = function encode(message, writer) {
-                if (!writer)
-                    writer = $Writer.create();
-                if (message.x != null && Object.hasOwnProperty.call(message, "x"))
-                    writer.uint32(/* id 1, wireType 5 =*/13).float(message.x);
-                if (message.y != null && Object.hasOwnProperty.call(message, "y"))
-                    writer.uint32(/* id 2, wireType 5 =*/21).float(message.y);
-                if (message.z != null && Object.hasOwnProperty.call(message, "z"))
-                    writer.uint32(/* id 3, wireType 5 =*/29).float(message.z);
-                return writer;
-            };
-
-            /**
-             * Encodes the specified Vector3 message, length delimited. Does not implicitly {@link bayesmech.vision.Vector3.verify|verify} messages.
-             * @function encodeDelimited
-             * @memberof bayesmech.vision.Vector3
-             * @static
-             * @param {bayesmech.vision.IVector3} message Vector3 message or plain object to encode
-             * @param {$protobuf.Writer} [writer] Writer to encode to
-             * @returns {$protobuf.Writer} Writer
-             */
-            Vector3.encodeDelimited = function encodeDelimited(message, writer) {
-                return this.encode(message, writer).ldelim();
-            };
-
-            /**
-             * Decodes a Vector3 message from the specified reader or buffer.
-             * @function decode
-             * @memberof bayesmech.vision.Vector3
-             * @static
-             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
-             * @param {number} [length] Message length if known beforehand
-             * @returns {bayesmech.vision.Vector3} Vector3
-             * @throws {Error} If the payload is not a reader or valid buffer
-             * @throws {$protobuf.util.ProtocolError} If required fields are missing
-             */
-            Vector3.decode = function decode(reader, length, error) {
-                if (!(reader instanceof $Reader))
-                    reader = $Reader.create(reader);
-                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.Vector3();
-                while (reader.pos < end) {
-                    let tag = reader.uint32();
-                    if (tag === error)
-                        break;
-                    switch (tag >>> 3) {
-                    case 1: {
-                            message.x = reader.float();
-                            break;
-                        }
-                    case 2: {
-                            message.y = reader.float();
-                            break;
-                        }
-                    case 3: {
-                            message.z = reader.float();
-                            break;
-                        }
-                    default:
-                        reader.skipType(tag & 7);
-                        break;
-                    }
-                }
-                return message;
-            };
-
-            /**
-             * Decodes a Vector3 message from the specified reader or buffer, length delimited.
-             * @function decodeDelimited
-             * @memberof bayesmech.vision.Vector3
-             * @static
-             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
-             * @returns {bayesmech.vision.Vector3} Vector3
-             * @throws {Error} If the payload is not a reader or valid buffer
-             * @throws {$protobuf.util.ProtocolError} If required fields are missing
-             */
-            Vector3.decodeDelimited = function decodeDelimited(reader) {
-                if (!(reader instanceof $Reader))
-                    reader = new $Reader(reader);
-                return this.decode(reader, reader.uint32());
-            };
-
-            /**
-             * Verifies a Vector3 message.
-             * @function verify
-             * @memberof bayesmech.vision.Vector3
-             * @static
-             * @param {Object.<string,*>} message Plain object to verify
-             * @returns {string|null} `null` if valid, otherwise the reason why it is not
-             */
-            Vector3.verify = function verify(message) {
-                if (typeof message !== "object" || message === null)
-                    return "object expected";
-                if (message.x != null && message.hasOwnProperty("x"))
-                    if (typeof message.x !== "number")
-                        return "x: number expected";
-                if (message.y != null && message.hasOwnProperty("y"))
-                    if (typeof message.y !== "number")
-                        return "y: number expected";
-                if (message.z != null && message.hasOwnProperty("z"))
-                    if (typeof message.z !== "number")
-                        return "z: number expected";
-                return null;
-            };
-
-            /**
-             * Creates a Vector3 message from a plain object. Also converts values to their respective internal types.
-             * @function fromObject
-             * @memberof bayesmech.vision.Vector3
-             * @static
-             * @param {Object.<string,*>} object Plain object
-             * @returns {bayesmech.vision.Vector3} Vector3
-             */
-            Vector3.fromObject = function fromObject(object) {
-                if (object instanceof $root.bayesmech.vision.Vector3)
-                    return object;
-                let message = new $root.bayesmech.vision.Vector3();
-                if (object.x != null)
-                    message.x = Number(object.x);
-                if (object.y != null)
-                    message.y = Number(object.y);
-                if (object.z != null)
-                    message.z = Number(object.z);
-                return message;
-            };
-
-            /**
-             * Creates a plain object from a Vector3 message. Also converts values to other types if specified.
-             * @function toObject
-             * @memberof bayesmech.vision.Vector3
-             * @static
-             * @param {bayesmech.vision.Vector3} message Vector3
-             * @param {$protobuf.IConversionOptions} [options] Conversion options
-             * @returns {Object.<string,*>} Plain object
-             */
-            Vector3.toObject = function toObject(message, options) {
-                if (!options)
-                    options = {};
-                let object = {};
-                if (options.defaults) {
-                    object.x = 0;
-                    object.y = 0;
-                    object.z = 0;
-                }
-                if (message.x != null && message.hasOwnProperty("x"))
-                    object.x = options.json && !isFinite(message.x) ? String(message.x) : message.x;
-                if (message.y != null && message.hasOwnProperty("y"))
-                    object.y = options.json && !isFinite(message.y) ? String(message.y) : message.y;
-                if (message.z != null && message.hasOwnProperty("z"))
-                    object.z = options.json && !isFinite(message.z) ? String(message.z) : message.z;
-                return object;
-            };
-
-            /**
-             * Converts this Vector3 to JSON.
-             * @function toJSON
-             * @memberof bayesmech.vision.Vector3
-             * @instance
-             * @returns {Object.<string,*>} JSON object
-             */
-            Vector3.prototype.toJSON = function toJSON() {
-                return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
-            };
-
-            /**
-             * Gets the default type url for Vector3
-             * @function getTypeUrl
-             * @memberof bayesmech.vision.Vector3
-             * @static
-             * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
-             * @returns {string} The default type url
-             */
-            Vector3.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
-                if (typeUrlPrefix === undefined) {
-                    typeUrlPrefix = "type.googleapis.com";
-                }
-                return typeUrlPrefix + "/bayesmech.vision.Vector3";
-            };
-
-            return Vector3;
-        })();
-
-        vision.Quaternion = (function() {
-
-            /**
-             * Properties of a Quaternion.
-             * @memberof bayesmech.vision
-             * @interface IQuaternion
-             * @property {number|null} [x] Quaternion x
-             * @property {number|null} [y] Quaternion y
-             * @property {number|null} [z] Quaternion z
-             * @property {number|null} [w] Quaternion w
-             */
-
-            /**
-             * Constructs a new Quaternion.
-             * @memberof bayesmech.vision
-             * @classdesc Represents a Quaternion.
-             * @implements IQuaternion
-             * @constructor
-             * @param {bayesmech.vision.IQuaternion=} [properties] Properties to set
-             */
-            function Quaternion(properties) {
-                if (properties)
-                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
-                        if (properties[keys[i]] != null)
-                            this[keys[i]] = properties[keys[i]];
-            }
-
-            /**
-             * Quaternion x.
-             * @member {number} x
-             * @memberof bayesmech.vision.Quaternion
-             * @instance
-             */
-            Quaternion.prototype.x = 0;
-
-            /**
-             * Quaternion y.
-             * @member {number} y
-             * @memberof bayesmech.vision.Quaternion
-             * @instance
-             */
-            Quaternion.prototype.y = 0;
-
-            /**
-             * Quaternion z.
-             * @member {number} z
-             * @memberof bayesmech.vision.Quaternion
-             * @instance
-             */
-            Quaternion.prototype.z = 0;
-
-            /**
-             * Quaternion w.
-             * @member {number} w
-             * @memberof bayesmech.vision.Quaternion
-             * @instance
-             */
-            Quaternion.prototype.w = 0;
-
-            /**
-             * Creates a new Quaternion instance using the specified properties.
-             * @function create
-             * @memberof bayesmech.vision.Quaternion
-             * @static
-             * @param {bayesmech.vision.IQuaternion=} [properties] Properties to set
-             * @returns {bayesmech.vision.Quaternion} Quaternion instance
-             */
-            Quaternion.create = function create(properties) {
-                return new Quaternion(properties);
-            };
-
-            /**
-             * Encodes the specified Quaternion message. Does not implicitly {@link bayesmech.vision.Quaternion.verify|verify} messages.
-             * @function encode
-             * @memberof bayesmech.vision.Quaternion
-             * @static
-             * @param {bayesmech.vision.IQuaternion} message Quaternion message or plain object to encode
-             * @param {$protobuf.Writer} [writer] Writer to encode to
-             * @returns {$protobuf.Writer} Writer
-             */
-            Quaternion.encode = function encode(message, writer) {
-                if (!writer)
-                    writer = $Writer.create();
-                if (message.x != null && Object.hasOwnProperty.call(message, "x"))
-                    writer.uint32(/* id 1, wireType 5 =*/13).float(message.x);
-                if (message.y != null && Object.hasOwnProperty.call(message, "y"))
-                    writer.uint32(/* id 2, wireType 5 =*/21).float(message.y);
-                if (message.z != null && Object.hasOwnProperty.call(message, "z"))
-                    writer.uint32(/* id 3, wireType 5 =*/29).float(message.z);
-                if (message.w != null && Object.hasOwnProperty.call(message, "w"))
-                    writer.uint32(/* id 4, wireType 5 =*/37).float(message.w);
-                return writer;
-            };
-
-            /**
-             * Encodes the specified Quaternion message, length delimited. Does not implicitly {@link bayesmech.vision.Quaternion.verify|verify} messages.
-             * @function encodeDelimited
-             * @memberof bayesmech.vision.Quaternion
-             * @static
-             * @param {bayesmech.vision.IQuaternion} message Quaternion message or plain object to encode
-             * @param {$protobuf.Writer} [writer] Writer to encode to
-             * @returns {$protobuf.Writer} Writer
-             */
-            Quaternion.encodeDelimited = function encodeDelimited(message, writer) {
-                return this.encode(message, writer).ldelim();
-            };
-
-            /**
-             * Decodes a Quaternion message from the specified reader or buffer.
-             * @function decode
-             * @memberof bayesmech.vision.Quaternion
-             * @static
-             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
-             * @param {number} [length] Message length if known beforehand
-             * @returns {bayesmech.vision.Quaternion} Quaternion
-             * @throws {Error} If the payload is not a reader or valid buffer
-             * @throws {$protobuf.util.ProtocolError} If required fields are missing
-             */
-            Quaternion.decode = function decode(reader, length, error) {
-                if (!(reader instanceof $Reader))
-                    reader = $Reader.create(reader);
-                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.Quaternion();
-                while (reader.pos < end) {
-                    let tag = reader.uint32();
-                    if (tag === error)
-                        break;
-                    switch (tag >>> 3) {
-                    case 1: {
-                            message.x = reader.float();
-                            break;
-                        }
-                    case 2: {
-                            message.y = reader.float();
-                            break;
-                        }
-                    case 3: {
-                            message.z = reader.float();
-                            break;
-                        }
-                    case 4: {
-                            message.w = reader.float();
-                            break;
-                        }
-                    default:
-                        reader.skipType(tag & 7);
-                        break;
-                    }
-                }
-                return message;
-            };
-
-            /**
-             * Decodes a Quaternion message from the specified reader or buffer, length delimited.
-             * @function decodeDelimited
-             * @memberof bayesmech.vision.Quaternion
-             * @static
-             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
-             * @returns {bayesmech.vision.Quaternion} Quaternion
-             * @throws {Error} If the payload is not a reader or valid buffer
-             * @throws {$protobuf.util.ProtocolError} If required fields are missing
-             */
-            Quaternion.decodeDelimited = function decodeDelimited(reader) {
-                if (!(reader instanceof $Reader))
-                    reader = new $Reader(reader);
-                return this.decode(reader, reader.uint32());
-            };
-
-            /**
-             * Verifies a Quaternion message.
-             * @function verify
-             * @memberof bayesmech.vision.Quaternion
-             * @static
-             * @param {Object.<string,*>} message Plain object to verify
-             * @returns {string|null} `null` if valid, otherwise the reason why it is not
-             */
-            Quaternion.verify = function verify(message) {
-                if (typeof message !== "object" || message === null)
-                    return "object expected";
-                if (message.x != null && message.hasOwnProperty("x"))
-                    if (typeof message.x !== "number")
-                        return "x: number expected";
-                if (message.y != null && message.hasOwnProperty("y"))
-                    if (typeof message.y !== "number")
-                        return "y: number expected";
-                if (message.z != null && message.hasOwnProperty("z"))
-                    if (typeof message.z !== "number")
-                        return "z: number expected";
-                if (message.w != null && message.hasOwnProperty("w"))
-                    if (typeof message.w !== "number")
-                        return "w: number expected";
-                return null;
-            };
-
-            /**
-             * Creates a Quaternion message from a plain object. Also converts values to their respective internal types.
-             * @function fromObject
-             * @memberof bayesmech.vision.Quaternion
-             * @static
-             * @param {Object.<string,*>} object Plain object
-             * @returns {bayesmech.vision.Quaternion} Quaternion
-             */
-            Quaternion.fromObject = function fromObject(object) {
-                if (object instanceof $root.bayesmech.vision.Quaternion)
-                    return object;
-                let message = new $root.bayesmech.vision.Quaternion();
-                if (object.x != null)
-                    message.x = Number(object.x);
-                if (object.y != null)
-                    message.y = Number(object.y);
-                if (object.z != null)
-                    message.z = Number(object.z);
-                if (object.w != null)
-                    message.w = Number(object.w);
-                return message;
-            };
-
-            /**
-             * Creates a plain object from a Quaternion message. Also converts values to other types if specified.
-             * @function toObject
-             * @memberof bayesmech.vision.Quaternion
-             * @static
-             * @param {bayesmech.vision.Quaternion} message Quaternion
-             * @param {$protobuf.IConversionOptions} [options] Conversion options
-             * @returns {Object.<string,*>} Plain object
-             */
-            Quaternion.toObject = function toObject(message, options) {
-                if (!options)
-                    options = {};
-                let object = {};
-                if (options.defaults) {
-                    object.x = 0;
-                    object.y = 0;
-                    object.z = 0;
-                    object.w = 0;
-                }
-                if (message.x != null && message.hasOwnProperty("x"))
-                    object.x = options.json && !isFinite(message.x) ? String(message.x) : message.x;
-                if (message.y != null && message.hasOwnProperty("y"))
-                    object.y = options.json && !isFinite(message.y) ? String(message.y) : message.y;
-                if (message.z != null && message.hasOwnProperty("z"))
-                    object.z = options.json && !isFinite(message.z) ? String(message.z) : message.z;
-                if (message.w != null && message.hasOwnProperty("w"))
-                    object.w = options.json && !isFinite(message.w) ? String(message.w) : message.w;
-                return object;
-            };
-
-            /**
-             * Converts this Quaternion to JSON.
-             * @function toJSON
-             * @memberof bayesmech.vision.Quaternion
-             * @instance
-             * @returns {Object.<string,*>} JSON object
-             */
-            Quaternion.prototype.toJSON = function toJSON() {
-                return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
-            };
-
-            /**
-             * Gets the default type url for Quaternion
-             * @function getTypeUrl
-             * @memberof bayesmech.vision.Quaternion
-             * @static
-             * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
-             * @returns {string} The default type url
-             */
-            Quaternion.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
-                if (typeUrlPrefix === undefined) {
-                    typeUrlPrefix = "type.googleapis.com";
-                }
-                return typeUrlPrefix + "/bayesmech.vision.Quaternion";
-            };
-
-            return Quaternion;
-        })();
-
         vision.InferredGeometry = (function() {
 
             /**
@@ -3138,7 +3163,7 @@ export const bayesmech = $root.bayesmech = (() => {
                 this.planes = [];
                 this.pointCloud = [];
                 if (properties)
-                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                    for (var keys = Object.keys(properties), i = 0; i < keys.length; ++i)
                         if (properties[keys[i]] != null)
                             this[keys[i]] = properties[keys[i]];
             }
@@ -3184,10 +3209,10 @@ export const bayesmech = $root.bayesmech = (() => {
                 if (!writer)
                     writer = $Writer.create();
                 if (message.planes != null && message.planes.length)
-                    for (let i = 0; i < message.planes.length; ++i)
+                    for (var i = 0; i < message.planes.length; ++i)
                         $root.bayesmech.vision.InferredGeometry.Plane.encode(message.planes[i], writer.uint32(/* id 1, wireType 2 =*/10).fork()).ldelim();
                 if (message.pointCloud != null && message.pointCloud.length)
-                    for (let i = 0; i < message.pointCloud.length; ++i)
+                    for (var i = 0; i < message.pointCloud.length; ++i)
                         $root.bayesmech.vision.InferredGeometry.TrackedPoint.encode(message.pointCloud[i], writer.uint32(/* id 2, wireType 2 =*/18).fork()).ldelim();
                 return writer;
             };
@@ -3219,9 +3244,9 @@ export const bayesmech = $root.bayesmech = (() => {
             InferredGeometry.decode = function decode(reader, length, error) {
                 if (!(reader instanceof $Reader))
                     reader = $Reader.create(reader);
-                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.InferredGeometry();
+                var end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.InferredGeometry();
                 while (reader.pos < end) {
-                    let tag = reader.uint32();
+                    var tag = reader.uint32();
                     if (tag === error)
                         break;
                     switch (tag >>> 3) {
@@ -3275,8 +3300,8 @@ export const bayesmech = $root.bayesmech = (() => {
                 if (message.planes != null && message.hasOwnProperty("planes")) {
                     if (!Array.isArray(message.planes))
                         return "planes: array expected";
-                    for (let i = 0; i < message.planes.length; ++i) {
-                        let error = $root.bayesmech.vision.InferredGeometry.Plane.verify(message.planes[i]);
+                    for (var i = 0; i < message.planes.length; ++i) {
+                        var error = $root.bayesmech.vision.InferredGeometry.Plane.verify(message.planes[i]);
                         if (error)
                             return "planes." + error;
                     }
@@ -3284,8 +3309,8 @@ export const bayesmech = $root.bayesmech = (() => {
                 if (message.pointCloud != null && message.hasOwnProperty("pointCloud")) {
                     if (!Array.isArray(message.pointCloud))
                         return "pointCloud: array expected";
-                    for (let i = 0; i < message.pointCloud.length; ++i) {
-                        let error = $root.bayesmech.vision.InferredGeometry.TrackedPoint.verify(message.pointCloud[i]);
+                    for (var i = 0; i < message.pointCloud.length; ++i) {
+                        var error = $root.bayesmech.vision.InferredGeometry.TrackedPoint.verify(message.pointCloud[i]);
                         if (error)
                             return "pointCloud." + error;
                     }
@@ -3304,12 +3329,12 @@ export const bayesmech = $root.bayesmech = (() => {
             InferredGeometry.fromObject = function fromObject(object) {
                 if (object instanceof $root.bayesmech.vision.InferredGeometry)
                     return object;
-                let message = new $root.bayesmech.vision.InferredGeometry();
+                var message = new $root.bayesmech.vision.InferredGeometry();
                 if (object.planes) {
                     if (!Array.isArray(object.planes))
                         throw TypeError(".bayesmech.vision.InferredGeometry.planes: array expected");
                     message.planes = [];
-                    for (let i = 0; i < object.planes.length; ++i) {
+                    for (var i = 0; i < object.planes.length; ++i) {
                         if (typeof object.planes[i] !== "object")
                             throw TypeError(".bayesmech.vision.InferredGeometry.planes: object expected");
                         message.planes[i] = $root.bayesmech.vision.InferredGeometry.Plane.fromObject(object.planes[i]);
@@ -3319,7 +3344,7 @@ export const bayesmech = $root.bayesmech = (() => {
                     if (!Array.isArray(object.pointCloud))
                         throw TypeError(".bayesmech.vision.InferredGeometry.pointCloud: array expected");
                     message.pointCloud = [];
-                    for (let i = 0; i < object.pointCloud.length; ++i) {
+                    for (var i = 0; i < object.pointCloud.length; ++i) {
                         if (typeof object.pointCloud[i] !== "object")
                             throw TypeError(".bayesmech.vision.InferredGeometry.pointCloud: object expected");
                         message.pointCloud[i] = $root.bayesmech.vision.InferredGeometry.TrackedPoint.fromObject(object.pointCloud[i]);
@@ -3340,19 +3365,19 @@ export const bayesmech = $root.bayesmech = (() => {
             InferredGeometry.toObject = function toObject(message, options) {
                 if (!options)
                     options = {};
-                let object = {};
+                var object = {};
                 if (options.arrays || options.defaults) {
                     object.planes = [];
                     object.pointCloud = [];
                 }
                 if (message.planes && message.planes.length) {
                     object.planes = [];
-                    for (let j = 0; j < message.planes.length; ++j)
+                    for (var j = 0; j < message.planes.length; ++j)
                         object.planes[j] = $root.bayesmech.vision.InferredGeometry.Plane.toObject(message.planes[j], options);
                 }
                 if (message.pointCloud && message.pointCloud.length) {
                     object.pointCloud = [];
-                    for (let j = 0; j < message.pointCloud.length; ++j)
+                    for (var j = 0; j < message.pointCloud.length; ++j)
                         object.pointCloud[j] = $root.bayesmech.vision.InferredGeometry.TrackedPoint.toObject(message.pointCloud[j], options);
                 }
                 return object;
@@ -3409,7 +3434,7 @@ export const bayesmech = $root.bayesmech = (() => {
                 function Plane(properties) {
                     this.polygon = [];
                     if (properties)
-                        for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                        for (var keys = Object.keys(properties), i = 0; i < keys.length; ++i)
                             if (properties[keys[i]] != null)
                                 this[keys[i]] = properties[keys[i]];
                 }
@@ -3497,7 +3522,7 @@ export const bayesmech = $root.bayesmech = (() => {
                     if (message.type != null && Object.hasOwnProperty.call(message, "type"))
                         writer.uint32(/* id 5, wireType 0 =*/40).int32(message.type);
                     if (message.polygon != null && message.polygon.length)
-                        for (let i = 0; i < message.polygon.length; ++i)
+                        for (var i = 0; i < message.polygon.length; ++i)
                             $root.bayesmech.vision.Vector3.encode(message.polygon[i], writer.uint32(/* id 6, wireType 2 =*/50).fork()).ldelim();
                     return writer;
                 };
@@ -3529,9 +3554,9 @@ export const bayesmech = $root.bayesmech = (() => {
                 Plane.decode = function decode(reader, length, error) {
                     if (!(reader instanceof $Reader))
                         reader = $Reader.create(reader);
-                    let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.InferredGeometry.Plane();
+                    var end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.InferredGeometry.Plane();
                     while (reader.pos < end) {
-                        let tag = reader.uint32();
+                        var tag = reader.uint32();
                         if (tag === error)
                             break;
                         switch (tag >>> 3) {
@@ -3600,7 +3625,7 @@ export const bayesmech = $root.bayesmech = (() => {
                         if (!(message.id && typeof message.id.length === "number" || $util.isString(message.id)))
                             return "id: buffer expected";
                     if (message.centerPose != null && message.hasOwnProperty("centerPose")) {
-                        let error = $root.bayesmech.vision.Pose.verify(message.centerPose);
+                        var error = $root.bayesmech.vision.Pose.verify(message.centerPose);
                         if (error)
                             return "centerPose." + error;
                     }
@@ -3623,8 +3648,8 @@ export const bayesmech = $root.bayesmech = (() => {
                     if (message.polygon != null && message.hasOwnProperty("polygon")) {
                         if (!Array.isArray(message.polygon))
                             return "polygon: array expected";
-                        for (let i = 0; i < message.polygon.length; ++i) {
-                            let error = $root.bayesmech.vision.Vector3.verify(message.polygon[i]);
+                        for (var i = 0; i < message.polygon.length; ++i) {
+                            var error = $root.bayesmech.vision.Vector3.verify(message.polygon[i]);
                             if (error)
                                 return "polygon." + error;
                         }
@@ -3643,7 +3668,7 @@ export const bayesmech = $root.bayesmech = (() => {
                 Plane.fromObject = function fromObject(object) {
                     if (object instanceof $root.bayesmech.vision.InferredGeometry.Plane)
                         return object;
-                    let message = new $root.bayesmech.vision.InferredGeometry.Plane();
+                    var message = new $root.bayesmech.vision.InferredGeometry.Plane();
                     if (object.id != null)
                         if (typeof object.id === "string")
                             $util.base64.decode(object.id, message.id = $util.newBuffer($util.base64.length(object.id)), 0);
@@ -3686,7 +3711,7 @@ export const bayesmech = $root.bayesmech = (() => {
                         if (!Array.isArray(object.polygon))
                             throw TypeError(".bayesmech.vision.InferredGeometry.Plane.polygon: array expected");
                         message.polygon = [];
-                        for (let i = 0; i < object.polygon.length; ++i) {
+                        for (var i = 0; i < object.polygon.length; ++i) {
                             if (typeof object.polygon[i] !== "object")
                                 throw TypeError(".bayesmech.vision.InferredGeometry.Plane.polygon: object expected");
                             message.polygon[i] = $root.bayesmech.vision.Vector3.fromObject(object.polygon[i]);
@@ -3707,7 +3732,7 @@ export const bayesmech = $root.bayesmech = (() => {
                 Plane.toObject = function toObject(message, options) {
                     if (!options)
                         options = {};
-                    let object = {};
+                    var object = {};
                     if (options.arrays || options.defaults)
                         object.polygon = [];
                     if (options.defaults) {
@@ -3735,7 +3760,7 @@ export const bayesmech = $root.bayesmech = (() => {
                         object.type = options.enums === String ? $root.bayesmech.vision.InferredGeometry.Plane.PlaneType[message.type] === undefined ? message.type : $root.bayesmech.vision.InferredGeometry.Plane.PlaneType[message.type] : message.type;
                     if (message.polygon && message.polygon.length) {
                         object.polygon = [];
-                        for (let j = 0; j < message.polygon.length; ++j)
+                        for (var j = 0; j < message.polygon.length; ++j)
                             object.polygon[j] = $root.bayesmech.vision.Vector3.toObject(message.polygon[j], options);
                     }
                     return object;
@@ -3777,7 +3802,7 @@ export const bayesmech = $root.bayesmech = (() => {
                  * @property {number} VERTICAL=3 VERTICAL value
                  */
                 Plane.PlaneType = (function() {
-                    const valuesById = {}, values = Object.create(valuesById);
+                    var valuesById = {}, values = Object.create(valuesById);
                     values[valuesById[0] = "PLANE_TYPE_UNKNOWN"] = 0;
                     values[valuesById[1] = "HORIZONTAL_UPWARD_FACING"] = 1;
                     values[valuesById[2] = "HORIZONTAL_DOWNWARD_FACING"] = 2;
@@ -3808,7 +3833,7 @@ export const bayesmech = $root.bayesmech = (() => {
                  */
                 function TrackedPoint(properties) {
                     if (properties)
-                        for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                        for (var keys = Object.keys(properties), i = 0; i < keys.length; ++i)
                             if (properties[keys[i]] != null)
                                 this[keys[i]] = properties[keys[i]];
                 }
@@ -3887,9 +3912,9 @@ export const bayesmech = $root.bayesmech = (() => {
                 TrackedPoint.decode = function decode(reader, length, error) {
                     if (!(reader instanceof $Reader))
                         reader = $Reader.create(reader);
-                    let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.InferredGeometry.TrackedPoint();
+                    var end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.InferredGeometry.TrackedPoint();
                     while (reader.pos < end) {
-                        let tag = reader.uint32();
+                        var tag = reader.uint32();
                         if (tag === error)
                             break;
                         switch (tag >>> 3) {
@@ -3937,7 +3962,7 @@ export const bayesmech = $root.bayesmech = (() => {
                     if (typeof message !== "object" || message === null)
                         return "object expected";
                     if (message.point != null && message.hasOwnProperty("point")) {
-                        let error = $root.bayesmech.vision.Vector3.verify(message.point);
+                        var error = $root.bayesmech.vision.Vector3.verify(message.point);
                         if (error)
                             return "point." + error;
                     }
@@ -3958,7 +3983,7 @@ export const bayesmech = $root.bayesmech = (() => {
                 TrackedPoint.fromObject = function fromObject(object) {
                     if (object instanceof $root.bayesmech.vision.InferredGeometry.TrackedPoint)
                         return object;
-                    let message = new $root.bayesmech.vision.InferredGeometry.TrackedPoint();
+                    var message = new $root.bayesmech.vision.InferredGeometry.TrackedPoint();
                     if (object.point != null) {
                         if (typeof object.point !== "object")
                             throw TypeError(".bayesmech.vision.InferredGeometry.TrackedPoint.point: object expected");
@@ -3981,7 +4006,7 @@ export const bayesmech = $root.bayesmech = (() => {
                 TrackedPoint.toObject = function toObject(message, options) {
                     if (!options)
                         options = {};
-                    let object = {};
+                    var object = {};
                     if (options.defaults) {
                         object.point = null;
                         object.confidence = 0;
@@ -4047,7 +4072,7 @@ export const bayesmech = $root.bayesmech = (() => {
             function SegmentationResponse(properties) {
                 this.masks = [];
                 if (properties)
-                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                    for (var keys = Object.keys(properties), i = 0; i < keys.length; ++i)
                         if (properties[keys[i]] != null)
                             this[keys[i]] = properties[keys[i]];
             }
@@ -4103,7 +4128,7 @@ export const bayesmech = $root.bayesmech = (() => {
                 if (message.frameIdentifier != null && Object.hasOwnProperty.call(message, "frameIdentifier"))
                     $root.bayesmech.vision.PerceiverFrameIdentifier.encode(message.frameIdentifier, writer.uint32(/* id 1, wireType 2 =*/10).fork()).ldelim();
                 if (message.masks != null && message.masks.length)
-                    for (let i = 0; i < message.masks.length; ++i)
+                    for (var i = 0; i < message.masks.length; ++i)
                         $root.bayesmech.vision.SegmentationResponse.SegmentationMask.encode(message.masks[i], writer.uint32(/* id 2, wireType 2 =*/18).fork()).ldelim();
                 if (message.triggerType != null && Object.hasOwnProperty.call(message, "triggerType"))
                     writer.uint32(/* id 3, wireType 0 =*/24).int32(message.triggerType);
@@ -4137,9 +4162,9 @@ export const bayesmech = $root.bayesmech = (() => {
             SegmentationResponse.decode = function decode(reader, length, error) {
                 if (!(reader instanceof $Reader))
                     reader = $Reader.create(reader);
-                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.SegmentationResponse();
+                var end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.SegmentationResponse();
                 while (reader.pos < end) {
-                    let tag = reader.uint32();
+                    var tag = reader.uint32();
                     if (tag === error)
                         break;
                     switch (tag >>> 3) {
@@ -4193,15 +4218,15 @@ export const bayesmech = $root.bayesmech = (() => {
                 if (typeof message !== "object" || message === null)
                     return "object expected";
                 if (message.frameIdentifier != null && message.hasOwnProperty("frameIdentifier")) {
-                    let error = $root.bayesmech.vision.PerceiverFrameIdentifier.verify(message.frameIdentifier);
+                    var error = $root.bayesmech.vision.PerceiverFrameIdentifier.verify(message.frameIdentifier);
                     if (error)
                         return "frameIdentifier." + error;
                 }
                 if (message.masks != null && message.hasOwnProperty("masks")) {
                     if (!Array.isArray(message.masks))
                         return "masks: array expected";
-                    for (let i = 0; i < message.masks.length; ++i) {
-                        let error = $root.bayesmech.vision.SegmentationResponse.SegmentationMask.verify(message.masks[i]);
+                    for (var i = 0; i < message.masks.length; ++i) {
+                        var error = $root.bayesmech.vision.SegmentationResponse.SegmentationMask.verify(message.masks[i]);
                         if (error)
                             return "masks." + error;
                     }
@@ -4231,7 +4256,7 @@ export const bayesmech = $root.bayesmech = (() => {
             SegmentationResponse.fromObject = function fromObject(object) {
                 if (object instanceof $root.bayesmech.vision.SegmentationResponse)
                     return object;
-                let message = new $root.bayesmech.vision.SegmentationResponse();
+                var message = new $root.bayesmech.vision.SegmentationResponse();
                 if (object.frameIdentifier != null) {
                     if (typeof object.frameIdentifier !== "object")
                         throw TypeError(".bayesmech.vision.SegmentationResponse.frameIdentifier: object expected");
@@ -4241,7 +4266,7 @@ export const bayesmech = $root.bayesmech = (() => {
                     if (!Array.isArray(object.masks))
                         throw TypeError(".bayesmech.vision.SegmentationResponse.masks: array expected");
                     message.masks = [];
-                    for (let i = 0; i < object.masks.length; ++i) {
+                    for (var i = 0; i < object.masks.length; ++i) {
                         if (typeof object.masks[i] !== "object")
                             throw TypeError(".bayesmech.vision.SegmentationResponse.masks: object expected");
                         message.masks[i] = $root.bayesmech.vision.SegmentationResponse.SegmentationMask.fromObject(object.masks[i]);
@@ -4290,7 +4315,7 @@ export const bayesmech = $root.bayesmech = (() => {
             SegmentationResponse.toObject = function toObject(message, options) {
                 if (!options)
                     options = {};
-                let object = {};
+                var object = {};
                 if (options.arrays || options.defaults)
                     object.masks = [];
                 if (options.defaults) {
@@ -4301,7 +4326,7 @@ export const bayesmech = $root.bayesmech = (() => {
                     object.frameIdentifier = $root.bayesmech.vision.PerceiverFrameIdentifier.toObject(message.frameIdentifier, options);
                 if (message.masks && message.masks.length) {
                     object.masks = [];
-                    for (let j = 0; j < message.masks.length; ++j)
+                    for (var j = 0; j < message.masks.length; ++j)
                         object.masks[j] = $root.bayesmech.vision.SegmentationResponse.SegmentationMask.toObject(message.masks[j], options);
                 }
                 if (message.triggerType != null && message.hasOwnProperty("triggerType"))
@@ -4345,6 +4370,7 @@ export const bayesmech = $root.bayesmech = (() => {
                  * @property {Uint8Array|null} [maskData] SegmentationMask maskData
                  * @property {number|null} [confidence] SegmentationMask confidence
                  * @property {number|null} [pixelCount] SegmentationMask pixelCount
+                 * @property {string|null} [label] SegmentationMask label
                  */
 
                 /**
@@ -4357,7 +4383,7 @@ export const bayesmech = $root.bayesmech = (() => {
                  */
                 function SegmentationMask(properties) {
                     if (properties)
-                        for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                        for (var keys = Object.keys(properties), i = 0; i < keys.length; ++i)
                             if (properties[keys[i]] != null)
                                 this[keys[i]] = properties[keys[i]];
                 }
@@ -4395,6 +4421,14 @@ export const bayesmech = $root.bayesmech = (() => {
                 SegmentationMask.prototype.pixelCount = 0;
 
                 /**
+                 * SegmentationMask label.
+                 * @member {string} label
+                 * @memberof bayesmech.vision.SegmentationResponse.SegmentationMask
+                 * @instance
+                 */
+                SegmentationMask.prototype.label = "";
+
+                /**
                  * Creates a new SegmentationMask instance using the specified properties.
                  * @function create
                  * @memberof bayesmech.vision.SegmentationResponse.SegmentationMask
@@ -4426,6 +4460,8 @@ export const bayesmech = $root.bayesmech = (() => {
                         writer.uint32(/* id 3, wireType 5 =*/29).float(message.confidence);
                     if (message.pixelCount != null && Object.hasOwnProperty.call(message, "pixelCount"))
                         writer.uint32(/* id 4, wireType 0 =*/32).uint32(message.pixelCount);
+                    if (message.label != null && Object.hasOwnProperty.call(message, "label"))
+                        writer.uint32(/* id 5, wireType 2 =*/42).string(message.label);
                     return writer;
                 };
 
@@ -4456,9 +4492,9 @@ export const bayesmech = $root.bayesmech = (() => {
                 SegmentationMask.decode = function decode(reader, length, error) {
                     if (!(reader instanceof $Reader))
                         reader = $Reader.create(reader);
-                    let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.SegmentationResponse.SegmentationMask();
+                    var end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.SegmentationResponse.SegmentationMask();
                     while (reader.pos < end) {
-                        let tag = reader.uint32();
+                        var tag = reader.uint32();
                         if (tag === error)
                             break;
                         switch (tag >>> 3) {
@@ -4476,6 +4512,10 @@ export const bayesmech = $root.bayesmech = (() => {
                             }
                         case 4: {
                                 message.pixelCount = reader.uint32();
+                                break;
+                            }
+                        case 5: {
+                                message.label = reader.string();
                                 break;
                             }
                         default:
@@ -4525,6 +4565,9 @@ export const bayesmech = $root.bayesmech = (() => {
                     if (message.pixelCount != null && message.hasOwnProperty("pixelCount"))
                         if (!$util.isInteger(message.pixelCount))
                             return "pixelCount: integer expected";
+                    if (message.label != null && message.hasOwnProperty("label"))
+                        if (!$util.isString(message.label))
+                            return "label: string expected";
                     return null;
                 };
 
@@ -4539,7 +4582,7 @@ export const bayesmech = $root.bayesmech = (() => {
                 SegmentationMask.fromObject = function fromObject(object) {
                     if (object instanceof $root.bayesmech.vision.SegmentationResponse.SegmentationMask)
                         return object;
-                    let message = new $root.bayesmech.vision.SegmentationResponse.SegmentationMask();
+                    var message = new $root.bayesmech.vision.SegmentationResponse.SegmentationMask();
                     if (object.objectId != null)
                         message.objectId = object.objectId >>> 0;
                     if (object.maskData != null)
@@ -4551,6 +4594,8 @@ export const bayesmech = $root.bayesmech = (() => {
                         message.confidence = Number(object.confidence);
                     if (object.pixelCount != null)
                         message.pixelCount = object.pixelCount >>> 0;
+                    if (object.label != null)
+                        message.label = String(object.label);
                     return message;
                 };
 
@@ -4566,7 +4611,7 @@ export const bayesmech = $root.bayesmech = (() => {
                 SegmentationMask.toObject = function toObject(message, options) {
                     if (!options)
                         options = {};
-                    let object = {};
+                    var object = {};
                     if (options.defaults) {
                         object.objectId = 0;
                         if (options.bytes === String)
@@ -4578,6 +4623,7 @@ export const bayesmech = $root.bayesmech = (() => {
                         }
                         object.confidence = 0;
                         object.pixelCount = 0;
+                        object.label = "";
                     }
                     if (message.objectId != null && message.hasOwnProperty("objectId"))
                         object.objectId = message.objectId;
@@ -4587,6 +4633,8 @@ export const bayesmech = $root.bayesmech = (() => {
                         object.confidence = options.json && !isFinite(message.confidence) ? String(message.confidence) : message.confidence;
                     if (message.pixelCount != null && message.hasOwnProperty("pixelCount"))
                         object.pixelCount = message.pixelCount;
+                    if (message.label != null && message.hasOwnProperty("label"))
+                        object.label = message.label;
                     return object;
                 };
 
@@ -4630,7 +4678,7 @@ export const bayesmech = $root.bayesmech = (() => {
              * @property {number} PROPAGATION=4 PROPAGATION value
              */
             SegmentationResponse.SegmentationTriggerType = (function() {
-                const valuesById = {}, values = Object.create(valuesById);
+                var valuesById = {}, values = Object.create(valuesById);
                 values[valuesById[0] = "UNKNOWN"] = 0;
                 values[valuesById[1] = "POINT"] = 1;
                 values[valuesById[2] = "TEXT"] = 2;
@@ -4662,7 +4710,7 @@ export const bayesmech = $root.bayesmech = (() => {
              */
             function SegmentationRequest(properties) {
                 if (properties)
-                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                    for (var keys = Object.keys(properties), i = 0; i < keys.length; ++i)
                         if (properties[keys[i]] != null)
                             this[keys[i]] = properties[keys[i]];
             }
@@ -4741,9 +4789,9 @@ export const bayesmech = $root.bayesmech = (() => {
             SegmentationRequest.decode = function decode(reader, length, error) {
                 if (!(reader instanceof $Reader))
                     reader = $Reader.create(reader);
-                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.SegmentationRequest();
+                var end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.SegmentationRequest();
                 while (reader.pos < end) {
-                    let tag = reader.uint32();
+                    var tag = reader.uint32();
                     if (tag === error)
                         break;
                     switch (tag >>> 3) {
@@ -4791,12 +4839,12 @@ export const bayesmech = $root.bayesmech = (() => {
                 if (typeof message !== "object" || message === null)
                     return "object expected";
                 if (message.frameIdentifier != null && message.hasOwnProperty("frameIdentifier")) {
-                    let error = $root.bayesmech.vision.PerceiverFrameIdentifier.verify(message.frameIdentifier);
+                    var error = $root.bayesmech.vision.PerceiverFrameIdentifier.verify(message.frameIdentifier);
                     if (error)
                         return "frameIdentifier." + error;
                 }
                 if (message.imageFrame != null && message.hasOwnProperty("imageFrame")) {
-                    let error = $root.bayesmech.vision.ImageFrame.verify(message.imageFrame);
+                    var error = $root.bayesmech.vision.ImageFrame.verify(message.imageFrame);
                     if (error)
                         return "imageFrame." + error;
                 }
@@ -4814,7 +4862,7 @@ export const bayesmech = $root.bayesmech = (() => {
             SegmentationRequest.fromObject = function fromObject(object) {
                 if (object instanceof $root.bayesmech.vision.SegmentationRequest)
                     return object;
-                let message = new $root.bayesmech.vision.SegmentationRequest();
+                var message = new $root.bayesmech.vision.SegmentationRequest();
                 if (object.frameIdentifier != null) {
                     if (typeof object.frameIdentifier !== "object")
                         throw TypeError(".bayesmech.vision.SegmentationRequest.frameIdentifier: object expected");
@@ -4840,7 +4888,7 @@ export const bayesmech = $root.bayesmech = (() => {
             SegmentationRequest.toObject = function toObject(message, options) {
                 if (!options)
                     options = {};
-                let object = {};
+                var object = {};
                 if (options.defaults) {
                     object.frameIdentifier = null;
                     object.imageFrame = null;
@@ -4881,239 +4929,10 @@ export const bayesmech = $root.bayesmech = (() => {
             return SegmentationRequest;
         })();
 
-        vision.SlamPosition = (function() {
-
-            /**
-             * Properties of a SlamPosition.
-             * @memberof bayesmech.vision
-             * @interface ISlamPosition
-             * @property {number|null} [x] SlamPosition x
-             * @property {number|null} [y] SlamPosition y
-             */
-
-            /**
-             * Constructs a new SlamPosition.
-             * @memberof bayesmech.vision
-             * @classdesc Represents a SlamPosition.
-             * @implements ISlamPosition
-             * @constructor
-             * @param {bayesmech.vision.ISlamPosition=} [properties] Properties to set
-             */
-            function SlamPosition(properties) {
-                if (properties)
-                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
-                        if (properties[keys[i]] != null)
-                            this[keys[i]] = properties[keys[i]];
-            }
-
-            /**
-             * SlamPosition x.
-             * @member {number} x
-             * @memberof bayesmech.vision.SlamPosition
-             * @instance
-             */
-            SlamPosition.prototype.x = 0;
-
-            /**
-             * SlamPosition y.
-             * @member {number} y
-             * @memberof bayesmech.vision.SlamPosition
-             * @instance
-             */
-            SlamPosition.prototype.y = 0;
-
-            /**
-             * Creates a new SlamPosition instance using the specified properties.
-             * @function create
-             * @memberof bayesmech.vision.SlamPosition
-             * @static
-             * @param {bayesmech.vision.ISlamPosition=} [properties] Properties to set
-             * @returns {bayesmech.vision.SlamPosition} SlamPosition instance
-             */
-            SlamPosition.create = function create(properties) {
-                return new SlamPosition(properties);
-            };
-
-            /**
-             * Encodes the specified SlamPosition message. Does not implicitly {@link bayesmech.vision.SlamPosition.verify|verify} messages.
-             * @function encode
-             * @memberof bayesmech.vision.SlamPosition
-             * @static
-             * @param {bayesmech.vision.ISlamPosition} message SlamPosition message or plain object to encode
-             * @param {$protobuf.Writer} [writer] Writer to encode to
-             * @returns {$protobuf.Writer} Writer
-             */
-            SlamPosition.encode = function encode(message, writer) {
-                if (!writer)
-                    writer = $Writer.create();
-                if (message.x != null && Object.hasOwnProperty.call(message, "x"))
-                    writer.uint32(/* id 1, wireType 5 =*/13).float(message.x);
-                if (message.y != null && Object.hasOwnProperty.call(message, "y"))
-                    writer.uint32(/* id 2, wireType 5 =*/21).float(message.y);
-                return writer;
-            };
-
-            /**
-             * Encodes the specified SlamPosition message, length delimited. Does not implicitly {@link bayesmech.vision.SlamPosition.verify|verify} messages.
-             * @function encodeDelimited
-             * @memberof bayesmech.vision.SlamPosition
-             * @static
-             * @param {bayesmech.vision.ISlamPosition} message SlamPosition message or plain object to encode
-             * @param {$protobuf.Writer} [writer] Writer to encode to
-             * @returns {$protobuf.Writer} Writer
-             */
-            SlamPosition.encodeDelimited = function encodeDelimited(message, writer) {
-                return this.encode(message, writer).ldelim();
-            };
-
-            /**
-             * Decodes a SlamPosition message from the specified reader or buffer.
-             * @function decode
-             * @memberof bayesmech.vision.SlamPosition
-             * @static
-             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
-             * @param {number} [length] Message length if known beforehand
-             * @returns {bayesmech.vision.SlamPosition} SlamPosition
-             * @throws {Error} If the payload is not a reader or valid buffer
-             * @throws {$protobuf.util.ProtocolError} If required fields are missing
-             */
-            SlamPosition.decode = function decode(reader, length, error) {
-                if (!(reader instanceof $Reader))
-                    reader = $Reader.create(reader);
-                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.SlamPosition();
-                while (reader.pos < end) {
-                    let tag = reader.uint32();
-                    if (tag === error)
-                        break;
-                    switch (tag >>> 3) {
-                    case 1: {
-                            message.x = reader.float();
-                            break;
-                        }
-                    case 2: {
-                            message.y = reader.float();
-                            break;
-                        }
-                    default:
-                        reader.skipType(tag & 7);
-                        break;
-                    }
-                }
-                return message;
-            };
-
-            /**
-             * Decodes a SlamPosition message from the specified reader or buffer, length delimited.
-             * @function decodeDelimited
-             * @memberof bayesmech.vision.SlamPosition
-             * @static
-             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
-             * @returns {bayesmech.vision.SlamPosition} SlamPosition
-             * @throws {Error} If the payload is not a reader or valid buffer
-             * @throws {$protobuf.util.ProtocolError} If required fields are missing
-             */
-            SlamPosition.decodeDelimited = function decodeDelimited(reader) {
-                if (!(reader instanceof $Reader))
-                    reader = new $Reader(reader);
-                return this.decode(reader, reader.uint32());
-            };
-
-            /**
-             * Verifies a SlamPosition message.
-             * @function verify
-             * @memberof bayesmech.vision.SlamPosition
-             * @static
-             * @param {Object.<string,*>} message Plain object to verify
-             * @returns {string|null} `null` if valid, otherwise the reason why it is not
-             */
-            SlamPosition.verify = function verify(message) {
-                if (typeof message !== "object" || message === null)
-                    return "object expected";
-                if (message.x != null && message.hasOwnProperty("x"))
-                    if (typeof message.x !== "number")
-                        return "x: number expected";
-                if (message.y != null && message.hasOwnProperty("y"))
-                    if (typeof message.y !== "number")
-                        return "y: number expected";
-                return null;
-            };
-
-            /**
-             * Creates a SlamPosition message from a plain object. Also converts values to their respective internal types.
-             * @function fromObject
-             * @memberof bayesmech.vision.SlamPosition
-             * @static
-             * @param {Object.<string,*>} object Plain object
-             * @returns {bayesmech.vision.SlamPosition} SlamPosition
-             */
-            SlamPosition.fromObject = function fromObject(object) {
-                if (object instanceof $root.bayesmech.vision.SlamPosition)
-                    return object;
-                let message = new $root.bayesmech.vision.SlamPosition();
-                if (object.x != null)
-                    message.x = Number(object.x);
-                if (object.y != null)
-                    message.y = Number(object.y);
-                return message;
-            };
-
-            /**
-             * Creates a plain object from a SlamPosition message. Also converts values to other types if specified.
-             * @function toObject
-             * @memberof bayesmech.vision.SlamPosition
-             * @static
-             * @param {bayesmech.vision.SlamPosition} message SlamPosition
-             * @param {$protobuf.IConversionOptions} [options] Conversion options
-             * @returns {Object.<string,*>} Plain object
-             */
-            SlamPosition.toObject = function toObject(message, options) {
-                if (!options)
-                    options = {};
-                let object = {};
-                if (options.defaults) {
-                    object.x = 0;
-                    object.y = 0;
-                }
-                if (message.x != null && message.hasOwnProperty("x"))
-                    object.x = options.json && !isFinite(message.x) ? String(message.x) : message.x;
-                if (message.y != null && message.hasOwnProperty("y"))
-                    object.y = options.json && !isFinite(message.y) ? String(message.y) : message.y;
-                return object;
-            };
-
-            /**
-             * Converts this SlamPosition to JSON.
-             * @function toJSON
-             * @memberof bayesmech.vision.SlamPosition
-             * @instance
-             * @returns {Object.<string,*>} JSON object
-             */
-            SlamPosition.prototype.toJSON = function toJSON() {
-                return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
-            };
-
-            /**
-             * Gets the default type url for SlamPosition
-             * @function getTypeUrl
-             * @memberof bayesmech.vision.SlamPosition
-             * @static
-             * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
-             * @returns {string} The default type url
-             */
-            SlamPosition.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
-                if (typeUrlPrefix === undefined) {
-                    typeUrlPrefix = "type.googleapis.com";
-                }
-                return typeUrlPrefix + "/bayesmech.vision.SlamPosition";
-            };
-
-            return SlamPosition;
-        })();
-
         return vision;
     })();
 
     return bayesmech;
 })();
 
-export { $root as default };
+module.exports = $root;

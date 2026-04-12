@@ -14,6 +14,7 @@ message SegmentationResponse {
     bytes mask_data = 2;            // RGBA PNG mask, base64 encoded
     float confidence = 3;           // Segmentation confidence (0.0-1.0)
     uint32 pixel_count = 4;         // Number of pixels in mask
+    string label = 5;               // Text concept label (SAM3 only, e.g. "chair")
   }
 
   enum SegmentationTriggerType {
