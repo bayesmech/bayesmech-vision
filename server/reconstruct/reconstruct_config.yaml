@@ -72,10 +72,10 @@ gaussian_splatting:
   data_factor: 1
 
   # Training iterations (7000 is fast preview, 30000 is full quality)
-  max_steps: 30000
+  max_steps: 15000
 
-  # MCMC caps the number of Gaussians — increase freely on large GPUs
-  mcmc_max_gaussians: 6000000
+  # MCMC caps the number of Gaussians — 22 GiB GPU fits ~2M comfortably with rendering
+  mcmc_max_gaussians: 2000000
 
   # Spherical harmonics degree (0=colour only, 3=full view-dependent colour)
   sh_degree: 3

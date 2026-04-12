@@ -156,6 +156,12 @@ def main() -> None:
     ply_path = vis_path.with_suffix("").with_suffix(".splat.ply")  # noqa: F841 (may differ from above)
     if args.render_video and ply_path.exists():
         log.info("=== Step 4b: Rendering video")
+        # Free training VRAM (optimizer states, gradients) before rendering
+        import gc
+        import torch
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
         video_path = vis_path.with_suffix("").with_suffix(".splat.mp4")
         render_video(workspace, ply_path, video_path, cfg)
         log.info("Saved render video to %s", video_path)
