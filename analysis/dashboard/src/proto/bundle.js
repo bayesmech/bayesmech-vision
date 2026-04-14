@@ -1,22 +1,20 @@
 /*eslint-disable block-scoped-var, id-length, no-control-regex, no-magic-numbers, no-prototype-builtins, no-redeclare, no-shadow, no-var, sort-vars*/
-"use strict";
-
-var $protobuf = require("protobufjs/minimal");
+import * as $protobuf from "protobufjs/minimal";
 
 // Common aliases
-var $Reader = $protobuf.Reader, $Writer = $protobuf.Writer, $util = $protobuf.util;
+const $Reader = $protobuf.Reader, $Writer = $protobuf.Writer, $util = $protobuf.util;
 
 // Exported root namespace
-var $root = $protobuf.roots["default"] || ($protobuf.roots["default"] = {});
+const $root = $protobuf.roots["default"] || ($protobuf.roots["default"] = {});
 
-$root.bayesmech = (function() {
+export const bayesmech = $root.bayesmech = (() => {
 
     /**
      * Namespace bayesmech.
      * @exports bayesmech
      * @namespace
      */
-    var bayesmech = {};
+    const bayesmech = {};
 
     bayesmech.vision = (function() {
 
@@ -25,7 +23,7 @@ $root.bayesmech = (function() {
          * @memberof bayesmech
          * @namespace
          */
-        var vision = {};
+        const vision = {};
 
         vision.Pose = (function() {
 
@@ -47,7 +45,7 @@ $root.bayesmech = (function() {
              */
             function Pose(properties) {
                 if (properties)
-                    for (var keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
                         if (properties[keys[i]] != null)
                             this[keys[i]] = properties[keys[i]];
             }
@@ -126,9 +124,9 @@ $root.bayesmech = (function() {
             Pose.decode = function decode(reader, length, error) {
                 if (!(reader instanceof $Reader))
                     reader = $Reader.create(reader);
-                var end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.Pose();
+                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.Pose();
                 while (reader.pos < end) {
-                    var tag = reader.uint32();
+                    let tag = reader.uint32();
                     if (tag === error)
                         break;
                     switch (tag >>> 3) {
@@ -176,12 +174,12 @@ $root.bayesmech = (function() {
                 if (typeof message !== "object" || message === null)
                     return "object expected";
                 if (message.position != null && message.hasOwnProperty("position")) {
-                    var error = $root.bayesmech.vision.Vector3.verify(message.position);
+                    let error = $root.bayesmech.vision.Vector3.verify(message.position);
                     if (error)
                         return "position." + error;
                 }
                 if (message.rotation != null && message.hasOwnProperty("rotation")) {
-                    var error = $root.bayesmech.vision.Quaternion.verify(message.rotation);
+                    let error = $root.bayesmech.vision.Quaternion.verify(message.rotation);
                     if (error)
                         return "rotation." + error;
                 }
@@ -199,7 +197,7 @@ $root.bayesmech = (function() {
             Pose.fromObject = function fromObject(object) {
                 if (object instanceof $root.bayesmech.vision.Pose)
                     return object;
-                var message = new $root.bayesmech.vision.Pose();
+                let message = new $root.bayesmech.vision.Pose();
                 if (object.position != null) {
                     if (typeof object.position !== "object")
                         throw TypeError(".bayesmech.vision.Pose.position: object expected");
@@ -225,7 +223,7 @@ $root.bayesmech = (function() {
             Pose.toObject = function toObject(message, options) {
                 if (!options)
                     options = {};
-                var object = {};
+                let object = {};
                 if (options.defaults) {
                     object.position = null;
                     object.rotation = null;
@@ -287,7 +285,7 @@ $root.bayesmech = (function() {
              */
             function Vector3(properties) {
                 if (properties)
-                    for (var keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
                         if (properties[keys[i]] != null)
                             this[keys[i]] = properties[keys[i]];
             }
@@ -376,9 +374,9 @@ $root.bayesmech = (function() {
             Vector3.decode = function decode(reader, length, error) {
                 if (!(reader instanceof $Reader))
                     reader = $Reader.create(reader);
-                var end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.Vector3();
+                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.Vector3();
                 while (reader.pos < end) {
-                    var tag = reader.uint32();
+                    let tag = reader.uint32();
                     if (tag === error)
                         break;
                     switch (tag >>> 3) {
@@ -452,7 +450,7 @@ $root.bayesmech = (function() {
             Vector3.fromObject = function fromObject(object) {
                 if (object instanceof $root.bayesmech.vision.Vector3)
                     return object;
-                var message = new $root.bayesmech.vision.Vector3();
+                let message = new $root.bayesmech.vision.Vector3();
                 if (object.x != null)
                     message.x = Number(object.x);
                 if (object.y != null)
@@ -474,7 +472,7 @@ $root.bayesmech = (function() {
             Vector3.toObject = function toObject(message, options) {
                 if (!options)
                     options = {};
-                var object = {};
+                let object = {};
                 if (options.defaults) {
                     object.x = 0;
                     object.y = 0;
@@ -540,7 +538,7 @@ $root.bayesmech = (function() {
              */
             function Quaternion(properties) {
                 if (properties)
-                    for (var keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
                         if (properties[keys[i]] != null)
                             this[keys[i]] = properties[keys[i]];
             }
@@ -639,9 +637,9 @@ $root.bayesmech = (function() {
             Quaternion.decode = function decode(reader, length, error) {
                 if (!(reader instanceof $Reader))
                     reader = $Reader.create(reader);
-                var end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.Quaternion();
+                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.Quaternion();
                 while (reader.pos < end) {
-                    var tag = reader.uint32();
+                    let tag = reader.uint32();
                     if (tag === error)
                         break;
                     switch (tag >>> 3) {
@@ -722,7 +720,7 @@ $root.bayesmech = (function() {
             Quaternion.fromObject = function fromObject(object) {
                 if (object instanceof $root.bayesmech.vision.Quaternion)
                     return object;
-                var message = new $root.bayesmech.vision.Quaternion();
+                let message = new $root.bayesmech.vision.Quaternion();
                 if (object.x != null)
                     message.x = Number(object.x);
                 if (object.y != null)
@@ -746,7 +744,7 @@ $root.bayesmech = (function() {
             Quaternion.toObject = function toObject(message, options) {
                 if (!options)
                     options = {};
-                var object = {};
+                let object = {};
                 if (options.defaults) {
                     object.x = 0;
                     object.y = 0;
@@ -820,7 +818,7 @@ $root.bayesmech = (function() {
              */
             function PerceiverDataFrame(properties) {
                 if (properties)
-                    for (var keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
                         if (properties[keys[i]] != null)
                             this[keys[i]] = properties[keys[i]];
             }
@@ -969,9 +967,9 @@ $root.bayesmech = (function() {
             PerceiverDataFrame.decode = function decode(reader, length, error) {
                 if (!(reader instanceof $Reader))
                     reader = $Reader.create(reader);
-                var end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.PerceiverDataFrame();
+                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.PerceiverDataFrame();
                 while (reader.pos < end) {
-                    var tag = reader.uint32();
+                    let tag = reader.uint32();
                     if (tag === error)
                         break;
                     switch (tag >>> 3) {
@@ -1047,42 +1045,42 @@ $root.bayesmech = (function() {
                 if (typeof message !== "object" || message === null)
                     return "object expected";
                 if (message.frameIdentifier != null && message.hasOwnProperty("frameIdentifier")) {
-                    var error = $root.bayesmech.vision.PerceiverFrameIdentifier.verify(message.frameIdentifier);
+                    let error = $root.bayesmech.vision.PerceiverFrameIdentifier.verify(message.frameIdentifier);
                     if (error)
                         return "frameIdentifier." + error;
                 }
                 if (message.cameraPose != null && message.hasOwnProperty("cameraPose")) {
-                    var error = $root.bayesmech.vision.Pose.verify(message.cameraPose);
+                    let error = $root.bayesmech.vision.Pose.verify(message.cameraPose);
                     if (error)
                         return "cameraPose." + error;
                 }
                 if (message.rgbFrame != null && message.hasOwnProperty("rgbFrame")) {
-                    var error = $root.bayesmech.vision.ImageFrame.verify(message.rgbFrame);
+                    let error = $root.bayesmech.vision.ImageFrame.verify(message.rgbFrame);
                     if (error)
                         return "rgbFrame." + error;
                 }
                 if (message.depthFrame != null && message.hasOwnProperty("depthFrame")) {
-                    var error = $root.bayesmech.vision.DepthFrame.verify(message.depthFrame);
+                    let error = $root.bayesmech.vision.DepthFrame.verify(message.depthFrame);
                     if (error)
                         return "depthFrame." + error;
                 }
                 if (message.imuData != null && message.hasOwnProperty("imuData")) {
-                    var error = $root.bayesmech.vision.ImuData.verify(message.imuData);
+                    let error = $root.bayesmech.vision.ImuData.verify(message.imuData);
                     if (error)
                         return "imuData." + error;
                 }
                 if (message.cameraIntrinsics != null && message.hasOwnProperty("cameraIntrinsics")) {
-                    var error = $root.bayesmech.vision.CameraIntrinsics.verify(message.cameraIntrinsics);
+                    let error = $root.bayesmech.vision.CameraIntrinsics.verify(message.cameraIntrinsics);
                     if (error)
                         return "cameraIntrinsics." + error;
                 }
                 if (message.inferredGeometry != null && message.hasOwnProperty("inferredGeometry")) {
-                    var error = $root.bayesmech.vision.InferredGeometry.verify(message.inferredGeometry);
+                    let error = $root.bayesmech.vision.InferredGeometry.verify(message.inferredGeometry);
                     if (error)
                         return "inferredGeometry." + error;
                 }
                 if (message.gpsLocation != null && message.hasOwnProperty("gpsLocation")) {
-                    var error = $root.bayesmech.vision.GpsLocation.verify(message.gpsLocation);
+                    let error = $root.bayesmech.vision.GpsLocation.verify(message.gpsLocation);
                     if (error)
                         return "gpsLocation." + error;
                 }
@@ -1103,7 +1101,7 @@ $root.bayesmech = (function() {
             PerceiverDataFrame.fromObject = function fromObject(object) {
                 if (object instanceof $root.bayesmech.vision.PerceiverDataFrame)
                     return object;
-                var message = new $root.bayesmech.vision.PerceiverDataFrame();
+                let message = new $root.bayesmech.vision.PerceiverDataFrame();
                 if (object.frameIdentifier != null) {
                     if (typeof object.frameIdentifier !== "object")
                         throw TypeError(".bayesmech.vision.PerceiverDataFrame.frameIdentifier: object expected");
@@ -1161,7 +1159,7 @@ $root.bayesmech = (function() {
             PerceiverDataFrame.toObject = function toObject(message, options) {
                 if (!options)
                     options = {};
-                var object = {};
+                let object = {};
                 if (options.defaults) {
                     object.frameIdentifier = null;
                     object.cameraPose = null;
@@ -1244,7 +1242,7 @@ $root.bayesmech = (function() {
              */
             function PerceiverFrameIdentifier(properties) {
                 if (properties)
-                    for (var keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
                         if (properties[keys[i]] != null)
                             this[keys[i]] = properties[keys[i]];
             }
@@ -1333,9 +1331,9 @@ $root.bayesmech = (function() {
             PerceiverFrameIdentifier.decode = function decode(reader, length, error) {
                 if (!(reader instanceof $Reader))
                     reader = $Reader.create(reader);
-                var end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.PerceiverFrameIdentifier();
+                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.PerceiverFrameIdentifier();
                 while (reader.pos < end) {
-                    var tag = reader.uint32();
+                    let tag = reader.uint32();
                     if (tag === error)
                         break;
                     switch (tag >>> 3) {
@@ -1409,7 +1407,7 @@ $root.bayesmech = (function() {
             PerceiverFrameIdentifier.fromObject = function fromObject(object) {
                 if (object instanceof $root.bayesmech.vision.PerceiverFrameIdentifier)
                     return object;
-                var message = new $root.bayesmech.vision.PerceiverFrameIdentifier();
+                let message = new $root.bayesmech.vision.PerceiverFrameIdentifier();
                 if (object.timestampNs != null)
                     if ($util.Long)
                         (message.timestampNs = $util.Long.fromValue(object.timestampNs)).unsigned = false;
@@ -1438,10 +1436,10 @@ $root.bayesmech = (function() {
             PerceiverFrameIdentifier.toObject = function toObject(message, options) {
                 if (!options)
                     options = {};
-                var object = {};
+                let object = {};
                 if (options.defaults) {
                     if ($util.Long) {
-                        var long = new $util.Long(0, 0, false);
+                        let long = new $util.Long(0, 0, false);
                         object.timestampNs = options.longs === String ? long.toString() : options.longs === Number ? long.toNumber() : long;
                     } else
                         object.timestampNs = options.longs === String ? "0" : 0;
@@ -1515,7 +1513,7 @@ $root.bayesmech = (function() {
              */
             function CameraIntrinsics(properties) {
                 if (properties)
-                    for (var keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
                         if (properties[keys[i]] != null)
                             this[keys[i]] = properties[keys[i]];
             }
@@ -1654,9 +1652,9 @@ $root.bayesmech = (function() {
             CameraIntrinsics.decode = function decode(reader, length, error) {
                 if (!(reader instanceof $Reader))
                     reader = $Reader.create(reader);
-                var end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.CameraIntrinsics();
+                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.CameraIntrinsics();
                 while (reader.pos < end) {
-                    var tag = reader.uint32();
+                    let tag = reader.uint32();
                     if (tag === error)
                         break;
                     switch (tag >>> 3) {
@@ -1765,7 +1763,7 @@ $root.bayesmech = (function() {
             CameraIntrinsics.fromObject = function fromObject(object) {
                 if (object instanceof $root.bayesmech.vision.CameraIntrinsics)
                     return object;
-                var message = new $root.bayesmech.vision.CameraIntrinsics();
+                let message = new $root.bayesmech.vision.CameraIntrinsics();
                 if (object.fx != null)
                     message.fx = Number(object.fx);
                 if (object.fy != null)
@@ -1797,7 +1795,7 @@ $root.bayesmech = (function() {
             CameraIntrinsics.toObject = function toObject(message, options) {
                 if (!options)
                     options = {};
-                var object = {};
+                let object = {};
                 if (options.defaults) {
                     object.fx = 0;
                     object.fy = 0;
@@ -1877,7 +1875,7 @@ $root.bayesmech = (function() {
              */
             function ImageFrame(properties) {
                 if (properties)
-                    for (var keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
                         if (properties[keys[i]] != null)
                             this[keys[i]] = properties[keys[i]];
             }
@@ -1966,9 +1964,9 @@ $root.bayesmech = (function() {
             ImageFrame.decode = function decode(reader, length, error) {
                 if (!(reader instanceof $Reader))
                     reader = $Reader.create(reader);
-                var end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.ImageFrame();
+                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.ImageFrame();
                 while (reader.pos < end) {
-                    var tag = reader.uint32();
+                    let tag = reader.uint32();
                     if (tag === error)
                         break;
                     switch (tag >>> 3) {
@@ -2051,7 +2049,7 @@ $root.bayesmech = (function() {
             ImageFrame.fromObject = function fromObject(object) {
                 if (object instanceof $root.bayesmech.vision.ImageFrame)
                     return object;
-                var message = new $root.bayesmech.vision.ImageFrame();
+                let message = new $root.bayesmech.vision.ImageFrame();
                 if (object.data != null)
                     if (typeof object.data === "string")
                         $util.base64.decode(object.data, message.data = $util.newBuffer($util.base64.length(object.data)), 0);
@@ -2106,7 +2104,7 @@ $root.bayesmech = (function() {
             ImageFrame.toObject = function toObject(message, options) {
                 if (!options)
                     options = {};
-                var object = {};
+                let object = {};
                 if (options.defaults) {
                     if (options.bytes === String)
                         object.data = "";
@@ -2165,7 +2163,7 @@ $root.bayesmech = (function() {
              * @property {number} GRAYSCALE=5 GRAYSCALE value
              */
             ImageFrame.ImageFormat = (function() {
-                var valuesById = {}, values = Object.create(valuesById);
+                const valuesById = {}, values = Object.create(valuesById);
                 values[valuesById[0] = "UNKNOWN"] = 0;
                 values[valuesById[1] = "BITMAP_RGB"] = 1;
                 values[valuesById[2] = "BITMAP_RGBA"] = 2;
@@ -2199,7 +2197,7 @@ $root.bayesmech = (function() {
              */
             function DepthFrame(properties) {
                 if (properties)
-                    for (var keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
                         if (properties[keys[i]] != null)
                             this[keys[i]] = properties[keys[i]];
             }
@@ -2288,9 +2286,9 @@ $root.bayesmech = (function() {
             DepthFrame.decode = function decode(reader, length, error) {
                 if (!(reader instanceof $Reader))
                     reader = $Reader.create(reader);
-                var end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.DepthFrame();
+                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.DepthFrame();
                 while (reader.pos < end) {
-                    var tag = reader.uint32();
+                    let tag = reader.uint32();
                     if (tag === error)
                         break;
                     switch (tag >>> 3) {
@@ -2370,7 +2368,7 @@ $root.bayesmech = (function() {
             DepthFrame.fromObject = function fromObject(object) {
                 if (object instanceof $root.bayesmech.vision.DepthFrame)
                     return object;
-                var message = new $root.bayesmech.vision.DepthFrame();
+                let message = new $root.bayesmech.vision.DepthFrame();
                 if (object.data != null)
                     if (typeof object.data === "string")
                         $util.base64.decode(object.data, message.data = $util.newBuffer($util.base64.length(object.data)), 0);
@@ -2416,7 +2414,7 @@ $root.bayesmech = (function() {
             DepthFrame.toObject = function toObject(message, options) {
                 if (!options)
                     options = {};
-                var object = {};
+                let object = {};
                 if (options.defaults) {
                     if (options.bytes === String)
                         object.data = "";
@@ -2478,7 +2476,7 @@ $root.bayesmech = (function() {
              * @property {number} FLOAT32_METERS=2 FLOAT32_METERS value
              */
             DepthFrame.DepthFormat = (function() {
-                var valuesById = {}, values = Object.create(valuesById);
+                const valuesById = {}, values = Object.create(valuesById);
                 values[valuesById[0] = "DEPTH_FORMAT_UNKNOWN"] = 0;
                 values[valuesById[1] = "UINT16_MILLIMETERS"] = 1;
                 values[valuesById[2] = "FLOAT32_METERS"] = 2;
@@ -2510,7 +2508,7 @@ $root.bayesmech = (function() {
              */
             function ImuData(properties) {
                 if (properties)
-                    for (var keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
                         if (properties[keys[i]] != null)
                             this[keys[i]] = properties[keys[i]];
             }
@@ -2609,9 +2607,9 @@ $root.bayesmech = (function() {
             ImuData.decode = function decode(reader, length, error) {
                 if (!(reader instanceof $Reader))
                     reader = $Reader.create(reader);
-                var end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.ImuData();
+                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.ImuData();
                 while (reader.pos < end) {
-                    var tag = reader.uint32();
+                    let tag = reader.uint32();
                     if (tag === error)
                         break;
                     switch (tag >>> 3) {
@@ -2667,22 +2665,22 @@ $root.bayesmech = (function() {
                 if (typeof message !== "object" || message === null)
                     return "object expected";
                 if (message.angularVelocity != null && message.hasOwnProperty("angularVelocity")) {
-                    var error = $root.bayesmech.vision.Vector3.verify(message.angularVelocity);
+                    let error = $root.bayesmech.vision.Vector3.verify(message.angularVelocity);
                     if (error)
                         return "angularVelocity." + error;
                 }
                 if (message.linearAcceleration != null && message.hasOwnProperty("linearAcceleration")) {
-                    var error = $root.bayesmech.vision.Vector3.verify(message.linearAcceleration);
+                    let error = $root.bayesmech.vision.Vector3.verify(message.linearAcceleration);
                     if (error)
                         return "linearAcceleration." + error;
                 }
                 if (message.gravity != null && message.hasOwnProperty("gravity")) {
-                    var error = $root.bayesmech.vision.Vector3.verify(message.gravity);
+                    let error = $root.bayesmech.vision.Vector3.verify(message.gravity);
                     if (error)
                         return "gravity." + error;
                 }
                 if (message.magneticField != null && message.hasOwnProperty("magneticField")) {
-                    var error = $root.bayesmech.vision.Vector3.verify(message.magneticField);
+                    let error = $root.bayesmech.vision.Vector3.verify(message.magneticField);
                     if (error)
                         return "magneticField." + error;
                 }
@@ -2700,7 +2698,7 @@ $root.bayesmech = (function() {
             ImuData.fromObject = function fromObject(object) {
                 if (object instanceof $root.bayesmech.vision.ImuData)
                     return object;
-                var message = new $root.bayesmech.vision.ImuData();
+                let message = new $root.bayesmech.vision.ImuData();
                 if (object.angularVelocity != null) {
                     if (typeof object.angularVelocity !== "object")
                         throw TypeError(".bayesmech.vision.ImuData.angularVelocity: object expected");
@@ -2736,7 +2734,7 @@ $root.bayesmech = (function() {
             ImuData.toObject = function toObject(message, options) {
                 if (!options)
                     options = {};
-                var object = {};
+                let object = {};
                 if (options.defaults) {
                     object.angularVelocity = null;
                     object.linearAcceleration = null;
@@ -2808,7 +2806,7 @@ $root.bayesmech = (function() {
              */
             function GpsLocation(properties) {
                 if (properties)
-                    for (var keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
                         if (properties[keys[i]] != null)
                             this[keys[i]] = properties[keys[i]];
             }
@@ -2937,9 +2935,9 @@ $root.bayesmech = (function() {
             GpsLocation.decode = function decode(reader, length, error) {
                 if (!(reader instanceof $Reader))
                     reader = $Reader.create(reader);
-                var end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.GpsLocation();
+                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.GpsLocation();
                 while (reader.pos < end) {
-                    var tag = reader.uint32();
+                    let tag = reader.uint32();
                     if (tag === error)
                         break;
                     switch (tag >>> 3) {
@@ -3041,7 +3039,7 @@ $root.bayesmech = (function() {
             GpsLocation.fromObject = function fromObject(object) {
                 if (object instanceof $root.bayesmech.vision.GpsLocation)
                     return object;
-                var message = new $root.bayesmech.vision.GpsLocation();
+                let message = new $root.bayesmech.vision.GpsLocation();
                 if (object.latitude != null)
                     message.latitude = Number(object.latitude);
                 if (object.longitude != null)
@@ -3078,7 +3076,7 @@ $root.bayesmech = (function() {
             GpsLocation.toObject = function toObject(message, options) {
                 if (!options)
                     options = {};
-                var object = {};
+                let object = {};
                 if (options.defaults) {
                     object.latitude = 0;
                     object.longitude = 0;
@@ -3087,7 +3085,7 @@ $root.bayesmech = (function() {
                     object.bearing = 0;
                     object.speed = 0;
                     if ($util.Long) {
-                        var long = new $util.Long(0, 0, false);
+                        let long = new $util.Long(0, 0, false);
                         object.timestampMs = options.longs === String ? long.toString() : options.longs === Number ? long.toNumber() : long;
                     } else
                         object.timestampMs = options.longs === String ? "0" : 0;
@@ -3163,7 +3161,7 @@ $root.bayesmech = (function() {
                 this.planes = [];
                 this.pointCloud = [];
                 if (properties)
-                    for (var keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
                         if (properties[keys[i]] != null)
                             this[keys[i]] = properties[keys[i]];
             }
@@ -3209,10 +3207,10 @@ $root.bayesmech = (function() {
                 if (!writer)
                     writer = $Writer.create();
                 if (message.planes != null && message.planes.length)
-                    for (var i = 0; i < message.planes.length; ++i)
+                    for (let i = 0; i < message.planes.length; ++i)
                         $root.bayesmech.vision.InferredGeometry.Plane.encode(message.planes[i], writer.uint32(/* id 1, wireType 2 =*/10).fork()).ldelim();
                 if (message.pointCloud != null && message.pointCloud.length)
-                    for (var i = 0; i < message.pointCloud.length; ++i)
+                    for (let i = 0; i < message.pointCloud.length; ++i)
                         $root.bayesmech.vision.InferredGeometry.TrackedPoint.encode(message.pointCloud[i], writer.uint32(/* id 2, wireType 2 =*/18).fork()).ldelim();
                 return writer;
             };
@@ -3244,9 +3242,9 @@ $root.bayesmech = (function() {
             InferredGeometry.decode = function decode(reader, length, error) {
                 if (!(reader instanceof $Reader))
                     reader = $Reader.create(reader);
-                var end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.InferredGeometry();
+                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.InferredGeometry();
                 while (reader.pos < end) {
-                    var tag = reader.uint32();
+                    let tag = reader.uint32();
                     if (tag === error)
                         break;
                     switch (tag >>> 3) {
@@ -3300,8 +3298,8 @@ $root.bayesmech = (function() {
                 if (message.planes != null && message.hasOwnProperty("planes")) {
                     if (!Array.isArray(message.planes))
                         return "planes: array expected";
-                    for (var i = 0; i < message.planes.length; ++i) {
-                        var error = $root.bayesmech.vision.InferredGeometry.Plane.verify(message.planes[i]);
+                    for (let i = 0; i < message.planes.length; ++i) {
+                        let error = $root.bayesmech.vision.InferredGeometry.Plane.verify(message.planes[i]);
                         if (error)
                             return "planes." + error;
                     }
@@ -3309,8 +3307,8 @@ $root.bayesmech = (function() {
                 if (message.pointCloud != null && message.hasOwnProperty("pointCloud")) {
                     if (!Array.isArray(message.pointCloud))
                         return "pointCloud: array expected";
-                    for (var i = 0; i < message.pointCloud.length; ++i) {
-                        var error = $root.bayesmech.vision.InferredGeometry.TrackedPoint.verify(message.pointCloud[i]);
+                    for (let i = 0; i < message.pointCloud.length; ++i) {
+                        let error = $root.bayesmech.vision.InferredGeometry.TrackedPoint.verify(message.pointCloud[i]);
                         if (error)
                             return "pointCloud." + error;
                     }
@@ -3329,12 +3327,12 @@ $root.bayesmech = (function() {
             InferredGeometry.fromObject = function fromObject(object) {
                 if (object instanceof $root.bayesmech.vision.InferredGeometry)
                     return object;
-                var message = new $root.bayesmech.vision.InferredGeometry();
+                let message = new $root.bayesmech.vision.InferredGeometry();
                 if (object.planes) {
                     if (!Array.isArray(object.planes))
                         throw TypeError(".bayesmech.vision.InferredGeometry.planes: array expected");
                     message.planes = [];
-                    for (var i = 0; i < object.planes.length; ++i) {
+                    for (let i = 0; i < object.planes.length; ++i) {
                         if (typeof object.planes[i] !== "object")
                             throw TypeError(".bayesmech.vision.InferredGeometry.planes: object expected");
                         message.planes[i] = $root.bayesmech.vision.InferredGeometry.Plane.fromObject(object.planes[i]);
@@ -3344,7 +3342,7 @@ $root.bayesmech = (function() {
                     if (!Array.isArray(object.pointCloud))
                         throw TypeError(".bayesmech.vision.InferredGeometry.pointCloud: array expected");
                     message.pointCloud = [];
-                    for (var i = 0; i < object.pointCloud.length; ++i) {
+                    for (let i = 0; i < object.pointCloud.length; ++i) {
                         if (typeof object.pointCloud[i] !== "object")
                             throw TypeError(".bayesmech.vision.InferredGeometry.pointCloud: object expected");
                         message.pointCloud[i] = $root.bayesmech.vision.InferredGeometry.TrackedPoint.fromObject(object.pointCloud[i]);
@@ -3365,19 +3363,19 @@ $root.bayesmech = (function() {
             InferredGeometry.toObject = function toObject(message, options) {
                 if (!options)
                     options = {};
-                var object = {};
+                let object = {};
                 if (options.arrays || options.defaults) {
                     object.planes = [];
                     object.pointCloud = [];
                 }
                 if (message.planes && message.planes.length) {
                     object.planes = [];
-                    for (var j = 0; j < message.planes.length; ++j)
+                    for (let j = 0; j < message.planes.length; ++j)
                         object.planes[j] = $root.bayesmech.vision.InferredGeometry.Plane.toObject(message.planes[j], options);
                 }
                 if (message.pointCloud && message.pointCloud.length) {
                     object.pointCloud = [];
-                    for (var j = 0; j < message.pointCloud.length; ++j)
+                    for (let j = 0; j < message.pointCloud.length; ++j)
                         object.pointCloud[j] = $root.bayesmech.vision.InferredGeometry.TrackedPoint.toObject(message.pointCloud[j], options);
                 }
                 return object;
@@ -3434,7 +3432,7 @@ $root.bayesmech = (function() {
                 function Plane(properties) {
                     this.polygon = [];
                     if (properties)
-                        for (var keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                        for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
                             if (properties[keys[i]] != null)
                                 this[keys[i]] = properties[keys[i]];
                 }
@@ -3522,7 +3520,7 @@ $root.bayesmech = (function() {
                     if (message.type != null && Object.hasOwnProperty.call(message, "type"))
                         writer.uint32(/* id 5, wireType 0 =*/40).int32(message.type);
                     if (message.polygon != null && message.polygon.length)
-                        for (var i = 0; i < message.polygon.length; ++i)
+                        for (let i = 0; i < message.polygon.length; ++i)
                             $root.bayesmech.vision.Vector3.encode(message.polygon[i], writer.uint32(/* id 6, wireType 2 =*/50).fork()).ldelim();
                     return writer;
                 };
@@ -3554,9 +3552,9 @@ $root.bayesmech = (function() {
                 Plane.decode = function decode(reader, length, error) {
                     if (!(reader instanceof $Reader))
                         reader = $Reader.create(reader);
-                    var end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.InferredGeometry.Plane();
+                    let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.InferredGeometry.Plane();
                     while (reader.pos < end) {
-                        var tag = reader.uint32();
+                        let tag = reader.uint32();
                         if (tag === error)
                             break;
                         switch (tag >>> 3) {
@@ -3625,7 +3623,7 @@ $root.bayesmech = (function() {
                         if (!(message.id && typeof message.id.length === "number" || $util.isString(message.id)))
                             return "id: buffer expected";
                     if (message.centerPose != null && message.hasOwnProperty("centerPose")) {
-                        var error = $root.bayesmech.vision.Pose.verify(message.centerPose);
+                        let error = $root.bayesmech.vision.Pose.verify(message.centerPose);
                         if (error)
                             return "centerPose." + error;
                     }
@@ -3648,8 +3646,8 @@ $root.bayesmech = (function() {
                     if (message.polygon != null && message.hasOwnProperty("polygon")) {
                         if (!Array.isArray(message.polygon))
                             return "polygon: array expected";
-                        for (var i = 0; i < message.polygon.length; ++i) {
-                            var error = $root.bayesmech.vision.Vector3.verify(message.polygon[i]);
+                        for (let i = 0; i < message.polygon.length; ++i) {
+                            let error = $root.bayesmech.vision.Vector3.verify(message.polygon[i]);
                             if (error)
                                 return "polygon." + error;
                         }
@@ -3668,7 +3666,7 @@ $root.bayesmech = (function() {
                 Plane.fromObject = function fromObject(object) {
                     if (object instanceof $root.bayesmech.vision.InferredGeometry.Plane)
                         return object;
-                    var message = new $root.bayesmech.vision.InferredGeometry.Plane();
+                    let message = new $root.bayesmech.vision.InferredGeometry.Plane();
                     if (object.id != null)
                         if (typeof object.id === "string")
                             $util.base64.decode(object.id, message.id = $util.newBuffer($util.base64.length(object.id)), 0);
@@ -3711,7 +3709,7 @@ $root.bayesmech = (function() {
                         if (!Array.isArray(object.polygon))
                             throw TypeError(".bayesmech.vision.InferredGeometry.Plane.polygon: array expected");
                         message.polygon = [];
-                        for (var i = 0; i < object.polygon.length; ++i) {
+                        for (let i = 0; i < object.polygon.length; ++i) {
                             if (typeof object.polygon[i] !== "object")
                                 throw TypeError(".bayesmech.vision.InferredGeometry.Plane.polygon: object expected");
                             message.polygon[i] = $root.bayesmech.vision.Vector3.fromObject(object.polygon[i]);
@@ -3732,7 +3730,7 @@ $root.bayesmech = (function() {
                 Plane.toObject = function toObject(message, options) {
                     if (!options)
                         options = {};
-                    var object = {};
+                    let object = {};
                     if (options.arrays || options.defaults)
                         object.polygon = [];
                     if (options.defaults) {
@@ -3760,7 +3758,7 @@ $root.bayesmech = (function() {
                         object.type = options.enums === String ? $root.bayesmech.vision.InferredGeometry.Plane.PlaneType[message.type] === undefined ? message.type : $root.bayesmech.vision.InferredGeometry.Plane.PlaneType[message.type] : message.type;
                     if (message.polygon && message.polygon.length) {
                         object.polygon = [];
-                        for (var j = 0; j < message.polygon.length; ++j)
+                        for (let j = 0; j < message.polygon.length; ++j)
                             object.polygon[j] = $root.bayesmech.vision.Vector3.toObject(message.polygon[j], options);
                     }
                     return object;
@@ -3802,7 +3800,7 @@ $root.bayesmech = (function() {
                  * @property {number} VERTICAL=3 VERTICAL value
                  */
                 Plane.PlaneType = (function() {
-                    var valuesById = {}, values = Object.create(valuesById);
+                    const valuesById = {}, values = Object.create(valuesById);
                     values[valuesById[0] = "PLANE_TYPE_UNKNOWN"] = 0;
                     values[valuesById[1] = "HORIZONTAL_UPWARD_FACING"] = 1;
                     values[valuesById[2] = "HORIZONTAL_DOWNWARD_FACING"] = 2;
@@ -3833,7 +3831,7 @@ $root.bayesmech = (function() {
                  */
                 function TrackedPoint(properties) {
                     if (properties)
-                        for (var keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                        for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
                             if (properties[keys[i]] != null)
                                 this[keys[i]] = properties[keys[i]];
                 }
@@ -3912,9 +3910,9 @@ $root.bayesmech = (function() {
                 TrackedPoint.decode = function decode(reader, length, error) {
                     if (!(reader instanceof $Reader))
                         reader = $Reader.create(reader);
-                    var end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.InferredGeometry.TrackedPoint();
+                    let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.InferredGeometry.TrackedPoint();
                     while (reader.pos < end) {
-                        var tag = reader.uint32();
+                        let tag = reader.uint32();
                         if (tag === error)
                             break;
                         switch (tag >>> 3) {
@@ -3962,7 +3960,7 @@ $root.bayesmech = (function() {
                     if (typeof message !== "object" || message === null)
                         return "object expected";
                     if (message.point != null && message.hasOwnProperty("point")) {
-                        var error = $root.bayesmech.vision.Vector3.verify(message.point);
+                        let error = $root.bayesmech.vision.Vector3.verify(message.point);
                         if (error)
                             return "point." + error;
                     }
@@ -3983,7 +3981,7 @@ $root.bayesmech = (function() {
                 TrackedPoint.fromObject = function fromObject(object) {
                     if (object instanceof $root.bayesmech.vision.InferredGeometry.TrackedPoint)
                         return object;
-                    var message = new $root.bayesmech.vision.InferredGeometry.TrackedPoint();
+                    let message = new $root.bayesmech.vision.InferredGeometry.TrackedPoint();
                     if (object.point != null) {
                         if (typeof object.point !== "object")
                             throw TypeError(".bayesmech.vision.InferredGeometry.TrackedPoint.point: object expected");
@@ -4006,7 +4004,7 @@ $root.bayesmech = (function() {
                 TrackedPoint.toObject = function toObject(message, options) {
                     if (!options)
                         options = {};
-                    var object = {};
+                    let object = {};
                     if (options.defaults) {
                         object.point = null;
                         object.confidence = 0;
@@ -4072,7 +4070,7 @@ $root.bayesmech = (function() {
             function SegmentationResponse(properties) {
                 this.masks = [];
                 if (properties)
-                    for (var keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
                         if (properties[keys[i]] != null)
                             this[keys[i]] = properties[keys[i]];
             }
@@ -4128,7 +4126,7 @@ $root.bayesmech = (function() {
                 if (message.frameIdentifier != null && Object.hasOwnProperty.call(message, "frameIdentifier"))
                     $root.bayesmech.vision.PerceiverFrameIdentifier.encode(message.frameIdentifier, writer.uint32(/* id 1, wireType 2 =*/10).fork()).ldelim();
                 if (message.masks != null && message.masks.length)
-                    for (var i = 0; i < message.masks.length; ++i)
+                    for (let i = 0; i < message.masks.length; ++i)
                         $root.bayesmech.vision.SegmentationResponse.SegmentationMask.encode(message.masks[i], writer.uint32(/* id 2, wireType 2 =*/18).fork()).ldelim();
                 if (message.triggerType != null && Object.hasOwnProperty.call(message, "triggerType"))
                     writer.uint32(/* id 3, wireType 0 =*/24).int32(message.triggerType);
@@ -4162,9 +4160,9 @@ $root.bayesmech = (function() {
             SegmentationResponse.decode = function decode(reader, length, error) {
                 if (!(reader instanceof $Reader))
                     reader = $Reader.create(reader);
-                var end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.SegmentationResponse();
+                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.SegmentationResponse();
                 while (reader.pos < end) {
-                    var tag = reader.uint32();
+                    let tag = reader.uint32();
                     if (tag === error)
                         break;
                     switch (tag >>> 3) {
@@ -4218,15 +4216,15 @@ $root.bayesmech = (function() {
                 if (typeof message !== "object" || message === null)
                     return "object expected";
                 if (message.frameIdentifier != null && message.hasOwnProperty("frameIdentifier")) {
-                    var error = $root.bayesmech.vision.PerceiverFrameIdentifier.verify(message.frameIdentifier);
+                    let error = $root.bayesmech.vision.PerceiverFrameIdentifier.verify(message.frameIdentifier);
                     if (error)
                         return "frameIdentifier." + error;
                 }
                 if (message.masks != null && message.hasOwnProperty("masks")) {
                     if (!Array.isArray(message.masks))
                         return "masks: array expected";
-                    for (var i = 0; i < message.masks.length; ++i) {
-                        var error = $root.bayesmech.vision.SegmentationResponse.SegmentationMask.verify(message.masks[i]);
+                    for (let i = 0; i < message.masks.length; ++i) {
+                        let error = $root.bayesmech.vision.SegmentationResponse.SegmentationMask.verify(message.masks[i]);
                         if (error)
                             return "masks." + error;
                     }
@@ -4256,7 +4254,7 @@ $root.bayesmech = (function() {
             SegmentationResponse.fromObject = function fromObject(object) {
                 if (object instanceof $root.bayesmech.vision.SegmentationResponse)
                     return object;
-                var message = new $root.bayesmech.vision.SegmentationResponse();
+                let message = new $root.bayesmech.vision.SegmentationResponse();
                 if (object.frameIdentifier != null) {
                     if (typeof object.frameIdentifier !== "object")
                         throw TypeError(".bayesmech.vision.SegmentationResponse.frameIdentifier: object expected");
@@ -4266,7 +4264,7 @@ $root.bayesmech = (function() {
                     if (!Array.isArray(object.masks))
                         throw TypeError(".bayesmech.vision.SegmentationResponse.masks: array expected");
                     message.masks = [];
-                    for (var i = 0; i < object.masks.length; ++i) {
+                    for (let i = 0; i < object.masks.length; ++i) {
                         if (typeof object.masks[i] !== "object")
                             throw TypeError(".bayesmech.vision.SegmentationResponse.masks: object expected");
                         message.masks[i] = $root.bayesmech.vision.SegmentationResponse.SegmentationMask.fromObject(object.masks[i]);
@@ -4315,7 +4313,7 @@ $root.bayesmech = (function() {
             SegmentationResponse.toObject = function toObject(message, options) {
                 if (!options)
                     options = {};
-                var object = {};
+                let object = {};
                 if (options.arrays || options.defaults)
                     object.masks = [];
                 if (options.defaults) {
@@ -4326,7 +4324,7 @@ $root.bayesmech = (function() {
                     object.frameIdentifier = $root.bayesmech.vision.PerceiverFrameIdentifier.toObject(message.frameIdentifier, options);
                 if (message.masks && message.masks.length) {
                     object.masks = [];
-                    for (var j = 0; j < message.masks.length; ++j)
+                    for (let j = 0; j < message.masks.length; ++j)
                         object.masks[j] = $root.bayesmech.vision.SegmentationResponse.SegmentationMask.toObject(message.masks[j], options);
                 }
                 if (message.triggerType != null && message.hasOwnProperty("triggerType"))
@@ -4383,7 +4381,7 @@ $root.bayesmech = (function() {
                  */
                 function SegmentationMask(properties) {
                     if (properties)
-                        for (var keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                        for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
                             if (properties[keys[i]] != null)
                                 this[keys[i]] = properties[keys[i]];
                 }
@@ -4492,9 +4490,9 @@ $root.bayesmech = (function() {
                 SegmentationMask.decode = function decode(reader, length, error) {
                     if (!(reader instanceof $Reader))
                         reader = $Reader.create(reader);
-                    var end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.SegmentationResponse.SegmentationMask();
+                    let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.SegmentationResponse.SegmentationMask();
                     while (reader.pos < end) {
-                        var tag = reader.uint32();
+                        let tag = reader.uint32();
                         if (tag === error)
                             break;
                         switch (tag >>> 3) {
@@ -4582,7 +4580,7 @@ $root.bayesmech = (function() {
                 SegmentationMask.fromObject = function fromObject(object) {
                     if (object instanceof $root.bayesmech.vision.SegmentationResponse.SegmentationMask)
                         return object;
-                    var message = new $root.bayesmech.vision.SegmentationResponse.SegmentationMask();
+                    let message = new $root.bayesmech.vision.SegmentationResponse.SegmentationMask();
                     if (object.objectId != null)
                         message.objectId = object.objectId >>> 0;
                     if (object.maskData != null)
@@ -4611,7 +4609,7 @@ $root.bayesmech = (function() {
                 SegmentationMask.toObject = function toObject(message, options) {
                     if (!options)
                         options = {};
-                    var object = {};
+                    let object = {};
                     if (options.defaults) {
                         object.objectId = 0;
                         if (options.bytes === String)
@@ -4678,7 +4676,7 @@ $root.bayesmech = (function() {
              * @property {number} PROPAGATION=4 PROPAGATION value
              */
             SegmentationResponse.SegmentationTriggerType = (function() {
-                var valuesById = {}, values = Object.create(valuesById);
+                const valuesById = {}, values = Object.create(valuesById);
                 values[valuesById[0] = "UNKNOWN"] = 0;
                 values[valuesById[1] = "POINT"] = 1;
                 values[valuesById[2] = "TEXT"] = 2;
@@ -4710,7 +4708,7 @@ $root.bayesmech = (function() {
              */
             function SegmentationRequest(properties) {
                 if (properties)
-                    for (var keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
                         if (properties[keys[i]] != null)
                             this[keys[i]] = properties[keys[i]];
             }
@@ -4789,9 +4787,9 @@ $root.bayesmech = (function() {
             SegmentationRequest.decode = function decode(reader, length, error) {
                 if (!(reader instanceof $Reader))
                     reader = $Reader.create(reader);
-                var end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.SegmentationRequest();
+                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.SegmentationRequest();
                 while (reader.pos < end) {
-                    var tag = reader.uint32();
+                    let tag = reader.uint32();
                     if (tag === error)
                         break;
                     switch (tag >>> 3) {
@@ -4839,12 +4837,12 @@ $root.bayesmech = (function() {
                 if (typeof message !== "object" || message === null)
                     return "object expected";
                 if (message.frameIdentifier != null && message.hasOwnProperty("frameIdentifier")) {
-                    var error = $root.bayesmech.vision.PerceiverFrameIdentifier.verify(message.frameIdentifier);
+                    let error = $root.bayesmech.vision.PerceiverFrameIdentifier.verify(message.frameIdentifier);
                     if (error)
                         return "frameIdentifier." + error;
                 }
                 if (message.imageFrame != null && message.hasOwnProperty("imageFrame")) {
-                    var error = $root.bayesmech.vision.ImageFrame.verify(message.imageFrame);
+                    let error = $root.bayesmech.vision.ImageFrame.verify(message.imageFrame);
                     if (error)
                         return "imageFrame." + error;
                 }
@@ -4862,7 +4860,7 @@ $root.bayesmech = (function() {
             SegmentationRequest.fromObject = function fromObject(object) {
                 if (object instanceof $root.bayesmech.vision.SegmentationRequest)
                     return object;
-                var message = new $root.bayesmech.vision.SegmentationRequest();
+                let message = new $root.bayesmech.vision.SegmentationRequest();
                 if (object.frameIdentifier != null) {
                     if (typeof object.frameIdentifier !== "object")
                         throw TypeError(".bayesmech.vision.SegmentationRequest.frameIdentifier: object expected");
@@ -4888,7 +4886,7 @@ $root.bayesmech = (function() {
             SegmentationRequest.toObject = function toObject(message, options) {
                 if (!options)
                     options = {};
-                var object = {};
+                let object = {};
                 if (options.defaults) {
                     object.frameIdentifier = null;
                     object.imageFrame = null;
@@ -4935,4 +4933,4 @@ $root.bayesmech = (function() {
     return bayesmech;
 })();
 
-module.exports = $root;
+export { $root as default };

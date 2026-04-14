@@ -150,9 +150,16 @@ export interface CoverageStats {
   gps: number
 }
 
+export interface SegmentationLegendEntry {
+  objectId: number
+  label: string
+  color: [number, number, number]
+}
+
 export interface DecodedAnnotation {
   frameNumber: number
   blobUrl: string
+  legend: SegmentationLegendEntry[]
 }
 
 // === Precomputed sensor data for file-mode playback ===

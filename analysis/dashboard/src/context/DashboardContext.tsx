@@ -5,7 +5,7 @@ import type {
 } from '../types'
 import { dashboardWs } from '../services/websocket'
 import { startPlayback, switchToLive as apiSwitchToLive } from '../services/api'
-import { bytesToBlobUrl, compositeMasksToDataUrl } from '../services/proto'
+import { bytesToBlobUrl, compositeMasksToDataUrl, MASK_COLORS } from '../services/proto'
 import { bayesmech } from '../proto/bundle'
 
 // =====================================================================
@@ -222,7 +222,19 @@ class FrameDecoder {
     if (!masks || masks.length === 0) return null
     const dataUrl = compositeMasksToDataUrl(masks)
     if (!dataUrl) return null
-    return { frameNumber, blobUrl: dataUrl }
+
+    // Deduplicate by objectId — one legend entry per tracked object
+    const seen = new Set<number>()
+    const legend: import('../types').SegmentationLegendEntry[] = []
+    for (const m of masks) {
+      const objId = m.objectId ?? 0
+      if (seen.has(objId)) continue
+      seen.add(objId)
+      const c = MASK_COLORS[((objId % MASK_COLORS.length) + MASK_COLORS.length) % MASK_COLORS.length]
+      legend.push({ objectId: objId, label: m.label || 'UNDEFINED', color: [c[0], c[1], c[2]] })
+    }
+
+    return { frameNumber, blobUrl: dataUrl, legend }
   }
 }
 

@@ -25,6 +25,7 @@ dependencies = [
     "huggingface_hub>=0.27.0",
     "matplotlib>=3.8.0",
     "scikit-learn>=1.4.0",
+    # "kernels",
     # Configuration
     "pyyaml==6.0.1",
     # Utilities
@@ -37,17 +38,14 @@ dependencies = [
     "openai>=1.50.0",
     # 3D reconstruction (COLMAP bridge)
     "pycolmap>=0.4.0",
+    "gsplat",
+    "plyfile",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0.0",
     "black>=24.0.0",
-]
-reconstruct = [
-    "pycolmap>=0.4.0",
-    "gsplat",
-    "plyfile",
 ]
 
 [build-system]

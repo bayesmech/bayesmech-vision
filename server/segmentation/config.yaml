@@ -3,19 +3,24 @@
 
 model:
   sam3:
-    dtype: "float32"
-    inference_height: null  # No downsampling — run at full resolution
+    dtype: "bfloat16"       # Required for 6 GB VRAM; use "float32" if you have >=8 GB
+    inference_height: 360   # Downsample frames to this height before SAM3 inference
+                            # (width computed to preserve aspect ratio)
+                            # Use null to keep original resolution
     tracker:
       # Behavioral overrides applied to Sam3VideoConfig after loading pretrained weights.
       # These only change thresholds/caps, not model architecture, so weights load fine.
-      max_num_objects: 100          # Hard cap on simultaneously tracked objects (default: 10000)
+      max_num_objects: 8              # Hard cap on simultaneously tracked objects (default: 10000)
+                                      # This is the single most important VRAM control.
       score_threshold_detection: 0.5    # Min detector confidence (default: 0.5)
       new_det_thresh: 0.5              # Min confidence to start a new track (default: 0.7)
       hotstart_delay: 5                # Frames to buffer before committing a track (default: 15)
       hotstart_unmatch_thresh: 3       # Unmatched frames before pruning a hotstart track (default: 8)
       init_trk_keep_alive: 10          # Keep-alive counter for new tracks (default: 30)
       max_trk_keep_alive: 15           # Max keep-alive counter (default: 30)
-      session_reset_frames: 2000        # Reinitialize tracking session every N frames
+      recondition_every_nth_frame: 9999  # Effectively disable reconditioning to save VRAM
+      session_reset_frames: 100         # Reinitialize tracking session every N frames to
+                                        # prevent VRAM accumulation (~29 MB/frame growth)
 
 sampling:
   sample_every_x_frames: 1  # Emit annotations for every Nth frame (1 = every frame)
