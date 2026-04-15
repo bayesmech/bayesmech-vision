@@ -1,0 +1,55 @@
+extraction:
+  sample_every: 1
+  max_frames: 0
+
+table:
+  width_mm: 3569
+  height_mm: 1778
+  cushion_margin_mm: 200
+
+table_pose:
+  min_table_mask_area_px: 5000
+  border_tolerance_px: 3
+  edge_ransac_inlier_px: 3.0
+  edge_min_segment_length_px: 40
+  reprojection_inlier_frac: 0.85
+
+pockets:
+  pocket_depth_min_px: 6
+  pocket_cluster_radius_px: 25
+  middle_pocket_longitudinal_band: [0.3, 0.7]
+  corner_junction_tolerance_px: 30
+
+ball_detect:
+  min_mask_area_px: 40
+  max_mask_area_px: 2000
+  dedupe_radius_mm: 15
+  erode_kernel_px: 3
+
+tracker:
+  max_ball_speed_mps: 8.0
+  max_ball_accel_mps2: 40.0
+  gating_radius_base_mm: 26
+  max_gap_frames: 15
+  static_threshold_mm: 20
+  rolling_median_half_window: 3
+
+colors:
+  min_color_confidence: 0.4
+  # HSV centroids are hardcoded in server/snookestown/colors.py — the 8 snooker
+  # ball colours (white, red, yellow, green, brown, blue, pink, black) are
+  # constants of the sport, not tuning parameters.
+
+pipeline:
+  regenerate_table_pose: true
+  regenerate_detections: true
+  regenerate_tracks: true
+  render_mp4: true
+  debug_dumps: true
+  debug_overlay_every_n: 30
+
+output:
+  video_fps: 30
+  video_codec: "mp4v"
+  topdown_width_px: 900    # render width of the top-down table (height derived from aspect)
+  ball_radius_draw_mm: 26

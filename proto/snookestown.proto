@@ -1,0 +1,108 @@
+syntax = "proto3";
+
+package bayesmech.vision;
+
+option java_multiple_files = true;
+option java_package = "com.bayesmech.vision";
+
+import "perceiver.proto";
+
+// Snookestown pipeline output: per-frame table pose + ball positions in table-mm,
+// with a trailing summary record containing persistent ball tracks + canonical
+// table geometry.
+//
+// Wire format (length-delimited): N per-frame SnookerResponse records followed
+// by exactly one summary record. The summary record has an empty frame_identifier
+// and a non-empty tracks field — detect via len(tracks) > 0.
+message SnookerResponse {
+
+  PerceiverFrameIdentifier frame_identifier = 1;
+
+  // ── Per-frame: homography from image pixels to table millimetres ──────────
+  message TablePose {
+    // Row-major 3x3 homography mapping pixel (u, v, 1) -> table-mm (x, y, s).
+    repeated float homography_img_to_table_mm = 1 [packed = true];
+
+    enum Method {
+      UNKNOWN = 0;
+      POCKET_FULL = 1;       // >=4 pockets detected; fully constrained
+      POCKET_PARTIAL = 2;    // 2-3 pockets + cushion line constraints
+      EDGE_ONLY = 3;         // cushions only (orientation ambiguous, resolved by vote)
+      POSE_PROPAGATED = 4;   // propagated from previous frame via ARCore delta
+      FAILED = 5;
+    }
+    Method method = 2;
+
+    float quality = 3;  // 0..1
+
+    message DetectedPocket {
+      float x_img = 1;
+      float y_img = 2;
+      enum Kind {
+        UNKNOWN = 0;
+        CORNER = 1;
+        MIDDLE = 2;
+      }
+      Kind kind = 3;
+      // Assigned table-mm position after temporal orientation lock.
+      // Both zero if unassigned.
+      float assigned_x_mm = 4;
+      float assigned_y_mm = 5;
+    }
+    repeated DetectedPocket detected_pockets = 4;
+
+    // Fitted cushion lines as flattened (x0, y0, x1, y1) quadruples.
+    repeated float detected_edges_img = 5 [packed = true];
+  }
+  TablePose table_pose = 2;
+
+  // ── Per-frame: ball observations in table-mm ──────────────────────────────
+  message BallObservation {
+    uint32 track_id = 1;
+    float x_mm = 2;
+    float y_mm = 3;
+    float confidence = 4;
+    bool moving = 5;
+    bool interpolated = 6;
+    uint32 mask_object_id = 7;  // SAM3 per-mask id (debug)
+  }
+  repeated BallObservation balls = 3;
+
+  // ── Summary record only: persistent tracks ───────────────────────────────
+  enum Color {
+    COLOR_UNKNOWN = 0;
+    RED = 1;
+    YELLOW = 2;
+    GREEN = 3;
+    BROWN = 4;
+    BLUE = 5;
+    PINK = 6;
+    BLACK = 7;
+    WHITE = 8;
+  }
+
+  message BallTrack {
+    uint32 track_id = 1;
+    Color color = 2;
+    float color_confidence = 3;
+    uint32 first_frame_idx = 4;
+    uint32 last_frame_idx = 5;
+    uint32 observed_frames = 6;
+    repeated float mean_rgb = 7 [packed = true];  // length 3
+  }
+  repeated BallTrack tracks = 4;
+
+  // ── Summary record only: table geometry ──────────────────────────────────
+  float table_width_mm = 5;
+  float table_height_mm = 6;
+
+  message CanonicalPocket {
+    float x_mm = 1;
+    float y_mm = 2;
+    TablePose.DetectedPocket.Kind kind = 3;
+  }
+  repeated CanonicalPocket canonical_pockets = 7;
+
+  // Number of per-frame SnookerResponse records that precede this summary.
+  uint32 total_frames = 8;
+}
