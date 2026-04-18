@@ -360,6 +360,10 @@ class AnnotationBuffer {
     return this.annotations.get(this.sortedKeys[pos]) ?? null
   }
 
+  hasExact(frameNumber: number): boolean {
+    return this.annotations.has(frameNumber)
+  }
+
   /** True if any annotation exists with frameNumber <= frameNumber. */
   has(frameNumber: number): boolean {
     return upperBound(this.sortedKeys, frameNumber) > 0
@@ -604,6 +608,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const handleAnnotations = useCallback((annotations: bayesmech.vision.SegmentationResponse[]) => {
     for (const proto of annotations) {
+      const frameNumber = proto.frameIdentifier?.frameNumber ?? 0
+      if (annotationBuffer.current.hasExact(frameNumber)) continue
       const annotation = decoder.current.decodeAnnotation(proto)
       if (annotation) annotationBuffer.current.set(annotation)
     }

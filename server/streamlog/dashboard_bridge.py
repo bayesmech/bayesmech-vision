@@ -56,6 +56,39 @@ class DashboardBridge:
         self._annotator = annotator
         self._connections: set[WebSocket] = set()
 
+    @staticmethod
+    def _dedupe_annotations(
+        annotations: list[segmentation_pb2.SegmentationResponse],
+    ) -> list[segmentation_pb2.SegmentationResponse]:
+        deduped: list[segmentation_pb2.SegmentationResponse] = []
+        seen: set[tuple[int, int]] = set()
+        for ann in annotations:
+            fid = ann.frame_identifier
+            key = (fid.timestamp_ns, fid.frame_number)
+            if key in seen:
+                continue
+            seen.add(key)
+            deduped.append(ann)
+        return deduped
+
+    async def _send_annotations(
+        self,
+        websocket: WebSocket,
+        annotations: list[segmentation_pb2.SegmentationResponse],
+        *,
+        batch_size: int | None = None,
+    ) -> None:
+        annotations = self._dedupe_annotations(annotations)
+        if not annotations:
+            return
+        if batch_size is None or len(annotations) <= batch_size:
+            await websocket.send_bytes(PREFIX_ANNOTATION + _seg_io.encode(annotations))
+            return
+        for i in range(0, len(annotations), batch_size):
+            chunk = annotations[i:i + batch_size]
+            await websocket.send_bytes(PREFIX_ANNOTATION + _seg_io.encode(chunk))
+            await asyncio.sleep(0)
+
     @property
     def connection_count(self) -> int:
         return len(self._connections)
@@ -66,32 +99,38 @@ class DashboardBridge:
         self._connections.add(websocket)
         logger.info(f"Dashboard connected  (total: {len(self._connections)})")
 
-        # Send latest frame immediately so UI isn't blank
-        latest = self._store.latest()
-        if latest:
-            try:
-                await websocket.send_bytes(PREFIX_FRAME + _frame_io.encode([latest]))
-            except Exception:
-                pass
+        if self._store.source == "live":
+            # In live mode, bootstrap the dashboard with the latest frame and its
+            # matching annotation. File playback is client-driven via seek().
+            latest = self._store.latest()
+            if latest:
+                try:
+                    await websocket.send_bytes(PREFIX_FRAME + _frame_io.encode([latest]))
+                except Exception:
+                    pass
 
-        # Send existing annotations so segmentation pane isn't blank
-        annotations = self._annotator.all_annotations()
-        logger.info(f"Dashboard connect: sending {len(annotations)} existing annotations")
-        if annotations:
-            first = annotations[0]
-            fid = first.frame_identifier
-            masks = first.masks or []
-            mask_sizes = [len(m.mask_data) for m in masks if m.mask_data]
-            logger.info(
-                f"  first annotation: ts={fid.timestamp_ns} fn={fid.frame_number} "
-                f"masks={len(masks)} mask_data_sizes={mask_sizes}"
-            )
-            try:
-                await websocket.send_bytes(
-                    PREFIX_ANNOTATION + _seg_io.encode(annotations)
+                ann = self._annotator.get_annotation_floor(
+                    latest.frame_identifier.frame_number
                 )
-            except Exception:
-                pass
+                if ann is not None:
+                    fid = ann.frame_identifier
+                    masks = ann.masks or []
+                    mask_sizes = [len(m.mask_data) for m in masks if m.mask_data]
+                    logger.info(
+                        f"Dashboard connect: sending latest annotation "
+                        f"ts={fid.timestamp_ns} fn={fid.frame_number} "
+                        f"masks={len(masks)} mask_data_sizes={mask_sizes}"
+                    )
+                    try:
+                        await self._send_annotations(websocket, [ann])
+                    except Exception:
+                        pass
+        elif self._annotator.completed_count:
+            logger.info(
+                "Dashboard connect: file mode with %d loaded annotations; "
+                "deferring annotation replay until seek/get_annotations",
+                self._annotator.completed_count,
+            )
 
         # Subscribe to live frames
         async def on_frame(frame: perceiver_pb2.PerceiverDataFrame) -> None:
@@ -166,9 +205,7 @@ class DashboardBridge:
                     f"(annotator has {self._annotator.completed_count} total)"
                 )
                 if annotations:
-                    await ws.send_bytes(
-                        PREFIX_ANNOTATION + _seg_io.encode(annotations)
-                    )
+                    await self._send_annotations(ws, annotations)
 
         elif action == "get_trajectory":
             positions = await asyncio.to_thread(self._store.compute_trajectory)
@@ -179,7 +216,17 @@ class DashboardBridge:
             await ws.send_text(json.dumps({"type": "sensor_data", "frames": frames}))
 
         elif action == "get_annotations":
+            frame_number = msg.get("frame_number")
+            if frame_number is not None:
+                ann = self._annotator.get_annotation_floor(int(frame_number))
+                if ann is not None:
+                    await self._send_annotations(ws, [ann])
+                return
+
             annotations = self._annotator.all_annotations()
             if annotations:
-                payload = PREFIX_ANNOTATION + _seg_io.encode(annotations)
-                await ws.send_bytes(payload)
+                logger.info(
+                    "get_annotations: sending %d annotations in batches",
+                    len(annotations),
+                )
+                await self._send_annotations(ws, annotations, batch_size=64)

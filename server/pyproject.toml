@@ -9,7 +9,7 @@ dependencies = [
     "uvicorn[standard]==0.27.0",
     "websockets>=13.0",
     # Serialization
-    "protobuf==4.25.1",
+    "protobuf==7.34.1",
     # Image processing
     "Pillow==10.2.0",
     "opencv-python>=4.9.0",
