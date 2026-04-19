@@ -28,10 +28,10 @@ const LoadButton: React.FC = () => {
     load()
   }
 
-  const handleSelect = async (filename: string) => {
+  const handleSelect = async (name: string) => {
     setOpen(false)
     try {
-      await loadRecording(filename)
+      await loadRecording(name)
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Unknown error'
       alert(`Playback failed: ${msg}`)
@@ -194,8 +194,8 @@ const LoadButton: React.FC = () => {
               )}
               {!loading && !error && recordings.map((rec) => (
                 <div
-                  key={rec.filename}
-                  onClick={() => handleSelect(rec.filename)}
+                  key={rec.name}
+                  onClick={() => handleSelect(rec.name)}
                   style={{
                     padding: '0.75rem 1.25rem',
                     borderBottom: '1px solid #111',
@@ -216,7 +216,7 @@ const LoadButton: React.FC = () => {
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
                     }}>
-                      {rec.name}
+                      {rec.title}
                     </div>
                     <div style={{
                       fontSize: '0.68rem',

@@ -6,7 +6,7 @@ Two pipeline steps, both written to a single .motion.pb output:
   Step 1 — RAFT: dense optical flow residuals → per-frame heatmaps
   Step 2 — Tracking: temporal filter + blob detection + nearest-neighbour tracker
 
-Both steps are controlled via motioncap_config.yaml:
+Both steps are controlled via config.yaml:
   pipeline.regenerate_raft: false      → skip RAFT, load heatmaps from existing .motion.pb
   pipeline.regenerate_tracking: false  → skip tracker, load tracks from existing .motion.pb
 
@@ -59,7 +59,7 @@ from motioncap.tracker import (
 _frame_io  = ProtoIO(perceiver_pb2.PerceiverDataFrame)
 _motion_io = ProtoIO(motioncap_pb2.MotionCaptureResponse)
 
-_config_path = Path(__file__).parent / "motioncap_config.yaml"
+_config_path = Path(__file__).parent / "config.yaml"
 with open(_config_path) as _f:
     _CONFIG = yaml.safe_load(_f)
 

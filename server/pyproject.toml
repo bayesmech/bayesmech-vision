@@ -1,8 +1,7 @@
 [project]
-name = "bayesmech_camalytics"
+name = "bayesmech_vision"
 version = "0.1.0"
-description = "BayesMech CamAlytics - AR Stream Server with SAM3 Video Segmentation"
-readme = "README.md"
+description = "BayesMech Vision - AR Stream Server with SAM3 Video Segmentation"
 requires-python = ">=3.12"
 dependencies = [
     # Web framework
@@ -10,7 +9,7 @@ dependencies = [
     "uvicorn[standard]==0.27.0",
     "websockets>=13.0",
     # Serialization
-    "protobuf==4.25.1",
+    "protobuf==7.34.1",
     # Image processing
     "Pillow==10.2.0",
     "opencv-python>=4.9.0",
@@ -26,6 +25,7 @@ dependencies = [
     "huggingface_hub>=0.27.0",
     "matplotlib>=3.8.0",
     "scikit-learn>=1.4.0",
+    # "kernels",
     # Configuration
     "pyyaml==6.0.1",
     # Utilities
@@ -38,16 +38,14 @@ dependencies = [
     "openai>=1.50.0",
     # 3D reconstruction (COLMAP bridge)
     "pycolmap>=0.4.0",
+    "gsplat",
+    "plyfile",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0.0",
     "black>=24.0.0",
-]
-reconstruct = [
-    "pycolmap>=0.4.0",
-    "gsplat",
 ]
 
 [build-system]

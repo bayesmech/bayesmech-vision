@@ -65,7 +65,7 @@ from streamlog.protoio import ProtoIO
 _frame_io = ProtoIO(perceiver_pb2.PerceiverDataFrame)
 _seg_io = ProtoIO(segmentation_pb2.SegmentationResponse)
 
-_config_path = Path(__file__).parent / "segmentation_config.yaml"
+_config_path = Path(__file__).parent / "config.yaml"
 with open(_config_path) as f:
     _CONFIG = yaml.safe_load(f)
 
@@ -459,6 +459,12 @@ def run_sam3(args, frames: list, out_path: Path, sample_every: int) -> tuple[int
             obj_ids = outputs["object_ids"].tolist() if hasattr(outputs["object_ids"], "tolist") else list(outputs["object_ids"])
             scores = outputs["scores"]
             masks = outputs["masks"]
+            # Invert prompt_to_obj_ids → obj_id_to_label for O(1) lookup per mask
+            obj_id_to_label = {
+                oid: label
+                for label, oids in outputs.get("prompt_to_obj_ids", {}).items()
+                for oid in oids
+            }
 
             for i, obj_id in enumerate(obj_ids):
                 score = float(scores[i])
@@ -472,6 +478,7 @@ def run_sam3(args, frames: list, out_path: Path, sample_every: int) -> tuple[int
                 m.pixel_count = int(mask.sum())
                 m.confidence = score
                 m.mask_data = encode_mask_compressed(mask)
+                m.label = obj_id_to_label.get(int(obj_id), "")
 
             if resp.masks:
                 batch.append(resp)

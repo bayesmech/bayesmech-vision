@@ -147,6 +147,14 @@ def train_splat(workspace: Path, output_ply: Path, cfg: dict) -> None:
     try:
         from gsplat import rasterization
         from gsplat.strategy import MCMCStrategy
+        from gsplat.cuda import _C as _gsplat_C
+        if _gsplat_C is None:
+            raise RuntimeError(
+                "gsplat CUDA extensions are not compiled. "
+                "Reinstall with a matching wheel, e.g.:\n"
+                "  uv pip install gsplat --index-url https://docs.gsplat.studio/whl/pt27cu124\n"
+                "Check your CUDA version with: nvcc --version && python -c \"import torch; print(torch.version.cuda)\""
+            )
     except ImportError as e:
         log.error("gsplat not installed: %s", e)
         raise
@@ -430,10 +438,12 @@ def render_video(workspace: Path, ply_path: Path, output_video: Path, cfg: dict,
                    next to the gsplat render (2W × H).  Default True to match
                    the gsplat_flythrough.mp4 format.
     """
+    import time
     import torch
     import cv2
     import numpy as np
     from gsplat import rasterization
+    from tqdm import tqdm
 
     gs_cfg = cfg["gaussian_splatting"]
     sh_degree = gs_cfg["sh_degree"]
@@ -441,20 +451,30 @@ def render_video(workspace: Path, ply_path: Path, output_video: Path, cfg: dict,
 
     # Always render at full resolution (data_factor=1) for quality
     render_factor = 1
+
+    log.info("  render_video: loading COLMAP dataset...")
+    t0 = time.time()
     dataset = _load_colmap_dataset(workspace, render_factor)
     if dataset is None:
         log.error("  render_video: could not load COLMAP dataset")
         return
+    log.info("  render_video: COLMAP dataset loaded in %.2fs", time.time() - t0)
 
+    log.info("  render_video: loading %d training images into memory...", len(dataset.train_indices))
+    t0 = time.time()
     train_dataset = _build_train_dataset(dataset, render_factor, device)
     if not train_dataset:
         log.error("  render_video: no training views to render")
         return
+    log.info("  render_video: images loaded in %.2fs", time.time() - t0)
 
+    log.info("  render_video: loading splat PLY...")
+    t0 = time.time()
     splats = _load_ply_splats(ply_path, device)
     if splats is None:
         log.error("  render_video: could not load splat PLY from %s", ply_path)
         return
+    log.info("  render_video: PLY loaded in %.2fs", time.time() - t0)
 
     H = train_dataset[0]["height"]
     W = train_dataset[0]["width"]
@@ -470,49 +490,78 @@ def render_video(workspace: Path, ply_path: Path, output_video: Path, cfg: dict,
              len(train_dataset), out_W, H,
              " (side-by-side)" if side_by_side else "", output_video)
 
+    n_gaussians = len(splats["means"])
+    render_times = []
+
     with torch.no_grad():
+        # Pre-compute SH coefficients and normalised quaternions once — not per frame
         sh_coeffs = torch.cat([splats["sh0"], splats["shN"]], dim=1)
-        for i, view in enumerate(train_dataset):
-            camtoworld = view["camtoworld"].unsqueeze(0)
-            K = view["K"].unsqueeze(0)
+        quats_norm = splats["quats"] / splats["quats"].norm(dim=-1, keepdim=True)
+        scales_exp = torch.exp(splats["scales"])
+        opacities_sig = torch.sigmoid(splats["opacities"])
 
-            renders, _, _ = rasterization(
-                means=splats["means"],
-                quats=splats["quats"] / splats["quats"].norm(dim=-1, keepdim=True),
-                scales=torch.exp(splats["scales"]),
-                opacities=torch.sigmoid(splats["opacities"]),
-                colors=sh_coeffs,
-                viewmats=torch.linalg.inv(camtoworld),
-                Ks=K,
-                width=W,
-                height=H,
-                sh_degree=sh_degree,
-                near_plane=0.01,
-                far_plane=1000.0,
-                packed=False,
-            )
-            rendered = (renders.squeeze(0).clamp(0, 1).cpu().numpy() * 255).astype("uint8")
-            rendered_bgr = cv2.cvtColor(rendered, cv2.COLOR_RGB2BGR)
+        with tqdm(total=len(train_dataset), desc="Rendering frames",
+                  unit="frame", dynamic_ncols=True) as pbar:
+            for i, view in enumerate(train_dataset):
+                camtoworld = view["camtoworld"].unsqueeze(0)
+                K = view["K"].unsqueeze(0)
 
-            if side_by_side:
-                orig = (view["pixels"].cpu().numpy() * 255).astype("uint8")
-                orig_bgr = cv2.cvtColor(orig, cv2.COLOR_RGB2BGR)
-                frame = np.concatenate([orig_bgr, rendered_bgr], axis=1)
-            else:
-                frame = rendered_bgr
+                t_frame = time.time()
+                renders, _, _ = rasterization(
+                    means=splats["means"],
+                    quats=quats_norm,
+                    scales=scales_exp,
+                    opacities=opacities_sig,
+                    colors=sh_coeffs,
+                    viewmats=torch.linalg.inv(camtoworld),
+                    Ks=K,
+                    width=W,
+                    height=H,
+                    sh_degree=sh_degree,
+                    near_plane=0.01,
+                    far_plane=1000.0,
+                    packed=True,
+                )
+                if device == "cuda":
+                    torch.cuda.synchronize()
+                render_ms = (time.time() - t_frame) * 1000
+                render_times.append(render_ms)
 
-            writer.write(frame)
+                rendered = (renders.squeeze(0).clamp(0, 1).cpu().numpy() * 255).astype("uint8")
+                rendered_bgr = cv2.cvtColor(rendered, cv2.COLOR_RGB2BGR)
 
-            if (i + 1) % 50 == 0:
-                log.info("    rendered %d/%d frames", i + 1, len(train_dataset))
+                if side_by_side:
+                    orig = (view["pixels"].cpu().numpy() * 255).astype("uint8")
+                    orig_bgr = cv2.cvtColor(orig, cv2.COLOR_RGB2BGR)
+                    frame = np.concatenate([orig_bgr, rendered_bgr], axis=1)
+                else:
+                    frame = rendered_bgr
+
+                writer.write(frame)
+
+                avg_ms = sum(render_times[-20:]) / len(render_times[-20:])
+                pbar.set_postfix({
+                    "gaussians": f"{n_gaussians:,}",
+                    "ms/frame":  f"{render_ms:.0f}",
+                    "avg20":     f"{avg_ms:.0f}",
+                    "res":       f"{W}x{H}",
+                })
+                pbar.update(1)
 
     writer.release()
+    if render_times:
+        avg = sum(render_times) / len(render_times)
+        p95 = sorted(render_times)[int(len(render_times) * 0.95)]
+        log.info("  render_video: %.0f ms/frame avg, %.0f ms p95 over %d frames  (%d gaussians)",
+                 avg, p95, len(render_times), n_gaussians)
     log.info("  render_video: saved %s", output_video)
 
 
 def _load_ply_splats(ply_path: Path, device: str) -> dict | None:
     """Load a trained .splat.ply back into a splats dict for rendering."""
+    import time
     import torch
+    import numpy as np
 
     try:
         from plyfile import PlyData
@@ -520,59 +569,60 @@ def _load_ply_splats(ply_path: Path, device: str) -> dict | None:
         log.error("  plyfile not installed — install with: uv pip install plyfile")
         return None
 
+    t0 = time.time()
     try:
         plydata = PlyData.read(str(ply_path))
     except Exception as exc:
         log.error("  Could not read PLY: %s", exc)
         return None
+    log.info("  _load_ply_splats: PLY file read in %.2fs", time.time() - t0)
 
     v = plydata["vertex"]
-    means = torch.tensor(
-        [[v["x"][i], v["y"][i], v["z"][i]] for i in range(len(v))],
-        dtype=torch.float32, device=device,
-    )
+    N = len(v)
+    log.info("  _load_ply_splats: loading %d Gaussians from %s", N, ply_path.name)
+
+    t1 = time.time()
+    # Use numpy vectorised ops — avoids O(N*fields) Python-level iterations
+    means = np.stack([np.asarray(v["x"]), np.asarray(v["y"]), np.asarray(v["z"])],
+                     axis=1).astype(np.float32)
 
     # Scales stored as log; opacities stored as logit
-    scales = torch.tensor(
-        [[v[f"scale_{j}"][i] for j in range(3)] for i in range(len(v))],
-        dtype=torch.float32, device=device,
-    )
-    quats = torch.tensor(
-        [[v[f"rot_{j}"][i] for j in range(4)] for i in range(len(v))],
-        dtype=torch.float32, device=device,
-    )
-    opacities = torch.tensor(
-        [v["opacity"][i] for i in range(len(v))],
-        dtype=torch.float32, device=device,
-    )
+    scales = np.stack([np.asarray(v[f"scale_{j}"]) for j in range(3)],
+                      axis=1).astype(np.float32)
+    quats = np.stack([np.asarray(v[f"rot_{j}"]) for j in range(4)],
+                     axis=1).astype(np.float32)
+    opacities = np.asarray(v["opacity"], dtype=np.float32)
 
     # SH: f_dc_0..2 → sh0 (N,1,3); f_rest_0.. → shN (N,C-1,3)
-    n_dc = sum(1 for name in v.data.dtype.names if name.startswith("f_dc_"))
-    n_rest = sum(1 for name in v.data.dtype.names if name.startswith("f_rest_"))
-    N = len(v)
+    field_names = v.data.dtype.names
+    n_dc   = sum(1 for name in field_names if name.startswith("f_dc_"))
+    n_rest = sum(1 for name in field_names if name.startswith("f_rest_"))
 
-    sh0_data = torch.tensor(
-        [[v[f"f_dc_{j}"][i] for j in range(n_dc)] for i in range(N)],
-        dtype=torch.float32, device=device,
-    ).reshape(N, 1, n_dc)  # (N, 1, 3)
+    sh0_np = np.stack([np.asarray(v[f"f_dc_{j}"])   for j in range(n_dc)],
+                      axis=1).astype(np.float32)     # (N, 3)
+    sh0_data = torch.from_numpy(sh0_np).reshape(N, 1, n_dc).to(device)  # (N, 1, 3)
 
     if n_rest > 0:
-        shN_data = torch.tensor(
-            [[v[f"f_rest_{j}"][i] for j in range(n_rest)] for i in range(N)],
-            dtype=torch.float32, device=device,
-        ).reshape(N, n_rest // 3, 3)  # (N, C-1, 3) — stored R0R1..G0G1..B0B1..
-        # Re-interleave from (N, C-1, 3) stored as coeffs-then-channels
-        # Standard 3DGS PLY stores f_rest in (C-1)*3 order: all-R, all-G, all-B
+        shN_np = np.stack([np.asarray(v[f"f_rest_{j}"]) for j in range(n_rest)],
+                          axis=1).astype(np.float32)  # (N, n_rest)
+        # Standard 3DGS PLY stores f_rest as all-R coeffs, then all-G, then all-B
         n_coeffs = n_rest // 3
-        shN_data = shN_data.reshape(N, 3, n_coeffs).permute(0, 2, 1)  # (N, C-1, 3)
+        shN_data = (torch.from_numpy(shN_np).to(device)
+                         .reshape(N, 3, n_coeffs)
+                         .permute(0, 2, 1))           # (N, C-1, 3)
     else:
         shN_data = torch.zeros(N, 0, 3, device=device)
 
+    log.info("  _load_ply_splats: tensors built in %.2fs  (means=%s scales=%s sh0=%s shN=%s)",
+             time.time() - t1,
+             tuple(means.shape), tuple(scales.shape),
+             tuple(sh0_data.shape), tuple(shN_data.shape))
+
     return {
-        "means":     means,
-        "scales":    scales,   # already log
-        "quats":     quats,
-        "opacities": opacities,  # already logit
+        "means":     torch.from_numpy(means).to(device),
+        "scales":    torch.from_numpy(scales).to(device),   # already log
+        "quats":     torch.from_numpy(quats).to(device),
+        "opacities": torch.from_numpy(opacities).to(device),  # already logit
         "sh0":       sh0_data,
         "shN":       shN_data,
     }
@@ -610,7 +660,6 @@ def _export_ply(splats: dict, output_ply: Path) -> None:
 
 def _write_ply_fallback(splats: dict, output_ply: Path) -> None:
     """Write a 3DGS-compatible binary PLY file."""
-    import struct
     import torch
 
     means = splats["means"].detach().cpu().numpy()
@@ -648,15 +697,17 @@ def _write_ply_fallback(splats: dict, output_ply: Path) -> None:
         header += "end_header\n"
         f.write(header.encode())
 
-        for i in range(N):
-            f.write(struct.pack("<fff", *means[i]))
-            f.write(struct.pack("<fff", 0.0, 0.0, 0.0))   # normals
-            for v in sh0_flat[i]:
-                f.write(struct.pack("<f", float(v)))
-            for v in shN_flat[i]:
-                f.write(struct.pack("<f", float(v)))
-            f.write(struct.pack("<f", float(opacities_raw[i])))
-            for v in scales_raw[i]:
-                f.write(struct.pack("<f", float(v)))
-            for v in quats[i]:
-                f.write(struct.pack("<f", float(v)))
+        # Build one contiguous float32 array (N × fields) and write in a single call —
+        # avoids a per-row Python loop that is O(N) slow for large Gaussian counts.
+        import numpy as np
+        normals = np.zeros((N, 3), dtype=np.float32)
+        rows = np.concatenate([
+            means.astype(np.float32),
+            normals,
+            sh0_flat.astype(np.float32),
+            shN_flat.astype(np.float32),
+            opacities_raw.reshape(-1, 1).astype(np.float32),
+            scales_raw.astype(np.float32),
+            quats.astype(np.float32),
+        ], axis=1)
+        f.write(rows.tobytes())

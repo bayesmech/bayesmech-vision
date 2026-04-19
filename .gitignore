@@ -3,6 +3,7 @@
 **/__pycache__/
 server/data/
 **/.env
+.secrets/
 
 # Client side excludes
 **/.vite/

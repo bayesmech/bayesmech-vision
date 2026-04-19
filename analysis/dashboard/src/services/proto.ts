@@ -80,7 +80,7 @@ export function decodeMask(maskData: Uint8Array): { height: number; width: numbe
 }
 
 // Object colors matching annotate_direct.py (RGBA)
-const MASK_COLORS = [
+export const MASK_COLORS = [
   [255, 0, 0, 128], [0, 255, 0, 128], [0, 0, 255, 128],
   [255, 255, 0, 128], [255, 0, 255, 128], [0, 255, 255, 128],
 ]

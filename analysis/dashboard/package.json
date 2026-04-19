@@ -4,7 +4,10 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "proto": "pbjs -t static-module -w es6 -o src/proto/bundle.js ../../proto/primitives.proto ../../proto/perceiver.proto ../../proto/spatial.proto ../../proto/segmentation.proto && pbts -o src/proto/bundle.d.ts src/proto/bundle.js",
+    "predev": "npm run proto",
     "dev": "vite",
+    "prebuild": "npm run proto",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview"

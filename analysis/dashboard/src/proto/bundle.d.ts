@@ -6,6 +6,333 @@ export namespace bayesmech {
     /** Namespace vision. */
     namespace vision {
 
+        /** Properties of a Pose. */
+        interface IPose {
+
+            /** Pose position */
+            position?: (bayesmech.vision.IVector3|null);
+
+            /** Pose rotation */
+            rotation?: (bayesmech.vision.IQuaternion|null);
+        }
+
+        /** Represents a Pose. */
+        class Pose implements IPose {
+
+            /**
+             * Constructs a new Pose.
+             * @param [properties] Properties to set
+             */
+            constructor(properties?: bayesmech.vision.IPose);
+
+            /** Pose position. */
+            public position?: (bayesmech.vision.IVector3|null);
+
+            /** Pose rotation. */
+            public rotation?: (bayesmech.vision.IQuaternion|null);
+
+            /**
+             * Creates a new Pose instance using the specified properties.
+             * @param [properties] Properties to set
+             * @returns Pose instance
+             */
+            public static create(properties?: bayesmech.vision.IPose): bayesmech.vision.Pose;
+
+            /**
+             * Encodes the specified Pose message. Does not implicitly {@link bayesmech.vision.Pose.verify|verify} messages.
+             * @param message Pose message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encode(message: bayesmech.vision.IPose, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Encodes the specified Pose message, length delimited. Does not implicitly {@link bayesmech.vision.Pose.verify|verify} messages.
+             * @param message Pose message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encodeDelimited(message: bayesmech.vision.IPose, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Decodes a Pose message from the specified reader or buffer.
+             * @param reader Reader or buffer to decode from
+             * @param [length] Message length if known beforehand
+             * @returns Pose
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): bayesmech.vision.Pose;
+
+            /**
+             * Decodes a Pose message from the specified reader or buffer, length delimited.
+             * @param reader Reader or buffer to decode from
+             * @returns Pose
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): bayesmech.vision.Pose;
+
+            /**
+             * Verifies a Pose message.
+             * @param message Plain object to verify
+             * @returns `null` if valid, otherwise the reason why it is not
+             */
+            public static verify(message: { [k: string]: any }): (string|null);
+
+            /**
+             * Creates a Pose message from a plain object. Also converts values to their respective internal types.
+             * @param object Plain object
+             * @returns Pose
+             */
+            public static fromObject(object: { [k: string]: any }): bayesmech.vision.Pose;
+
+            /**
+             * Creates a plain object from a Pose message. Also converts values to other types if specified.
+             * @param message Pose
+             * @param [options] Conversion options
+             * @returns Plain object
+             */
+            public static toObject(message: bayesmech.vision.Pose, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+            /**
+             * Converts this Pose to JSON.
+             * @returns JSON object
+             */
+            public toJSON(): { [k: string]: any };
+
+            /**
+             * Gets the default type url for Pose
+             * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns The default type url
+             */
+            public static getTypeUrl(typeUrlPrefix?: string): string;
+        }
+
+        /** Properties of a Vector3. */
+        interface IVector3 {
+
+            /** Vector3 x */
+            x?: (number|null);
+
+            /** Vector3 y */
+            y?: (number|null);
+
+            /** Vector3 z */
+            z?: (number|null);
+        }
+
+        /** Represents a Vector3. */
+        class Vector3 implements IVector3 {
+
+            /**
+             * Constructs a new Vector3.
+             * @param [properties] Properties to set
+             */
+            constructor(properties?: bayesmech.vision.IVector3);
+
+            /** Vector3 x. */
+            public x: number;
+
+            /** Vector3 y. */
+            public y: number;
+
+            /** Vector3 z. */
+            public z: number;
+
+            /**
+             * Creates a new Vector3 instance using the specified properties.
+             * @param [properties] Properties to set
+             * @returns Vector3 instance
+             */
+            public static create(properties?: bayesmech.vision.IVector3): bayesmech.vision.Vector3;
+
+            /**
+             * Encodes the specified Vector3 message. Does not implicitly {@link bayesmech.vision.Vector3.verify|verify} messages.
+             * @param message Vector3 message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encode(message: bayesmech.vision.IVector3, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Encodes the specified Vector3 message, length delimited. Does not implicitly {@link bayesmech.vision.Vector3.verify|verify} messages.
+             * @param message Vector3 message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encodeDelimited(message: bayesmech.vision.IVector3, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Decodes a Vector3 message from the specified reader or buffer.
+             * @param reader Reader or buffer to decode from
+             * @param [length] Message length if known beforehand
+             * @returns Vector3
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): bayesmech.vision.Vector3;
+
+            /**
+             * Decodes a Vector3 message from the specified reader or buffer, length delimited.
+             * @param reader Reader or buffer to decode from
+             * @returns Vector3
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): bayesmech.vision.Vector3;
+
+            /**
+             * Verifies a Vector3 message.
+             * @param message Plain object to verify
+             * @returns `null` if valid, otherwise the reason why it is not
+             */
+            public static verify(message: { [k: string]: any }): (string|null);
+
+            /**
+             * Creates a Vector3 message from a plain object. Also converts values to their respective internal types.
+             * @param object Plain object
+             * @returns Vector3
+             */
+            public static fromObject(object: { [k: string]: any }): bayesmech.vision.Vector3;
+
+            /**
+             * Creates a plain object from a Vector3 message. Also converts values to other types if specified.
+             * @param message Vector3
+             * @param [options] Conversion options
+             * @returns Plain object
+             */
+            public static toObject(message: bayesmech.vision.Vector3, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+            /**
+             * Converts this Vector3 to JSON.
+             * @returns JSON object
+             */
+            public toJSON(): { [k: string]: any };
+
+            /**
+             * Gets the default type url for Vector3
+             * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns The default type url
+             */
+            public static getTypeUrl(typeUrlPrefix?: string): string;
+        }
+
+        /** Properties of a Quaternion. */
+        interface IQuaternion {
+
+            /** Quaternion x */
+            x?: (number|null);
+
+            /** Quaternion y */
+            y?: (number|null);
+
+            /** Quaternion z */
+            z?: (number|null);
+
+            /** Quaternion w */
+            w?: (number|null);
+        }
+
+        /** Represents a Quaternion. */
+        class Quaternion implements IQuaternion {
+
+            /**
+             * Constructs a new Quaternion.
+             * @param [properties] Properties to set
+             */
+            constructor(properties?: bayesmech.vision.IQuaternion);
+
+            /** Quaternion x. */
+            public x: number;
+
+            /** Quaternion y. */
+            public y: number;
+
+            /** Quaternion z. */
+            public z: number;
+
+            /** Quaternion w. */
+            public w: number;
+
+            /**
+             * Creates a new Quaternion instance using the specified properties.
+             * @param [properties] Properties to set
+             * @returns Quaternion instance
+             */
+            public static create(properties?: bayesmech.vision.IQuaternion): bayesmech.vision.Quaternion;
+
+            /**
+             * Encodes the specified Quaternion message. Does not implicitly {@link bayesmech.vision.Quaternion.verify|verify} messages.
+             * @param message Quaternion message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encode(message: bayesmech.vision.IQuaternion, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Encodes the specified Quaternion message, length delimited. Does not implicitly {@link bayesmech.vision.Quaternion.verify|verify} messages.
+             * @param message Quaternion message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encodeDelimited(message: bayesmech.vision.IQuaternion, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Decodes a Quaternion message from the specified reader or buffer.
+             * @param reader Reader or buffer to decode from
+             * @param [length] Message length if known beforehand
+             * @returns Quaternion
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): bayesmech.vision.Quaternion;
+
+            /**
+             * Decodes a Quaternion message from the specified reader or buffer, length delimited.
+             * @param reader Reader or buffer to decode from
+             * @returns Quaternion
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): bayesmech.vision.Quaternion;
+
+            /**
+             * Verifies a Quaternion message.
+             * @param message Plain object to verify
+             * @returns `null` if valid, otherwise the reason why it is not
+             */
+            public static verify(message: { [k: string]: any }): (string|null);
+
+            /**
+             * Creates a Quaternion message from a plain object. Also converts values to their respective internal types.
+             * @param object Plain object
+             * @returns Quaternion
+             */
+            public static fromObject(object: { [k: string]: any }): bayesmech.vision.Quaternion;
+
+            /**
+             * Creates a plain object from a Quaternion message. Also converts values to other types if specified.
+             * @param message Quaternion
+             * @param [options] Conversion options
+             * @returns Plain object
+             */
+            public static toObject(message: bayesmech.vision.Quaternion, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+            /**
+             * Converts this Quaternion to JSON.
+             * @returns JSON object
+             */
+            public toJSON(): { [k: string]: any };
+
+            /**
+             * Gets the default type url for Quaternion
+             * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns The default type url
+             */
+            public static getTypeUrl(typeUrlPrefix?: string): string;
+        }
+
         /** Properties of a PerceiverDataFrame. */
         interface IPerceiverDataFrame {
 
@@ -32,6 +359,9 @@ export namespace bayesmech {
 
             /** PerceiverDataFrame gpsLocation */
             gpsLocation?: (bayesmech.vision.IGpsLocation|null);
+
+            /** PerceiverDataFrame userTextInput */
+            userTextInput?: (string|null);
         }
 
         /** Represents a PerceiverDataFrame. */
@@ -66,6 +396,9 @@ export namespace bayesmech {
 
             /** PerceiverDataFrame gpsLocation. */
             public gpsLocation?: (bayesmech.vision.IGpsLocation|null);
+
+            /** PerceiverDataFrame userTextInput. */
+            public userTextInput: string;
 
             /**
              * Creates a new PerceiverDataFrame instance using the specified properties.
@@ -882,333 +1215,6 @@ export namespace bayesmech {
             public static getTypeUrl(typeUrlPrefix?: string): string;
         }
 
-        /** Properties of a Pose. */
-        interface IPose {
-
-            /** Pose position */
-            position?: (bayesmech.vision.IVector3|null);
-
-            /** Pose rotation */
-            rotation?: (bayesmech.vision.IQuaternion|null);
-        }
-
-        /** Represents a Pose. */
-        class Pose implements IPose {
-
-            /**
-             * Constructs a new Pose.
-             * @param [properties] Properties to set
-             */
-            constructor(properties?: bayesmech.vision.IPose);
-
-            /** Pose position. */
-            public position?: (bayesmech.vision.IVector3|null);
-
-            /** Pose rotation. */
-            public rotation?: (bayesmech.vision.IQuaternion|null);
-
-            /**
-             * Creates a new Pose instance using the specified properties.
-             * @param [properties] Properties to set
-             * @returns Pose instance
-             */
-            public static create(properties?: bayesmech.vision.IPose): bayesmech.vision.Pose;
-
-            /**
-             * Encodes the specified Pose message. Does not implicitly {@link bayesmech.vision.Pose.verify|verify} messages.
-             * @param message Pose message or plain object to encode
-             * @param [writer] Writer to encode to
-             * @returns Writer
-             */
-            public static encode(message: bayesmech.vision.IPose, writer?: $protobuf.Writer): $protobuf.Writer;
-
-            /**
-             * Encodes the specified Pose message, length delimited. Does not implicitly {@link bayesmech.vision.Pose.verify|verify} messages.
-             * @param message Pose message or plain object to encode
-             * @param [writer] Writer to encode to
-             * @returns Writer
-             */
-            public static encodeDelimited(message: bayesmech.vision.IPose, writer?: $protobuf.Writer): $protobuf.Writer;
-
-            /**
-             * Decodes a Pose message from the specified reader or buffer.
-             * @param reader Reader or buffer to decode from
-             * @param [length] Message length if known beforehand
-             * @returns Pose
-             * @throws {Error} If the payload is not a reader or valid buffer
-             * @throws {$protobuf.util.ProtocolError} If required fields are missing
-             */
-            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): bayesmech.vision.Pose;
-
-            /**
-             * Decodes a Pose message from the specified reader or buffer, length delimited.
-             * @param reader Reader or buffer to decode from
-             * @returns Pose
-             * @throws {Error} If the payload is not a reader or valid buffer
-             * @throws {$protobuf.util.ProtocolError} If required fields are missing
-             */
-            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): bayesmech.vision.Pose;
-
-            /**
-             * Verifies a Pose message.
-             * @param message Plain object to verify
-             * @returns `null` if valid, otherwise the reason why it is not
-             */
-            public static verify(message: { [k: string]: any }): (string|null);
-
-            /**
-             * Creates a Pose message from a plain object. Also converts values to their respective internal types.
-             * @param object Plain object
-             * @returns Pose
-             */
-            public static fromObject(object: { [k: string]: any }): bayesmech.vision.Pose;
-
-            /**
-             * Creates a plain object from a Pose message. Also converts values to other types if specified.
-             * @param message Pose
-             * @param [options] Conversion options
-             * @returns Plain object
-             */
-            public static toObject(message: bayesmech.vision.Pose, options?: $protobuf.IConversionOptions): { [k: string]: any };
-
-            /**
-             * Converts this Pose to JSON.
-             * @returns JSON object
-             */
-            public toJSON(): { [k: string]: any };
-
-            /**
-             * Gets the default type url for Pose
-             * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
-             * @returns The default type url
-             */
-            public static getTypeUrl(typeUrlPrefix?: string): string;
-        }
-
-        /** Properties of a Vector3. */
-        interface IVector3 {
-
-            /** Vector3 x */
-            x?: (number|null);
-
-            /** Vector3 y */
-            y?: (number|null);
-
-            /** Vector3 z */
-            z?: (number|null);
-        }
-
-        /** Represents a Vector3. */
-        class Vector3 implements IVector3 {
-
-            /**
-             * Constructs a new Vector3.
-             * @param [properties] Properties to set
-             */
-            constructor(properties?: bayesmech.vision.IVector3);
-
-            /** Vector3 x. */
-            public x: number;
-
-            /** Vector3 y. */
-            public y: number;
-
-            /** Vector3 z. */
-            public z: number;
-
-            /**
-             * Creates a new Vector3 instance using the specified properties.
-             * @param [properties] Properties to set
-             * @returns Vector3 instance
-             */
-            public static create(properties?: bayesmech.vision.IVector3): bayesmech.vision.Vector3;
-
-            /**
-             * Encodes the specified Vector3 message. Does not implicitly {@link bayesmech.vision.Vector3.verify|verify} messages.
-             * @param message Vector3 message or plain object to encode
-             * @param [writer] Writer to encode to
-             * @returns Writer
-             */
-            public static encode(message: bayesmech.vision.IVector3, writer?: $protobuf.Writer): $protobuf.Writer;
-
-            /**
-             * Encodes the specified Vector3 message, length delimited. Does not implicitly {@link bayesmech.vision.Vector3.verify|verify} messages.
-             * @param message Vector3 message or plain object to encode
-             * @param [writer] Writer to encode to
-             * @returns Writer
-             */
-            public static encodeDelimited(message: bayesmech.vision.IVector3, writer?: $protobuf.Writer): $protobuf.Writer;
-
-            /**
-             * Decodes a Vector3 message from the specified reader or buffer.
-             * @param reader Reader or buffer to decode from
-             * @param [length] Message length if known beforehand
-             * @returns Vector3
-             * @throws {Error} If the payload is not a reader or valid buffer
-             * @throws {$protobuf.util.ProtocolError} If required fields are missing
-             */
-            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): bayesmech.vision.Vector3;
-
-            /**
-             * Decodes a Vector3 message from the specified reader or buffer, length delimited.
-             * @param reader Reader or buffer to decode from
-             * @returns Vector3
-             * @throws {Error} If the payload is not a reader or valid buffer
-             * @throws {$protobuf.util.ProtocolError} If required fields are missing
-             */
-            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): bayesmech.vision.Vector3;
-
-            /**
-             * Verifies a Vector3 message.
-             * @param message Plain object to verify
-             * @returns `null` if valid, otherwise the reason why it is not
-             */
-            public static verify(message: { [k: string]: any }): (string|null);
-
-            /**
-             * Creates a Vector3 message from a plain object. Also converts values to their respective internal types.
-             * @param object Plain object
-             * @returns Vector3
-             */
-            public static fromObject(object: { [k: string]: any }): bayesmech.vision.Vector3;
-
-            /**
-             * Creates a plain object from a Vector3 message. Also converts values to other types if specified.
-             * @param message Vector3
-             * @param [options] Conversion options
-             * @returns Plain object
-             */
-            public static toObject(message: bayesmech.vision.Vector3, options?: $protobuf.IConversionOptions): { [k: string]: any };
-
-            /**
-             * Converts this Vector3 to JSON.
-             * @returns JSON object
-             */
-            public toJSON(): { [k: string]: any };
-
-            /**
-             * Gets the default type url for Vector3
-             * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
-             * @returns The default type url
-             */
-            public static getTypeUrl(typeUrlPrefix?: string): string;
-        }
-
-        /** Properties of a Quaternion. */
-        interface IQuaternion {
-
-            /** Quaternion x */
-            x?: (number|null);
-
-            /** Quaternion y */
-            y?: (number|null);
-
-            /** Quaternion z */
-            z?: (number|null);
-
-            /** Quaternion w */
-            w?: (number|null);
-        }
-
-        /** Represents a Quaternion. */
-        class Quaternion implements IQuaternion {
-
-            /**
-             * Constructs a new Quaternion.
-             * @param [properties] Properties to set
-             */
-            constructor(properties?: bayesmech.vision.IQuaternion);
-
-            /** Quaternion x. */
-            public x: number;
-
-            /** Quaternion y. */
-            public y: number;
-
-            /** Quaternion z. */
-            public z: number;
-
-            /** Quaternion w. */
-            public w: number;
-
-            /**
-             * Creates a new Quaternion instance using the specified properties.
-             * @param [properties] Properties to set
-             * @returns Quaternion instance
-             */
-            public static create(properties?: bayesmech.vision.IQuaternion): bayesmech.vision.Quaternion;
-
-            /**
-             * Encodes the specified Quaternion message. Does not implicitly {@link bayesmech.vision.Quaternion.verify|verify} messages.
-             * @param message Quaternion message or plain object to encode
-             * @param [writer] Writer to encode to
-             * @returns Writer
-             */
-            public static encode(message: bayesmech.vision.IQuaternion, writer?: $protobuf.Writer): $protobuf.Writer;
-
-            /**
-             * Encodes the specified Quaternion message, length delimited. Does not implicitly {@link bayesmech.vision.Quaternion.verify|verify} messages.
-             * @param message Quaternion message or plain object to encode
-             * @param [writer] Writer to encode to
-             * @returns Writer
-             */
-            public static encodeDelimited(message: bayesmech.vision.IQuaternion, writer?: $protobuf.Writer): $protobuf.Writer;
-
-            /**
-             * Decodes a Quaternion message from the specified reader or buffer.
-             * @param reader Reader or buffer to decode from
-             * @param [length] Message length if known beforehand
-             * @returns Quaternion
-             * @throws {Error} If the payload is not a reader or valid buffer
-             * @throws {$protobuf.util.ProtocolError} If required fields are missing
-             */
-            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): bayesmech.vision.Quaternion;
-
-            /**
-             * Decodes a Quaternion message from the specified reader or buffer, length delimited.
-             * @param reader Reader or buffer to decode from
-             * @returns Quaternion
-             * @throws {Error} If the payload is not a reader or valid buffer
-             * @throws {$protobuf.util.ProtocolError} If required fields are missing
-             */
-            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): bayesmech.vision.Quaternion;
-
-            /**
-             * Verifies a Quaternion message.
-             * @param message Plain object to verify
-             * @returns `null` if valid, otherwise the reason why it is not
-             */
-            public static verify(message: { [k: string]: any }): (string|null);
-
-            /**
-             * Creates a Quaternion message from a plain object. Also converts values to their respective internal types.
-             * @param object Plain object
-             * @returns Quaternion
-             */
-            public static fromObject(object: { [k: string]: any }): bayesmech.vision.Quaternion;
-
-            /**
-             * Creates a plain object from a Quaternion message. Also converts values to other types if specified.
-             * @param message Quaternion
-             * @param [options] Conversion options
-             * @returns Plain object
-             */
-            public static toObject(message: bayesmech.vision.Quaternion, options?: $protobuf.IConversionOptions): { [k: string]: any };
-
-            /**
-             * Converts this Quaternion to JSON.
-             * @returns JSON object
-             */
-            public toJSON(): { [k: string]: any };
-
-            /**
-             * Gets the default type url for Quaternion
-             * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
-             * @returns The default type url
-             */
-            public static getTypeUrl(typeUrlPrefix?: string): string;
-        }
-
         /** Properties of an InferredGeometry. */
         interface IInferredGeometry {
 
@@ -1681,6 +1687,9 @@ export namespace bayesmech {
 
                 /** SegmentationMask pixelCount */
                 pixelCount?: (number|null);
+
+                /** SegmentationMask label */
+                label?: (string|null);
             }
 
             /** Represents a SegmentationMask. */
@@ -1703,6 +1712,9 @@ export namespace bayesmech {
 
                 /** SegmentationMask pixelCount. */
                 public pixelCount: number;
+
+                /** SegmentationMask label. */
+                public label: string;
 
                 /**
                  * Creates a new SegmentationMask instance using the specified properties.
@@ -1889,109 +1901,6 @@ export namespace bayesmech {
 
             /**
              * Gets the default type url for SegmentationRequest
-             * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
-             * @returns The default type url
-             */
-            public static getTypeUrl(typeUrlPrefix?: string): string;
-        }
-
-        /** Properties of a SlamPosition. */
-        interface ISlamPosition {
-
-            /** SlamPosition x */
-            x?: (number|null);
-
-            /** SlamPosition y */
-            y?: (number|null);
-        }
-
-        /** Represents a SlamPosition. */
-        class SlamPosition implements ISlamPosition {
-
-            /**
-             * Constructs a new SlamPosition.
-             * @param [properties] Properties to set
-             */
-            constructor(properties?: bayesmech.vision.ISlamPosition);
-
-            /** SlamPosition x. */
-            public x: number;
-
-            /** SlamPosition y. */
-            public y: number;
-
-            /**
-             * Creates a new SlamPosition instance using the specified properties.
-             * @param [properties] Properties to set
-             * @returns SlamPosition instance
-             */
-            public static create(properties?: bayesmech.vision.ISlamPosition): bayesmech.vision.SlamPosition;
-
-            /**
-             * Encodes the specified SlamPosition message. Does not implicitly {@link bayesmech.vision.SlamPosition.verify|verify} messages.
-             * @param message SlamPosition message or plain object to encode
-             * @param [writer] Writer to encode to
-             * @returns Writer
-             */
-            public static encode(message: bayesmech.vision.ISlamPosition, writer?: $protobuf.Writer): $protobuf.Writer;
-
-            /**
-             * Encodes the specified SlamPosition message, length delimited. Does not implicitly {@link bayesmech.vision.SlamPosition.verify|verify} messages.
-             * @param message SlamPosition message or plain object to encode
-             * @param [writer] Writer to encode to
-             * @returns Writer
-             */
-            public static encodeDelimited(message: bayesmech.vision.ISlamPosition, writer?: $protobuf.Writer): $protobuf.Writer;
-
-            /**
-             * Decodes a SlamPosition message from the specified reader or buffer.
-             * @param reader Reader or buffer to decode from
-             * @param [length] Message length if known beforehand
-             * @returns SlamPosition
-             * @throws {Error} If the payload is not a reader or valid buffer
-             * @throws {$protobuf.util.ProtocolError} If required fields are missing
-             */
-            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): bayesmech.vision.SlamPosition;
-
-            /**
-             * Decodes a SlamPosition message from the specified reader or buffer, length delimited.
-             * @param reader Reader or buffer to decode from
-             * @returns SlamPosition
-             * @throws {Error} If the payload is not a reader or valid buffer
-             * @throws {$protobuf.util.ProtocolError} If required fields are missing
-             */
-            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): bayesmech.vision.SlamPosition;
-
-            /**
-             * Verifies a SlamPosition message.
-             * @param message Plain object to verify
-             * @returns `null` if valid, otherwise the reason why it is not
-             */
-            public static verify(message: { [k: string]: any }): (string|null);
-
-            /**
-             * Creates a SlamPosition message from a plain object. Also converts values to their respective internal types.
-             * @param object Plain object
-             * @returns SlamPosition
-             */
-            public static fromObject(object: { [k: string]: any }): bayesmech.vision.SlamPosition;
-
-            /**
-             * Creates a plain object from a SlamPosition message. Also converts values to other types if specified.
-             * @param message SlamPosition
-             * @param [options] Conversion options
-             * @returns Plain object
-             */
-            public static toObject(message: bayesmech.vision.SlamPosition, options?: $protobuf.IConversionOptions): { [k: string]: any };
-
-            /**
-             * Converts this SlamPosition to JSON.
-             * @returns JSON object
-             */
-            public toJSON(): { [k: string]: any };
-
-            /**
-             * Gets the default type url for SlamPosition
              * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
              * @returns The default type url
              */

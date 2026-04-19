@@ -52,7 +52,7 @@ from streamlog.protoio import ProtoIO
 
 _frame_io = ProtoIO(perceiver_pb2.PerceiverDataFrame)
 
-_config_path = Path(__file__).parent / "genspark_config.yaml"
+_config_path = Path(__file__).parent / "config.yaml"
 with open(_config_path) as _f:
     _CONFIG = yaml.safe_load(_f)
 
@@ -721,7 +721,7 @@ def main() -> None:
         help=f"AI provider to use (default: {default_provider})"
     )
     parser.add_argument("--config", default=None,
-                        help="Path to alternate genspark_config.yaml")
+                        help="Path to alternate config.yaml")
     parser.add_argument("--offset", type=float, default=None, metavar="SECONDS",
                         help=f"Start offset in seconds (default: {cfg_video.get('start_offset_seconds', 0)})")
     parser.add_argument("--max-duration", type=float, default=None, metavar="SECONDS",

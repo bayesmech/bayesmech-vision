@@ -1,3 +1,4 @@
+import React from 'react'
 import { useDashboard } from '../context/DashboardContext'
 import StreamViewer from './StreamViewer'
 import GeometryStreamViewer from './GeometryStreamViewer'
@@ -6,7 +7,7 @@ import MotionChart from './MotionChart'
 import InfoCard from './InfoCard'
 import TrajectoryCanvas from './TrajectoryCanvas'
 import GpsMapViewer from './GpsMapViewer'
-import type { ImuData } from '../types'
+import type { ImuData, SegmentationLegendEntry } from '../types'
 
 const XYZ = ['X', 'Y', 'Z']
 
@@ -22,6 +23,42 @@ const SENSOR_CHARTS: {
   { field: 'magnetic_field', title: 'Magnetic Field', yAxisLabel: 'µT', axisLabels: XYZ },
 ]
 
+const SegmentationLegend: React.FC<{ legend?: SegmentationLegendEntry[] }> = ({ legend }) => (
+  <div className="stream-card" style={{ display: 'flex', flexDirection: 'column' }}>
+    <div className="stream-header">
+      <span className="stream-title">Legend</span>
+      <span className="stream-badge">KEY</span>
+    </div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', overflowY: 'auto' }}>
+      {(!legend || legend.length === 0) ? (
+        <div style={{ color: 'var(--text-dim)', fontSize: '0.75rem' }}>No objects detected</div>
+      ) : (
+        legend.map(entry => (
+          <div key={entry.objectId} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
+            <div style={{
+              width: 12,
+              height: 12,
+              flexShrink: 0,
+              marginTop: 2,
+              background: `rgba(${entry.color[0]}, ${entry.color[1]}, ${entry.color[2]}, 0.7)`,
+              border: `1px solid rgba(${entry.color[0]}, ${entry.color[1]}, ${entry.color[2]}, 1)`,
+            }} />
+            <span style={{
+              fontSize: '0.78rem',
+              lineHeight: 1.35,
+              color: 'var(--text)',
+              wordBreak: 'break-word',
+              overflowWrap: 'anywhere',
+            }}>
+              {entry.label}
+            </span>
+          </div>
+        ))
+      )}
+    </div>
+  </div>
+)
+
 const DashboardPage = () => {
   const { displayedFrame, displayedAnnotation, frameCount, fps } = useDashboard()
 
@@ -35,7 +72,7 @@ const DashboardPage = () => {
       {/* Playback controls — full width, above all streams */}
       <PlaybackControls />
 
-      {/* Video streams */}
+      {/* Video streams — RGB, Depth, Point Cloud, Planes */}
       <div
         className="streams-grid"
         style={{
@@ -61,15 +98,6 @@ const DashboardPage = () => {
           placeholderText="Waiting for depth frames..."
         />
 
-        <StreamViewer
-          title="Segmentation"
-          badge="SEG"
-          blobUrl={displayedAnnotation?.blobUrl}
-          placeholderIcon={'🧩'}
-          placeholderText="Waiting for segmentation masks..."
-          holdLastMs={3000}
-        />
-
         <GeometryStreamViewer
           title="Point Cloud"
           badge="PCD"
@@ -91,6 +119,26 @@ const DashboardPage = () => {
           cameraIntrinsics={displayedFrame?.camera_intrinsics}
           geometry={displayedFrame?.inferred_geometry}
         />
+      </div>
+
+      {/* Segmentation row — video (1 col) + legend (0.5 col) out of 3-column grid */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: '2fr 1fr 3fr',
+          gap: '1rem',
+          marginBottom: '1.5rem',
+        }}
+      >
+        <StreamViewer
+          title="Segmentation"
+          badge="SEG"
+          blobUrl={displayedAnnotation?.blobUrl}
+          placeholderIcon={'🧩'}
+          placeholderText="Waiting for segmentation masks..."
+          holdLastMs={3000}
+        />
+        <SegmentationLegend legend={displayedAnnotation?.legend} />
       </div>
 
       {/* Info cards */}

@@ -5,7 +5,7 @@ import type {
 } from '../types'
 import { dashboardWs } from '../services/websocket'
 import { startPlayback, switchToLive as apiSwitchToLive } from '../services/api'
-import { bytesToBlobUrl, compositeMasksToDataUrl } from '../services/proto'
+import { bytesToBlobUrl, compositeMasksToDataUrl, MASK_COLORS } from '../services/proto'
 import { bayesmech } from '../proto/bundle'
 
 // =====================================================================
@@ -222,7 +222,19 @@ class FrameDecoder {
     if (!masks || masks.length === 0) return null
     const dataUrl = compositeMasksToDataUrl(masks)
     if (!dataUrl) return null
-    return { frameNumber, blobUrl: dataUrl }
+
+    // Deduplicate by objectId — one legend entry per tracked object
+    const seen = new Set<number>()
+    const legend: import('../types').SegmentationLegendEntry[] = []
+    for (const m of masks) {
+      const objId = m.objectId ?? 0
+      if (seen.has(objId)) continue
+      seen.add(objId)
+      const c = MASK_COLORS[((objId % MASK_COLORS.length) + MASK_COLORS.length) % MASK_COLORS.length]
+      legend.push({ objectId: objId, label: m.label || 'UNDEFINED', color: [c[0], c[1], c[2]] })
+    }
+
+    return { frameNumber, blobUrl: dataUrl, legend }
   }
 }
 
@@ -346,6 +358,10 @@ class AnnotationBuffer {
     const pos = upperBound(this.sortedKeys, frameNumber) - 1
     if (pos < 0) return null
     return this.annotations.get(this.sortedKeys[pos]) ?? null
+  }
+
+  hasExact(frameNumber: number): boolean {
+    return this.annotations.has(frameNumber)
   }
 
   /** True if any annotation exists with frameNumber <= frameNumber. */
@@ -473,7 +489,7 @@ interface DashboardState {
   seekTo: (index: number) => void
   skipForward: () => void
   skipBackward: () => void
-  loadRecording: (filename: string) => Promise<void>
+  loadRecording: (name: string) => Promise<void>
   switchToLive: () => Promise<void>
 }
 
@@ -592,6 +608,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const handleAnnotations = useCallback((annotations: bayesmech.vision.SegmentationResponse[]) => {
     for (const proto of annotations) {
+      const frameNumber = proto.frameIdentifier?.frameNumber ?? 0
+      if (annotationBuffer.current.hasExact(frameNumber)) continue
       const annotation = decoder.current.decodeAnnotation(proto)
       if (annotation) annotationBuffer.current.set(annotation)
     }
@@ -703,7 +721,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     seekTo(currentIndexRef.current - jump)
   }, [seekTo])
 
-  const loadRecording = useCallback(async (filename: string) => {
+  const loadRecording = useCallback(async (name: string) => {
     // Reset all state
     frameBuffer.current.destroy()
     frameBuffer.current = new FrameBuffer()
@@ -729,7 +747,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setSensorData([])
 
     // Load on server
-    await startPlayback(filename)
+    await startPlayback(name)
 
     // Request stats, full trajectory, and full sensor data (precomputed once)
     dashboardWs.getStats()
