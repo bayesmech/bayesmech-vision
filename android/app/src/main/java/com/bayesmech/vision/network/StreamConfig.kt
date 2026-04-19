@@ -23,17 +23,15 @@ data class StreamConfig(
 
 enum class QualityLevel(
     val targetFps: Int,
-    val rgbWidth: Int,
-    val rgbHeight: Int,
     val jpegQuality: Int,
     val depthScale: Float,
     val pointCloudSubsample: Float,
     val sendRgb: Boolean,
     val sendDepth: Boolean
 ) {
-    FULL(30, 1280, 720, 85, 1.0f, 1.0f, true, true),
-    HIGH(30, 960, 540, 80, 1.0f, 0.5f, true, true),
-    MEDIUM(25, 640, 480, 75, 1.0f, 0.2f, true, true),
-    LOW(20, 480, 360, 70, 1.0f, 0.1f, true, true),
-    MINIMAL(15, 320, 240, 60, 1.0f, 0.0f, true, false);
+    FULL(30, 85, 1.0f, 1.0f, true, true),
+    HIGH(30, 80, 1.0f, 0.5f, true, true),
+    MEDIUM(25, 75, 1.0f, 0.2f, true, true),
+    LOW(20, 70, 1.0f, 0.1f, true, true),
+    MINIMAL(15, 60, 1.0f, 0.0f, true, false);
 }

@@ -12,6 +12,7 @@ POST /api/playback/start     Load a recording into the store
 POST /api/playback/stop      Stop active replay
 GET /api/playback/status     Replay status
 POST /api/upload_recording   Upload .pb file and start replay
+POST /api/transcribe         Proxy audio transcription to OpenAI using server credentials
 POST /api/insightgen/recordings  List recordings (protobuf, with thumbnails)
 GET  /api/insightgen/insight     Return GensparkSummary for a recording
 GET  /api/insightgen/video       Return InsightVideoResponse (JPEG frames) for a recording
@@ -21,7 +22,9 @@ POST /api/insightgen/chat        Follow-up chat with Gemini (bootstrapped from a
 """
 
 import asyncio
+import json
 import logging
+import os
 import re
 import struct
 import sys
@@ -30,6 +33,7 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
 
+import aiohttp
 from fastapi import FastAPI, Request, Response, UploadFile, File, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -151,6 +155,48 @@ async def health():
 @app.get("/api/stream")
 async def get_stream_stats():
     return store.stats()
+
+
+@app.post("/api/transcribe")
+async def transcribe_audio(file: UploadFile = File(...)):
+    api_key = os.environ.get("OPENAI_API_KEY")
+    if not api_key:
+        raise HTTPException(status_code=503, detail="OPENAI_API_KEY is not configured on the server")
+
+    audio_bytes = await file.read()
+    if not audio_bytes:
+        raise HTTPException(status_code=400, detail="Uploaded audio file is empty")
+
+    filename = file.filename or "audio.m4a"
+    content_type = file.content_type or "audio/mp4"
+
+    form = aiohttp.FormData()
+    form.add_field("file", audio_bytes, filename=filename, content_type=content_type)
+    form.add_field("model", "gpt-4o-mini-transcribe")
+    form.add_field("response_format", "json")
+
+    async with aiohttp.ClientSession() as session:
+        async with session.post(
+            "https://api.openai.com/v1/audio/transcriptions",
+            headers={"Authorization": f"Bearer {api_key}"},
+            data=form,
+        ) as openai_response:
+            response_text = await openai_response.text()
+            if openai_response.status >= 400:
+                logger.error("OpenAI transcription failed: %s %s", openai_response.status, response_text)
+                raise HTTPException(status_code=502, detail="OpenAI transcription failed")
+
+    try:
+        payload = json.loads(response_text)
+    except Exception as exc:
+        logger.error("Failed to parse OpenAI transcription response: %s", exc)
+        raise HTTPException(status_code=502, detail="Invalid transcription response from OpenAI") from exc
+
+    transcript = str(payload.get("text") or "").strip()
+    if not transcript:
+        raise HTTPException(status_code=502, detail="OpenAI returned an empty transcript")
+
+    return {"text": transcript}
 
 
 _FILENAME_DATE_RE = re.compile(r"(\d{8}_\d{6})")

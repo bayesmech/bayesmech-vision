@@ -17,6 +17,17 @@ import com.google.protobuf.ByteString
 import java.io.ByteArrayOutputStream
 
 object CameraDataExtractor {
+    data class EncodedRgbFrame(
+        val frame: ImageFrame,
+        val width: Int,
+        val height: Int
+    )
+
+    data class EncodedDepthFrame(
+        val frame: DepthFrame,
+        val width: Int,
+        val height: Int
+    )
 
     fun extractCameraPose(camera: Camera): Pose {
         val pose = camera.pose
@@ -37,18 +48,28 @@ object CameraDataExtractor {
             .build()
     }
 
-    fun extractCameraIntrinsics(camera: Camera, depthWidth: Int, depthHeight: Int): CameraIntrinsics {
+    fun extractCameraIntrinsics(
+        camera: Camera,
+        rgbWidth: Int,
+        rgbHeight: Int,
+        depthWidth: Int,
+        depthHeight: Int
+    ): CameraIntrinsics {
         val intrinsics = camera.imageIntrinsics
         val focal = intrinsics.focalLength
         val principal = intrinsics.principalPoint
         val dims = intrinsics.imageDimensions
+        val srcWidth = dims[0].takeIf { it > 0 } ?: rgbWidth
+        val srcHeight = dims[1].takeIf { it > 0 } ?: rgbHeight
+        val scaleX = if (srcWidth > 0 && rgbWidth > 0) rgbWidth.toFloat() / srcWidth.toFloat() else 1f
+        val scaleY = if (srcHeight > 0 && rgbHeight > 0) rgbHeight.toFloat() / srcHeight.toFloat() else 1f
         return CameraIntrinsics.newBuilder()
-            .setFx(focal[0])
-            .setFy(focal[1])
-            .setCx(principal[0])
-            .setCy(principal[1])
-            .setImageWidth(dims[0].toFloat())
-            .setImageHeight(dims[1].toFloat())
+            .setFx(focal[0] * scaleX)
+            .setFy(focal[1] * scaleY)
+            .setCx(principal[0] * scaleX)
+            .setCy(principal[1] * scaleY)
+            .setImageWidth(rgbWidth.toFloat())
+            .setImageHeight(rgbHeight.toFloat())
             .setDepthWidth(depthWidth.toFloat())
             .setDepthHeight(depthHeight.toFloat())
             .build()
@@ -56,61 +77,59 @@ object CameraDataExtractor {
 
     fun extractRgbFrame(
         bitmap: Bitmap,
-        jpegQuality: Int,
-        targetWidth: Int = 0,
-        targetHeight: Int = 0
-    ): ImageFrame {
-        val resizedBitmap = if (targetWidth > 0 && targetHeight > 0) {
-            Bitmap.createScaledBitmap(bitmap, targetWidth, targetHeight, true)
-        } else {
-            bitmap
-        }
-
+        jpegQuality: Int
+    ): EncodedRgbFrame {
         val stream = ByteArrayOutputStream()
-        resizedBitmap.compress(Bitmap.CompressFormat.JPEG, jpegQuality, stream)
+        bitmap.compress(Bitmap.CompressFormat.JPEG, jpegQuality, stream)
         val jpegData = stream.toByteArray()
 
-        if (resizedBitmap !== bitmap) {
-            resizedBitmap.recycle()
-        }
-
-        return ImageFrame.newBuilder()
-            .setData(ByteString.copyFrom(jpegData))
-            .setFormat(ImageFrame.ImageFormat.JPEG)
-            .setQuality(jpegQuality)
-            .build()
+        return EncodedRgbFrame(
+            frame = ImageFrame.newBuilder()
+                .setData(ByteString.copyFrom(jpegData))
+                .setFormat(ImageFrame.ImageFormat.JPEG)
+                .setWidth(bitmap.width)
+                .setHeight(bitmap.height)
+                .setQuality(jpegQuality)
+                .build(),
+            width = bitmap.width,
+            height = bitmap.height
+        )
     }
 
     fun processDepthImage(
         depthImage: Image,
         depthScale: Int = 1
-    ): DepthFrame? {
+    ): EncodedDepthFrame? {
         try {
             val width = depthImage.width / depthScale
             val height = depthImage.height / depthScale
 
-            val depthBuffer = depthImage.planes[0].buffer
+            val depthPlane = depthImage.planes[0]
+            val depthBuffer = depthPlane.buffer
+            val rowStride = depthPlane.rowStride
+            val pixelStride = depthPlane.pixelStride
             val depthBytes = ByteArray(width * height * 2)
-
-            if (depthScale == 1) {
-                depthBuffer.rewind()
-                depthBuffer.get(depthBytes)
-            } else {
-                depthBuffer.rewind()
-                var destIdx = 0
-                for (y in 0 until height) {
-                    for (x in 0 until width) {
-                        val srcIdx = (y * depthScale * depthImage.width + x * depthScale) * 2
-                        depthBytes[destIdx++] = depthBuffer.get(srcIdx)
-                        depthBytes[destIdx++] = depthBuffer.get(srcIdx + 1)
-                    }
+            var destIdx = 0
+            for (y in 0 until height) {
+                val srcRow = y * depthScale
+                var srcIdx = srcRow * rowStride
+                for (x in 0 until width) {
+                    depthBytes[destIdx++] = depthBuffer.get(srcIdx)
+                    depthBytes[destIdx++] = depthBuffer.get(srcIdx + 1)
+                    srcIdx += depthScale * pixelStride
                 }
             }
 
-            return DepthFrame.newBuilder()
-                .setData(ByteString.copyFrom(depthBytes))
-                .setFormat(DepthFrame.DepthFormat.UINT16_MILLIMETERS)
-                .build()
+            return EncodedDepthFrame(
+                frame = DepthFrame.newBuilder()
+                    .setData(ByteString.copyFrom(depthBytes))
+                    .setFormat(DepthFrame.DepthFormat.UINT16_MILLIMETERS)
+                    .setWidth(width)
+                    .setHeight(height)
+                    .build(),
+                width = width,
+                height = height
+            )
 
         } catch (e: Exception) {
             android.util.Log.e("CameraDataExtractor", "✗ Depth processing failed: ${e.javaClass.simpleName}: ${e.message}")

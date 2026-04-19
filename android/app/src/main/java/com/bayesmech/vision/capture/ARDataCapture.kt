@@ -5,6 +5,7 @@ import android.media.Image
 import android.util.Log
 import com.bayesmech.vision.PerceiverDataFrame
 import com.bayesmech.vision.PerceiverFrameIdentifier
+import com.bayesmech.vision.common.helpers.DeviceTimestamp
 import com.google.ar.core.Camera
 import com.google.ar.core.Frame
 import com.google.ar.core.PointCloud
@@ -126,35 +127,50 @@ class ARDataCapture(
         frameNum: Int
     ): PerceiverDataFrame {
         val builder = PerceiverDataFrame.newBuilder()
+        val deviceTimestampNs = DeviceTimestamp.forFrame(frame)
+        val encodedRgb = if (currentQuality.sendRgb && config.sendRgbFrames && cameraFrameBitmap != null) {
+            CameraDataExtractor.extractRgbFrame(
+                cameraFrameBitmap,
+                currentQuality.jpegQuality
+            )
+        } else {
+            null
+        }
+        val encodedDepth = if (enableDepth && currentQuality.sendDepth && depthImage != null) {
+            CameraDataExtractor.processDepthImage(
+                depthImage,
+                currentQuality.depthScale.toInt()
+            )
+        } else {
+            null
+        }
+        val recordedRgbWidth = encodedRgb?.width ?: imageWidth
+        val recordedRgbHeight = encodedRgb?.height ?: imageHeight
+        val recordedDepthWidth = encodedDepth?.width ?: 0
+        val recordedDepthHeight = encodedDepth?.height ?: 0
 
         builder.frameIdentifier = PerceiverFrameIdentifier.newBuilder()
-            .setTimestampNs(frame.timestamp)
+            .setTimestampNs(deviceTimestampNs)
             .setFrameNumber(frameNum)
             .setDeviceId(deviceId)
             .build()
+        builder.deviceTimestampNs = deviceTimestampNs
 
         builder.cameraPose = CameraDataExtractor.extractCameraPose(camera)
-
-        val depthWidth = depthImage?.width ?: imageWidth
-        val depthHeight = depthImage?.height ?: imageHeight
         builder.cameraIntrinsics = CameraDataExtractor.extractCameraIntrinsics(
-            camera, depthWidth, depthHeight
+            camera,
+            recordedRgbWidth,
+            recordedRgbHeight,
+            recordedDepthWidth,
+            recordedDepthHeight
         )
 
-        if (currentQuality.sendRgb && config.sendRgbFrames && cameraFrameBitmap != null) {
-            builder.rgbFrame = CameraDataExtractor.extractRgbFrame(
-                cameraFrameBitmap, currentQuality.jpegQuality,
-                currentQuality.rgbWidth, currentQuality.rgbHeight
-            )
+        if (encodedRgb != null) {
+            builder.rgbFrame = encodedRgb.frame
         }
 
-        if (enableDepth && currentQuality.sendDepth && depthImage != null) {
-            val depthFrame = CameraDataExtractor.processDepthImage(
-                depthImage, currentQuality.depthScale.toInt()
-            )
-            if (depthFrame != null) {
-                builder.depthFrame = depthFrame
-            }
+        if (encodedDepth != null) {
+            builder.depthFrame = encodedDepth.frame
         }
 
         val imuData = sensorCollector.getCurrentImuData()

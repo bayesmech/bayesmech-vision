@@ -339,6 +339,9 @@ export namespace bayesmech {
             /** PerceiverDataFrame frameIdentifier */
             frameIdentifier?: (bayesmech.vision.IPerceiverFrameIdentifier|null);
 
+            /** PerceiverDataFrame deviceTimestampNs */
+            deviceTimestampNs?: (number|Long|null);
+
             /** PerceiverDataFrame cameraPose */
             cameraPose?: (bayesmech.vision.IPose|null);
 
@@ -375,6 +378,9 @@ export namespace bayesmech {
 
             /** PerceiverDataFrame frameIdentifier. */
             public frameIdentifier?: (bayesmech.vision.IPerceiverFrameIdentifier|null);
+
+            /** PerceiverDataFrame deviceTimestampNs. */
+            public deviceTimestampNs: (number|Long);
 
             /** PerceiverDataFrame cameraPose. */
             public cameraPose?: (bayesmech.vision.IPose|null);
@@ -735,6 +741,12 @@ export namespace bayesmech {
             /** ImageFrame format */
             format?: (bayesmech.vision.ImageFrame.ImageFormat|null);
 
+            /** ImageFrame width */
+            width?: (number|null);
+
+            /** ImageFrame height */
+            height?: (number|null);
+
             /** ImageFrame quality */
             quality?: (number|null);
         }
@@ -753,6 +765,12 @@ export namespace bayesmech {
 
             /** ImageFrame format. */
             public format: bayesmech.vision.ImageFrame.ImageFormat;
+
+            /** ImageFrame width. */
+            public width: number;
+
+            /** ImageFrame height. */
+            public height: number;
 
             /** ImageFrame quality. */
             public quality: number;
@@ -859,6 +877,12 @@ export namespace bayesmech {
 
             /** DepthFrame format */
             format?: (bayesmech.vision.DepthFrame.DepthFormat|null);
+
+            /** DepthFrame width */
+            width?: (number|null);
+
+            /** DepthFrame height */
+            height?: (number|null);
         }
 
         /** Represents a DepthFrame. */
@@ -878,6 +902,12 @@ export namespace bayesmech {
 
             /** DepthFrame format. */
             public format: bayesmech.vision.DepthFrame.DepthFormat;
+
+            /** DepthFrame width. */
+            public width: number;
+
+            /** DepthFrame height. */
+            public height: number;
 
             /**
              * Creates a new DepthFrame instance using the specified properties.

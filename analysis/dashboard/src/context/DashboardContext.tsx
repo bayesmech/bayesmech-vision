@@ -37,6 +37,66 @@ class FrameDecoder {
     return { x: v.x ?? 0, y: v.y ?? 0, z: v.z ?? 0 }
   }
 
+  private static decodeJpegDimensions(data: Uint8Array): [number, number] | null {
+    if (data.length < 4 || data[0] !== 0xFF || data[1] !== 0xD8) return null
+    let offset = 2
+
+    while (offset + 8 <= data.length) {
+      if (data[offset] !== 0xFF) {
+        offset += 1
+        continue
+      }
+      let marker = data[offset + 1]
+      offset += 2
+      while (marker === 0xFF && offset < data.length) {
+        marker = data[offset]
+        offset += 1
+      }
+      if (marker === 0xD8 || marker === 0xD9) continue
+      if (marker === 0x01 || (marker >= 0xD0 && marker <= 0xD7)) continue
+      if (offset + 2 > data.length) break
+
+      const segmentLength = (data[offset] << 8) | data[offset + 1]
+      if (segmentLength < 2 || offset + segmentLength > data.length) break
+
+      const isSof =
+        (marker >= 0xC0 && marker <= 0xC3) ||
+        (marker >= 0xC5 && marker <= 0xC7) ||
+        (marker >= 0xC9 && marker <= 0xCB) ||
+        (marker >= 0xCD && marker <= 0xCF)
+      if (isSof && segmentLength >= 7) {
+        const height = (data[offset + 3] << 8) | data[offset + 4]
+        const width = (data[offset + 5] << 8) | data[offset + 6]
+        if (width > 0 && height > 0) return [width, height]
+      }
+      offset += segmentLength
+    }
+    return null
+  }
+
+  private static scaleIntrinsics(
+    intr: CameraIntrinsics,
+    width: number,
+    height: number,
+  ): CameraIntrinsics {
+    const srcWidth = intr.image_width
+    const srcHeight = intr.image_height
+    if (srcWidth <= 0 || srcHeight <= 0 || width <= 0 || height <= 0) return intr
+    if (srcWidth === width && srcHeight === height) return intr
+
+    const scaleX = width / srcWidth
+    const scaleY = height / srcHeight
+    return {
+      ...intr,
+      fx: intr.fx * scaleX,
+      fy: intr.fy * scaleY,
+      cx: intr.cx * scaleX,
+      cy: intr.cy * scaleY,
+      image_width: width,
+      image_height: height,
+    }
+  }
+
   /**
    * Convert raw depth bytes to a grayscale data URL (closer = brighter).
    * Uses a regular HTMLCanvasElement so toDataURL() can be called synchronously.
@@ -97,6 +157,7 @@ class FrameDecoder {
       source: 'file',
       device_id: id?.deviceId ?? '',
       timestamp_ns: Number(id?.timestampNs ?? 0),
+      device_timestamp_ns: Number(proto.deviceTimestampNs ?? 0),
       frame_number: id?.frameNumber ?? 0,
     }
 
@@ -116,6 +177,20 @@ class FrameDecoder {
 
     const rgb = proto.rgbFrame
     if (rgb?.data && rgb.data.length > 0) {
+      const rgbDims =
+        ((rgb.width ?? 0) > 0 && (rgb.height ?? 0) > 0)
+          ? [rgb.width ?? 0, rgb.height ?? 0] as [number, number]
+          : (rgb.format === ImageFormat.JPEG
+              ? FrameDecoder.decodeJpegDimensions(rgb.data as Uint8Array)
+              : null)
+      if (rgbDims) {
+        frame.rgb_width = rgbDims[0]
+        frame.rgb_height = rgbDims[1]
+        if (this.cachedIntrinsics) {
+          this.cachedIntrinsics = FrameDecoder.scaleIntrinsics(this.cachedIntrinsics, rgbDims[0], rgbDims[1])
+          frame.camera_intrinsics = this.cachedIntrinsics
+        }
+      }
       const mime = rgb.format === ImageFormat.JPEG ? 'image/jpeg' : 'image/png'
       frame.rgbBlobUrl = bytesToBlobUrl(rgb.data as Uint8Array, mime)
     }
@@ -126,11 +201,17 @@ class FrameDecoder {
       this.depthLogCount++
 
       const bytesPerPixel = depth.format === DepthFormat.FLOAT32_METERS ? 4 : 2
-      let dw = Math.round(this.cachedIntrinsics?.depth_width ?? 0)
-      let dh = Math.round(this.cachedIntrinsics?.depth_height ?? 0)
+      let dw = Math.round(depth.width ?? this.cachedIntrinsics?.depth_width ?? 0)
+      let dh = Math.round(depth.height ?? this.cachedIntrinsics?.depth_height ?? 0)
+      frame.depth_width = dw
+      frame.depth_height = dh
       const dimSource = (dw > 0 && dh > 0) ? 'intrinsics' : (() => {
         const dims = FrameDecoder.inferDepthDimensions((depth.data as Uint8Array).length / bytesPerPixel)
-        if (dims) { [dw, dh] = dims }
+        if (dims) {
+          [dw, dh] = dims
+          frame.depth_width = dw
+          frame.depth_height = dh
+        }
         return dims ? 'inferred' : 'unknown'
       })()
 

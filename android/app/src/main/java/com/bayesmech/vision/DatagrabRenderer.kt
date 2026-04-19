@@ -7,6 +7,7 @@ import androidx.lifecycle.LifecycleOwner
 import com.google.ar.core.Frame
 import com.google.ar.core.Session
 import com.google.ar.core.TrackingState
+import com.bayesmech.vision.common.helpers.DeviceTimestamp
 import com.bayesmech.vision.common.helpers.DisplayRotationHelper
 import com.bayesmech.vision.common.helpers.TrackingStateHelper
 import com.bayesmech.vision.common.samplerender.Mesh
@@ -270,10 +271,12 @@ class DatagrabRenderer(val activity: MainActivity) :
 
     fun sendUserTextInput(text: String) {
         val client = streamClient ?: return
+        val deviceTimestampNs = DeviceTimestamp.nowNs()
         val frame = com.bayesmech.vision.PerceiverDataFrame.newBuilder()
+            .setDeviceTimestampNs(deviceTimestampNs)
             .setFrameIdentifier(
                 com.bayesmech.vision.PerceiverFrameIdentifier.newBuilder()
-                    .setTimestampNs(System.nanoTime())
+                    .setTimestampNs(deviceTimestampNs)
                     .setDeviceId(deviceId)
             )
             .setUserTextInput(text)
@@ -284,34 +287,103 @@ class DatagrabRenderer(val activity: MainActivity) :
     private fun extractCameraImageBitmap(frame: Frame): Bitmap? {
         return try {
             val cameraImage = frame.acquireCameraImage()
-            val width = cameraImage.width
-            val height = cameraImage.height
-
-            val yPlane = cameraImage.planes[0].buffer
-            val uPlane = cameraImage.planes[1].buffer
-            val vPlane = cameraImage.planes[2].buffer
-
-            val ySize = yPlane.remaining()
-            val uSize = uPlane.remaining()
-            val vSize = vPlane.remaining()
-            val nv21 = ByteArray(ySize + uSize + vSize)
-
-            yPlane.get(nv21, 0, ySize)
-            vPlane.get(nv21, ySize, vSize)
-            uPlane.get(nv21, ySize + vSize, uSize)
-
-            val yuvImage = android.graphics.YuvImage(
-                nv21, android.graphics.ImageFormat.NV21, width, height, null
-            )
-            val out = java.io.ByteArrayOutputStream()
-            yuvImage.compressToJpeg(android.graphics.Rect(0, 0, width, height), 100, out)
-
-            val bitmap = android.graphics.BitmapFactory.decodeByteArray(out.toByteArray(), 0, out.size())
-            cameraImage.close()
-            bitmap
+            try {
+                val width = cameraImage.width
+                val height = cameraImage.height
+                val nv21 = yuv420888ToNv21(cameraImage)
+                val yuvImage = android.graphics.YuvImage(
+                    nv21, android.graphics.ImageFormat.NV21, width, height, null
+                )
+                val out = java.io.ByteArrayOutputStream()
+                yuvImage.compressToJpeg(android.graphics.Rect(0, 0, width, height), 100, out)
+                android.graphics.BitmapFactory.decodeByteArray(out.toByteArray(), 0, out.size())
+            } finally {
+                cameraImage.close()
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Error extracting camera image from ARCore", e)
             null
+        }
+    }
+
+    private fun yuv420888ToNv21(image: android.media.Image): ByteArray {
+        val width = image.width
+        val height = image.height
+        val ySize = width * height
+        val uvSize = width * height / 2
+        val nv21 = ByteArray(ySize + uvSize)
+
+        val yPlane = image.planes[0]
+        val uPlane = image.planes[1]
+        val vPlane = image.planes[2]
+
+        copyPlane(
+            plane = yPlane,
+            width = width,
+            height = height,
+            out = nv21,
+            outOffset = 0,
+            outPixelStride = 1
+        )
+        copyChromaPlanesToNv21(
+            uPlane = uPlane,
+            vPlane = vPlane,
+            width = width / 2,
+            height = height / 2,
+            out = nv21,
+            outOffset = ySize
+        )
+        return nv21
+    }
+
+    private fun copyPlane(
+        plane: android.media.Image.Plane,
+        width: Int,
+        height: Int,
+        out: ByteArray,
+        outOffset: Int,
+        outPixelStride: Int
+    ) {
+        val buffer = plane.buffer
+        val rowStride = plane.rowStride
+        val pixelStride = plane.pixelStride
+        var outputIndex = outOffset
+
+        for (row in 0 until height) {
+            var inputIndex = row * rowStride
+            for (_col in 0 until width) {
+                out[outputIndex] = buffer.get(inputIndex)
+                outputIndex += outPixelStride
+                inputIndex += pixelStride
+            }
+        }
+    }
+
+    private fun copyChromaPlanesToNv21(
+        uPlane: android.media.Image.Plane,
+        vPlane: android.media.Image.Plane,
+        width: Int,
+        height: Int,
+        out: ByteArray,
+        outOffset: Int
+    ) {
+        val uBuffer = uPlane.buffer
+        val vBuffer = vPlane.buffer
+        val uRowStride = uPlane.rowStride
+        val vRowStride = vPlane.rowStride
+        val uPixelStride = uPlane.pixelStride
+        val vPixelStride = vPlane.pixelStride
+        var outputIndex = outOffset
+
+        for (row in 0 until height) {
+            var uInputIndex = row * uRowStride
+            var vInputIndex = row * vRowStride
+            for (_col in 0 until width) {
+                out[outputIndex++] = vBuffer.get(vInputIndex)
+                out[outputIndex++] = uBuffer.get(uInputIndex)
+                uInputIndex += uPixelStride
+                vInputIndex += vPixelStride
+            }
         }
     }
 
