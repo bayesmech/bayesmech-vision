@@ -6,7 +6,6 @@ import android.util.Log
 import com.bayesmech.vision.PerceiverDataFrame
 import okhttp3.*
 import okio.ByteString
-import java.util.ArrayDeque
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.TimeUnit
 
@@ -26,8 +25,7 @@ data class ConnectionStatus(
 )
 
 class ARStreamClient(
-    private val serverUrl: String,
-    private val config: StreamConfig
+    private val serverUrl: String
 ) {
     private val TAG = "ARStreamClient"
     private val client = OkHttpClient.Builder()
@@ -38,7 +36,6 @@ class ARStreamClient(
         .build()
     
     private var webSocket: WebSocket? = null
-    private val frameQueue = ArrayDeque<PerceiverDataFrame>(config.maxQueueSize)
     private val isConnected = AtomicBoolean(false)
 
     // Connection status tracking
@@ -232,15 +229,6 @@ class ARStreamClient(
         }, delay)
     }
 
-    fun enableAutoReconnect(enabled: Boolean) {
-        autoReconnectEnabled = enabled
-        if (!enabled) {
-            reconnectHandler.removeCallbacksAndMessages(null)
-            isReconnecting = false
-            retryCount = 0
-        }
-    }
-
     fun disconnect() {
         // Disable auto-reconnect when manually disconnecting
         autoReconnectEnabled = false
@@ -254,11 +242,6 @@ class ARStreamClient(
         
         Log.i(TAG, "WebSocket disconnected")
     }
-
-    fun isConnected(): Boolean = isConnected.get()
-    
-    fun getConnectionStatus(): ConnectionStatus = connectionStatus
-
     fun sendFrame(frame: PerceiverDataFrame) {
         if (!isConnected.get()) {
             // Don't log this as it would spam the logs during reconnection
@@ -283,18 +266,4 @@ class ARStreamClient(
         }
     }
 
-    fun getStats(): Map<String, Any> {
-        return mapOf(
-            "connected" to isConnected.get(),
-            "frames_sent" to framesSent,
-            "frames_dropped" to framesDropped,
-            "bytes_sent" to bytesSent,
-            "avg_frame_size" to if (framesSent > 0) bytesSent / framesSent else 0,
-            "connection_attempts" to connectionAttempts,
-            "retry_count" to retryCount,
-            "is_retrying" to isReconnecting,
-            "last_error" to (connectionStatus.lastError ?: "None"),
-            "server_url" to serverUrl
-        )
-    }
 }

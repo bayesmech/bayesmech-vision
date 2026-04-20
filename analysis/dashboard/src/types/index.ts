@@ -124,7 +124,12 @@ export interface DecodedFrame {
   source: string
   device_id: string
   timestamp_ns: number
+  device_timestamp_ns?: number
   frame_number: number
+  rgb_width?: number
+  rgb_height?: number
+  depth_width?: number
+  depth_height?: number
   rgbBlobUrl?: string
   depthBlobUrl?: string
   hasDepthData?: boolean   // true when depth_frame bytes are present in the proto

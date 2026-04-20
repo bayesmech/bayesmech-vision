@@ -12,4 +12,11 @@
     <string name="error_device_not_compatible">This device does not support AR</string>
     <string name="error_camera_unavailable">Camera not available. Try restarting the app.</string>
     <string name="error_ar_session_failed">Failed to create AR session: %1$s</string>
+    <string name="camera_transcript_placeholder">Tap the mic to dictate a note</string>
+    <string name="camera_transcript_recording">Listening… tap the mic again to stop</string>
+    <string name="camera_transcript_transcribing">Transcribing…</string>
+    <string name="camera_transcript_unavailable">Transcription is unavailable. Check the streamlog server.</string>
+    <string name="camera_transcript_mic_denied">Microphone permission is required for transcription</string>
+    <string name="camera_transcript_too_short">Recording was too short to transcribe</string>
+    <string name="camera_transcript_failed">Transcription failed. Try again.</string>
 </resources>

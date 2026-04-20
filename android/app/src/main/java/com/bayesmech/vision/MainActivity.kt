@@ -118,10 +118,8 @@ class MainActivity : AppCompatActivity() {
         // ── Start streaming ─────────────────────────────────────────────────
         val streamConfig = StreamConfig(
             serverUrl = appViewModel.serverUrl.value,
-            targetFps = 20,
             sendRgbFrames = true,
             sendDepthFrames = true,
-            rgbJpegQuality = 80,
             enableAdaptiveQuality = true
         )
         renderer.startStreaming(streamConfig)
@@ -259,11 +257,6 @@ class MainActivity : AppCompatActivity() {
             }
         }
     }
-
-    override fun onWindowFocusChanged(hasFocus: Boolean) {
-        super.onWindowFocusChanged(hasFocus)
-    }
-
     override fun onDestroy() {
         super.onDestroy()
         renderer.stopStreaming()

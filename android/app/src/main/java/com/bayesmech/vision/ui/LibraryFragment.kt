@@ -7,7 +7,9 @@ import android.text.TextWatcher
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.FrameLayout
 import android.widget.ImageView
+import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
@@ -83,7 +85,11 @@ class LibraryFragment : Fragment() {
 
     private fun applyFilter(query: String) {
         val filtered = if (query.isEmpty()) allRecordings
-                       else allRecordings.filter { it.fileName.contains(query, ignoreCase = true) }
+                       else allRecordings.filter { recording ->
+                           recording.fileName.contains(query, ignoreCase = true) ||
+                               recording.title.contains(query, ignoreCase = true) ||
+                               recording.tagsList.any { it.contains(query, ignoreCase = true) }
+                       }
         adapter.submitList(filtered)
     }
 
@@ -118,20 +124,40 @@ class RecordingsAdapter(private val onClick: (DataList) -> Unit) :
 
     class ViewHolder(view: View, val onClick: (DataList) -> Unit) : RecyclerView.ViewHolder(view) {
         private val cardImage: ImageView = view.findViewById(R.id.card_image)
+        private val cardProcessingOverlay: FrameLayout = view.findViewById(R.id.card_processing_overlay)
         private val cardTitle: TextView = view.findViewById(R.id.card_title)
-        private val statusPending: TextView = view.findViewById(R.id.card_status_pending)
+        private val cardDate: TextView = view.findViewById(R.id.card_date)
+        private val cardPreview: TextView = view.findViewById(R.id.card_preview)
+        private val cardTagsRow: LinearLayout = view.findViewById(R.id.card_tags_row)
+        private val chatCount: TextView = view.findViewById(R.id.card_chat_count)
         private val rootCard: MaterialCardView = view as MaterialCardView
 
         fun bind(item: DataList) {
-            val rawName = item.fileName
-            cardTitle.text = try {
-                val parser = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US)
-                val formatter = SimpleDateFormat("MMM dd, yyyy - HH:mm:ss", Locale.US)
-                formatter.format(parser.parse(rawName)!!)
-            } catch (e: Exception) {
-                rawName
+            cardTitle.text = item.title.takeIf { it.isNotBlank() } ?: item.fileName
+            cardDate.text = formatRecordingDate(item.fileName)
+
+            // Preview text
+            val preview = item.previewText.takeIf { it.isNotBlank() }
+            if (preview != null) {
+                cardPreview.text = preview
+                cardPreview.visibility = View.VISIBLE
+            } else {
+                cardPreview.visibility = View.GONE
             }
 
+            // Tags as chips — always populated; fall back to #processing when no analysis
+            cardTagsRow.removeAllViews()
+            val tags = item.tagsList.filter { it.isNotBlank() }
+            if (tags.isNotEmpty()) {
+                tags.forEach { tag -> addChip(tag, processing = false) }
+            } else {
+                addChip("#processing", processing = true)
+            }
+
+            // Chat count — always shown
+            chatCount.text = item.chatMessageCount.toString()
+
+            // Thumbnail + processing overlay
             if (item.imageFrame != null && !item.imageFrame.isEmpty) {
                 val bytes = item.imageFrame.toByteArray()
                 val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
@@ -139,11 +165,47 @@ class RecordingsAdapter(private val onClick: (DataList) -> Unit) :
             } else {
                 cardImage.setImageResource(0)
             }
+            cardProcessingOverlay.visibility =
+                if (item.isGensparkAvailable) View.GONE else View.VISIBLE
 
-            val complete = item.isSegmentationAvailable && item.isGensparkAvailable && item.isMotioncapAvailable
-            statusPending.visibility = if (complete) View.GONE else View.VISIBLE
-            rootCard.alpha = if (complete) 1.0f else 0.55f
             rootCard.setOnClickListener { onClick(item) }
         }
+
+        private fun addChip(label: String, processing: Boolean) {
+            val ctx = itemView.context
+            val chip = TextView(ctx).apply {
+                text = label
+                textSize = 10.5f
+                maxLines = 1
+                setTextColor(
+                    if (processing) ctx.getColor(R.color.nav_icon_inactive)
+                    else ctx.getColor(R.color.text_secondary)
+                )
+                setBackgroundResource(
+                    if (processing) R.drawable.tag_chip_processing_background
+                    else R.drawable.tag_chip_background
+                )
+                val ph = dpToPx(8); val pv = dpToPx(3)
+                setPadding(ph, pv, ph, pv)
+            }
+            val params = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { marginEnd = dpToPx(6) }
+            cardTagsRow.addView(chip, params)
+        }
+
+        private fun formatRecordingDate(rawName: String): String {
+            return try {
+                val parser = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US)
+                val formatter = SimpleDateFormat("MMM dd, yyyy · HH:mm", Locale.US)
+                formatter.format(parser.parse(rawName)!!)
+            } catch (e: Exception) {
+                rawName
+            }
+        }
+
+        private fun dpToPx(dp: Int): Int =
+            (dp * itemView.resources.displayMetrics.density).toInt()
     }
 }

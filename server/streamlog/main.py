@@ -12,24 +12,30 @@ POST /api/playback/start     Load a recording into the store
 POST /api/playback/stop      Stop active replay
 GET /api/playback/status     Replay status
 POST /api/upload_recording   Upload .pb file and start replay
+POST /api/transcribe         Proxy audio transcription to OpenAI using server credentials
 POST /api/insightgen/recordings  List recordings (protobuf, with thumbnails)
 GET  /api/insightgen/insight     Return GensparkSummary for a recording
 GET  /api/insightgen/video       Return InsightVideoResponse (JPEG frames) for a recording
-GET  /api/insightgen/chat        Return persisted ChatHistory proto for a recording
+GET  /api/insightgen/chat        Return ChatHistory delta proto for a recording since a timestamp
 POST /api/insightgen/chat        Follow-up chat with Gemini (bootstrapped from analysis)
 /   (static)                React dashboard (dashboard/dist/)
 """
 
 import asyncio
+import json
 import logging
+import os
 import re
 import struct
 import sys
+import time
 import yaml
 from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
 
+import aiohttp
+from dotenv import load_dotenv
 from fastapi import FastAPI, Request, Response, UploadFile, File, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -58,6 +64,8 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # ── Config ────────────────────────────────────────────────────────────────────
+
+load_dotenv(_project_root / ".env")
 
 _config_path = Path(__file__).parent / "config.yaml"
 with open(_config_path) as _f:
@@ -153,7 +161,71 @@ async def get_stream_stats():
     return store.stats()
 
 
+@app.post("/api/transcribe")
+async def transcribe_audio(file: UploadFile = File(...)):
+    api_key = os.environ.get("OPENAI_API_KEY")
+    if not api_key:
+        raise HTTPException(status_code=503, detail="OPENAI_API_KEY is not configured on the server")
+
+    audio_bytes = await file.read()
+    if not audio_bytes:
+        raise HTTPException(status_code=400, detail="Uploaded audio file is empty")
+
+    filename = file.filename or "audio.m4a"
+    content_type = file.content_type or "audio/mp4"
+
+    form = aiohttp.FormData()
+    form.add_field("file", audio_bytes, filename=filename, content_type=content_type)
+    form.add_field("model", "gpt-4o-mini-transcribe")
+    form.add_field("response_format", "json")
+
+    async with aiohttp.ClientSession() as session:
+        async with session.post(
+            "https://api.openai.com/v1/audio/transcriptions",
+            headers={"Authorization": f"Bearer {api_key}"},
+            data=form,
+        ) as openai_response:
+            response_text = await openai_response.text()
+            if openai_response.status >= 400:
+                logger.error("OpenAI transcription failed: %s %s", openai_response.status, response_text)
+                raise HTTPException(status_code=502, detail="OpenAI transcription failed")
+
+    try:
+        payload = json.loads(response_text)
+    except Exception as exc:
+        logger.error("Failed to parse OpenAI transcription response: %s", exc)
+        raise HTTPException(status_code=502, detail="Invalid transcription response from OpenAI") from exc
+
+    transcript = str(payload.get("text") or "").strip()
+    if not transcript:
+        raise HTTPException(status_code=502, detail="OpenAI returned an empty transcript")
+
+    return {"text": transcript}
+
+
 _FILENAME_DATE_RE = re.compile(r"(\d{8}_\d{6})")
+
+_RANDOM_ADJECTIVES = [
+    "Anxious", "Juicy", "Velvet", "Broken", "Silent", "Crimson", "Hollow",
+    "Ancient", "Electric", "Frozen", "Golden", "Neon", "Rusty", "Twisted",
+    "Wild", "Pale", "Vivid", "Bitter", "Calm", "Fierce", "Gentle", "Hungry",
+    "Bright", "Murky", "Sharp", "Soft", "Sour", "Swift", "Dim", "Jagged",
+]
+_RANDOM_NOUNS = [
+    "Deer", "Apple", "Falcon", "Glacier", "Lantern", "Mirage", "Phantom",
+    "Raven", "Storm", "Thunder", "Volcano", "Whisper", "Ember", "Feather",
+    "Horizon", "Marble", "Needle", "Pebble", "Shadow", "Thorn", "Arrow",
+    "Beacon", "Crystal", "Dagger", "Forest", "Harbor", "Jungle", "Comet",
+    "Dune", "Viper",
+]
+
+def _generate_random_name(seed: str) -> str:
+    import hashlib
+    h = int(hashlib.md5(seed.encode()).hexdigest(), 16)
+    adj = _RANDOM_ADJECTIVES[h % len(_RANDOM_ADJECTIVES)]
+    noun = _RANDOM_NOUNS[(h // len(_RANDOM_ADJECTIVES)) % len(_RANDOM_NOUNS)]
+    return f"Unborn {adj} {noun}"
+
 
 def _parse_recording_timestamp(name: str, fallback_mtime: float) -> float:
     """Extract epoch seconds from a YYYYMMDD_HHMMSS pattern in the filename."""
@@ -177,6 +249,155 @@ def _parse_title(folder_name: str) -> str:
         text = " ".join(parts[2:])
         return text[0].upper() + text[1:] if text else folder_name
     return folder_name
+
+
+def _format_scene_tag(scene_type: str) -> str:
+    return scene_type.replace("-", " ").strip().title()
+
+
+def _format_parameter_tag(param: insightgen_pb2.GensparkParameter) -> str | None:
+    name = str(param.name or "").strip()
+    value = str(param.value or "").strip()
+    unit = str(param.unit or "").strip()
+    if not name or not value:
+        return None
+    suffix = f" {unit}" if unit else ""
+    return f"{name}: {value}{suffix}"
+
+
+_SCENE_CLASSIFIED_RE = re.compile(r"Scene classified as ([a-z][a-z0-9-]+)", re.IGNORECASE)
+
+
+def _extract_genspark_metadata(genspark_path: Path) -> tuple[str | None, list[str], str]:
+    """Returns (title, tags, preview_text)."""
+    if not genspark_path.exists():
+        return None, [], ""
+
+    try:
+        full = insightgen_pb2.GensparkResponse()
+        full.ParseFromString(genspark_path.read_bytes())
+    except Exception as exc:
+        logger.warning("Failed to parse genspark metadata from %s: %s", genspark_path, exc)
+        return None, [], ""
+
+    title = full.summary.title.strip() or None
+    tags: list[str] = []
+
+    for turn in full.turns:
+        for tool_call in turn.tool_calls:
+            if tool_call.tool_name != "scene_context":
+                continue
+            m = _SCENE_CLASSIFIED_RE.search(tool_call.result or "")
+            if m:
+                for part in m.group(1).split("-"):
+                    part = part.strip()
+                    if part:
+                        tags.append(f"#{part}")
+
+    deduped_tags: list[str] = []
+    seen: set[str] = set()
+    for tag in tags:
+        normalized = tag.casefold()
+        if normalized in seen:
+            continue
+        seen.add(normalized)
+        deduped_tags.append(tag)
+
+    # Build preview from summary text (strip markdown, take first non-empty line)
+    raw = re.sub(r"^#+\s+", "", full.summary.text.strip(), flags=re.MULTILINE)
+    raw = re.sub(r"\*+(.+?)\*+", r"\1", raw)
+    preview = next((ln.strip() for ln in raw.splitlines() if ln.strip()), "")
+    if len(preview) > 160:
+        preview = preview[:160].rstrip() + "…"
+
+    return title, deduped_tags, preview
+
+
+def _recording_dir(file_name: str) -> Path:
+    return RECORDINGS_DIR / file_name
+
+
+def _recording_file(file_name: str, suffix: str) -> Path:
+    return _recording_dir(file_name) / f"{file_name}.{suffix}"
+
+
+def _build_summary_markdown(summary: insightgen_pb2.GensparkSummary) -> str:
+    parts: list[str] = []
+    if summary.title.strip():
+        parts.append(f"## {summary.title.strip()}")
+    if summary.text.strip():
+        parts.append(summary.text.strip())
+    if summary.parameters:
+        table = ["| Parameter | Value | Unit |", "|:---|:---|:---|"]
+        for param in summary.parameters:
+            table.append(f"| {param.name} | {param.value} | {param.unit} |")
+        parts.append("\n".join(table))
+    return "\n\n".join(part for part in parts if part).strip()
+
+
+def _thread_created_timestamp_ns(file_name: str, genspark_path: Path) -> int:
+    try:
+        if genspark_path.exists():
+            return genspark_path.stat().st_mtime_ns
+    except OSError:
+        pass
+    return int(_parse_recording_timestamp(file_name, time.time()) * 1_000_000_000)
+
+
+def _load_chat_history_proto(chat_path: Path, file_name: str) -> insightgen_pb2.ChatHistory:
+    history = insightgen_pb2.ChatHistory(file_name=file_name)
+    source_path = chat_path
+    if not source_path.exists():
+        legacy_path = chat_path.parent.parent / f"{file_name}.chat.pb"
+        source_path = legacy_path if legacy_path.exists() else chat_path
+    if not source_path.exists():
+        return history
+    try:
+        history.ParseFromString(source_path.read_bytes())
+    except Exception as exc:
+        logger.warning("Failed to parse chat history for %s: %s", file_name, exc)
+        return insightgen_pb2.ChatHistory(file_name=file_name)
+    if not history.file_name:
+        history.file_name = file_name
+    return history
+
+
+def _build_chat_history_delta(
+    file_name: str,
+    genspark_path: Path,
+    chat_path: Path,
+    since_timestamp_ns: int,
+) -> insightgen_pb2.ChatHistory:
+    persisted = _load_chat_history_proto(chat_path, file_name)
+    thread_created_timestamp_ns = _thread_created_timestamp_ns(file_name, genspark_path)
+
+    response = insightgen_pb2.ChatHistory(
+        file_name=file_name,
+        gemini_cache_name=persisted.gemini_cache_name,
+        thread_created_timestamp_ns=thread_created_timestamp_ns,
+    )
+
+    if since_timestamp_ns < thread_created_timestamp_ns and genspark_path.exists():
+        try:
+            full = insightgen_pb2.GensparkResponse()
+            full.ParseFromString(genspark_path.read_bytes())
+            summary_markdown = _build_summary_markdown(full.summary)
+            if summary_markdown:
+                response.initial_turn.CopyFrom(
+                    insightgen_pb2.ChatTurn(
+                        role="model",
+                        text=summary_markdown,
+                        timestamp_ns=thread_created_timestamp_ns,
+                    )
+                )
+        except Exception as exc:
+            logger.warning("Failed to build initial chat turn for %s: %s", file_name, exc)
+
+    for turn in persisted.turns:
+        if turn.timestamp_ns > since_timestamp_ns:
+            response.turns.append(turn)
+
+    return response
 
 def _extract_thumbnail(pb_path: Path) -> bytes | None:
     """Return RGB bytes of the frame at ~20 s into the recording (best-effort)."""
@@ -257,17 +478,33 @@ async def insightgen_list_recordings(request: Request):
             continue
         base_name = d.name
         thumb = _extract_thumbnail(vis)
+        genspark_path = d / f"{base_name}.genspark.pb"
+        chat_path = d / f"{base_name}.chat.pb"
+        genspark_title, genspark_tags, preview_text = _extract_genspark_metadata(genspark_path)
+        parsed = _parse_title(base_name)
+        title = genspark_title or (parsed if parsed != base_name else _generate_random_name(base_name))
+        chat_count = 0
+        if chat_path.exists():
+            try:
+                history = _load_chat_history_proto(chat_path, base_name)
+                chat_count = len(history.turns)
+            except Exception:
+                pass
         dl = insightgen_pb2.DataList(
             file_name=base_name,
             is_segmentation_available=(d / f"{base_name}.seg.pb").exists(),
-            is_genspark_available=(d / f"{base_name}.genspark.pb").exists(),
+            is_genspark_available=genspark_path.exists(),
             is_motioncap_available=(
                 (d / f"{base_name}.motion.pb").exists()
                 or (d / f"{base_name}.motion.mp4").exists()
             ),
+            title=title,
+            chat_message_count=chat_count,
+            preview_text=preview_text,
         )
         if thumb:
             dl.image_frame = thumb
+        dl.tags.extend(genspark_tags)
         recordings_map[base_name] = dl
 
     resp = insightgen_pb2.ListRecordingsResponse()
@@ -391,16 +628,13 @@ async def insightgen_video(file: str, layer: str = "raw"):
 
 
 @app.get("/api/insightgen/chat")
-async def insightgen_chat_history(file: str):
-    """Return the persisted ChatHistory proto for a recording."""
+async def insightgen_chat_history(file: str, since_timestamp_ns: int = 0):
+    """Return the chat-thread delta for a recording since the given timestamp."""
     safe_name = Path(file).name
-    chat_path = RECORDINGS_DIR / safe_name / f"{safe_name}.chat.pb"
-    if not chat_path.exists():
-        return Response(
-            content=insightgen_pb2.ChatHistory().SerializeToString(),
-            media_type="application/x-protobuf",
-        )
-    return Response(content=chat_path.read_bytes(), media_type="application/x-protobuf")
+    genspark_path = _recording_file(safe_name, "genspark.pb")
+    chat_path = _recording_file(safe_name, "chat.pb")
+    history = _build_chat_history_delta(safe_name, genspark_path, chat_path, since_timestamp_ns)
+    return Response(content=history.SerializeToString(), media_type="application/x-protobuf")
 
 
 @app.post("/api/insightgen/chat")
@@ -425,11 +659,16 @@ async def insightgen_chat(request: Request):
         raise HTTPException(status_code=404, detail="No analysis found for this recording")
 
     try:
-        response_text, session_id = await asyncio.get_event_loop().run_in_executor(
+        response_text, session_id, user_turn, model_turn = await asyncio.get_event_loop().run_in_executor(
             None,
             lambda: chat_manager.handle_message(genspark_path, safe_name, message, session_id),
         )
-        return {"response": response_text, "session_id": session_id}
+        return {
+            "response": response_text,
+            "session_id": session_id,
+            "user_timestamp_ns": user_turn.timestamp_ns,
+            "response_timestamp_ns": model_turn.timestamp_ns,
+        }
     except Exception as exc:
         logger.error(f"insightgen_chat error ({safe_name}): {exc}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(exc))

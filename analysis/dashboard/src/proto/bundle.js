@@ -798,6 +798,7 @@ export const bayesmech = $root.bayesmech = (() => {
              * @memberof bayesmech.vision
              * @interface IPerceiverDataFrame
              * @property {bayesmech.vision.IPerceiverFrameIdentifier|null} [frameIdentifier] PerceiverDataFrame frameIdentifier
+             * @property {number|Long|null} [deviceTimestampNs] PerceiverDataFrame deviceTimestampNs
              * @property {bayesmech.vision.IPose|null} [cameraPose] PerceiverDataFrame cameraPose
              * @property {bayesmech.vision.IImageFrame|null} [rgbFrame] PerceiverDataFrame rgbFrame
              * @property {bayesmech.vision.IDepthFrame|null} [depthFrame] PerceiverDataFrame depthFrame
@@ -830,6 +831,14 @@ export const bayesmech = $root.bayesmech = (() => {
              * @instance
              */
             PerceiverDataFrame.prototype.frameIdentifier = null;
+
+            /**
+             * PerceiverDataFrame deviceTimestampNs.
+             * @member {number|Long} deviceTimestampNs
+             * @memberof bayesmech.vision.PerceiverDataFrame
+             * @instance
+             */
+            PerceiverDataFrame.prototype.deviceTimestampNs = $util.Long ? $util.Long.fromBits(0,0,false) : 0;
 
             /**
              * PerceiverDataFrame cameraPose.
@@ -937,6 +946,8 @@ export const bayesmech = $root.bayesmech = (() => {
                     $root.bayesmech.vision.GpsLocation.encode(message.gpsLocation, writer.uint32(/* id 8, wireType 2 =*/66).fork()).ldelim();
                 if (message.userTextInput != null && Object.hasOwnProperty.call(message, "userTextInput"))
                     writer.uint32(/* id 9, wireType 2 =*/74).string(message.userTextInput);
+                if (message.deviceTimestampNs != null && Object.hasOwnProperty.call(message, "deviceTimestampNs"))
+                    writer.uint32(/* id 10, wireType 0 =*/80).int64(message.deviceTimestampNs);
                 return writer;
             };
 
@@ -975,6 +986,10 @@ export const bayesmech = $root.bayesmech = (() => {
                     switch (tag >>> 3) {
                     case 1: {
                             message.frameIdentifier = $root.bayesmech.vision.PerceiverFrameIdentifier.decode(reader, reader.uint32());
+                            break;
+                        }
+                    case 10: {
+                            message.deviceTimestampNs = reader.int64();
                             break;
                         }
                     case 2: {
@@ -1049,6 +1064,9 @@ export const bayesmech = $root.bayesmech = (() => {
                     if (error)
                         return "frameIdentifier." + error;
                 }
+                if (message.deviceTimestampNs != null && message.hasOwnProperty("deviceTimestampNs"))
+                    if (!$util.isInteger(message.deviceTimestampNs) && !(message.deviceTimestampNs && $util.isInteger(message.deviceTimestampNs.low) && $util.isInteger(message.deviceTimestampNs.high)))
+                        return "deviceTimestampNs: integer|Long expected";
                 if (message.cameraPose != null && message.hasOwnProperty("cameraPose")) {
                     let error = $root.bayesmech.vision.Pose.verify(message.cameraPose);
                     if (error)
@@ -1107,6 +1125,15 @@ export const bayesmech = $root.bayesmech = (() => {
                         throw TypeError(".bayesmech.vision.PerceiverDataFrame.frameIdentifier: object expected");
                     message.frameIdentifier = $root.bayesmech.vision.PerceiverFrameIdentifier.fromObject(object.frameIdentifier);
                 }
+                if (object.deviceTimestampNs != null)
+                    if ($util.Long)
+                        (message.deviceTimestampNs = $util.Long.fromValue(object.deviceTimestampNs)).unsigned = false;
+                    else if (typeof object.deviceTimestampNs === "string")
+                        message.deviceTimestampNs = parseInt(object.deviceTimestampNs, 10);
+                    else if (typeof object.deviceTimestampNs === "number")
+                        message.deviceTimestampNs = object.deviceTimestampNs;
+                    else if (typeof object.deviceTimestampNs === "object")
+                        message.deviceTimestampNs = new $util.LongBits(object.deviceTimestampNs.low >>> 0, object.deviceTimestampNs.high >>> 0).toNumber();
                 if (object.cameraPose != null) {
                     if (typeof object.cameraPose !== "object")
                         throw TypeError(".bayesmech.vision.PerceiverDataFrame.cameraPose: object expected");
@@ -1170,6 +1197,11 @@ export const bayesmech = $root.bayesmech = (() => {
                     object.inferredGeometry = null;
                     object.gpsLocation = null;
                     object.userTextInput = "";
+                    if ($util.Long) {
+                        let long = new $util.Long(0, 0, false);
+                        object.deviceTimestampNs = options.longs === String ? long.toString() : options.longs === Number ? long.toNumber() : long;
+                    } else
+                        object.deviceTimestampNs = options.longs === String ? "0" : 0;
                 }
                 if (message.frameIdentifier != null && message.hasOwnProperty("frameIdentifier"))
                     object.frameIdentifier = $root.bayesmech.vision.PerceiverFrameIdentifier.toObject(message.frameIdentifier, options);
@@ -1189,6 +1221,11 @@ export const bayesmech = $root.bayesmech = (() => {
                     object.gpsLocation = $root.bayesmech.vision.GpsLocation.toObject(message.gpsLocation, options);
                 if (message.userTextInput != null && message.hasOwnProperty("userTextInput"))
                     object.userTextInput = message.userTextInput;
+                if (message.deviceTimestampNs != null && message.hasOwnProperty("deviceTimestampNs"))
+                    if (typeof message.deviceTimestampNs === "number")
+                        object.deviceTimestampNs = options.longs === String ? String(message.deviceTimestampNs) : message.deviceTimestampNs;
+                    else
+                        object.deviceTimestampNs = options.longs === String ? $util.Long.prototype.toString.call(message.deviceTimestampNs) : options.longs === Number ? new $util.LongBits(message.deviceTimestampNs.low >>> 0, message.deviceTimestampNs.high >>> 0).toNumber() : message.deviceTimestampNs;
                 return object;
             };
 
@@ -1862,6 +1899,8 @@ export const bayesmech = $root.bayesmech = (() => {
              * @interface IImageFrame
              * @property {Uint8Array|null} [data] ImageFrame data
              * @property {bayesmech.vision.ImageFrame.ImageFormat|null} [format] ImageFrame format
+             * @property {number|null} [width] ImageFrame width
+             * @property {number|null} [height] ImageFrame height
              * @property {number|null} [quality] ImageFrame quality
              */
 
@@ -1895,6 +1934,22 @@ export const bayesmech = $root.bayesmech = (() => {
              * @instance
              */
             ImageFrame.prototype.format = 0;
+
+            /**
+             * ImageFrame width.
+             * @member {number} width
+             * @memberof bayesmech.vision.ImageFrame
+             * @instance
+             */
+            ImageFrame.prototype.width = 0;
+
+            /**
+             * ImageFrame height.
+             * @member {number} height
+             * @memberof bayesmech.vision.ImageFrame
+             * @instance
+             */
+            ImageFrame.prototype.height = 0;
 
             /**
              * ImageFrame quality.
@@ -1932,6 +1987,10 @@ export const bayesmech = $root.bayesmech = (() => {
                     writer.uint32(/* id 1, wireType 2 =*/10).bytes(message.data);
                 if (message.format != null && Object.hasOwnProperty.call(message, "format"))
                     writer.uint32(/* id 2, wireType 0 =*/16).int32(message.format);
+                if (message.width != null && Object.hasOwnProperty.call(message, "width"))
+                    writer.uint32(/* id 3, wireType 0 =*/24).uint32(message.width);
+                if (message.height != null && Object.hasOwnProperty.call(message, "height"))
+                    writer.uint32(/* id 4, wireType 0 =*/32).uint32(message.height);
                 if (message.quality != null && Object.hasOwnProperty.call(message, "quality"))
                     writer.uint32(/* id 5, wireType 0 =*/40).uint32(message.quality);
                 return writer;
@@ -1976,6 +2035,14 @@ export const bayesmech = $root.bayesmech = (() => {
                         }
                     case 2: {
                             message.format = reader.int32();
+                            break;
+                        }
+                    case 3: {
+                            message.width = reader.uint32();
+                            break;
+                        }
+                    case 4: {
+                            message.height = reader.uint32();
                             break;
                         }
                     case 5: {
@@ -2032,6 +2099,12 @@ export const bayesmech = $root.bayesmech = (() => {
                     case 5:
                         break;
                     }
+                if (message.width != null && message.hasOwnProperty("width"))
+                    if (!$util.isInteger(message.width))
+                        return "width: integer expected";
+                if (message.height != null && message.hasOwnProperty("height"))
+                    if (!$util.isInteger(message.height))
+                        return "height: integer expected";
                 if (message.quality != null && message.hasOwnProperty("quality"))
                     if (!$util.isInteger(message.quality))
                         return "quality: integer expected";
@@ -2087,6 +2160,10 @@ export const bayesmech = $root.bayesmech = (() => {
                     message.format = 5;
                     break;
                 }
+                if (object.width != null)
+                    message.width = object.width >>> 0;
+                if (object.height != null)
+                    message.height = object.height >>> 0;
                 if (object.quality != null)
                     message.quality = object.quality >>> 0;
                 return message;
@@ -2114,12 +2191,18 @@ export const bayesmech = $root.bayesmech = (() => {
                             object.data = $util.newBuffer(object.data);
                     }
                     object.format = options.enums === String ? "UNKNOWN" : 0;
+                    object.width = 0;
+                    object.height = 0;
                     object.quality = 0;
                 }
                 if (message.data != null && message.hasOwnProperty("data"))
                     object.data = options.bytes === String ? $util.base64.encode(message.data, 0, message.data.length) : options.bytes === Array ? Array.prototype.slice.call(message.data) : message.data;
                 if (message.format != null && message.hasOwnProperty("format"))
                     object.format = options.enums === String ? $root.bayesmech.vision.ImageFrame.ImageFormat[message.format] === undefined ? message.format : $root.bayesmech.vision.ImageFrame.ImageFormat[message.format] : message.format;
+                if (message.width != null && message.hasOwnProperty("width"))
+                    object.width = message.width;
+                if (message.height != null && message.hasOwnProperty("height"))
+                    object.height = message.height;
                 if (message.quality != null && message.hasOwnProperty("quality"))
                     object.quality = message.quality;
                 return object;
@@ -2185,6 +2268,8 @@ export const bayesmech = $root.bayesmech = (() => {
              * @property {Uint8Array|null} [data] DepthFrame data
              * @property {Uint8Array|null} [confidence] DepthFrame confidence
              * @property {bayesmech.vision.DepthFrame.DepthFormat|null} [format] DepthFrame format
+             * @property {number|null} [width] DepthFrame width
+             * @property {number|null} [height] DepthFrame height
              */
 
             /**
@@ -2227,6 +2312,22 @@ export const bayesmech = $root.bayesmech = (() => {
             DepthFrame.prototype.format = 0;
 
             /**
+             * DepthFrame width.
+             * @member {number} width
+             * @memberof bayesmech.vision.DepthFrame
+             * @instance
+             */
+            DepthFrame.prototype.width = 0;
+
+            /**
+             * DepthFrame height.
+             * @member {number} height
+             * @memberof bayesmech.vision.DepthFrame
+             * @instance
+             */
+            DepthFrame.prototype.height = 0;
+
+            /**
              * Creates a new DepthFrame instance using the specified properties.
              * @function create
              * @memberof bayesmech.vision.DepthFrame
@@ -2256,6 +2357,10 @@ export const bayesmech = $root.bayesmech = (() => {
                     writer.uint32(/* id 2, wireType 2 =*/18).bytes(message.confidence);
                 if (message.format != null && Object.hasOwnProperty.call(message, "format"))
                     writer.uint32(/* id 3, wireType 0 =*/24).int32(message.format);
+                if (message.width != null && Object.hasOwnProperty.call(message, "width"))
+                    writer.uint32(/* id 4, wireType 0 =*/32).uint32(message.width);
+                if (message.height != null && Object.hasOwnProperty.call(message, "height"))
+                    writer.uint32(/* id 5, wireType 0 =*/40).uint32(message.height);
                 return writer;
             };
 
@@ -2302,6 +2407,14 @@ export const bayesmech = $root.bayesmech = (() => {
                         }
                     case 3: {
                             message.format = reader.int32();
+                            break;
+                        }
+                    case 4: {
+                            message.width = reader.uint32();
+                            break;
+                        }
+                    case 5: {
+                            message.height = reader.uint32();
                             break;
                         }
                     default:
@@ -2354,6 +2467,12 @@ export const bayesmech = $root.bayesmech = (() => {
                     case 2:
                         break;
                     }
+                if (message.width != null && message.hasOwnProperty("width"))
+                    if (!$util.isInteger(message.width))
+                        return "width: integer expected";
+                if (message.height != null && message.hasOwnProperty("height"))
+                    if (!$util.isInteger(message.height))
+                        return "height: integer expected";
                 return null;
             };
 
@@ -2399,6 +2518,10 @@ export const bayesmech = $root.bayesmech = (() => {
                     message.format = 2;
                     break;
                 }
+                if (object.width != null)
+                    message.width = object.width >>> 0;
+                if (object.height != null)
+                    message.height = object.height >>> 0;
                 return message;
             };
 
@@ -2431,6 +2554,8 @@ export const bayesmech = $root.bayesmech = (() => {
                             object.confidence = $util.newBuffer(object.confidence);
                     }
                     object.format = options.enums === String ? "DEPTH_FORMAT_UNKNOWN" : 0;
+                    object.width = 0;
+                    object.height = 0;
                 }
                 if (message.data != null && message.hasOwnProperty("data"))
                     object.data = options.bytes === String ? $util.base64.encode(message.data, 0, message.data.length) : options.bytes === Array ? Array.prototype.slice.call(message.data) : message.data;
@@ -2438,6 +2563,10 @@ export const bayesmech = $root.bayesmech = (() => {
                     object.confidence = options.bytes === String ? $util.base64.encode(message.confidence, 0, message.confidence.length) : options.bytes === Array ? Array.prototype.slice.call(message.confidence) : message.confidence;
                 if (message.format != null && message.hasOwnProperty("format"))
                     object.format = options.enums === String ? $root.bayesmech.vision.DepthFrame.DepthFormat[message.format] === undefined ? message.format : $root.bayesmech.vision.DepthFrame.DepthFormat[message.format] : message.format;
+                if (message.width != null && message.hasOwnProperty("width"))
+                    object.width = message.width;
+                if (message.height != null && message.hasOwnProperty("height"))
+                    object.height = message.height;
                 return object;
             };
 

@@ -49,7 +49,6 @@ class SettingsFragment : Fragment() {
         MAIN, SERVER_CONNECTION, SENSOR_PROPERTIES, SAVED_FILES, USER_PROFILE, ABOUT
     }
 
-    private var currentPage = Page.MAIN
     private var retryTimerJob: kotlinx.coroutines.Job? = null
     private var lastKnownStatus: ConnectionStatus? = null
 
@@ -104,8 +103,6 @@ class SettingsFragment : Fragment() {
     }
 
     private fun showPage(page: Page) {
-        currentPage = page
-
         // Show/hide header back button and title
         val isMain = page == Page.MAIN
         binding.backButton.visibility = if (isMain) View.GONE else View.VISIBLE
@@ -139,15 +136,6 @@ class SettingsFragment : Fragment() {
                 binding.pageGeneric.visibility = View.VISIBLE
                 binding.genericPageMessage.text = "BayesMech Vision\nVersion 1.0\n\nAR data capture and streaming application."
             }
-        }
-    }
-
-    fun onBackPressed(): Boolean {
-        return if (currentPage != Page.MAIN) {
-            showPage(Page.MAIN)
-            true
-        } else {
-            false
         }
     }
 

@@ -4,11 +4,10 @@ import android.opengl.Matrix
 import android.util.Log
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
-import com.google.ar.core.Frame
-import com.google.ar.core.Session
 import com.google.ar.core.TrackingState
+import com.bayesmech.vision.common.helpers.DeviceTimestamp
+import com.bayesmech.vision.capture.ArCoreFrameSampler
 import com.bayesmech.vision.common.helpers.DisplayRotationHelper
-import com.bayesmech.vision.common.helpers.TrackingStateHelper
 import com.bayesmech.vision.common.samplerender.Mesh
 import com.bayesmech.vision.common.samplerender.SampleRender
 import com.bayesmech.vision.common.samplerender.Shader
@@ -18,7 +17,6 @@ import com.bayesmech.vision.common.samplerender.arcore.PlaneRenderer
 import com.google.ar.core.exceptions.CameraNotAvailableException
 import com.google.ar.core.exceptions.NotYetAvailableException
 import java.io.IOException
-import android.graphics.Bitmap
 import com.bayesmech.vision.network.ARStreamClient
 import com.bayesmech.vision.network.StreamConfig
 import com.bayesmech.vision.capture.ARDataCapture
@@ -37,7 +35,6 @@ class DatagrabRenderer(val activity: MainActivity) :
     private val Z_NEAR = 0.1f
     private val Z_FAR = 100f
 
-    lateinit var render: SampleRender
     lateinit var planeRenderer: PlaneRenderer
     lateinit var backgroundRenderer: BackgroundRenderer
     lateinit var pointCloudVertexBuffer: VertexBuffer
@@ -47,16 +44,13 @@ class DatagrabRenderer(val activity: MainActivity) :
     var hasSetTextureNames = false
     var lastPointCloudTimestamp: Long = 0
 
-    val modelMatrix = FloatArray(16)
     val viewMatrix = FloatArray(16)
     val projectionMatrix = FloatArray(16)
-    val modelViewMatrix = FloatArray(16)
     val modelViewProjectionMatrix = FloatArray(16)
 
     val session get() = activity.arCoreSessionHelper.session
 
     val displayRotationHelper = DisplayRotationHelper(activity)
-    val trackingStateHelper = TrackingStateHelper(activity)
 
     private var streamClient: ARStreamClient? = null
     private var dataCapture: ARDataCapture? = null
@@ -64,8 +58,6 @@ class DatagrabRenderer(val activity: MainActivity) :
     private val coverageTracker = CoverageTracker()
     private val streamingScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
-    private var viewportWidth: Int = 1
-    private var viewportHeight: Int = 1
     private var currentConfig: StreamConfig? = null
     private var deviceId: String = ""
 
@@ -106,8 +98,6 @@ class DatagrabRenderer(val activity: MainActivity) :
 
     override fun onSurfaceChanged(render: SampleRender, width: Int, height: Int) {
         displayRotationHelper.onSurfaceChanged(width, height)
-        viewportWidth = width
-        viewportHeight = height
     }
 
     override fun onDrawFrame(render: SampleRender) {
@@ -162,27 +152,25 @@ class DatagrabRenderer(val activity: MainActivity) :
 
         dataCapture?.let { capture ->
             if (camera.trackingState == TrackingState.TRACKING) {
-                val cameraFrameBitmap = extractCameraImageBitmap(frame)
-                val imageWidth = cameraFrameBitmap?.width ?: 1920
-                val imageHeight = cameraFrameBitmap?.height ?: 1080
-
-                val depthImage = if (vm.enableDepthData.value) {
-                    try { frame.acquireDepthImage16Bits() } catch (e: Exception) { null }
-                } else null
-
-                val pointCloudData = try {
-                    frame.acquirePointCloud()
-                } catch (e: Exception) { null }
+                val streamConfig = currentConfig ?: return@let
+                val capturedFrame = ArCoreFrameSampler.capture(
+                    frame = frame,
+                    includeRgb = streamConfig.sendRgbFrames,
+                    includeDepth = vm.enableDepthData.value && streamConfig.sendDepthFrames,
+                    includePointCloud = vm.enableInferredGeometry.value
+                )
 
                 streamingScope.launch {
-                    capture.captureAndSend(
-                        frame, session, camera,
-                        cameraFrameBitmap, depthImage, pointCloudData,
-                        imageWidth, imageHeight
-                    )
-                    cameraFrameBitmap?.recycle()
-                    depthImage?.close()
-                    pointCloudData?.close()
+                    try {
+                        capture.captureAndSend(
+                            frame = frame,
+                            session = session,
+                            camera = camera,
+                            capturedFrame = capturedFrame
+                        )
+                    } finally {
+                        capturedFrame.close()
+                    }
                 }
             }
         }
@@ -220,7 +208,7 @@ class DatagrabRenderer(val activity: MainActivity) :
 
     fun startStreaming(config: StreamConfig) {
         currentConfig = config
-        streamClient = ARStreamClient(config.serverUrl, config)
+        streamClient = ARStreamClient(config.serverUrl)
 
         streamClient?.setStatusCallback { status ->
             activity.runOnUiThread {
@@ -270,49 +258,17 @@ class DatagrabRenderer(val activity: MainActivity) :
 
     fun sendUserTextInput(text: String) {
         val client = streamClient ?: return
+        val deviceTimestampNs = DeviceTimestamp.nowNs()
         val frame = com.bayesmech.vision.PerceiverDataFrame.newBuilder()
+            .setDeviceTimestampNs(deviceTimestampNs)
             .setFrameIdentifier(
                 com.bayesmech.vision.PerceiverFrameIdentifier.newBuilder()
-                    .setTimestampNs(System.nanoTime())
+                    .setTimestampNs(deviceTimestampNs)
                     .setDeviceId(deviceId)
             )
             .setUserTextInput(text)
             .build()
         client.sendFrame(frame)
-    }
-
-    private fun extractCameraImageBitmap(frame: Frame): Bitmap? {
-        return try {
-            val cameraImage = frame.acquireCameraImage()
-            val width = cameraImage.width
-            val height = cameraImage.height
-
-            val yPlane = cameraImage.planes[0].buffer
-            val uPlane = cameraImage.planes[1].buffer
-            val vPlane = cameraImage.planes[2].buffer
-
-            val ySize = yPlane.remaining()
-            val uSize = uPlane.remaining()
-            val vSize = vPlane.remaining()
-            val nv21 = ByteArray(ySize + uSize + vSize)
-
-            yPlane.get(nv21, 0, ySize)
-            vPlane.get(nv21, ySize, vSize)
-            uPlane.get(nv21, ySize + vSize, uSize)
-
-            val yuvImage = android.graphics.YuvImage(
-                nv21, android.graphics.ImageFormat.NV21, width, height, null
-            )
-            val out = java.io.ByteArrayOutputStream()
-            yuvImage.compressToJpeg(android.graphics.Rect(0, 0, width, height), 100, out)
-
-            val bitmap = android.graphics.BitmapFactory.decodeByteArray(out.toByteArray(), 0, out.size())
-            cameraImage.close()
-            bitmap
-        } catch (e: Exception) {
-            Log.e(TAG, "Error extracting camera image from ARCore", e)
-            null
-        }
     }
 
     private fun showError(errorMessage: String) {

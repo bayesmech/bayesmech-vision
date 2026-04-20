@@ -16,7 +16,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -99,6 +98,45 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setRecording(recording: Boolean) {
         _isRecording.value = recording
+    }
+
+    private val _draftUserText = MutableStateFlow("")
+    val draftUserText: StateFlow<String> = _draftUserText.asStateFlow()
+
+    fun setDraftUserText(text: String) {
+        _draftUserText.value = text
+        if (text.isNotBlank()) {
+            clearTranscriptStatusMessage()
+        }
+    }
+
+    fun clearDraftUserText() {
+        _draftUserText.value = ""
+    }
+
+    private val _isMicRecording = MutableStateFlow(false)
+    val isMicRecording: StateFlow<Boolean> = _isMicRecording.asStateFlow()
+
+    fun setMicRecording(recording: Boolean) {
+        _isMicRecording.value = recording
+    }
+
+    private val _isTranscribing = MutableStateFlow(false)
+    val isTranscribing: StateFlow<Boolean> = _isTranscribing.asStateFlow()
+
+    fun setTranscribing(transcribing: Boolean) {
+        _isTranscribing.value = transcribing
+    }
+
+    private val _transcriptStatusMessage = MutableStateFlow<String?>(null)
+    val transcriptStatusMessage: StateFlow<String?> = _transcriptStatusMessage.asStateFlow()
+
+    fun setTranscriptStatusMessage(message: String?) {
+        _transcriptStatusMessage.value = message
+    }
+
+    fun clearTranscriptStatusMessage() {
+        _transcriptStatusMessage.value = null
     }
 
     // ── Coverage stats (written by MainActivity via CoverageTracker) ──────────
