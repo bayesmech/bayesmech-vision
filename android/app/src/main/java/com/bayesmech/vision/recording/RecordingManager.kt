@@ -188,8 +188,6 @@ class RecordingManager(private val context: Context) {
     }
 
     fun isRecording(): Boolean = isRecording
-    fun getCurrentFile(): File? = currentFile
-    fun getFrameCount(): Int = frameCount
 
     private fun getRecordingsDirectory(): File {
         // App-specific external storage — no WRITE_EXTERNAL_STORAGE permission needed.

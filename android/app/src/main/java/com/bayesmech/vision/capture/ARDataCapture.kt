@@ -1,14 +1,11 @@
 package com.bayesmech.vision.capture
 
-import android.graphics.Bitmap
-import android.media.Image
 import android.util.Log
 import com.bayesmech.vision.PerceiverDataFrame
 import com.bayesmech.vision.PerceiverFrameIdentifier
 import com.bayesmech.vision.common.helpers.DeviceTimestamp
 import com.google.ar.core.Camera
 import com.google.ar.core.Frame
-import com.google.ar.core.PointCloud
 import com.bayesmech.vision.network.ARStreamClient
 import com.bayesmech.vision.network.BandwidthMonitor
 import com.bayesmech.vision.network.QualityLevel
@@ -42,11 +39,7 @@ class ARDataCapture(
         frame: Frame,
         session: com.google.ar.core.Session,
         camera: Camera,
-        cameraFrameBitmap: Bitmap?,
-        depthImage: Image?,
-        pointCloudData: PointCloud?,
-        imageWidth: Int,
-        imageHeight: Int
+        capturedFrame: CapturedFrameData
     ) = withContext(Dispatchers.IO) {
         try {
             // Mutex protects the throttle check + frameNumber increment so concurrent
@@ -70,11 +63,17 @@ class ARDataCapture(
 
             val enableDepth = getEnableDepth()
             val enableGeometry = getEnableGeometry()
+            val sensorSnapshot = sensorCollector.getCurrentSnapshot()
 
             val perceiverFrame = buildPerceiverDataFrame(
-                frame, session, camera, cameraFrameBitmap, depthImage, pointCloudData,
-                imageWidth, imageHeight, enableDepth, enableGeometry,
-                capturedFrameNumber
+                frame = frame,
+                session = session,
+                camera = camera,
+                capturedFrame = capturedFrame,
+                sensorSnapshot = sensorSnapshot,
+                enableDepth = enableDepth,
+                enableGeometry = enableGeometry,
+                frameNum = capturedFrameNumber
             )
 
             if (recordingManager.isRecording()) {
@@ -87,9 +86,9 @@ class ARDataCapture(
             bandwidthMonitor.recordSent(frameSize)
 
             // Record coverage for this frame
-            val imuData = sensorCollector.getCurrentImuData()
+            val imuData = sensorSnapshot.toImuData()
             coverageTracker.recordFrame(
-                hasDepth = enableDepth && depthImage != null && perceiverFrame.hasDepthFrame(),
+                hasDepth = enableDepth && capturedFrame.depthImage != null && perceiverFrame.hasDepthFrame(),
                 hasAccelerometer = imuData.hasLinearAcceleration(),
                 hasGyroscope = imuData.hasAngularVelocity(),
                 hasMagnetometer = imuData.hasMagneticField(),
@@ -104,7 +103,7 @@ class ARDataCapture(
             if (capturedFrameNumber % 30 == 0) {
                 Log.i(TAG, "Sent frame $capturedFrameNumber, quality: $currentQuality, " +
                         "bandwidth: ${"%.2f".format(bandwidthMonitor.getCurrentBandwidthMbps())} Mbps")
-                Log.i(TAG, "  Sensors: ${sensorCollector.getSensorSummary()}")
+                Log.i(TAG, "  Sensors: ${sensorSnapshot.summary()}")
                 Log.i(TAG, "  Coverage: ${coverageTracker.getStats()}")
             }
 
@@ -117,35 +116,32 @@ class ARDataCapture(
         frame: Frame,
         session: com.google.ar.core.Session,
         camera: Camera,
-        cameraFrameBitmap: Bitmap?,
-        depthImage: Image?,
-        pointCloudData: PointCloud?,
-        imageWidth: Int,
-        imageHeight: Int,
+        capturedFrame: CapturedFrameData,
+        sensorSnapshot: com.bayesmech.vision.sensors.SensorSnapshot,
         enableDepth: Boolean,
         enableGeometry: Boolean,
         frameNum: Int
     ): PerceiverDataFrame {
         val builder = PerceiverDataFrame.newBuilder()
         val deviceTimestampNs = DeviceTimestamp.forFrame(frame)
-        val encodedRgb = if (currentQuality.sendRgb && config.sendRgbFrames && cameraFrameBitmap != null) {
+        val encodedRgb = if (currentQuality.sendRgb && config.sendRgbFrames && capturedFrame.rgbBitmap != null) {
             CameraDataExtractor.extractRgbFrame(
-                cameraFrameBitmap,
+                capturedFrame.rgbBitmap,
                 currentQuality.jpegQuality
             )
         } else {
             null
         }
-        val encodedDepth = if (enableDepth && currentQuality.sendDepth && depthImage != null) {
+        val encodedDepth = if (enableDepth && config.sendDepthFrames && currentQuality.sendDepth && capturedFrame.depthImage != null) {
             CameraDataExtractor.processDepthImage(
-                depthImage,
+                capturedFrame.depthImage,
                 currentQuality.depthScale.toInt()
             )
         } else {
             null
         }
-        val recordedRgbWidth = encodedRgb?.width ?: imageWidth
-        val recordedRgbHeight = encodedRgb?.height ?: imageHeight
+        val recordedRgbWidth = encodedRgb?.width ?: fallbackRgbWidth(camera)
+        val recordedRgbHeight = encodedRgb?.height ?: fallbackRgbHeight(camera)
         val recordedDepthWidth = encodedDepth?.width ?: 0
         val recordedDepthHeight = encodedDepth?.height ?: 0
 
@@ -173,17 +169,17 @@ class ARDataCapture(
             builder.depthFrame = encodedDepth.frame
         }
 
-        val imuData = sensorCollector.getCurrentImuData()
+        val imuData = sensorSnapshot.toImuData()
         if (imuData.hasAngularVelocity() || imuData.hasLinearAcceleration() ||
             imuData.hasGravity() || imuData.hasMagneticField()) {
             builder.imuData = imuData
         }
 
         if (enableGeometry) {
-            builder.inferredGeometry = CameraDataExtractor.extractInferredGeometry(session, pointCloudData)
+            builder.inferredGeometry = CameraDataExtractor.extractInferredGeometry(session, capturedFrame.pointCloud)
         }
 
-        val gpsLocation = sensorCollector.getCurrentGpsLocation()
+        val gpsLocation = sensorSnapshot.gpsLocation
         if (gpsLocation != null) {
             builder.gpsLocation = gpsLocation
         }
@@ -191,5 +187,13 @@ class ARDataCapture(
         return builder.build()
     }
 
-    fun getCoverageStats() = coverageTracker.getStats()
+    private fun fallbackRgbWidth(camera: Camera): Int {
+        val dims = camera.imageIntrinsics.imageDimensions
+        return dims.getOrNull(0)?.takeIf { it > 0 } ?: 0
+    }
+
+    private fun fallbackRgbHeight(camera: Camera): Int {
+        val dims = camera.imageIntrinsics.imageDimensions
+        return dims.getOrNull(1)?.takeIf { it > 0 } ?: 0
+    }
 }

@@ -159,13 +159,11 @@ object CameraDataExtractor {
                 .build()
 
             val polygon = plane.polygon
-            if (polygon != null) {
-                polygon.rewind()
-                while (polygon.remaining() >= 2) {
-                    val x = polygon.get()
-                    val z = polygon.get()
-                    planeBuilder.addPolygon(Vector3.newBuilder().setX(x).setY(0f).setZ(z))
-                }
+            polygon.rewind()
+            while (polygon.remaining() >= 2) {
+                val x = polygon.get()
+                val z = polygon.get()
+                planeBuilder.addPolygon(Vector3.newBuilder().setX(x).setY(0f).setZ(z))
             }
 
             builder.addPlanes(planeBuilder)
