@@ -1,28 +1,13 @@
-# Segmentation configuration for main.py
-# See README.md for usage instructions.
+# Segmentation configuration for main.py.
 
-model:
-  sam3:
-    dtype: "bfloat16"       # Required for 6 GB VRAM; use "float32" if you have >=8 GB
-    inference_height: 360   # Downsample frames to this height before SAM3 inference
-                            # (width computed to preserve aspect ratio)
-                            # Use null to keep original resolution
-    tracker:
-      # Behavioral overrides applied to Sam3VideoConfig after loading pretrained weights.
-      # These only change thresholds/caps, not model architecture, so weights load fine.
-      max_num_objects: 8              # Hard cap on simultaneously tracked objects (default: 10000)
-                                      # This is the single most important VRAM control.
-      score_threshold_detection: 0.5    # Min detector confidence (default: 0.5)
-      new_det_thresh: 0.5              # Min confidence to start a new track (default: 0.7)
-      hotstart_delay: 5                # Frames to buffer before committing a track (default: 15)
-      hotstart_unmatch_thresh: 3       # Unmatched frames before pruning a hotstart track (default: 8)
-      init_trk_keep_alive: 10          # Keep-alive counter for new tracks (default: 30)
-      max_trk_keep_alive: 15           # Max keep-alive counter (default: 30)
-      recondition_every_nth_frame: 9999  # Effectively disable reconditioning to save VRAM
-      session_reset_frames: 100         # Reinitialize tracking session every N frames to
-                                        # prevent VRAM accumulation (~29 MB/frame growth)
+sam3:
+  dtype: "bfloat16"         # Use "float32" if bfloat16 is unsupported or unstable.
+  inference_height: 360     # Downsample frames to this height before inference.
+                             # Set to null to use the original frame resolution.
+  max_num_objects: 8        # Cap simultaneous tracked objects to keep VRAM bounded.
+  session_reset_frames: 100 # Recreate the SAM3 tracking session periodically to
+                            # avoid steady VRAM growth on long recordings.
+                            # Set to null or 0 to disable resets.
 
 sampling:
-  sample_every_x_frames: 1  # Emit annotations for every Nth frame (1 = every frame)
-                             # Both models always process every frame for tracking continuity;
-                             # only the output is subsampled.
+  sample_every_x_frames: 1  # Emit annotations for every Nth frame.
