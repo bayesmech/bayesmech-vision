@@ -11,6 +11,8 @@ message DataList {
   bool is_genspark_available = 3;
   bool is_motioncap_available = 4;
   bytes image_frame = 5;
+  string title = 6;
+  repeated string tags = 7;
 }
 
 message ListRecordingsRequest {

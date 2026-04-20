@@ -224,6 +224,63 @@ def _parse_title(folder_name: str) -> str:
         return text[0].upper() + text[1:] if text else folder_name
     return folder_name
 
+
+def _format_scene_tag(scene_type: str) -> str:
+    return scene_type.replace("-", " ").strip().title()
+
+
+def _format_parameter_tag(param: insightgen_pb2.GensparkParameter) -> str | None:
+    name = str(param.name or "").strip()
+    value = str(param.value or "").strip()
+    unit = str(param.unit or "").strip()
+    if not name or not value:
+        return None
+    suffix = f" {unit}" if unit else ""
+    return f"{name}: {value}{suffix}"
+
+
+def _extract_genspark_metadata(genspark_path: Path) -> tuple[str | None, list[str]]:
+    if not genspark_path.exists():
+        return None, []
+
+    try:
+        full = insightgen_pb2.GensparkResponse()
+        full.ParseFromString(genspark_path.read_bytes())
+    except Exception as exc:
+        logger.warning("Failed to parse genspark metadata from %s: %s", genspark_path, exc)
+        return None, []
+
+    title = full.summary.title.strip() or None
+    tags: list[str] = []
+
+    for turn in full.turns:
+        for tool_call in turn.tool_calls:
+            if tool_call.tool_name != "scene_context":
+                continue
+            try:
+                args = json.loads(tool_call.arguments_json or "{}")
+            except Exception:
+                continue
+            scene_type = str(args.get("type") or "").strip()
+            if scene_type:
+                tags.append(_format_scene_tag(scene_type))
+
+    for param in full.summary.parameters:
+        tag = _format_parameter_tag(param)
+        if tag:
+            tags.append(tag)
+
+    deduped_tags: list[str] = []
+    seen: set[str] = set()
+    for tag in tags:
+        normalized = tag.casefold()
+        if normalized in seen:
+            continue
+        seen.add(normalized)
+        deduped_tags.append(tag)
+
+    return title, deduped_tags[:3]
+
 def _extract_thumbnail(pb_path: Path) -> bytes | None:
     """Return RGB bytes of the frame at ~20 s into the recording (best-effort)."""
     target_ns = 20 * 1_000_000_000
@@ -303,17 +360,21 @@ async def insightgen_list_recordings(request: Request):
             continue
         base_name = d.name
         thumb = _extract_thumbnail(vis)
+        genspark_path = d / f"{base_name}.genspark.pb"
+        genspark_title, genspark_tags = _extract_genspark_metadata(genspark_path)
         dl = insightgen_pb2.DataList(
             file_name=base_name,
             is_segmentation_available=(d / f"{base_name}.seg.pb").exists(),
-            is_genspark_available=(d / f"{base_name}.genspark.pb").exists(),
+            is_genspark_available=genspark_path.exists(),
             is_motioncap_available=(
                 (d / f"{base_name}.motion.pb").exists()
                 or (d / f"{base_name}.motion.mp4").exists()
             ),
+            title=genspark_title or _parse_title(base_name),
         )
         if thumb:
             dl.image_frame = thumb
+        dl.tags.extend(genspark_tags)
         recordings_map[base_name] = dl
 
     resp = insightgen_pb2.ListRecordingsResponse()

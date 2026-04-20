@@ -42,7 +42,27 @@
                 android:textColor="@color/text_primary"
                 android:textSize="14sp"
                 android:textStyle="bold"
-                android:text="Date Title" />
+                android:text="Recording title" />
+
+            <TextView
+                android:id="@+id/card_date"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="Apr 20, 2026 - 13:45:00"
+                android:textColor="@color/text_secondary"
+                android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/card_tags"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:maxLines="2"
+                android:text="Karting • Fast lap • Indoor track"
+                android:textColor="@color/text_secondary"
+                android:textSize="11sp"
+                android:visibility="gone" />
 
             <!-- Single pending badge — hidden when analysis is complete -->
             <TextView
