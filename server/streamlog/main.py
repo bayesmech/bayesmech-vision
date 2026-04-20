@@ -35,6 +35,7 @@ from datetime import datetime
 from pathlib import Path
 
 import aiohttp
+from dotenv import load_dotenv
 from fastapi import FastAPI, Request, Response, UploadFile, File, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -63,6 +64,8 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # ── Config ────────────────────────────────────────────────────────────────────
+
+load_dotenv(_project_root / ".env")
 
 _config_path = Path(__file__).parent / "config.yaml"
 with open(_config_path) as _f:
