@@ -13,13 +13,10 @@ uv run python streamlog/main.py   # (or from project root: uv run python server/
 # Recordings are now stored in per-folder structure: recordings/<name>/<name>.vis.pb
 
 # Segmentation — SAM3 (text prompts, requires HuggingFace login)
-uv run python segmentation/main.py ../recordings/<name>/<name>.vis.pb --model sam3 --text "chair person"
-
-# Segmentation — SAM2 (grid prompts, requires model checkpoint)
-uv run python segmentation/main.py ../recordings/<name>/<name>.vis.pb --model sam2 --variant small
+uv run python segmentation/main.py ../recordings/<name>/<name>.vis.pb --text "chair, person"
 
 # Segmentation — quick test (first N frames, emit every Nth)
-uv run python segmentation/main.py ../recordings/<name>/<name>.vis.pb --model sam3 --text "object" \
+uv run python segmentation/main.py ../recordings/<name>/<name>.vis.pb --text "object" \
     --max-frames 200 --sample-every 5
 
 # Motion capture: RAFT heatmaps + tracking (unified)
@@ -51,10 +48,6 @@ uv run python ../analysis/homography/main.py ../recordings/<name>/<name>.vis.pb
 uv run python motioncap/download_models.py           # large (default)
 uv run python motioncap/download_models.py small     # small variant
 
-# SAM2 checkpoint for segmentation
-wget https://dl.fbaipublicfiles.com/segment_anything_2/092824/sam2.1_hiera_small.pt \
-  -P segmentation/models/sam2/
-
 # SAM3 (HuggingFace gated model — request access at facebook/sam3)
 huggingface-cli login
 ```
@@ -64,7 +57,7 @@ huggingface-cli login
 | Directory | Purpose |
 |-----------|---------|
 | `streamlog/` | FastAPI server — live streaming, playback, dashboard WebSocket |
-| `segmentation/` | Offline SAM2/SAM3 annotator → writes `.seg.pb` |
+| `segmentation/` | Offline SAM3 annotator → writes `.seg.pb` |
 | `motioncap/` | Offline RAFT optical-flow motion heatmap → writes `.motion.pb` |
 | `genspark/` | Offline AI video analysis (Gemini/Claude/OpenAI) |
 | `reconstruct/` | Offline COLMAP SfM + Gaussian Splatting → writes `.recon/`, `.splat.ply`, `.recon.pb` |
@@ -93,10 +86,9 @@ Also available: **SIFT** (`sift_motion.py`): feature-based, no GPU required.
 
 ## Segmentation (`segmentation/`)
 
-- **SAM3** (default): streaming per-frame, text/concept prompts via `--text "..."`, bfloat16 required on 6 GB VRAM GPUs. `trigger_type = TEXT`.
-- **SAM2**: chunked 100-frame processing with grid point prompts + mask handoff between chunks. `trigger_type = PROPAGATION`.
-- Both backends process every frame for tracker continuity; only emit every `--sample-every` frames.
-- Config: `segmentation/config.yaml` — `model.sam3.dtype`, `sampling.sample_every_x_frames`
+- **SAM3**: streaming per-frame, text/concept prompts via `--text "..."`. `trigger_type = TEXT`.
+- SAM3 processes every frame for tracker continuity; only emits every `--sample-every` frames.
+- Config: `segmentation/config.yaml` — `sam3.dtype`, `sam3.inference_height`, `sam3.max_num_objects`, `sam3.session_reset_frames`, `sampling.sample_every_x_frames`
 
 Output: `recordings/<name>/<name>.seg.pb` (length-delimited `SegmentationResponse` protos)
 
