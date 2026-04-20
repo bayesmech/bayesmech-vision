@@ -71,15 +71,19 @@ class ChatSession:
 
         self._load_chat_history()
 
+    def _legacy_chat_path(self) -> Path:
+        return self._chat_path.parent.parent / f"{self._file_name}.chat.pb"
+
     # ── Disk persistence ───────────────────────────────────────────────────────
 
     def _load_chat_history(self):
         """Load existing chat turns from <name>.chat.pb if present."""
-        if not self._chat_path.exists():
+        source_path = self._chat_path if self._chat_path.exists() else self._legacy_chat_path()
+        if not source_path.exists():
             return
         try:
             ch = insightgen_pb2.ChatHistory()
-            ch.ParseFromString(self._chat_path.read_bytes())
+            ch.ParseFromString(source_path.read_bytes())
             self._chat_turns = list(ch.turns)
             self._gemini_cache_name = ch.gemini_cache_name or ""
             # Rebuild gtypes.Content list from stored turns
@@ -93,6 +97,8 @@ class ChatSession:
                 len(self._chat_turns), self._file_name,
                 self._gemini_cache_name or "<none>",
             )
+            if source_path != self._chat_path:
+                self._save_chat_history()
         except Exception as exc:
             logger.warning("Failed to load chat history for %s: %s", self._file_name, exc)
             self._chat_turns = []
@@ -102,6 +108,7 @@ class ChatSession:
     def _save_chat_history(self):
         """Persist current chat turns and cache name to <name>.chat.pb."""
         try:
+            self._chat_path.parent.mkdir(parents=True, exist_ok=True)
             ch = insightgen_pb2.ChatHistory()
             ch.file_name = self._file_name
             for turn in self._chat_turns:
@@ -213,8 +220,8 @@ class ChatSession:
 
     # ── Send message ───────────────────────────────────────────────────────────
 
-    def send_message(self, user_message: str) -> str:
-        """Send a user message and return Gemini's text response."""
+    def send_message(self, user_message: str) -> tuple[str, insightgen_pb2.ChatTurn, insightgen_pb2.ChatTurn]:
+        """Send a user message and return (response_text, user_turn, model_turn)."""
         self.last_used = time.time()
 
         api_key = os.environ.get(self._gemini_config.get("api_key_env", "GEMINI_API_KEY"))
@@ -268,7 +275,7 @@ class ChatSession:
         ))
 
         self._save_chat_history()
-        return response_text
+        return response_text, user_turn, model_turn
 
 
 class ChatManager:
@@ -296,7 +303,7 @@ class ChatManager:
         file_name: str,
         message: str,
         session_id: str | None = None,
-    ) -> tuple[str, str]:
+    ) -> tuple[str, str, insightgen_pb2.ChatTurn, insightgen_pb2.ChatTurn]:
         """
         Process a user message. Returns (response_text, session_id).
         Creates a new session if session_id is missing or unknown.
@@ -308,9 +315,9 @@ class ChatManager:
             session = self._sessions[session_id]
         else:
             session_id = str(uuid.uuid4())
-            chat_path = self._recordings_dir / f"{file_name}.chat.pb"
+            chat_path = self._recordings_dir / file_name / f"{file_name}.chat.pb"
             session = ChatSession(genspark_path, chat_path, file_name, self._gemini_config)
             self._sessions[session_id] = session
 
-        response_text = session.send_message(message)
-        return response_text, session_id
+        response_text, user_turn, model_turn = session.send_message(message)
+        return response_text, session_id, user_turn, model_turn

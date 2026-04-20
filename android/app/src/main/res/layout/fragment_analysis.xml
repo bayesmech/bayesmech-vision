@@ -6,117 +6,75 @@
     android:background="@color/bg_panel"
     android:orientation="vertical">
 
-    <!-- ── Fixed card preview header ─────────────────────────────────────── -->
-    <com.google.android.material.card.MaterialCardView
+    <!-- ── Sticky topbar ──────────────────────────────────────────────────── -->
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginStart="16dp"
-        android:layout_marginEnd="16dp"
-        android:layout_marginTop="12dp"
-        android:layout_marginBottom="4dp"
-        app:cardCornerRadius="10dp"
-        app:cardElevation="2dp"
-        app:strokeColor="@color/bg_dark"
-        app:strokeWidth="1dp"
-        app:cardBackgroundColor="@color/bg_panel">
+        android:background="@color/bg_dark"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingStart="4dp"
+        android:paddingEnd="16dp"
+        android:paddingTop="6dp"
+        android:paddingBottom="6dp">
+
+        <ImageButton
+            android:id="@+id/back_button"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:background="@android:color/transparent"
+            android:src="@drawable/ic_chevron_left"
+            android:scaleType="center"
+            android:contentDescription="Back" />
 
         <LinearLayout
-            android:layout_width="match_parent"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:padding="10dp">
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:layout_marginStart="2dp">
 
-            <ImageButton
-                android:id="@+id/back_button"
-                android:layout_width="36dp"
-                android:layout_height="36dp"
-                android:layout_marginEnd="8dp"
-                android:background="@android:color/transparent"
-                android:src="@drawable/ic_chevron_left"
-                android:scaleType="center"
-                android:contentDescription="Back" />
-
-            <ImageView
-                android:id="@+id/preview_image"
-                android:layout_width="72dp"
-                android:layout_height="56dp"
-                android:scaleType="centerCrop"
-                android:background="@color/bg_dark"
-                android:layout_marginEnd="12dp" />
+            <TextView
+                android:id="@+id/preview_title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="@color/text_primary"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:maxLines="1"
+                android:ellipsize="end" />
 
             <LinearLayout
-                android:layout_width="0dp"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:orientation="vertical">
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginTop="3dp">
 
                 <TextView
-                    android:id="@+id/preview_title"
-                    android:layout_width="match_parent"
+                    android:id="@+id/topbar_date"
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:textColor="@color/text_primary"
-                    android:textSize="14sp"
-                    android:textStyle="bold" />
+                    android:textColor="@color/text_secondary"
+                    android:textSize="12sp" />
 
                 <LinearLayout
-                    android:layout_width="match_parent"
+                    android:id="@+id/topbar_tags_row"
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
-                    android:layout_marginTop="5dp">
+                    android:layout_marginStart="8dp" />
 
-                    <TextView
-                        android:id="@+id/preview_status_seg"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="SEG"
-                        android:textSize="11sp"
-                        android:paddingStart="6dp"
-                        android:paddingEnd="6dp"
-                        android:paddingTop="2dp"
-                        android:paddingBottom="2dp"
-                        android:layout_marginEnd="6dp"
-                        android:background="@drawable/badge_timer"
-                        android:textColor="@color/text_secondary" />
-
-                    <TextView
-                        android:id="@+id/preview_status_gen"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="GEN"
-                        android:textSize="11sp"
-                        android:paddingStart="6dp"
-                        android:paddingEnd="6dp"
-                        android:paddingTop="2dp"
-                        android:paddingBottom="2dp"
-                        android:layout_marginEnd="6dp"
-                        android:background="@drawable/badge_timer"
-                        android:textColor="@color/text_secondary" />
-
-                    <TextView
-                        android:id="@+id/preview_status_mot"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="MOT"
-                        android:textSize="11sp"
-                        android:paddingStart="6dp"
-                        android:paddingEnd="6dp"
-                        android:paddingTop="2dp"
-                        android:paddingBottom="2dp"
-                        android:background="@drawable/badge_timer"
-                        android:textColor="@color/text_secondary" />
-
-                </LinearLayout>
             </LinearLayout>
-        </LinearLayout>
-    </com.google.android.material.card.MaterialCardView>
 
-    <!-- thin separator below header -->
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- thin separator -->
     <View
         android:layout_width="match_parent"
         android:layout_height="1dp"
-        android:layout_marginTop="8dp"
-        android:background="@color/bg_dark" />
+        android:background="@color/divider" />
 
     <!-- ── Scrollable body + floating input bar ───────────────────────────── -->
     <FrameLayout

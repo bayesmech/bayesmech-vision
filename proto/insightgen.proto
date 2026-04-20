@@ -13,6 +13,8 @@ message DataList {
   bytes image_frame = 5;
   string title = 6;
   repeated string tags = 7;
+  int32 chat_message_count = 8;
+  string preview_text = 9;
 }
 
 message ListRecordingsRequest {
@@ -85,6 +87,8 @@ message ChatTurn {
 
 message ChatHistory {
   string file_name = 1;
-  repeated ChatTurn turns = 2;
+  repeated ChatTurn turns = 2;  // follow-up turns after the initial analysis payload
   string gemini_cache_name = 3;  // Gemini CachedContent.name; empty if not yet created or expired
+  int64 thread_created_timestamp_ns = 4;
+  ChatTurn initial_turn = 5;     // synthesized from the genspark summary when available
 }

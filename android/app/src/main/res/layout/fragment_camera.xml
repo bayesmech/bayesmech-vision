@@ -9,7 +9,8 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:orientation="vertical">
+        android:orientation="vertical"
+        android:clipChildren="false">
 
         <!-- ── Top half: camera viewport ─────────────────────────────────── -->
         <!-- Background is transparent so GL shows through the center.
@@ -106,14 +107,17 @@
             android:background="@color/bg_panel"
             android:paddingStart="16dp"
             android:paddingEnd="16dp"
-            android:paddingTop="56dp"
-            android:paddingBottom="16dp">
+            android:paddingTop="0dp"
+            android:paddingBottom="16dp"
+            android:clipChildren="false"
+            android:clipToPadding="false">
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:gravity="bottom"
-                android:orientation="vertical">
+                android:orientation="vertical"
+                android:paddingTop="48dp">
 
                 <LinearLayout
                     android:id="@+id/transcript_row"

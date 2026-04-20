@@ -22,28 +22,22 @@ import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.lifecycleScope
 import com.bayesmech.vision.AppViewModel
 import com.bayesmech.vision.ChatHistory
+import com.bayesmech.vision.ChatTurn
 import com.bayesmech.vision.DataList
 import com.bayesmech.vision.GensparkSummary
 import com.bayesmech.vision.InsightVideoResponse
 import com.bayesmech.vision.MainActivity
 import com.bayesmech.vision.R
+import com.bayesmech.vision.analysis.InsightRepository
 import com.bayesmech.vision.databinding.FragmentAnalysisBinding
 import com.google.android.material.tabs.TabLayout
 import android.util.TypedValue
 import io.noties.markwon.Markwon
 import io.noties.markwon.ext.latex.JLatexMathPlugin
 import io.noties.markwon.ext.tables.TablePlugin
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
-import org.json.JSONObject
 import java.text.SimpleDateFormat
 import java.util.Locale
-import java.util.concurrent.TimeUnit
 
 class AnalysisFragment : Fragment() {
 
@@ -66,10 +60,7 @@ class AnalysisFragment : Fragment() {
 
     private val viewModel: AppViewModel by activityViewModels()
     private lateinit var recording: DataList
-
-    private val httpClient = OkHttpClient.Builder()
-        .readTimeout(120, TimeUnit.SECONDS)
-        .build()
+    private lateinit var insightRepository: InsightRepository
 
     // ── Video state ───────────────────────────────────────────────────────────
 
@@ -87,6 +78,7 @@ class AnalysisFragment : Fragment() {
     private var sessionId: String? = null
     private var loadingBubble: View? = null
     private lateinit var markwon: Markwon
+    private val renderedChatTurnKeys = linkedSetOf<String>()
 
     private val playHandler = Handler(Looper.getMainLooper())
     private val playRunnable = object : Runnable {
@@ -129,6 +121,7 @@ class AnalysisFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        insightRepository = InsightRepository(requireContext())
 
         val textSizePx = TypedValue.applyDimension(
             TypedValue.COMPLEX_UNIT_SP, 15f, resources.displayMetrics
@@ -167,27 +160,36 @@ class AnalysisFragment : Fragment() {
         _binding = null
     }
 
-    // ── Preview header ────────────────────────────────────────────────────────
+    // ── Topbar ────────────────────────────────────────────────────────────────
 
     private fun populatePreview() {
-        val rawName = recording.fileName
-        val parsedDate = try {
+        binding.previewTitle.text = recording.title.takeIf { it.isNotBlank() } ?: recording.fileName
+
+        binding.topbarDate.text = try {
             val parser = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US)
-            val formatter = SimpleDateFormat("MMM dd, yyyy - HH:mm:ss", Locale.US)
-            formatter.format(parser.parse(rawName)!!)
+            val formatter = SimpleDateFormat("MMM dd, yyyy · HH:mm", Locale.US)
+            formatter.format(parser.parse(recording.fileName)!!)
         } catch (_: Exception) {
-            rawName
-        }
-        binding.previewTitle.text = parsedDate
-
-        if (!recording.imageFrame.isEmpty) {
-            val bytes = recording.imageFrame.toByteArray()
-            binding.previewImage.setImageBitmap(BitmapFactory.decodeByteArray(bytes, 0, bytes.size))
+            recording.fileName
         }
 
-        binding.previewStatusSeg.setTextColor(if (recording.isSegmentationAvailable) Color.GREEN else Color.GRAY)
-        binding.previewStatusGen.setTextColor(if (recording.isGensparkAvailable) Color.GREEN else Color.GRAY)
-        binding.previewStatusMot.setTextColor(if (recording.isMotioncapAvailable) Color.GREEN else Color.GRAY)
+        binding.topbarTagsRow.removeAllViews()
+        recording.tagsList.filter { it.isNotBlank() }.forEach { tag ->
+            val chip = android.widget.TextView(requireContext()).apply {
+                text = tag
+                textSize = 10.5f
+                setTextColor(requireContext().getColor(R.color.text_secondary))
+                setBackgroundResource(R.drawable.tag_chip_background)
+                val ph = (8 * resources.displayMetrics.density).toInt()
+                val pv = (2 * resources.displayMetrics.density).toInt()
+                setPadding(ph, pv, ph, pv)
+            }
+            val params = android.widget.LinearLayout.LayoutParams(
+                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT,
+                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { marginEnd = (6 * resources.displayMetrics.density).toInt() }
+            binding.topbarTagsRow.addView(chip, params)
+        }
     }
 
     // ── Video controls ────────────────────────────────────────────────────────
@@ -282,19 +284,11 @@ class AnalysisFragment : Fragment() {
     private fun fetchVideoLayer(layer: Int) {
         val layerName = if (layer == TAB_UNDERSTANDING) "understanding" else "raw"
         viewLifecycleOwner.lifecycleScope.launch {
-            val videoResp = withContext(Dispatchers.IO) {
-                runCatching {
-                    val httpBase = viewModel.serverUrl.value.trimEnd('/')
-                        .replaceFirst("wss://", "https://")
-                        .replaceFirst("ws://", "http://")
-                    val url = "$httpBase/api/insightgen/video?file=${recording.fileName}&layer=$layerName"
-                    val req = Request.Builder().url(url).get().build()
-                    val resp = httpClient.newCall(req).execute()
-                    if (!resp.isSuccessful) return@runCatching null
-                    val bytes = resp.body?.bytes() ?: return@runCatching null
-                    InsightVideoResponse.parseFrom(bytes)
-                }.getOrNull()
-            }
+            val videoResp = insightRepository.getVideoLayer(
+                serverUrl = viewModel.serverUrl.value,
+                fileName = recording.fileName,
+                layerName = layerName,
+            )
 
             if (videoResp == null || videoResp.framesCount == 0) {
                 if (activeLayer == layer) {
@@ -327,34 +321,33 @@ class AnalysisFragment : Fragment() {
 
     private fun fetchSummary() {
         viewLifecycleOwner.lifecycleScope.launch {
-            val summary = withContext(Dispatchers.IO) {
-                runCatching {
-                    val httpBase = viewModel.serverUrl.value.trimEnd('/')
-                        .replaceFirst("wss://", "https://")
-                        .replaceFirst("ws://", "http://")
-                    val url = "$httpBase/api/insightgen/insight?file=${recording.fileName}"
-                    val req = Request.Builder().url(url).get().build()
-                    val resp = httpClient.newCall(req).execute()
-                    if (!resp.isSuccessful) return@runCatching null
-                    val bytes = resp.body?.bytes() ?: return@runCatching null
-                    GensparkSummary.parseFrom(bytes)
-                }.getOrNull()
-            }
+            val summary = insightRepository.getSummary(
+                serverUrl = viewModel.serverUrl.value,
+                fileName = recording.fileName,
+            )
 
-            if (summary == null || (summary.title.isBlank() && summary.text.isBlank())) {
+            if (summary == null || (summary.title.isBlank() && summary.text.isBlank() && summary.parametersCount == 0)) {
+                val cachedHistory = insightRepository.readCachedChatHistory(recording.fileName)
+                if (cachedHistory?.hasInitialTurn() == true && cachedHistory.initialTurn.text.isNotBlank()) {
+                    renderSummary(markdown = cachedHistory.initialTurn.text)
+                    return@launch
+                }
                 binding.summaryLoading.text = "No analysis available yet."
                 return@launch
             }
 
-            if (summary.title.isNotBlank()) {
-                binding.summaryTitle.text = summary.title
-                binding.summaryTitle.visibility = View.VISIBLE
-            }
-
-            markwon.setMarkdown(binding.summaryBody, preprocessLatex(buildMarkdown(summary)))
-            binding.summaryBody.visibility = View.VISIBLE
-            binding.summaryLoading.visibility = View.GONE
+            renderSummary(title = summary.title.takeIf { it.isNotBlank() }, markdown = buildMarkdown(summary))
         }
+    }
+
+    private fun renderSummary(title: String? = null, markdown: String) {
+        binding.summaryTitle.visibility = if (title.isNullOrBlank()) View.GONE else View.VISIBLE
+        if (!title.isNullOrBlank()) {
+            binding.summaryTitle.text = title
+        }
+        markwon.setMarkdown(binding.summaryBody, preprocessLatex(markdown))
+        binding.summaryBody.visibility = View.VISIBLE
+        binding.summaryLoading.visibility = View.GONE
     }
 
     private fun buildMarkdown(summary: GensparkSummary): String {
@@ -412,8 +405,9 @@ class AnalysisFragment : Fragment() {
 
     // ── Chat bubbles ─────────────────────────────────────────────────────────
 
-    private fun addChatBubble(text: String, isUser: Boolean) {
+    private fun addChatBubble(text: String, isUser: Boolean, renderedKey: String? = null) {
         binding.chatContainer.visibility = View.VISIBLE
+        renderedKey?.let { renderedChatTurnKeys.add(it) }
 
         val wrapper = LinearLayout(requireContext()).apply {
             layoutParams = LinearLayout.LayoutParams(
@@ -447,6 +441,18 @@ class AnalysisFragment : Fragment() {
         wrapper.addView(bubble)
         binding.chatContainer.addView(wrapper)
         scrollToBottom()
+    }
+
+    private fun renderChatTurn(turn: ChatTurn) {
+        val key = turn.renderKey()
+        if (!renderedChatTurnKeys.add(key)) {
+            return
+        }
+        addChatBubble(turn.text, isUser = turn.role == "user")
+    }
+
+    private fun renderChatTurns(turns: List<ChatTurn>) {
+        turns.forEach(::renderChatTurn)
     }
 
     private fun addLoadingBubble() {
@@ -492,6 +498,8 @@ class AnalysisFragment : Fragment() {
     private fun dpToPx(dp: Int): Int =
         (dp * resources.displayMetrics.density).toInt()
 
+    private fun ChatTurn.renderKey(): String = "${timestampNs}|${role}|${text}"
+
     // ── Chat history fetch ───────────────────────────────────────────────────
 
     /**
@@ -534,25 +542,19 @@ class AnalysisFragment : Fragment() {
 
     private fun fetchChatHistory() {
         viewLifecycleOwner.lifecycleScope.launch {
-            val history = withContext(Dispatchers.IO) {
-                runCatching {
-                    val httpBase = viewModel.serverUrl.value.trimEnd('/')
-                        .replaceFirst("wss://", "https://")
-                        .replaceFirst("ws://", "http://")
-                    val url = "$httpBase/api/insightgen/chat?file=${recording.fileName}"
-                    val req = Request.Builder().url(url).get().build()
-                    val resp = httpClient.newCall(req).execute()
-                    if (!resp.isSuccessful) return@runCatching null
-                    val bytes = resp.body?.bytes() ?: return@runCatching null
-                    ChatHistory.parseFrom(bytes)
-                }.getOrNull()
+            insightRepository.readCachedChatHistory(recording.fileName)?.let { cachedHistory ->
+                renderChatTurns(cachedHistory.turnsList)
             }
 
-            if (history != null && history.turnsCount > 0) {
-                for (turn in history.turnsList) {
-                    addChatBubble(turn.text, isUser = turn.role == "user")
-                }
+            val result = insightRepository.syncChatHistory(
+                serverUrl = viewModel.serverUrl.value,
+                fileName = recording.fileName,
+            )
+
+            result.history?.takeIf { it.hasInitialTurn() && binding.summaryBody.visibility != View.VISIBLE }?.let {
+                renderSummary(markdown = it.initialTurn.text)
             }
+            renderChatTurns(result.newTurns)
 
             showSendButton()
         }
@@ -562,39 +564,33 @@ class AnalysisFragment : Fragment() {
 
     private fun sendFollowUp(text: String) {
         viewLifecycleOwner.lifecycleScope.launch {
-            val result = withContext(Dispatchers.IO) {
-                runCatching {
-                    val httpBase = viewModel.serverUrl.value.trimEnd('/')
-                        .replaceFirst("wss://", "https://")
-                        .replaceFirst("ws://", "http://")
-                    val url = "$httpBase/api/insightgen/chat"
-
-                    val jsonBody = JSONObject().apply {
-                        put("file", recording.fileName)
-                        put("message", text)
-                        sessionId?.let { put("session_id", it) }
-                    }
-
-                    val body = jsonBody.toString()
-                        .toRequestBody("application/json".toMediaType())
-                    val req = Request.Builder().url(url).post(body).build()
-                    val resp = httpClient.newCall(req).execute()
-                    if (!resp.isSuccessful) return@runCatching null
-                    val respBody = resp.body?.string() ?: return@runCatching null
-                    JSONObject(respBody)
-                }.getOrNull()
-            }
+            val result = insightRepository.sendFollowUp(
+                serverUrl = viewModel.serverUrl.value,
+                fileName = recording.fileName,
+                message = text,
+                sessionId = sessionId,
+            )
 
             removeLoadingBubble()
 
             if (result != null) {
-                sessionId = result.optString("session_id", sessionId)
-                val aiText = result.getString("response")
-                addChatBubble(aiText, isUser = false)
+                sessionId = result.sessionId
+                insightRepository.cacheChatExchange(
+                    fileName = recording.fileName,
+                    userMessage = text,
+                    responseText = result.responseText,
+                    userTimestampNs = result.userTimestampNs,
+                    responseTimestampNs = result.responseTimestampNs,
+                )
+                renderedChatTurnKeys.add("${result.userTimestampNs}|user|$text")
+                addChatBubble(
+                    result.responseText,
+                    isUser = false,
+                    renderedKey = "${result.responseTimestampNs}|model|${result.responseText}",
+                )
             } else {
                 addChatBubble("Failed to get response. Please try again.", isUser = false)
             }
         }
     }
 }
-
