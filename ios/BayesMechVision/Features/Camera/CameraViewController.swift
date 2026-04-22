@@ -17,6 +17,7 @@ final class CameraViewController: UIViewController {
     private let messageLabel = UILabel()
     private let sendButton = UIButton(type: .system)
     private let recordButton = UIButton(type: .system)
+    private let errorLabel = UILabel()
 
     private var cancellables: Set<AnyCancellable> = []
     private var recordingStartTime: Date?
@@ -62,6 +63,7 @@ final class CameraViewController: UIViewController {
         micButton.translatesAutoresizingMaskIntoConstraints = false
         messageLabel.translatesAutoresizingMaskIntoConstraints = false
         sendButton.translatesAutoresizingMaskIntoConstraints = false
+        errorLabel.translatesAutoresizingMaskIntoConstraints = false
 
         view.addSubview(sceneView)
         sceneView.pinEdges(to: view)
@@ -125,9 +127,19 @@ final class CameraViewController: UIViewController {
         recordButton.titleLabel?.font = .systemFont(ofSize: 16, weight: .bold)
         recordButton.addTarget(self, action: #selector(toggleRecording), for: .touchUpInside)
 
+        errorLabel.backgroundColor = UIColor.black.withAlphaComponent(0.65)
+        errorLabel.textColor = AppColors.textPrimary
+        errorLabel.font = .systemFont(ofSize: 13, weight: .medium)
+        errorLabel.numberOfLines = 0
+        errorLabel.textAlignment = .center
+        errorLabel.layer.cornerRadius = 14
+        errorLabel.layer.masksToBounds = true
+        errorLabel.isHidden = true
+
         view.addSubview(liveBadge)
         view.addSubview(timerLabel)
         view.addSubview(fullscreenButton)
+        view.addSubview(errorLabel)
         view.addSubview(chatPanel)
         view.addSubview(recordButton)
         chatPanel.addSubview(micButton)
@@ -149,6 +161,10 @@ final class CameraViewController: UIViewController {
             fullscreenButton.bottomAnchor.constraint(equalTo: chatPanel.topAnchor, constant: -12),
             fullscreenButton.widthAnchor.constraint(equalToConstant: 32),
             fullscreenButton.heightAnchor.constraint(equalToConstant: 32),
+
+            errorLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 24),
+            errorLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -24),
+            errorLabel.bottomAnchor.constraint(equalTo: chatPanel.topAnchor, constant: -24),
 
             chatPanel.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             chatPanel.trailingAnchor.constraint(equalTo: view.trailingAnchor),
@@ -201,6 +217,14 @@ final class CameraViewController: UIViewController {
             )
         }
         .store(in: &cancellables)
+
+        container.stateStore.$arSessionError
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] error in
+                self?.errorLabel.text = error
+                self?.errorLabel.isHidden = (error?.isEmpty ?? true)
+            }
+            .store(in: &cancellables)
     }
 
     private func renderRecordingState(_ isRecording: Bool) {

@@ -1,7 +1,7 @@
 name: BayesMechVision
 options:
   deploymentTarget:
-    iOS: "16.0"
+    iOS: "18.0"
   xcodeVersion: "16.0"
   createIntermediateGroups: true
 packages:
@@ -18,7 +18,10 @@ targets:
   BayesMechVision:
     type: application
     platform: iOS
-    deploymentTarget: "16.0"
+    deploymentTarget: "18.0"
+    configFiles:
+      Debug: BayesMechVision/Support/Configurations/Base.xcconfig
+      Release: BayesMechVision/Support/Configurations/Base.xcconfig
     sources:
       - path: BayesMechVision
     resources:
@@ -29,6 +32,7 @@ targets:
         PRODUCT_NAME: Vision
         INFOPLIST_FILE: BayesMechVision/Support/Info.plist
         SWIFT_VERSION: 5.10
+        IPHONEOS_DEPLOYMENT_TARGET: 18.0
         CODE_SIGN_STYLE: Automatic
         DEVELOPMENT_TEAM: ""
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
@@ -37,6 +41,9 @@ targets:
         MARKETING_VERSION: 1.0
         GENERATE_INFOPLIST_FILE: NO
         ENABLE_USER_SCRIPT_SANDBOXING: NO
+        GOOGLE_IOS_CLIENT_ID: ""
+        GOOGLE_SERVER_CLIENT_ID: ""
+        GOOGLE_REVERSED_CLIENT_ID: ""
     dependencies:
       - package: SwiftProtobuf
       - package: GoogleSignIn
@@ -48,7 +55,10 @@ targets:
   BayesMechVisionTests:
     type: bundle.unit-test
     platform: iOS
-    deploymentTarget: "16.0"
+    deploymentTarget: "18.0"
+    configFiles:
+      Debug: BayesMechVision/Support/Configurations/Base.xcconfig
+      Release: BayesMechVision/Support/Configurations/Base.xcconfig
     sources:
       - path: BayesMechVisionTests
     settings:

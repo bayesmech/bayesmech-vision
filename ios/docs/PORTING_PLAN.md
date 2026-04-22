@@ -5,6 +5,9 @@ This directory tracks the native iOS port under the hard constraints requested b
 ## Immutable Contracts
 
 - Bundle identifier stays `com.bayesmech.vision`
+- Deployment target is pinned to `iOS 18.0`
+- Hardware target is `iPhone 17 and newer`
+- LiDAR-backed scene depth is required
 - Repo-level `.proto` files stay unchanged
 - Existing dashboard stays unchanged
 - Existing Python/FastAPI endpoints stay unchanged
@@ -29,5 +32,3 @@ This directory tracks the native iOS port under the hard constraints requested b
 ## Known Inputs Still Needed
 
 - Production iOS OAuth client ID and reversed URL scheme for Google Sign-In
-- Final minimum supported iPhone/iPad matrix
-- Decision on LiDAR depth fallback behavior for non-LiDAR devices

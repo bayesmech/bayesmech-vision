@@ -18,6 +18,7 @@ final class AppStateStore: ObservableObject {
     @Published private(set) var coverageStats = CoverageStats()
     @Published private(set) var recordings: [DataList] = []
     @Published private(set) var currentUser: SignedInUser?
+    @Published private(set) var arSessionError: String?
 
     private let defaults: UserDefaults
     private let fileManager: FileManager
@@ -93,6 +94,10 @@ final class AppStateStore: ObservableObject {
 
     func updateCoverageStats(_ stats: CoverageStats) {
         coverageStats = stats
+    }
+
+    func setArSessionError(_ message: String?) {
+        arSessionError = message
     }
 
     func updateRecordings(_ items: [DataList]) {

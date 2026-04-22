@@ -36,6 +36,7 @@
 		99A19BC15045866751FE7240 /* FrameEncoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 169FB34F5F25481BB9774297 /* FrameEncoder.swift */; };
 		A22BBD94BF60F78D81DE7DF2 /* CameraViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5862A3209A0F8258A8B65B89 /* CameraViewController.swift */; };
 		A453D8B025776FBF03BDEC35 /* ARWebSocketClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 535499DED8F2E7081E571094 /* ARWebSocketClient.swift */; };
+		A50E62BD31537F4C4C1A1037 /* GoogleService-Info.plist.example in Resources */ = {isa = PBXBuildFile; fileRef = 3C20B2A58B6A10D22CD82B11 /* GoogleService-Info.plist.example */; };
 		B01A2EF36B49B98FE8EF6796 /* MotionLocationCollector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 914417DCB7A0A8EA4D43EEF8 /* MotionLocationCollector.swift */; };
 		B5DED2BA46C9CF6DD117006C /* ConnectionStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13A692D32BD5BF9687209305 /* ConnectionStatus.swift */; };
 		BECDB0C43CCC5589CD078C7E /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F4526BFC509C212D6D9A96E /* AppDelegate.swift */; };
@@ -45,7 +46,9 @@
 		DF6CE419CED47174FCE9AD1F /* RecordingManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 802B2637721AB06BD8E46BDE /* RecordingManagerTests.swift */; };
 		E20B5473B8C397CE10463970 /* AppStateStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94A78830DED36FC5D42A81FE /* AppStateStore.swift */; };
 		E762627A38BBB9E6D601E270 /* ARCapturePipeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6AF5C2DACA5E9B24C6A36662 /* ARCapturePipeline.swift */; };
+		E8DB8E44E6EA4E935F13ABD6 /* GoogleAuthConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D5FD54ED398DD8C051F658E /* GoogleAuthConfiguration.swift */; };
 		F4E4EABE859F8389C52F2D8F /* TranscriptionClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4077F3ECDDB412898FC3559 /* TranscriptionClient.swift */; };
+		FD91F96D53FB28EC9E5872FF /* Credentials.xcconfig.example in Resources */ = {isa = PBXBuildFile; fileRef = 0DF9EB18BB65C2EDB55B14CD /* Credentials.xcconfig.example */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -60,14 +63,18 @@
 
 /* Begin PBXFileReference section */
 		0BCBEB69A0BF8567CC35C924 /* StreamConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamConfig.swift; sourceTree = "<group>"; };
+		0D5FD54ED398DD8C051F658E /* GoogleAuthConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleAuthConfiguration.swift; sourceTree = "<group>"; };
+		0DF9EB18BB65C2EDB55B14CD /* Credentials.xcconfig.example */ = {isa = PBXFileReference; path = Credentials.xcconfig.example; sourceTree = "<group>"; };
 		0E32AD60A53D582B4AFA2689 /* BayesMechVision.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = BayesMechVision.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		13A692D32BD5BF9687209305 /* ConnectionStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionStatus.swift; sourceTree = "<group>"; };
+		162CA2397B7A6A90E598606A /* Base.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Base.xcconfig; sourceTree = "<group>"; };
 		169FB34F5F25481BB9774297 /* FrameEncoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FrameEncoder.swift; sourceTree = "<group>"; };
 		181175E8AAD17640E14AD509 /* AppContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppContainer.swift; sourceTree = "<group>"; };
 		1EFDF9511E357D454F9ED213 /* RootShellViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootShellViewController.swift; sourceTree = "<group>"; };
 		24F10771FC1FBD38FA05399F /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		2C4B563D396DC84CDBA8E698 /* CoverageTrackerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoverageTrackerTests.swift; sourceTree = "<group>"; };
 		38D9A12A68430D061CF3F1E4 /* SettingsViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsViewController.swift; sourceTree = "<group>"; };
+		3C20B2A58B6A10D22CD82B11 /* GoogleService-Info.plist.example */ = {isa = PBXFileReference; path = "GoogleService-Info.plist.example"; sourceTree = "<group>"; };
 		3DC8E9DAB6B8F336D40D688A /* primitives.pb.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = primitives.pb.swift; sourceTree = "<group>"; };
 		3F4526BFC509C212D6D9A96E /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		3F637EBC892A5711126D418E /* spatial.pb.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = spatial.pb.swift; sourceTree = "<group>"; };
@@ -118,9 +125,11 @@
 			isa = PBXGroup;
 			children = (
 				C371EB28758D33C3F265F527 /* AppColors.swift */,
+				0D5FD54ED398DD8C051F658E /* GoogleAuthConfiguration.swift */,
 				FDB9466AAA26957E9FDDBD1C /* HTTPBase.swift */,
 				A1BCA5229C4169D6E6F92F4E /* Info.plist */,
 				869420515E48381E35622076 /* ViewLayout.swift */,
+				5640BF0C1FEE2CF7293ED717 /* Configurations */,
 			);
 			path = Support;
 			sourceTree = "<group>";
@@ -209,6 +218,23 @@
 				513798C4BABCB6BE57DFF0FC /* AnalysisViewController.swift */,
 			);
 			path = Analysis;
+			sourceTree = "<group>";
+		};
+		5640BF0C1FEE2CF7293ED717 /* Configurations */ = {
+			isa = PBXGroup;
+			children = (
+				162CA2397B7A6A90E598606A /* Base.xcconfig */,
+				0DF9EB18BB65C2EDB55B14CD /* Credentials.xcconfig.example */,
+			);
+			path = Configurations;
+			sourceTree = "<group>";
+		};
+		648A1F3F5246CB04585B8A94 /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				3C20B2A58B6A10D22CD82B11 /* GoogleService-Info.plist.example */,
+			);
+			path = Config;
 			sourceTree = "<group>";
 		};
 		7BDC9D565991FC81EC9D0823 /* Models */ = {
@@ -331,6 +357,7 @@
 			isa = PBXGroup;
 			children = (
 				24F10771FC1FBD38FA05399F /* Assets.xcassets */,
+				648A1F3F5246CB04585B8A94 /* Config */,
 				B900FED8317EEF9A62B86209 /* LaunchScreen.storyboard */,
 			);
 			path = Resources;
@@ -424,6 +451,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				5D0202C8A3F155F2852F6482 /* Assets.xcassets in Resources */,
+				FD91F96D53FB28EC9E5872FF /* Credentials.xcconfig.example in Resources */,
+				A50E62BD31537F4C4C1A1037 /* GoogleService-Info.plist.example in Resources */,
 				021DEEBA44CBCACC2B342B2B /* LaunchScreen.storyboard in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -470,6 +499,7 @@
 				242D0AB58AD363B1D1C845BC /* CoverageStats.swift in Sources */,
 				C5641906F48545B53C6DCF10 /* CoverageTracker.swift in Sources */,
 				99A19BC15045866751FE7240 /* FrameEncoder.swift in Sources */,
+				E8DB8E44E6EA4E935F13ABD6 /* GoogleAuthConfiguration.swift in Sources */,
 				357020CF0D1E7EEBF265A800 /* HTTPBase.swift in Sources */,
 				6E3B74A166881A7785D65E60 /* InsightCacheStore.swift in Sources */,
 				8343742D158CBB782309EBD5 /* InsightRepository.swift in Sources */,
@@ -526,6 +556,7 @@
 /* Begin XCBuildConfiguration section */
 		0618BEFED3DB0654EB3449E5 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 162CA2397B7A6A90E598606A /* Base.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
@@ -534,8 +565,11 @@
 				DEVELOPMENT_TEAM = "";
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = NO;
+				GOOGLE_IOS_CLIENT_ID = "";
+				GOOGLE_REVERSED_CLIENT_ID = "";
+				GOOGLE_SERVER_CLIENT_ID = "";
 				INFOPLIST_FILE = BayesMechVision/Support/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -600,7 +634,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -614,10 +648,10 @@
 		};
 		5F07AC2B1C3514EEC6B82BF9 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 162CA2397B7A6A90E598606A /* Base.xcconfig */;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				GENERATE_INFOPLIST_FILE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -633,10 +667,10 @@
 		};
 		9109A6FC089DC78DC27E8349 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 162CA2397B7A6A90E598606A /* Base.xcconfig */;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				GENERATE_INFOPLIST_FILE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -652,6 +686,7 @@
 		};
 		B1BE864FA951CF91027298C2 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 162CA2397B7A6A90E598606A /* Base.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
@@ -660,8 +695,11 @@
 				DEVELOPMENT_TEAM = "";
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = NO;
+				GOOGLE_IOS_CLIENT_ID = "";
+				GOOGLE_REVERSED_CLIENT_ID = "";
+				GOOGLE_SERVER_CLIENT_ID = "";
 				INFOPLIST_FILE = BayesMechVision/Support/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -720,7 +758,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";

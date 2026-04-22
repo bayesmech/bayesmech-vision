@@ -44,14 +44,22 @@ final class ARSessionCoordinator: NSObject, ARSessionDelegate {
 
     func reconfigureSessionIfNeeded() {
         guard isRunning, let sceneView else { return }
+        guard ARWorldTrackingConfiguration.isSupported else {
+            stateStore.setArSessionError("ARKit world tracking is unavailable on this device.")
+            return
+        }
+
+        guard ARWorldTrackingConfiguration.supportsFrameSemantics(.sceneDepth) else {
+            stateStore.setArSessionError("BayesMech Vision requires an iPhone with LiDAR depth support.")
+            return
+        }
+        stateStore.setArSessionError(nil)
 
         let configuration = ARWorldTrackingConfiguration()
         configuration.planeDetection = [.horizontal, .vertical]
 
         if stateStore.enableDepthData || stateStore.visualizeDepthMap {
-            if ARWorldTrackingConfiguration.supportsFrameSemantics(.sceneDepth) {
-                configuration.frameSemantics.insert(.sceneDepth)
-            }
+            configuration.frameSemantics.insert(.sceneDepth)
             if ARWorldTrackingConfiguration.supportsFrameSemantics(.smoothedSceneDepth) {
                 configuration.frameSemantics.insert(.smoothedSceneDepth)
             }
@@ -82,5 +90,9 @@ final class ARSessionCoordinator: NSObject, ARSessionDelegate {
         for anchor in anchors.compactMap({ $0 as? ARPlaneAnchor }) {
             planeAnchors.removeValue(forKey: anchor.identifier)
         }
+    }
+
+    func session(_ session: ARSession, didFailWithError error: Error) {
+        stateStore.setArSessionError("AR session failed: \(error.localizedDescription)")
     }
 }

@@ -12,6 +12,7 @@ final class LoginViewController: UIViewController {
     private let statusLabel = UILabel()
 
     private var attemptedRestore = false
+    private var authConfiguration: GoogleAuthConfiguration?
 
     init(container: AppContainer, onSignedIn: @escaping (SignedInUser) -> Void) {
         self.container = container
@@ -27,13 +28,23 @@ final class LoginViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = AppColors.bgDark
+        authConfiguration = GoogleAuthConfiguration.load()
         buildUI()
+        if authConfiguration == nil {
+            statusLabel.text = "Google Sign-In is not configured yet. Add the iOS client ID and reversed URL scheme."
+        }
     }
 
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
         guard !attemptedRestore else { return }
         attemptedRestore = true
+
+        guard let authConfiguration else { return }
+        GIDSignIn.sharedInstance.configuration = GIDConfiguration(
+            clientID: authConfiguration.clientID,
+            serverClientID: authConfiguration.serverClientID
+        )
 
         GIDSignIn.sharedInstance.restorePreviousSignIn { [weak self] user, _ in
             guard let self, let user else { return }
@@ -113,7 +124,16 @@ final class LoginViewController: UIViewController {
 
     @objc
     private func handleSignInTap() {
+        guard let authConfiguration else {
+            statusLabel.text = "Missing iOS Google Sign-In config. google-services.json is not enough for this app."
+            return
+        }
+
         statusLabel.text = "Opening Google Sign-In…"
+        GIDSignIn.sharedInstance.configuration = GIDConfiguration(
+            clientID: authConfiguration.clientID,
+            serverClientID: authConfiguration.serverClientID
+        )
         GIDSignIn.sharedInstance.signIn(withPresenting: self) { [weak self] result, error in
             guard let self else { return }
             if let error {

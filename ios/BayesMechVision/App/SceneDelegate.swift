@@ -1,3 +1,4 @@
+import GoogleSignIn
 import UIKit
 
 final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
@@ -20,8 +21,14 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
             let root = RootShellViewController(container: self?.container ?? AppContainer())
             navigationController?.setViewControllers([root], animated: true)
         }
+        let initialController: UIViewController
+        if container.stateStore.currentUser != nil {
+            initialController = RootShellViewController(container: container)
+        } else {
+            initialController = loginViewController
+        }
 
-        navigationController.setViewControllers([loginViewController], animated: false)
+        navigationController.setViewControllers([initialController], animated: false)
 
         let window = UIWindow(windowScene: windowScene)
         window.rootViewController = navigationController
@@ -32,5 +39,10 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
     func sceneWillResignActive(_ scene: UIScene) {
         container.arCoordinator.stop()
+    }
+
+    func scene(_ scene: UIScene, openURLContexts URLContexts: Set<UIOpenURLContext>) {
+        guard let url = URLContexts.first?.url else { return }
+        GIDSignIn.sharedInstance.handle(url)
     }
 }

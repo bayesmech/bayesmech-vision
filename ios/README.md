@@ -5,6 +5,9 @@ This directory contains the native iOS port scaffold for BayesMech Vision.
 ## Constraints
 
 - Bundle identifier: `com.bayesmech.vision`
+- Deployment target: `iOS 18.0`
+- Intended hardware floor: `iPhone 17 and newer`
+- LiDAR depth support is required
 - No changes to repo-level `proto/`
 - No changes to `dashboard/`
 - iOS outputs and references live entirely under `ios/`
@@ -26,6 +29,20 @@ xcodegen generate
 ```
 
 Open `BayesMechVision.xcodeproj` in Xcode on a machine with the full iOS SDK installed.
+
+## Google Sign-In
+
+Fill in iOS Google Sign-In credentials via:
+
+- `BayesMechVision/Support/Configurations/Credentials.xcconfig`
+
+Start from:
+
+- `BayesMechVision/Support/Configurations/Credentials.xcconfig.example`
+
+Details are in:
+
+- `ios/docs/AUTH_SETUP.md`
 
 ## Layout References
 
