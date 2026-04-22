@@ -1,0 +1,799 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		021DEEBA44CBCACC2B342B2B /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = B900FED8317EEF9A62B86209 /* LaunchScreen.storyboard */; };
+		094F28850E2ECC454D7E510C /* RootShellViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1EFDF9511E357D454F9ED213 /* RootShellViewController.swift */; };
+		15E457ED5348FF2F5E1DD618 /* StreamConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BCBEB69A0BF8567CC35C924 /* StreamConfig.swift */; };
+		22D4F758796796E3C4F73EB5 /* SensorSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82E23AABE5646C46671F1310 /* SensorSnapshot.swift */; };
+		242D0AB58AD363B1D1C845BC /* CoverageStats.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31787D7483457E06658D50D /* CoverageStats.swift */; };
+		28FB766B6A89AE5FFE986E2B /* ProtoAliases.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78178B8E24F2F13B3BE06A24 /* ProtoAliases.swift */; };
+		2AB8793F4B9DDF87CCC74428 /* CoverageTrackerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C4B563D396DC84CDBA8E698 /* CoverageTrackerTests.swift */; };
+		310E878596AD3AB104A46F5F /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 505F4BE4C7D1C7F4109FD807 /* SceneDelegate.swift */; };
+		3331BF4A90161E6DEA64010B /* AppContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 181175E8AAD17640E14AD509 /* AppContainer.swift */; };
+		357020CF0D1E7EEBF265A800 /* HTTPBase.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB9466AAA26957E9FDDBD1C /* HTTPBase.swift */; };
+		3579AEE5731561B2E0174EFB /* SignedInUser.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1E12B28C6EEAFEFFA84F37C /* SignedInUser.swift */; };
+		372F1AF84CB60EA1D947A8BD /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = CA6126DB738F4698457CD7E4 /* GoogleSignIn */; };
+		3D03FCD53D053F437B286B75 /* LibraryViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 884DC82B5749D1B97DD2B881 /* LibraryViewController.swift */; };
+		4CD71C30583D53C1199B9430 /* primitives.pb.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DC8E9DAB6B8F336D40D688A /* primitives.pb.swift */; };
+		4DDD5792561987310E406ECE /* SettingsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38D9A12A68430D061CF3F1E4 /* SettingsViewController.swift */; };
+		4EF92655C527403A17DAD433 /* insightgen.pb.swift in Sources */ = {isa = PBXBuildFile; fileRef = B55AD036A51D81EECDD0945C /* insightgen.pb.swift */; };
+		5D0202C8A3F155F2852F6482 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 24F10771FC1FBD38FA05399F /* Assets.xcassets */; };
+		6E3B74A166881A7785D65E60 /* InsightCacheStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D73D1789703E0E9EFF13F86 /* InsightCacheStore.swift */; };
+		74D459F14AFD3A2CE517C205 /* LoginViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5605A5B3AD5A415BBEA02040 /* LoginViewController.swift */; };
+		75A71031688128A7B79464A8 /* perceiver.pb.swift in Sources */ = {isa = PBXBuildFile; fileRef = F16E379FB76257F38052642E /* perceiver.pb.swift */; };
+		8343742D158CBB782309EBD5 /* InsightRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = C34643C93D5CC46235E9CAB4 /* InsightRepository.swift */; };
+		8494D4F23F246E20E0A33A06 /* AppColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = C371EB28758D33C3F265F527 /* AppColors.swift */; };
+		84B62847A343AF69CC4488F0 /* SwiftProtobuf in Frameworks */ = {isa = PBXBuildFile; productRef = 21C874F0B5B84921E9387382 /* SwiftProtobuf */; };
+		87E9550444FA395018B99CB3 /* AnalysisViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 513798C4BABCB6BE57DFF0FC /* AnalysisViewController.swift */; };
+		883FDEA4D266992D486C2795 /* RecordingManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 956DB458DBB349064B01D09E /* RecordingManager.swift */; };
+		97C6C734041AD58CA2DB1A58 /* spatial.pb.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F637EBC892A5711126D418E /* spatial.pb.swift */; };
+		99A19BC15045866751FE7240 /* FrameEncoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 169FB34F5F25481BB9774297 /* FrameEncoder.swift */; };
+		A22BBD94BF60F78D81DE7DF2 /* CameraViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5862A3209A0F8258A8B65B89 /* CameraViewController.swift */; };
+		A453D8B025776FBF03BDEC35 /* ARWebSocketClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 535499DED8F2E7081E571094 /* ARWebSocketClient.swift */; };
+		B01A2EF36B49B98FE8EF6796 /* MotionLocationCollector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 914417DCB7A0A8EA4D43EEF8 /* MotionLocationCollector.swift */; };
+		B5DED2BA46C9CF6DD117006C /* ConnectionStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13A692D32BD5BF9687209305 /* ConnectionStatus.swift */; };
+		BECDB0C43CCC5589CD078C7E /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F4526BFC509C212D6D9A96E /* AppDelegate.swift */; };
+		C5641906F48545B53C6DCF10 /* CoverageTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB1586891424E9EAED94E2A5 /* CoverageTracker.swift */; };
+		CBA5CB83D8FD9D5448E49147 /* ViewLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 869420515E48381E35622076 /* ViewLayout.swift */; };
+		D638B08F4D7638BF1F0BDD41 /* ARSessionCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75F35FDAFB8B9277F723AA03 /* ARSessionCoordinator.swift */; };
+		DF6CE419CED47174FCE9AD1F /* RecordingManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 802B2637721AB06BD8E46BDE /* RecordingManagerTests.swift */; };
+		E20B5473B8C397CE10463970 /* AppStateStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94A78830DED36FC5D42A81FE /* AppStateStore.swift */; };
+		E762627A38BBB9E6D601E270 /* ARCapturePipeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6AF5C2DACA5E9B24C6A36662 /* ARCapturePipeline.swift */; };
+		F4E4EABE859F8389C52F2D8F /* TranscriptionClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4077F3ECDDB412898FC3559 /* TranscriptionClient.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		88D551C60D0D7EE942141C05 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = EAA1F770DE22D31ECFCE1018 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 6C7C445DCFC2A07584CC4659;
+			remoteInfo = BayesMechVision;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		0BCBEB69A0BF8567CC35C924 /* StreamConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamConfig.swift; sourceTree = "<group>"; };
+		0E32AD60A53D582B4AFA2689 /* BayesMechVision.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = BayesMechVision.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		13A692D32BD5BF9687209305 /* ConnectionStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionStatus.swift; sourceTree = "<group>"; };
+		169FB34F5F25481BB9774297 /* FrameEncoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FrameEncoder.swift; sourceTree = "<group>"; };
+		181175E8AAD17640E14AD509 /* AppContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppContainer.swift; sourceTree = "<group>"; };
+		1EFDF9511E357D454F9ED213 /* RootShellViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootShellViewController.swift; sourceTree = "<group>"; };
+		24F10771FC1FBD38FA05399F /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		2C4B563D396DC84CDBA8E698 /* CoverageTrackerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoverageTrackerTests.swift; sourceTree = "<group>"; };
+		38D9A12A68430D061CF3F1E4 /* SettingsViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsViewController.swift; sourceTree = "<group>"; };
+		3DC8E9DAB6B8F336D40D688A /* primitives.pb.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = primitives.pb.swift; sourceTree = "<group>"; };
+		3F4526BFC509C212D6D9A96E /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		3F637EBC892A5711126D418E /* spatial.pb.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = spatial.pb.swift; sourceTree = "<group>"; };
+		505F4BE4C7D1C7F4109FD807 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
+		513798C4BABCB6BE57DFF0FC /* AnalysisViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalysisViewController.swift; sourceTree = "<group>"; };
+		535499DED8F2E7081E571094 /* ARWebSocketClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ARWebSocketClient.swift; sourceTree = "<group>"; };
+		5605A5B3AD5A415BBEA02040 /* LoginViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginViewController.swift; sourceTree = "<group>"; };
+		5759A0BA7BEAB77E6CDD9377 /* BayesMechVisionTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = BayesMechVisionTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		5862A3209A0F8258A8B65B89 /* CameraViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraViewController.swift; sourceTree = "<group>"; };
+		6AF5C2DACA5E9B24C6A36662 /* ARCapturePipeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ARCapturePipeline.swift; sourceTree = "<group>"; };
+		75F35FDAFB8B9277F723AA03 /* ARSessionCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ARSessionCoordinator.swift; sourceTree = "<group>"; };
+		78178B8E24F2F13B3BE06A24 /* ProtoAliases.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProtoAliases.swift; sourceTree = "<group>"; };
+		802B2637721AB06BD8E46BDE /* RecordingManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingManagerTests.swift; sourceTree = "<group>"; };
+		82E23AABE5646C46671F1310 /* SensorSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SensorSnapshot.swift; sourceTree = "<group>"; };
+		869420515E48381E35622076 /* ViewLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewLayout.swift; sourceTree = "<group>"; };
+		884DC82B5749D1B97DD2B881 /* LibraryViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryViewController.swift; sourceTree = "<group>"; };
+		914417DCB7A0A8EA4D43EEF8 /* MotionLocationCollector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MotionLocationCollector.swift; sourceTree = "<group>"; };
+		94A78830DED36FC5D42A81FE /* AppStateStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppStateStore.swift; sourceTree = "<group>"; };
+		956DB458DBB349064B01D09E /* RecordingManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingManager.swift; sourceTree = "<group>"; };
+		96538A253E9490FE74026BBD /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
+		9D73D1789703E0E9EFF13F86 /* InsightCacheStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InsightCacheStore.swift; sourceTree = "<group>"; };
+		A1BCA5229C4169D6E6F92F4E /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		A1E12B28C6EEAFEFFA84F37C /* SignedInUser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignedInUser.swift; sourceTree = "<group>"; };
+		B55AD036A51D81EECDD0945C /* insightgen.pb.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = insightgen.pb.swift; sourceTree = "<group>"; };
+		C34643C93D5CC46235E9CAB4 /* InsightRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InsightRepository.swift; sourceTree = "<group>"; };
+		C371EB28758D33C3F265F527 /* AppColors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppColors.swift; sourceTree = "<group>"; };
+		CB1586891424E9EAED94E2A5 /* CoverageTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoverageTracker.swift; sourceTree = "<group>"; };
+		D4077F3ECDDB412898FC3559 /* TranscriptionClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptionClient.swift; sourceTree = "<group>"; };
+		E31787D7483457E06658D50D /* CoverageStats.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoverageStats.swift; sourceTree = "<group>"; };
+		F16E379FB76257F38052642E /* perceiver.pb.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = perceiver.pb.swift; sourceTree = "<group>"; };
+		FDB9466AAA26957E9FDDBD1C /* HTTPBase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTTPBase.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		2B241FEE61FCFFC01E1185D4 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				84B62847A343AF69CC4488F0 /* SwiftProtobuf in Frameworks */,
+				372F1AF84CB60EA1D947A8BD /* GoogleSignIn in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		0FEB5B689B2ABCC7C9900A19 /* Support */ = {
+			isa = PBXGroup;
+			children = (
+				C371EB28758D33C3F265F527 /* AppColors.swift */,
+				FDB9466AAA26957E9FDDBD1C /* HTTPBase.swift */,
+				A1BCA5229C4169D6E6F92F4E /* Info.plist */,
+				869420515E48381E35622076 /* ViewLayout.swift */,
+			);
+			path = Support;
+			sourceTree = "<group>";
+		};
+		14729CC91B5B116D226CA87A /* Library */ = {
+			isa = PBXGroup;
+			children = (
+				884DC82B5749D1B97DD2B881 /* LibraryViewController.swift */,
+			);
+			path = Library;
+			sourceTree = "<group>";
+		};
+		14CFA36EF42216BEBC6AFB32 /* BayesMechVisionTests */ = {
+			isa = PBXGroup;
+			children = (
+				2C4B563D396DC84CDBA8E698 /* CoverageTrackerTests.swift */,
+				802B2637721AB06BD8E46BDE /* RecordingManagerTests.swift */,
+			);
+			path = BayesMechVisionTests;
+			sourceTree = "<group>";
+		};
+		195FD9931E0FE3BEE7F427B8 /* Camera */ = {
+			isa = PBXGroup;
+			children = (
+				5862A3209A0F8258A8B65B89 /* CameraViewController.swift */,
+			);
+			path = Camera;
+			sourceTree = "<group>";
+		};
+		1D544FF139F856B945BDB7A8 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				0E32AD60A53D582B4AFA2689 /* BayesMechVision.app */,
+				5759A0BA7BEAB77E6CDD9377 /* BayesMechVisionTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		1F4D8F67773E178390CD32FB /* Settings */ = {
+			isa = PBXGroup;
+			children = (
+				38D9A12A68430D061CF3F1E4 /* SettingsViewController.swift */,
+			);
+			path = Settings;
+			sourceTree = "<group>";
+		};
+		230F987A7DEE3F1DE9C1BFF7 /* Networking */ = {
+			isa = PBXGroup;
+			children = (
+				535499DED8F2E7081E571094 /* ARWebSocketClient.swift */,
+				D4077F3ECDDB412898FC3559 /* TranscriptionClient.swift */,
+			);
+			path = Networking;
+			sourceTree = "<group>";
+		};
+		2E70548612E10C4F5DFAD88D /* Generated */ = {
+			isa = PBXGroup;
+			children = (
+				B55AD036A51D81EECDD0945C /* insightgen.pb.swift */,
+				F16E379FB76257F38052642E /* perceiver.pb.swift */,
+				3DC8E9DAB6B8F336D40D688A /* primitives.pb.swift */,
+				3F637EBC892A5711126D418E /* spatial.pb.swift */,
+			);
+			path = Generated;
+			sourceTree = "<group>";
+		};
+		3CBD06D5F91028CAE0EF06B3 /* MainShell */ = {
+			isa = PBXGroup;
+			children = (
+				1EFDF9511E357D454F9ED213 /* RootShellViewController.swift */,
+			);
+			path = MainShell;
+			sourceTree = "<group>";
+		};
+		42D3D1DDB923C8A86165980D /* Recording */ = {
+			isa = PBXGroup;
+			children = (
+				956DB458DBB349064B01D09E /* RecordingManager.swift */,
+			);
+			path = Recording;
+			sourceTree = "<group>";
+		};
+		4D1801A65B0E9D3B62F5BF2C /* Analysis */ = {
+			isa = PBXGroup;
+			children = (
+				513798C4BABCB6BE57DFF0FC /* AnalysisViewController.swift */,
+			);
+			path = Analysis;
+			sourceTree = "<group>";
+		};
+		7BDC9D565991FC81EC9D0823 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				94A78830DED36FC5D42A81FE /* AppStateStore.swift */,
+				13A692D32BD5BF9687209305 /* ConnectionStatus.swift */,
+				A1E12B28C6EEAFEFFA84F37C /* SignedInUser.swift */,
+				0BCBEB69A0BF8567CC35C924 /* StreamConfig.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		85AA6016C9A1236A11F1BB91 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				181175E8AAD17640E14AD509 /* AppContainer.swift */,
+				3F4526BFC509C212D6D9A96E /* AppDelegate.swift */,
+				505F4BE4C7D1C7F4109FD807 /* SceneDelegate.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		878A690D0646DBD611E98759 /* Sensors */ = {
+			isa = PBXGroup;
+			children = (
+				914417DCB7A0A8EA4D43EEF8 /* MotionLocationCollector.swift */,
+				82E23AABE5646C46671F1310 /* SensorSnapshot.swift */,
+			);
+			path = Sensors;
+			sourceTree = "<group>";
+		};
+		9FE68F27566CD49537DA8635 /* Features */ = {
+			isa = PBXGroup;
+			children = (
+				4D1801A65B0E9D3B62F5BF2C /* Analysis */,
+				195FD9931E0FE3BEE7F427B8 /* Camera */,
+				14729CC91B5B116D226CA87A /* Library */,
+				BD0A9E368E60A8EE8CD3FDE7 /* Login */,
+				3CBD06D5F91028CAE0EF06B3 /* MainShell */,
+				1F4D8F67773E178390CD32FB /* Settings */,
+			);
+			path = Features;
+			sourceTree = "<group>";
+		};
+		BD0A9E368E60A8EE8CD3FDE7 /* Login */ = {
+			isa = PBXGroup;
+			children = (
+				5605A5B3AD5A415BBEA02040 /* LoginViewController.swift */,
+			);
+			path = Login;
+			sourceTree = "<group>";
+		};
+		C4BD431560402B3314ADDF25 /* BayesMechVision */ = {
+			isa = PBXGroup;
+			children = (
+				CA0FB023F557809AF6850CF9 /* Analysis */,
+				85AA6016C9A1236A11F1BB91 /* App */,
+				F5A30B39EC82C2CD9FB2E909 /* AR */,
+				DFDC57D89BC838CBA020B2C4 /* Coverage */,
+				9FE68F27566CD49537DA8635 /* Features */,
+				7BDC9D565991FC81EC9D0823 /* Models */,
+				230F987A7DEE3F1DE9C1BFF7 /* Networking */,
+				E11C93087FA175CD0724B479 /* Proto */,
+				42D3D1DDB923C8A86165980D /* Recording */,
+				FFE1C9FB76636CA21B70CB7B /* Resources */,
+				878A690D0646DBD611E98759 /* Sensors */,
+				0FEB5B689B2ABCC7C9900A19 /* Support */,
+			);
+			path = BayesMechVision;
+			sourceTree = "<group>";
+		};
+		CA0FB023F557809AF6850CF9 /* Analysis */ = {
+			isa = PBXGroup;
+			children = (
+				9D73D1789703E0E9EFF13F86 /* InsightCacheStore.swift */,
+				C34643C93D5CC46235E9CAB4 /* InsightRepository.swift */,
+			);
+			path = Analysis;
+			sourceTree = "<group>";
+		};
+		CAA7E788A46CEF287956C34D = {
+			isa = PBXGroup;
+			children = (
+				C4BD431560402B3314ADDF25 /* BayesMechVision */,
+				14CFA36EF42216BEBC6AFB32 /* BayesMechVisionTests */,
+				1D544FF139F856B945BDB7A8 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		DFDC57D89BC838CBA020B2C4 /* Coverage */ = {
+			isa = PBXGroup;
+			children = (
+				E31787D7483457E06658D50D /* CoverageStats.swift */,
+				CB1586891424E9EAED94E2A5 /* CoverageTracker.swift */,
+			);
+			path = Coverage;
+			sourceTree = "<group>";
+		};
+		E11C93087FA175CD0724B479 /* Proto */ = {
+			isa = PBXGroup;
+			children = (
+				78178B8E24F2F13B3BE06A24 /* ProtoAliases.swift */,
+				2E70548612E10C4F5DFAD88D /* Generated */,
+			);
+			path = Proto;
+			sourceTree = "<group>";
+		};
+		F5A30B39EC82C2CD9FB2E909 /* AR */ = {
+			isa = PBXGroup;
+			children = (
+				6AF5C2DACA5E9B24C6A36662 /* ARCapturePipeline.swift */,
+				75F35FDAFB8B9277F723AA03 /* ARSessionCoordinator.swift */,
+				169FB34F5F25481BB9774297 /* FrameEncoder.swift */,
+			);
+			path = AR;
+			sourceTree = "<group>";
+		};
+		FFE1C9FB76636CA21B70CB7B /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				24F10771FC1FBD38FA05399F /* Assets.xcassets */,
+				B900FED8317EEF9A62B86209 /* LaunchScreen.storyboard */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		6C7C445DCFC2A07584CC4659 /* BayesMechVision */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 83283144AF5CE916825DA873 /* Build configuration list for PBXNativeTarget "BayesMechVision" */;
+			buildPhases = (
+				1B98C18765BF323AC7352A42 /* Generate Swift Protos */,
+				03046AA39B7E6EE76FD9857C /* Sources */,
+				8FCB4CDB390D16C527DD22CD /* Resources */,
+				2B241FEE61FCFFC01E1185D4 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = BayesMechVision;
+			packageProductDependencies = (
+				21C874F0B5B84921E9387382 /* SwiftProtobuf */,
+				CA6126DB738F4698457CD7E4 /* GoogleSignIn */,
+			);
+			productName = BayesMechVision;
+			productReference = 0E32AD60A53D582B4AFA2689 /* BayesMechVision.app */;
+			productType = "com.apple.product-type.application";
+		};
+		AAF806616755EEA833E6B0F1 /* BayesMechVisionTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C848C1F2525AB6D049AA3FC7 /* Build configuration list for PBXNativeTarget "BayesMechVisionTests" */;
+			buildPhases = (
+				B9075C85F24C02E357E3497F /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				914883EC6903FF3FA81B32C9 /* PBXTargetDependency */,
+			);
+			name = BayesMechVisionTests;
+			packageProductDependencies = (
+			);
+			productName = BayesMechVisionTests;
+			productReference = 5759A0BA7BEAB77E6CDD9377 /* BayesMechVisionTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		EAA1F770DE22D31ECFCE1018 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1600;
+				TargetAttributes = {
+					6C7C445DCFC2A07584CC4659 = {
+						DevelopmentTeam = "";
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = EAF042CB5ED18C588B4373F5 /* Build configuration list for PBXProject "BayesMechVision" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = CAA7E788A46CEF287956C34D;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				9554A5A889373CD8849E296D /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */,
+				ED91C25618890832671D50DF /* XCRemoteSwiftPackageReference "swift-protobuf" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 1D544FF139F856B945BDB7A8 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				6C7C445DCFC2A07584CC4659 /* BayesMechVision */,
+				AAF806616755EEA833E6B0F1 /* BayesMechVisionTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		8FCB4CDB390D16C527DD22CD /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5D0202C8A3F155F2852F6482 /* Assets.xcassets in Resources */,
+				021DEEBA44CBCACC2B342B2B /* LaunchScreen.storyboard in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		1B98C18765BF323AC7352A42 /* Generate Swift Protos */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Generate Swift Protos";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "#!/usr/bin/env bash\nset -euo pipefail\n\nROOT_DIR=\"$(cd \"$(dirname \"${BASH_SOURCE[0]}\")/../..\" && pwd)\"\nIOS_DIR=\"$ROOT_DIR/ios\"\nOUT_DIR=\"$IOS_DIR/BayesMechVision/Proto/Generated\"\n\nif ! command -v protoc >/dev/null 2>&1; then\n  echo \"error: protoc is required to generate Swift protobufs\" >&2\n  exit 1\nfi\n\nif ! command -v protoc-gen-swift >/dev/null 2>&1; then\n  echo \"error: protoc-gen-swift is required to generate Swift protobufs\" >&2\n  exit 1\nfi\n\nrm -rf \"$OUT_DIR\"\nmkdir -p \"$OUT_DIR\"\n\nPROTO_FILES=(\n  \"$ROOT_DIR/proto/primitives.proto\"\n  \"$ROOT_DIR/proto/spatial.proto\"\n  \"$ROOT_DIR/proto/perceiver.proto\"\n  \"$ROOT_DIR/proto/insightgen.proto\"\n)\n\nprotoc \\\n  --proto_path=\"$ROOT_DIR/proto\" \\\n  --swift_opt=Visibility=Public \\\n  --swift_out=\"$OUT_DIR\" \\\n  \"${PROTO_FILES[@]}\"\n\necho \"Generated Swift protobufs in $OUT_DIR\"\n";
+		};
+/* End PBXShellScriptBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		03046AA39B7E6EE76FD9857C /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E762627A38BBB9E6D601E270 /* ARCapturePipeline.swift in Sources */,
+				D638B08F4D7638BF1F0BDD41 /* ARSessionCoordinator.swift in Sources */,
+				A453D8B025776FBF03BDEC35 /* ARWebSocketClient.swift in Sources */,
+				87E9550444FA395018B99CB3 /* AnalysisViewController.swift in Sources */,
+				8494D4F23F246E20E0A33A06 /* AppColors.swift in Sources */,
+				3331BF4A90161E6DEA64010B /* AppContainer.swift in Sources */,
+				BECDB0C43CCC5589CD078C7E /* AppDelegate.swift in Sources */,
+				E20B5473B8C397CE10463970 /* AppStateStore.swift in Sources */,
+				A22BBD94BF60F78D81DE7DF2 /* CameraViewController.swift in Sources */,
+				B5DED2BA46C9CF6DD117006C /* ConnectionStatus.swift in Sources */,
+				242D0AB58AD363B1D1C845BC /* CoverageStats.swift in Sources */,
+				C5641906F48545B53C6DCF10 /* CoverageTracker.swift in Sources */,
+				99A19BC15045866751FE7240 /* FrameEncoder.swift in Sources */,
+				357020CF0D1E7EEBF265A800 /* HTTPBase.swift in Sources */,
+				6E3B74A166881A7785D65E60 /* InsightCacheStore.swift in Sources */,
+				8343742D158CBB782309EBD5 /* InsightRepository.swift in Sources */,
+				3D03FCD53D053F437B286B75 /* LibraryViewController.swift in Sources */,
+				74D459F14AFD3A2CE517C205 /* LoginViewController.swift in Sources */,
+				B01A2EF36B49B98FE8EF6796 /* MotionLocationCollector.swift in Sources */,
+				28FB766B6A89AE5FFE986E2B /* ProtoAliases.swift in Sources */,
+				883FDEA4D266992D486C2795 /* RecordingManager.swift in Sources */,
+				094F28850E2ECC454D7E510C /* RootShellViewController.swift in Sources */,
+				310E878596AD3AB104A46F5F /* SceneDelegate.swift in Sources */,
+				22D4F758796796E3C4F73EB5 /* SensorSnapshot.swift in Sources */,
+				4DDD5792561987310E406ECE /* SettingsViewController.swift in Sources */,
+				3579AEE5731561B2E0174EFB /* SignedInUser.swift in Sources */,
+				15E457ED5348FF2F5E1DD618 /* StreamConfig.swift in Sources */,
+				F4E4EABE859F8389C52F2D8F /* TranscriptionClient.swift in Sources */,
+				CBA5CB83D8FD9D5448E49147 /* ViewLayout.swift in Sources */,
+				4EF92655C527403A17DAD433 /* insightgen.pb.swift in Sources */,
+				75A71031688128A7B79464A8 /* perceiver.pb.swift in Sources */,
+				4CD71C30583D53C1199B9430 /* primitives.pb.swift in Sources */,
+				97C6C734041AD58CA2DB1A58 /* spatial.pb.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B9075C85F24C02E357E3497F /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				2AB8793F4B9DDF87CCC74428 /* CoverageTrackerTests.swift in Sources */,
+				DF6CE419CED47174FCE9AD1F /* RecordingManagerTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		914883EC6903FF3FA81B32C9 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 6C7C445DCFC2A07584CC4659 /* BayesMechVision */;
+			targetProxy = 88D551C60D0D7EE942141C05 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin PBXVariantGroup section */
+		B900FED8317EEF9A62B86209 /* LaunchScreen.storyboard */ = {
+			isa = PBXVariantGroup;
+			children = (
+				96538A253E9490FE74026BBD /* Base */,
+			);
+			name = LaunchScreen.storyboard;
+			sourceTree = "<group>";
+		};
+/* End PBXVariantGroup section */
+
+/* Begin XCBuildConfiguration section */
+		0618BEFED3DB0654EB3449E5 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = BayesMechVision/Support/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.bayesmech.vision;
+				PRODUCT_NAME = Vision;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.1;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		324CF3AB2D6144747D544384 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		5F07AC2B1C3514EEC6B82BF9 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.bayesmech.vision.tests;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.1;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/BayesMechVision.app/BayesMechVision";
+			};
+			name = Release;
+		};
+		9109A6FC089DC78DC27E8349 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.bayesmech.vision.tests;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.1;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/BayesMechVision.app/BayesMechVision";
+			};
+			name = Debug;
+		};
+		B1BE864FA951CF91027298C2 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = BayesMechVision/Support/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.bayesmech.vision;
+				PRODUCT_NAME = Vision;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.1;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		F0F8C9CD186A018F19FC6960 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		83283144AF5CE916825DA873 /* Build configuration list for PBXNativeTarget "BayesMechVision" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B1BE864FA951CF91027298C2 /* Debug */,
+				0618BEFED3DB0654EB3449E5 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		C848C1F2525AB6D049AA3FC7 /* Build configuration list for PBXNativeTarget "BayesMechVisionTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				9109A6FC089DC78DC27E8349 /* Debug */,
+				5F07AC2B1C3514EEC6B82BF9 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		EAF042CB5ED18C588B4373F5 /* Build configuration list for PBXProject "BayesMechVision" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				324CF3AB2D6144747D544384 /* Debug */,
+				F0F8C9CD186A018F19FC6960 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		9554A5A889373CD8849E296D /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/google/GoogleSignIn-iOS";
+			requirement = {
+				kind = exactVersion;
+				version = 9.0.0;
+			};
+		};
+		ED91C25618890832671D50DF /* XCRemoteSwiftPackageReference "swift-protobuf" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/apple/swift-protobuf.git";
+			requirement = {
+				kind = exactVersion;
+				version = 1.37.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		21C874F0B5B84921E9387382 /* SwiftProtobuf */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = ED91C25618890832671D50DF /* XCRemoteSwiftPackageReference "swift-protobuf" */;
+			productName = SwiftProtobuf;
+		};
+		CA6126DB738F4698457CD7E4 /* GoogleSignIn */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 9554A5A889373CD8849E296D /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;
+			productName = GoogleSignIn;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = EAA1F770DE22D31ECFCE1018 /* Project object */;
+}

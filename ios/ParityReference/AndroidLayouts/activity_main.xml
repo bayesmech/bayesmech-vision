@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/bg_dark">
+
+    <!-- Full-screen GL surface — always rendering behind everything -->
+    <android.opengl.GLSurfaceView
+        android:id="@+id/surfaceview"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <!-- Content overlay: header + fragment area + bottom nav -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical">
+
+        <!-- App header.
+             Height is wrap_content + minHeight so it naturally grows to
+             accommodate the status-bar inset (set as paddingTop by MainActivity)
+             plus the 56dp content area, rather than being clamped to a fixed 56dp
+             that the inset padding would consume entirely. -->
+        <LinearLayout
+            android:id="@+id/app_header"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="56dp"
+            android:background="@color/bg_header"
+            android:gravity="center"
+            android:orientation="horizontal"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:paddingBottom="14dp">
+
+            <ImageView
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:src="@drawable/ic_launcher"
+                android:contentDescription="Logo" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:text="BayesMech Vision"
+                android:textColor="@color/text_primary"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <!-- Header bottom border -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="@color/card_bg" />
+
+        <!-- Fragment container (fills remaining space) -->
+        <FrameLayout
+            android:id="@+id/fragment_container"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
+
+        <!-- Nav top border -->
+        <View
+            android:id="@+id/nav_border"
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="@color/card_bg" />
+
+        <!-- Bottom navigation bar -->
+        <LinearLayout
+            android:id="@+id/bottom_nav"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@color/bg_header"
+            android:orientation="vertical">
+
+            <!-- Active tab indicators (one per tab) -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="3dp"
+                android:orientation="horizontal">
+
+                <View
+                    android:id="@+id/indicator_camera"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:background="@color/accent_red"
+                    android:alpha="1.0" />
+
+                <View
+                    android:id="@+id/indicator_library"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:background="@color/accent_red"
+                    android:alpha="0.0" />
+
+                <View
+                    android:id="@+id/indicator_settings"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:background="@color/accent_red"
+                    android:alpha="0.0" />
+            </LinearLayout>
+
+            <!-- Nav buttons -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="60dp"
+                android:orientation="horizontal">
+
+                <ImageButton
+                    android:id="@+id/nav_camera"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:src="@drawable/ic_nav_camera"
+                    android:contentDescription="Camera"
+                    android:scaleType="center"
+                    android:padding="12dp" />
+
+                <ImageButton
+                    android:id="@+id/nav_library"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:src="@drawable/ic_nav_library"
+                    android:contentDescription="Library"
+                    android:scaleType="center"
+                    android:padding="12dp" />
+
+                <ImageButton
+                    android:id="@+id/nav_settings"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:src="@drawable/ic_nav_settings"
+                    android:contentDescription="Settings"
+                    android:scaleType="center"
+                    android:padding="12dp" />
+            </LinearLayout>
+        </LinearLayout>
+    </LinearLayout>
+
+</FrameLayout>

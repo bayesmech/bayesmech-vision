@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/bg_dark"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingStart="36dp"
+        android:paddingEnd="36dp"
+        android:paddingTop="96dp"
+        android:paddingBottom="64dp"
+        android:gravity="start">
+
+        <!-- Title -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Welcome to Vision"
+            android:textColor="@color/text_primary"
+            android:textSize="32sp"
+            android:textStyle="bold"
+            android:lineSpacingMultiplier="1.1" />
+
+        <!-- Subtitle -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="by BayesMech"
+            android:textColor="@color/text_secondary"
+            android:textSize="16sp" />
+
+        <!-- Description -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="40dp"
+            android:text="We give you accessible intelligence on video and sensor data, build geometric understanding of the world, and tailor it to skill development and experimentation."
+            android:textColor="@color/text_primary"
+            android:textSize="16sp"
+            android:lineSpacingMultiplier="1.6"
+            android:alpha="0.85" />
+
+        <!-- Sign-in button -->
+        <LinearLayout
+            android:id="@+id/google_sign_in_button"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:layout_marginTop="56dp"
+            android:background="@drawable/input_background"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:clickable="true"
+            android:focusable="true">
+
+            <ImageView
+                android:layout_width="18dp"
+                android:layout_height="18dp"
+                android:src="@drawable/ic_google"
+                android:contentDescription="Google logo" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:text="Continue with Google"
+                android:textColor="@color/text_primary"
+                android:textSize="15sp"
+                android:textStyle="bold" />
+
+        </LinearLayout>
+
+        <!-- Disclaimer -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="We need you to sign in so that we can store your data securely and run our analyzers on it."
+            android:textColor="@color/text_secondary"
+            android:textSize="12sp"
+            android:lineSpacingMultiplier="1.5"
+            android:gravity="center" />
+
+    </LinearLayout>
+
+</ScrollView>

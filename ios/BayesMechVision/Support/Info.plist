@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleDevelopmentRegion</key>
+  <string>$(DEVELOPMENT_LANGUAGE)</string>
+  <key>CFBundleDisplayName</key>
+  <string>Vision</string>
+  <key>CFBundleExecutable</key>
+  <string>$(EXECUTABLE_NAME)</string>
+  <key>CFBundleIdentifier</key>
+  <string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+  <key>CFBundleInfoDictionaryVersion</key>
+  <string>6.0</string>
+  <key>CFBundleName</key>
+  <string>$(PRODUCT_NAME)</string>
+  <key>CFBundlePackageType</key>
+  <string>APPL</string>
+  <key>CFBundleShortVersionString</key>
+  <string>$(MARKETING_VERSION)</string>
+  <key>CFBundleVersion</key>
+  <string>$(CURRENT_PROJECT_VERSION)</string>
+  <key>GIDClientID</key>
+  <string>YOUR_IOS_CLIENT_ID.apps.googleusercontent.com</string>
+  <key>GIDServerClientID</key>
+  <string>YOUR_SERVER_CLIENT_ID.apps.googleusercontent.com</string>
+  <key>LSRequiresIPhoneOS</key>
+  <true/>
+  <key>NSCameraUsageDescription</key>
+  <string>BayesMech Vision captures AR video and sensor data for recording and streaming.</string>
+  <key>NSLocationWhenInUseUsageDescription</key>
+  <string>BayesMech Vision uses location to attach GPS metadata to recordings.</string>
+  <key>NSMicrophoneUsageDescription</key>
+  <string>BayesMech Vision records voice notes for transcription.</string>
+  <key>UIApplicationSceneManifest</key>
+  <dict>
+    <key>UIApplicationSupportsMultipleScenes</key>
+    <false/>
+    <key>UISceneConfigurations</key>
+    <dict>
+      <key>UIWindowSceneSessionRoleApplication</key>
+      <array>
+        <dict>
+          <key>UISceneConfigurationName</key>
+          <string>Default Configuration</string>
+          <key>UISceneDelegateClassName</key>
+          <string>$(PRODUCT_MODULE_NAME).SceneDelegate</string>
+        </dict>
+      </array>
+    </dict>
+  </dict>
+  <key>UILaunchStoryboardName</key>
+  <string>LaunchScreen</string>
+  <key>UIRequiredDeviceCapabilities</key>
+  <array>
+    <string>arkit</string>
+  </array>
+  <key>UISupportedInterfaceOrientations</key>
+  <array>
+    <string>UIInterfaceOrientationPortrait</string>
+  </array>
+  <key>UISupportedInterfaceOrientations~ipad</key>
+  <array>
+    <string>UIInterfaceOrientationPortrait</string>
+  </array>
+</dict>
+</plist>

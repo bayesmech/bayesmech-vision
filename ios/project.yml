@@ -1,0 +1,70 @@
+name: BayesMechVision
+options:
+  deploymentTarget:
+    iOS: "16.0"
+  xcodeVersion: "16.0"
+  createIntermediateGroups: true
+packages:
+  SwiftProtobuf:
+    url: https://github.com/apple/swift-protobuf.git
+    exactVersion: 1.37.0
+  GoogleSignIn:
+    url: https://github.com/google/GoogleSignIn-iOS
+    exactVersion: 9.0.0
+configs:
+  Debug: debug
+  Release: release
+targets:
+  BayesMechVision:
+    type: application
+    platform: iOS
+    deploymentTarget: "16.0"
+    sources:
+      - path: BayesMechVision
+    resources:
+      - path: BayesMechVision/Resources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.bayesmech.vision
+        PRODUCT_NAME: Vision
+        INFOPLIST_FILE: BayesMechVision/Support/Info.plist
+        SWIFT_VERSION: 5.10
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: ""
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        TARGETED_DEVICE_FAMILY: "1,2"
+        CURRENT_PROJECT_VERSION: 1
+        MARKETING_VERSION: 1.0
+        GENERATE_INFOPLIST_FILE: NO
+        ENABLE_USER_SCRIPT_SANDBOXING: NO
+    dependencies:
+      - package: SwiftProtobuf
+      - package: GoogleSignIn
+        product: GoogleSignIn
+    preBuildScripts:
+      - name: Generate Swift Protos
+        path: scripts/generate_protos.sh
+        basedOnDependencyAnalysis: false
+  BayesMechVisionTests:
+    type: bundle.unit-test
+    platform: iOS
+    deploymentTarget: "16.0"
+    sources:
+      - path: BayesMechVisionTests
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.bayesmech.vision.tests
+        GENERATE_INFOPLIST_FILE: YES
+        SWIFT_VERSION: 5.10
+    dependencies:
+      - target: BayesMechVision
+schemes:
+  BayesMechVision:
+    build:
+      targets:
+        BayesMechVision: all
+        BayesMechVisionTests: [test]
+    test:
+      gatherCoverageData: true
+      targets:
+        - name: BayesMechVisionTests
