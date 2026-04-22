@@ -6,7 +6,11 @@ import { drawTrajectory, rescaleIfNeeded } from '../utils/trajectory'
 const CANVAS_WIDTH = 800
 const CANVAS_HEIGHT = 600
 
-const TrajectoryCanvas: React.FC = () => {
+interface TrajectoryCanvasProps {
+  title?: string
+}
+
+const TrajectoryCanvas: React.FC<TrajectoryCanvasProps> = ({ title = 'Camera Trajectory' }) => {
   const { displayedFrame, isLive, trajectoryPositions, currentIndex } = useDashboard()
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const liveTrajectory = useTrajectory(CANVAS_WIDTH, CANVAS_HEIGHT)
@@ -54,7 +58,7 @@ const TrajectoryCanvas: React.FC = () => {
   return (
     <div className="stream-card">
       <div className="stream-header">
-        <span className="stream-title">Camera Trajectory</span>
+        <span className="stream-title">{title}</span>
         {isLive && (
           <button
             className="theme-toggle"
