@@ -8,11 +8,12 @@ import InfoCard from './InfoCard'
 import TrajectoryCanvas from './TrajectoryCanvas'
 import GpsMapViewer from './GpsMapViewer'
 import CoveragePanel from './CoveragePanel'
+import MotioncapPanel from './MotioncapPanel'
 import type { GpsLocation, ImuData, SegmentationLegendEntry, SensorFrameData } from '../types'
 
 const XYZ = ['X', 'Y', 'Z']
 
-type DashboardTabId = 'segmentation' | 'sensors' | 'path-planning'
+type DashboardTabId = 'segmentation' | 'motion-capture' | 'sensors' | 'path-planning'
 
 const DASHBOARD_TABS: {
   id: DashboardTabId
@@ -25,6 +26,12 @@ const DASHBOARD_TABS: {
     label: 'Segmentation',
     badge: 'SEG',
     description: 'Overlay masks and object legends for the current frame.',
+  },
+  {
+    id: 'motion-capture',
+    label: 'Motion Capture',
+    badge: 'MCAP',
+    description: 'Review motion heatmaps and tracked object paths without on-frame labels.',
   },
   {
     id: 'sensors',
@@ -106,6 +113,7 @@ const DashboardPage = () => {
     frameCount,
     fps,
     currentIndex,
+    currentRecordingName,
     totalFrames,
     serverFps,
     isLive,
@@ -276,6 +284,10 @@ const DashboardPage = () => {
                 ))}
               </div>
             </>
+          )}
+
+          {activeTab === 'motion-capture' && (
+            <MotioncapPanel key={currentRecordingName ?? (isLive ? 'live' : 'idle')} />
           )}
 
           {activeTab === 'path-planning' && (

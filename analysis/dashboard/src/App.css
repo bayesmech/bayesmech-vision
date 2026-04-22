@@ -310,6 +310,7 @@ body {
 
 .dashboard-summary-grid,
 .dashboard-segmentation-grid,
+.dashboard-motioncap-grid,
 .dashboard-chart-grid,
 .dashboard-path-grid {
   display: grid;
@@ -325,9 +326,89 @@ body {
   grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr);
 }
 
+.dashboard-motioncap-grid {
+  grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr);
+}
+
 .dashboard-chart-grid,
 .dashboard-path-grid {
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+}
+
+.motioncap-viewer {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  background: #000;
+  border: 1px solid var(--border);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.motioncap-layer,
+.motioncap-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.motioncap-layer {
+  object-fit: contain;
+}
+
+.motioncap-heatmap {
+  opacity: 0.48;
+}
+
+.motioncap-svg {
+  pointer-events: none;
+  overflow: visible;
+}
+
+.motioncap-legend-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.motioncap-legend-row {
+  display: grid;
+  grid-template-columns: 2rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.motioncap-legend-row:last-child {
+  border-bottom: 0;
+}
+
+.motioncap-legend-swatch {
+  display: block;
+  width: 1.8rem;
+  height: 0.25rem;
+  border-radius: 999px;
+}
+
+.motioncap-legend-label {
+  font-size: 0.8rem;
+  color: var(--text);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.motioncap-legend-meta {
+  font-size: 0.72rem;
+  color: var(--text-dim);
+}
+
+.motioncap-empty-state {
+  color: var(--text-dim);
+  font-size: 0.78rem;
+  line-height: 1.5;
 }
 
 @media (max-width: 1024px) {
@@ -373,6 +454,10 @@ body {
   }
 
   .dashboard-segmentation-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-motioncap-grid {
     grid-template-columns: 1fr;
   }
 }
