@@ -1,9 +1,16 @@
 #!/usr/bin/env python3
 """
-Build a monocular trajectory from consecutive masked local-feature frame pairs.
+Build a monocular trajectory from consecutive masked SIFT frame pairs.
 
-The default backend uses ALIKED + LightGlue on CUDA when available and falls
-back to masked SIFT + BF matching otherwise.
+This is a thin custom visual-odometry pipeline:
+1. load consecutive RGB frames from the recording
+2. mask semantic regions before feature extraction
+3. extract SIFT features per frame
+4. match adjacent frames with Lowe ratio filtering
+5. estimate an essential matrix with RANSAC
+6. recover relative pose and chain the camera trajectory
+
+The trajectory is monocular and therefore only up to scale.
 """
 
 from __future__ import annotations
@@ -14,7 +21,6 @@ import json
 import math
 import sys
 import time
-from dataclasses import dataclass
 from pathlib import Path
 
 import cv2
@@ -43,161 +49,8 @@ from idoslam.common import (
 from idoslam.sift_pair_pose import rotation_matrix_to_quaternion_xyzw
 
 
-@dataclass
-class ExtractedFeatures:
-    keypoints_xy: np.ndarray
-    payload: object
-
-
-@dataclass
-class MatchedFeatures:
-    points_prev: np.ndarray
-    points_cur: np.ndarray
-
-
-class PairwiseFeatureBackend:
-    name = "unknown"
-    device = "cpu"
-    uses_gpu = False
-
-    def detect_and_compute(self, bgr: np.ndarray, mask: np.ndarray) -> ExtractedFeatures:
-        raise NotImplementedError
-
-    def match(self, prev: ExtractedFeatures, cur: ExtractedFeatures) -> MatchedFeatures:
-        raise NotImplementedError
-
-
-class SIFTFeatureBackend(PairwiseFeatureBackend):
-    name = "sift"
-    device = "cpu"
-    uses_gpu = False
-
-    def __init__(self, args: argparse.Namespace) -> None:
-        self.sift = cv2.SIFT_create(nfeatures=args.sift_nfeatures)
-        self.matcher = cv2.BFMatcher(cv2.NORM_L2, crossCheck=False)
-        self.ratio_test = float(args.ratio_test)
-
-    def detect_and_compute(self, bgr: np.ndarray, mask: np.ndarray) -> ExtractedFeatures:
-        gray = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
-        kp, desc = self.sift.detectAndCompute(gray, cv2.bitwise_not(mask))
-        keypoints_xy = (
-            np.array([keypoint.pt for keypoint in kp], dtype=np.float32)
-            if kp is not None and len(kp) > 0
-            else np.empty((0, 2), dtype=np.float32)
-        )
-        return ExtractedFeatures(keypoints_xy=keypoints_xy, payload=(kp or [], desc))
-
-    def match(self, prev: ExtractedFeatures, cur: ExtractedFeatures) -> MatchedFeatures:
-        prev_kp, prev_desc = prev.payload
-        cur_kp, cur_desc = cur.payload
-        if prev_desc is None or cur_desc is None or len(prev_kp) < 8 or len(cur_kp) < 8:
-            return MatchedFeatures(
-                points_prev=np.empty((0, 2), dtype=np.float32),
-                points_cur=np.empty((0, 2), dtype=np.float32),
-            )
-        good_matches: list[cv2.DMatch] = []
-        raw_matches = self.matcher.knnMatch(prev_desc, cur_desc, k=2)
-        for pair in raw_matches:
-            if len(pair) < 2:
-                continue
-            m, n = pair
-            if m.distance < self.ratio_test * n.distance:
-                good_matches.append(m)
-        if not good_matches:
-            return MatchedFeatures(
-                points_prev=np.empty((0, 2), dtype=np.float32),
-                points_cur=np.empty((0, 2), dtype=np.float32),
-            )
-        points_prev = np.float32([prev_kp[m.queryIdx].pt for m in good_matches])
-        points_cur = np.float32([cur_kp[m.trainIdx].pt for m in good_matches])
-        return MatchedFeatures(points_prev=points_prev, points_cur=points_cur)
-
-
-class LightGlueFeatureBackend(PairwiseFeatureBackend):
-    uses_gpu = True
-
-    def __init__(self, args: argparse.Namespace, extractor_name: str) -> None:
-        try:
-            import torch
-            from lightglue import ALIKED, LightGlue, SuperPoint
-        except ImportError as exc:
-            raise RuntimeError("The LightGlue backends require torch and lightglue") from exc
-        if not torch.cuda.is_available():
-            raise RuntimeError("The LightGlue backends require a CUDA-capable torch runtime")
-        self._torch = torch
-        self.name = f"{extractor_name}_lightglue"
-        self.device = f"cuda:{torch.cuda.current_device()}"
-        self.resize = int(args.lightglue_resize) if int(args.lightglue_resize) > 0 else None
-        torch.set_float32_matmul_precision("high")
-        torch.backends.cudnn.benchmark = True
-        if extractor_name == "aliked":
-            self.extractor = ALIKED(max_num_keypoints=int(args.lightglue_max_keypoints)).eval().to(self.device)
-        elif extractor_name == "superpoint":
-            self.extractor = SuperPoint(max_num_keypoints=int(args.lightglue_max_keypoints)).eval().to(self.device)
-        else:
-            raise ValueError(f"Unsupported LightGlue extractor: {extractor_name}")
-        self.matcher = (
-            LightGlue(
-                features=extractor_name,
-                filter_threshold=float(args.lightglue_filter_threshold),
-                depth_confidence=float(args.lightglue_depth_confidence),
-                width_confidence=float(args.lightglue_width_confidence),
-                mp=bool(args.lightglue_mixed_precision),
-            )
-            .eval()
-            .to(self.device)
-        )
-        if bool(args.lightglue_compile) and hasattr(self.matcher, "compile"):
-            try:
-                self.matcher.compile(mode="reduce-overhead")
-            except Exception as exc:
-                print(f"Warning: failed to compile LightGlue matcher, using eager mode: {exc}", file=sys.stderr)
-
-    def detect_and_compute(self, bgr: np.ndarray, mask: np.ndarray) -> ExtractedFeatures:
-        rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
-        if np.any(mask):
-            rgb = rgb.copy()
-            rgb[mask > 0] = 0
-        image = (
-            self._torch.from_numpy(np.ascontiguousarray(rgb))
-            .permute(2, 0, 1)
-            .float()
-            .div(255.0)
-            .to(self.device, non_blocking=True)
-        )
-        with self._torch.inference_mode():
-            payload = self.extractor.extract(image, resize=self.resize)
-        keypoints_xy = payload["keypoints"][0].detach().cpu().numpy().astype(np.float32)
-        return ExtractedFeatures(keypoints_xy=keypoints_xy, payload=payload)
-
-    def match(self, prev: ExtractedFeatures, cur: ExtractedFeatures) -> MatchedFeatures:
-        if len(prev.keypoints_xy) < 8 or len(cur.keypoints_xy) < 8:
-            return MatchedFeatures(
-                points_prev=np.empty((0, 2), dtype=np.float32),
-                points_cur=np.empty((0, 2), dtype=np.float32),
-            )
-        with self._torch.inference_mode():
-            matches = self.matcher({"image0": prev.payload, "image1": cur.payload})
-        matched_indices = matches.get("matches")
-        if isinstance(matched_indices, list):
-            matched_indices = matched_indices[0] if matched_indices else None
-        elif matched_indices is not None and matched_indices.dim() == 3:
-            matched_indices = matched_indices[0]
-        if matched_indices is None or int(matched_indices.shape[0]) == 0:
-            return MatchedFeatures(
-                points_prev=np.empty((0, 2), dtype=np.float32),
-                points_cur=np.empty((0, 2), dtype=np.float32),
-            )
-        index_prev = matched_indices[:, 0].detach().cpu().numpy()
-        index_cur = matched_indices[:, 1].detach().cpu().numpy()
-        return MatchedFeatures(
-            points_prev=prev.keypoints_xy[index_prev],
-            points_cur=cur.keypoints_xy[index_cur],
-        )
-
-
 def parse_args() -> argparse.Namespace:
-    p = argparse.ArgumentParser(description="Build a custom pairwise feature trajectory")
+    p = argparse.ArgumentParser(description="Build a custom pairwise SIFT trajectory")
     p.add_argument("recording", type=Path, help="Path to .vis.pb recording")
     p.add_argument("--segmentation", type=Path, default=None, help="Optional .seg.pb path")
     p.add_argument("--output-dir", type=Path, default=None, help="Optional output directory")
@@ -210,21 +63,8 @@ def parse_args() -> argparse.Namespace:
     )
     p.add_argument("--mask-dilate", type=int, default=9)
     p.add_argument("--bottom-border", type=int, default=24)
-    p.add_argument(
-        "--feature-backend",
-        choices=["auto", "sift", "aliked_lightglue", "superpoint_lightglue"],
-        default="auto",
-        help="Feature extraction and matching backend",
-    )
     p.add_argument("--sift-nfeatures", type=int, default=3000)
     p.add_argument("--ratio-test", type=float, default=0.75)
-    p.add_argument("--lightglue-max-keypoints", type=int, default=1024)
-    p.add_argument("--lightglue-resize", type=int, default=1024, help="Resize long side for LightGlue extractors")
-    p.add_argument("--lightglue-filter-threshold", type=float, default=0.1)
-    p.add_argument("--lightglue-depth-confidence", type=float, default=0.95)
-    p.add_argument("--lightglue-width-confidence", type=float, default=0.99)
-    p.add_argument("--lightglue-mixed-precision", action=argparse.BooleanOptionalAction, default=True)
-    p.add_argument("--lightglue-compile", action=argparse.BooleanOptionalAction, default=False)
     p.add_argument("--essential-threshold", type=float, default=1.5)
     p.add_argument("--min-good-matches", type=int, default=20)
     p.add_argument("--min-inliers", type=int, default=20)
@@ -237,20 +77,6 @@ def parse_labels(raw: str) -> list[str]:
 
 def output_path(recording: Path) -> Path:
     return pairwise_output_dir(recording)
-
-
-def resolve_backend(args: argparse.Namespace) -> PairwiseFeatureBackend:
-    if args.feature_backend == "sift":
-        return SIFTFeatureBackend(args)
-    if args.feature_backend == "aliked_lightglue":
-        return LightGlueFeatureBackend(args, extractor_name="aliked")
-    if args.feature_backend == "superpoint_lightglue":
-        return LightGlueFeatureBackend(args, extractor_name="superpoint")
-    try:
-        return LightGlueFeatureBackend(args, extractor_name="aliked")
-    except Exception as exc:
-        print(f"Falling back to SIFT backend because GPU backend is unavailable: {exc}", file=sys.stderr)
-        return SIFTFeatureBackend(args)
 
 
 def combined_mask(
@@ -280,17 +106,14 @@ def combined_mask(
     return mask, int(np.count_nonzero(mask))
 
 
-def points_to_draw_kp(points_xy: np.ndarray) -> list[cv2.KeyPoint]:
-    return [cv2.KeyPoint(float(x), float(y), 1.0) for x, y in points_xy]
-
-
 def draw_match_debug(
     prev_bgr: np.ndarray,
     prev_mask: np.ndarray,
-    prev_points_xy: np.ndarray,
+    prev_kp: list[cv2.KeyPoint],
     cur_bgr: np.ndarray,
     cur_mask: np.ndarray,
-    cur_points_xy: np.ndarray,
+    cur_kp: list[cv2.KeyPoint],
+    matches: list[cv2.DMatch],
 ) -> np.ndarray:
     left = prev_bgr.copy()
     right = cur_bgr.copy()
@@ -302,10 +125,6 @@ def draw_match_debug(
         overlay = right.copy()
         overlay[cur_mask > 0] = (40, 40, 240)
         right = cv2.addWeighted(right, 0.75, overlay, 0.25, 0.0)
-    count = int(min(len(prev_points_xy), len(cur_points_xy)))
-    prev_kp = points_to_draw_kp(prev_points_xy[:count])
-    cur_kp = points_to_draw_kp(cur_points_xy[:count])
-    matches = [cv2.DMatch(_queryIdx=i, _trainIdx=i, _distance=0.0) for i in range(count)]
     return cv2.drawMatches(
         left,
         prev_kp,
@@ -340,6 +159,7 @@ def main() -> None:
     if first_frame is None:
         raise RuntimeError("Recording is empty")
 
+    # Skip until requested start frame.
     frame_index = 0
     while frame_index < args.start_frame and first_frame is not None:
         first_frame = next(frame_iter, None)
@@ -359,20 +179,21 @@ def main() -> None:
         dtype=np.float64,
     )
 
-    backend = resolve_backend(args)
-    print(f"Using feature backend {backend.name} on {backend.device}")
+    sift = cv2.SIFT_create(nfeatures=args.sift_nfeatures)
+    matcher = cv2.BFMatcher(cv2.NORM_L2, crossCheck=False)
 
     prev_frame = first_frame
     prev_bgr = first_bgr
+    prev_gray = cv2.cvtColor(first_bgr, cv2.COLOR_BGR2GRAY)
     prev_mask, prev_mask_pixels = combined_mask(
         seg_frames,
         prev_frame,
-        (image_h, image_w),
+        prev_gray.shape,
         labels,
         args.mask_dilate,
         args.bottom_border,
     )
-    prev_features = backend.detect_and_compute(prev_bgr, prev_mask)
+    prev_kp, prev_desc = sift.detectAndCompute(prev_gray, cv2.bitwise_not(prev_mask))
 
     world_r_cam = np.eye(3, dtype=np.float64)
     world_t_cam = np.zeros(3, dtype=np.float64)
@@ -465,54 +286,63 @@ def main() -> None:
             break
 
         cur_bgr = decode_rgb(cur_frame)
+        cur_gray = cv2.cvtColor(cur_bgr, cv2.COLOR_BGR2GRAY)
         cur_mask, cur_mask_pixels = combined_mask(
             seg_frames,
             cur_frame,
-            (image_h, image_w),
+            cur_gray.shape,
             labels,
             args.mask_dilate,
             args.bottom_border,
         )
-        cur_features = backend.detect_and_compute(cur_bgr, cur_mask)
-        matched = backend.match(prev_features, cur_features)
+        cur_kp, cur_desc = sift.detectAndCompute(cur_gray, cv2.bitwise_not(cur_mask))
 
         pair_status = "no_descriptors"
-        inlier_prev = np.empty((0, 2), dtype=np.float32)
-        inlier_cur = np.empty((0, 2), dtype=np.float32)
+        good_matches: list[cv2.DMatch] = []
+        inlier_matches: list[cv2.DMatch] = []
         rel_r = np.eye(3, dtype=np.float64)
         rel_t = np.zeros((3, 1), dtype=np.float64)
         rot_deg = 0.0
         trans_mag = 0.0
 
-        if len(matched.points_prev) >= args.min_good_matches:
-            E, e_mask = cv2.findEssentialMat(
-                matched.points_prev,
-                matched.points_cur,
-                K,
-                method=cv2.RANSAC,
-                prob=0.999,
-                threshold=args.essential_threshold,
-            )
-            if E is not None and e_mask is not None:
-                _, rel_r, rel_t, pose_mask = cv2.recoverPose(E, matched.points_prev, matched.points_cur, K)
-                pose_mask = pose_mask.reshape(-1).astype(bool)
-                inlier_prev = matched.points_prev[pose_mask]
-                inlier_cur = matched.points_cur[pose_mask]
-                if len(inlier_prev) >= args.min_inliers:
-                    pair_status = "ok"
-                    ok_pairs += 1
-                    trans_cam1 = (-rel_r.T @ rel_t).reshape(3)
-                    world_t_cam = world_t_cam + world_r_cam @ trans_cam1
-                    world_r_cam = world_r_cam @ rel_r.T
-                    trans_mag = float(np.linalg.norm(trans_cam1))
-                    rot_deg = float(math.degrees(np.linalg.norm(cv2.Rodrigues(rel_r)[0])))
-                    last_successful_pair_index = cur_index
+        if prev_desc is not None and cur_desc is not None and len(prev_kp) >= 8 and len(cur_kp) >= 8:
+            raw_matches = matcher.knnMatch(prev_desc, cur_desc, k=2)
+            for pair in raw_matches:
+                if len(pair) < 2:
+                    continue
+                m, n = pair
+                if m.distance < args.ratio_test * n.distance:
+                    good_matches.append(m)
+            if len(good_matches) >= args.min_good_matches:
+                pts_prev = np.float32([prev_kp[m.queryIdx].pt for m in good_matches])
+                pts_cur = np.float32([cur_kp[m.trainIdx].pt for m in good_matches])
+                E, e_mask = cv2.findEssentialMat(
+                    pts_prev,
+                    pts_cur,
+                    K,
+                    method=cv2.RANSAC,
+                    prob=0.999,
+                    threshold=args.essential_threshold,
+                )
+                if E is not None and e_mask is not None:
+                    _, rel_r, rel_t, pose_mask = cv2.recoverPose(E, pts_prev, pts_cur, K)
+                    pose_mask = pose_mask.reshape(-1).astype(bool)
+                    inlier_matches = [m for m, keep in zip(good_matches, pose_mask) if keep]
+                    if len(inlier_matches) >= args.min_inliers:
+                        pair_status = "ok"
+                        ok_pairs += 1
+                        trans_cam1 = (-rel_r.T @ rel_t).reshape(3)
+                        world_t_cam = world_t_cam + world_r_cam @ trans_cam1
+                        world_r_cam = world_r_cam @ rel_r.T
+                        trans_mag = float(np.linalg.norm(trans_cam1))
+                        rot_deg = float(math.degrees(np.linalg.norm(cv2.Rodrigues(rel_r)[0])))
+                        last_successful_pair_index = cur_index
+                    else:
+                        pair_status = "low_inliers"
                 else:
-                    pair_status = "low_inliers"
+                    pair_status = "essential_failed"
             else:
-                pair_status = "essential_failed"
-        elif len(matched.points_prev) > 0:
-            pair_status = "too_few_matches"
+                pair_status = "too_few_matches"
 
         q = world_quaternion_from_rotation(world_r_cam)
         traj_row = {
@@ -550,11 +380,11 @@ def main() -> None:
             "prev_timestamp_ns": int(prev_frame.frame_identifier.timestamp_ns),
             "timestamp_ns": int(cur_frame.frame_identifier.timestamp_ns),
             "status": pair_status,
-            "keypoints_prev": int(len(prev_features.keypoints_xy)),
-            "keypoints": int(len(cur_features.keypoints_xy)),
-            "good_match_count": int(len(matched.points_prev)),
-            "essential_inlier_count": int(len(inlier_prev)),
-            "essential_inlier_ratio": 0.0 if len(matched.points_prev) == 0 else len(inlier_prev) / len(matched.points_prev),
+            "keypoints_prev": 0 if prev_kp is None else len(prev_kp),
+            "keypoints": 0 if cur_kp is None else len(cur_kp),
+            "good_match_count": len(good_matches),
+            "essential_inlier_count": len(inlier_matches),
+            "essential_inlier_ratio": 0.0 if not good_matches else len(inlier_matches) / len(good_matches),
             "translation_magnitude": trans_mag,
             "rotation_deg": rot_deg,
             "dx": float(rel_t[0, 0]),
@@ -574,18 +404,21 @@ def main() -> None:
             debug_image = draw_match_debug(
                 prev_bgr,
                 prev_mask,
-                matched.points_prev[:150],
+                prev_kp if prev_kp is not None else [],
                 cur_bgr,
                 cur_mask,
-                matched.points_cur[:150],
+                cur_kp if cur_kp is not None else [],
+                good_matches[:150],
             )
             cv2.imwrite(str(debug_dir / f"pair_{cur_index - 1:05d}_{cur_index:05d}_{pair_status}.png"), debug_image)
 
         prev_frame = cur_frame
         prev_bgr = cur_bgr
+        prev_gray = cur_gray
         prev_mask = cur_mask
         prev_mask_pixels = cur_mask_pixels
-        prev_features = cur_features
+        prev_kp = cur_kp
+        prev_desc = cur_desc
 
         processed_pairs += 1
         if processed_pairs % 100 == 0:
@@ -610,6 +443,8 @@ def main() -> None:
             scale, rot, trans = fit_similarity(slam_2d[:common_count], gps_2d[:common_count])
             aligned = (scale * (rot @ slam_2d[:common_count].T)).T + trans
             rmse = float(np.sqrt(np.mean(np.sum((aligned - gps_2d[:common_count]) ** 2, axis=1))))
+        else:
+            rmse = None
     else:
         rmse = None
 
@@ -625,18 +460,8 @@ def main() -> None:
         "mask_labels": labels,
         "mask_dilate": args.mask_dilate,
         "bottom_border": args.bottom_border,
-        "feature_backend": backend.name,
-        "feature_device": backend.device,
-        "uses_gpu": bool(backend.uses_gpu),
         "sift_nfeatures": args.sift_nfeatures,
         "ratio_test": args.ratio_test,
-        "lightglue_max_keypoints": args.lightglue_max_keypoints,
-        "lightglue_resize": args.lightglue_resize,
-        "lightglue_filter_threshold": args.lightglue_filter_threshold,
-        "lightglue_depth_confidence": args.lightglue_depth_confidence,
-        "lightglue_width_confidence": args.lightglue_width_confidence,
-        "lightglue_mixed_precision": bool(args.lightglue_mixed_precision),
-        "lightglue_compile": bool(args.lightglue_compile),
         "essential_threshold": args.essential_threshold,
         "min_good_matches": args.min_good_matches,
         "min_inliers": args.min_inliers,
