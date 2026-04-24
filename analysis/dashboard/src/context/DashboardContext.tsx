@@ -157,7 +157,6 @@ class FrameDecoder {
       source: 'file',
       device_id: id?.deviceId ?? '',
       timestamp_ns: Number(id?.timestampNs ?? 0),
-      device_timestamp_ns: Number(proto.deviceTimestampNs ?? 0),
       frame_number: id?.frameNumber ?? 0,
     }
 

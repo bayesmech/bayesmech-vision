@@ -34,7 +34,7 @@ for _p in (str(_project_root), str(_project_root / "proto"), str(_server_root)):
         sys.path.insert(0, _p)
 
 from proto import perceiver_pb2
-from visual_odometry.common import (
+from idoslam.common import (
     bike_mask_for_frame,
     camera_from_first_frame,
     decode_mask,
@@ -42,6 +42,7 @@ from visual_odometry.common import (
     gps_to_local_xy,
     iter_messages,
     load_segmentation_index,
+    plane_output_dir,
     seg_path,
 )
 
@@ -71,8 +72,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def output_path(recording: Path) -> Path:
-    stem = recording.name.removesuffix(".vis.pb") if recording.name.endswith(".vis.pb") else recording.stem
-    return recording.parent / f"{stem}.track_width_plane"
+    return plane_output_dir(recording)
 
 
 def build_label_mask(seg_frame, labels: tuple[str, ...], image_shape: tuple[int, int]) -> np.ndarray:

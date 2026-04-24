@@ -33,7 +33,7 @@ for _p in (str(_project_root), str(_project_root / "proto"), str(_server_root)):
         sys.path.insert(0, _p)
 
 from proto import perceiver_pb2
-from visual_odometry.common import (
+from idoslam.common import (
     bike_mask_for_frame,
     camera_from_first_frame,
     decode_mask,
@@ -42,8 +42,10 @@ from visual_odometry.common import (
     gps_to_local_xy,
     iter_messages,
     load_segmentation_index,
+    pairwise_output_dir,
     project_track_to_2d,
     seg_path,
+    triangulated_output_dir,
 )
 
 
@@ -83,13 +85,11 @@ def parse_args() -> argparse.Namespace:
 
 
 def output_path(recording: Path) -> Path:
-    stem = recording.name.removesuffix(".vis.pb") if recording.name.endswith(".vis.pb") else recording.stem
-    return recording.parent / f"{stem}.track_width_triangulated"
+    return triangulated_output_dir(recording)
 
 
 def default_trajectory_path(recording: Path) -> Path:
-    stem = recording.name.removesuffix(".vis.pb") if recording.name.endswith(".vis.pb") else recording.stem
-    return recording.parent / f"{stem}.sift_pairwise" / "trajectory_pairwise_sift.csv"
+    return pairwise_output_dir(recording) / "trajectory_pairwise_sift.csv"
 
 
 def quaternion_xyzw_to_matrix(q: np.ndarray) -> np.ndarray:
@@ -341,7 +341,8 @@ def main() -> None:
         return feature_cache[frame_index]
 
     boundary_points_world: list[np.ndarray] = []
-    boundary_meta: list[tuple[int, str]] = []
+    boundary_meta: list[tuple[int, int, str]] = []
+    correspondence_rows: list[dict[str, object]] = []
     pair_logs: list[dict[str, object]] = []
 
     p_k = np.array(
@@ -438,7 +439,21 @@ def main() -> None:
             if not positive_depth(world_point, poses[idx]) or not positive_depth(world_point, poses[j]):
                 continue
             boundary_points_world.append(world_point)
-            boundary_meta.append((idx, side_i))
+            boundary_meta.append((idx, j, side_i))
+            correspondence_rows.append(
+                {
+                    "frame_index": idx,
+                    "paired_frame_index": j,
+                    "source_x": float(pt_i[0]),
+                    "source_y": float(pt_i[1]),
+                    "target_x": float(pt_j[0]),
+                    "target_y": float(pt_j[1]),
+                    "world_x": float(world_point[0]),
+                    "world_y": float(world_point[1]),
+                    "world_z": float(world_point[2]),
+                    "side": side_i,
+                }
+            )
             if side_i == "left":
                 left_count += 1
             else:
@@ -500,7 +515,7 @@ def main() -> None:
     aligned_traj_tangents = aligned_traj_tangents / tangent_norm
     aligned_traj_normals = np.column_stack([-aligned_traj_tangents[:, 1], aligned_traj_tangents[:, 0]])
 
-    for point_xy, (frame_index, side) in zip(aligned_boundary_2d, boundary_meta):
+    for point_xy, (frame_index, _paired_frame_index, side) in zip(aligned_boundary_2d, boundary_meta):
         gps_row_idx = gps_index_to_row.get(frame_index)
         if gps_row_idx is None:
             continue
@@ -563,6 +578,52 @@ def main() -> None:
                     "method": "triangulated",
                 }
             )
+
+    ground_points_csv = out_dir / "ground_points.csv"
+    with ground_points_csv.open("w", newline="") as f:
+        writer = csv.DictWriter(
+            f,
+            fieldnames=[
+                "frame_index",
+                "paired_frame_index",
+                "world_x",
+                "world_y",
+                "world_z",
+                "side",
+            ],
+        )
+        writer.writeheader()
+        for world_point, (frame_index, paired_frame_index, side) in zip(boundary_points_world, boundary_meta):
+            writer.writerow(
+                {
+                    "frame_index": frame_index,
+                    "paired_frame_index": paired_frame_index,
+                    "world_x": float(world_point[0]),
+                    "world_y": float(world_point[1]),
+                    "world_z": float(world_point[2]),
+                    "side": side,
+                }
+            )
+
+    correspondences_csv = out_dir / "point_correspondences.csv"
+    with correspondences_csv.open("w", newline="") as f:
+        writer = csv.DictWriter(
+            f,
+            fieldnames=[
+                "frame_index",
+                "paired_frame_index",
+                "source_x",
+                "source_y",
+                "target_x",
+                "target_y",
+                "world_x",
+                "world_y",
+                "world_z",
+                "side",
+            ],
+        )
+        writer.writeheader()
+        writer.writerows(correspondence_rows)
 
     with (out_dir / "pair_logs.json").open("w") as f:
         json.dump(pair_logs, f, indent=2)

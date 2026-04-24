@@ -38,13 +38,15 @@ for _p in (str(_project_root), str(_project_root / "proto"), str(_server_root)):
         sys.path.insert(0, _p)
 
 from proto import perceiver_pb2
-from visual_odometry.common import (
+from idoslam.common import (
     bike_mask_for_frame,
     camera_from_first_frame,
+    canonical_output_dir,
     decode_rgb,
     gps_to_local_xy,
     iter_messages,
     load_segmentation_index,
+    plane_output_dir,
     seg_path,
 )
 
@@ -94,13 +96,11 @@ def parse_args() -> argparse.Namespace:
 
 
 def default_width_csv(recording: Path) -> Path:
-    stem = recording.name.removesuffix(".vis.pb") if recording.name.endswith(".vis.pb") else recording.stem
-    return recording.parent / f"{stem}.track_width_plane" / "track_width_estimates.csv"
+    return plane_output_dir(recording) / "track_width_estimates.csv"
 
 
 def output_path(recording: Path) -> Path:
-    stem = recording.name.removesuffix(".vis.pb") if recording.name.endswith(".vis.pb") else recording.stem
-    return recording.parent / f"{stem}.canonical_track"
+    return canonical_output_dir(recording)
 
 
 def smooth_xy(xy: np.ndarray, window: int) -> np.ndarray:

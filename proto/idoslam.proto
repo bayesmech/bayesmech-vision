@@ -1,0 +1,66 @@
+syntax = "proto3";
+
+package bayesmech.vision;
+
+option java_multiple_files = true;
+option java_package = "com.bayesmech.vision";
+
+import "perceiver.proto";
+import "primitives.proto";
+
+message IdoSlamFramePose {
+  PerceiverFrameIdentifier frame_id = 1;
+  uint32 frame_index = 2;
+
+  // Camera pose in the SLAM world frame.
+  Pose world_pose = 3;
+
+  // Euler angles in degrees packed into a Vector3:
+  // x=pitch, y=roll, z=yaw.
+  Vector3 euler_degrees = 4;
+}
+
+message IdoSlamGroundPoint {
+  uint32 frame_index = 1;
+  uint32 paired_frame_index = 2;
+
+  // Triangulated point in the SLAM world frame.
+  Vector3 point = 3;
+
+  // Optional label for which side of the road corridor the point belongs to.
+  string side = 4;
+}
+
+message IdoSlamPointCorrespondence {
+  float source_x = 1;
+  float source_y = 2;
+  float target_x = 3;
+  float target_y = 4;
+
+  // Triangulated point associated with this image correspondence.
+  Vector3 world_point = 5;
+
+  string side = 6;
+}
+
+message IdoSlamPairDebug {
+  uint32 frame_index = 1;
+  uint32 paired_frame_index = 2;
+  string status = 3;
+  uint32 good_match_count = 4;
+  uint32 inlier_count = 5;
+  uint32 triangulated_left = 6;
+  uint32 triangulated_right = 7;
+  repeated IdoSlamPointCorrespondence correspondences = 8;
+}
+
+message IdoSlamResponse {
+  PerceiverFrameIdentifier first_frame_id = 1;
+  string recording_path = 2;
+  string segmentation_path = 3;
+  string workspace_path = 4;
+
+  repeated IdoSlamFramePose frame_poses = 5;
+  repeated IdoSlamGroundPoint ground_points = 6;
+  repeated IdoSlamPairDebug pair_debug = 7;
+}

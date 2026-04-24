@@ -32,14 +32,17 @@ for _p in (str(_project_root), str(_project_root / "proto"), str(_server_root)):
         sys.path.insert(0, _p)
 
 from proto import perceiver_pb2
-from visual_odometry.common import (
+from idoslam.common import (
+    canonical_output_dir,
     camera_from_first_frame,
     decode_rgb,
     iter_messages,
     load_segmentation_index,
+    plane_output_dir,
+    road_grid_debug_video_path,
     seg_path,
 )
-from visual_odometry.track_width_map_plane import (
+from idoslam.track_width_map_plane import (
     TRAVERSABLE_LABELS,
     build_label_mask,
     estimate_bike_center_x,
@@ -372,15 +375,15 @@ def recording_stem(recording: Path) -> str:
 
 
 def default_track_width_dir(recording: Path) -> Path:
-    return recording.parent / f"{recording_stem(recording)}.track_width_plane"
+    return plane_output_dir(recording)
 
 
 def default_canonical_dir(recording: Path) -> Path:
-    return recording.parent / f"{recording_stem(recording)}.canonical_track"
+    return canonical_output_dir(recording)
 
 
 def default_output_path(recording: Path) -> Path:
-    return recording.parent / f"{recording_stem(recording)}.road_grid_debug.mp4"
+    return road_grid_debug_video_path(recording)
 
 
 def alpha_fill_mask(

@@ -23,6 +23,96 @@ for _p in (str(_project_root), str(_project_root / "proto"), str(_server_root)):
 from proto import perceiver_pb2, segmentation_pb2
 
 
+def recording_stem(recording_path: Path) -> str:
+    if recording_path.name.endswith(".vis.pb"):
+        return recording_path.name.removesuffix(".vis.pb")
+    return recording_path.stem
+
+
+def workspace_path(recording_path: Path) -> Path:
+    return recording_path.parent / f"{recording_stem(recording_path)}.idoslam"
+
+
+def pairwise_output_dir(recording_path: Path) -> Path:
+    return workspace_path(recording_path) / "pairwise"
+
+
+def pairwise_trajectory_csv_path(recording_path: Path) -> Path:
+    return pairwise_output_dir(recording_path) / "trajectory_pairwise_sift.csv"
+
+
+def pairwise_motion_csv_path(recording_path: Path) -> Path:
+    return pairwise_output_dir(recording_path) / "pairwise_sift_motion.csv"
+
+
+def plane_output_dir(recording_path: Path) -> Path:
+    return workspace_path(recording_path) / "track_width_plane"
+
+
+def plane_width_csv_path(recording_path: Path) -> Path:
+    return plane_output_dir(recording_path) / "track_width_estimates.csv"
+
+
+def triangulated_output_dir(recording_path: Path) -> Path:
+    return workspace_path(recording_path) / "triangulated"
+
+
+def triangulated_width_csv_path(recording_path: Path) -> Path:
+    return triangulated_output_dir(recording_path) / "track_width_estimates.csv"
+
+
+def triangulated_ground_points_csv_path(recording_path: Path) -> Path:
+    return triangulated_output_dir(recording_path) / "ground_points.csv"
+
+
+def triangulated_correspondences_csv_path(recording_path: Path) -> Path:
+    return triangulated_output_dir(recording_path) / "point_correspondences.csv"
+
+
+def triangulated_pair_logs_path(recording_path: Path) -> Path:
+    return triangulated_output_dir(recording_path) / "pair_logs.json"
+
+
+def canonical_output_dir(recording_path: Path) -> Path:
+    return workspace_path(recording_path) / "canonical"
+
+
+def canonical_centerline_csv_path(recording_path: Path) -> Path:
+    return canonical_output_dir(recording_path) / "canonical_centerline.csv"
+
+
+def canonical_lap_trajectories_csv_path(recording_path: Path) -> Path:
+    return canonical_output_dir(recording_path) / "lap_trajectories.csv"
+
+
+def visual_pairs_output_dir(recording_path: Path) -> Path:
+    return workspace_path(recording_path) / "visual_pairs"
+
+
+def pair_pose_output_dir(recording_path: Path, frame_a: int, frame_b: int) -> Path:
+    return workspace_path(recording_path) / f"pair_pose_{frame_a}_{frame_b}"
+
+
+def road_grid_debug_video_path(recording_path: Path) -> Path:
+    return workspace_path(recording_path) / "road_grid_debug.mp4"
+
+
+def road_debug_video_output_path(recording_path: Path) -> Path:
+    return recording_path.parent / f"{recording_stem(recording_path)}.idoslam.road_debug.mp4"
+
+
+def sift_debug_video_output_path(recording_path: Path) -> Path:
+    return recording_path.parent / f"{recording_stem(recording_path)}.idoslam.sift_debug.mp4"
+
+
+def track_map_png_output_path(recording_path: Path) -> Path:
+    return recording_path.parent / f"{recording_stem(recording_path)}.idoslam.track_map.png"
+
+
+def idoslam_proto_path(recording_path: Path) -> Path:
+    return recording_path.parent / f"{recording_stem(recording_path)}.idoslam.pb"
+
+
 def seg_path(recording_path: Path) -> Path:
     if recording_path.name.endswith(".vis.pb"):
         return recording_path.parent / (recording_path.name.removesuffix(".vis.pb") + ".seg.pb")

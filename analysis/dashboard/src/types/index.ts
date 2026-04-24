@@ -124,7 +124,6 @@ export interface DecodedFrame {
   source: string
   device_id: string
   timestamp_ns: number
-  device_timestamp_ns?: number
   frame_number: number
   rgb_width?: number
   rgb_height?: number

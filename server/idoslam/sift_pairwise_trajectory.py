@@ -33,7 +33,7 @@ for _p in (str(_project_root), str(_project_root / "proto"), str(_server_root)):
         sys.path.insert(0, _p)
 
 from proto import perceiver_pb2
-from visual_odometry.common import (
+from idoslam.common import (
     bike_mask_for_frame,
     camera_from_first_frame,
     decode_rgb,
@@ -41,11 +41,12 @@ from visual_odometry.common import (
     gps_to_local_xy,
     iter_messages,
     load_segmentation_index,
+    pairwise_output_dir,
     project_track_to_2d,
     seg_path,
     write_track_plot,
 )
-from visual_odometry.sift_pair_pose import rotation_matrix_to_quaternion_xyzw
+from idoslam.sift_pair_pose import rotation_matrix_to_quaternion_xyzw
 
 
 def parse_args() -> argparse.Namespace:
@@ -75,8 +76,7 @@ def parse_labels(raw: str) -> list[str]:
 
 
 def output_path(recording: Path) -> Path:
-    stem = recording.name.removesuffix(".vis.pb") if recording.name.endswith(".vis.pb") else recording.stem
-    return recording.parent / f"{stem}.sift_pairwise"
+    return pairwise_output_dir(recording)
 
 
 def combined_mask(

@@ -339,9 +339,6 @@ export namespace bayesmech {
             /** PerceiverDataFrame frameIdentifier */
             frameIdentifier?: (bayesmech.vision.IPerceiverFrameIdentifier|null);
 
-            /** PerceiverDataFrame deviceTimestampNs */
-            deviceTimestampNs?: (number|Long|null);
-
             /** PerceiverDataFrame cameraPose */
             cameraPose?: (bayesmech.vision.IPose|null);
 
@@ -378,9 +375,6 @@ export namespace bayesmech {
 
             /** PerceiverDataFrame frameIdentifier. */
             public frameIdentifier?: (bayesmech.vision.IPerceiverFrameIdentifier|null);
-
-            /** PerceiverDataFrame deviceTimestampNs. */
-            public deviceTimestampNs: (number|Long);
 
             /** PerceiverDataFrame cameraPose. */
             public cameraPose?: (bayesmech.vision.IPose|null);

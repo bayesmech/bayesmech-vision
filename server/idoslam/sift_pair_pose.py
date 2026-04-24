@@ -24,12 +24,13 @@ for _p in (str(_project_root), str(_project_root / "proto"), str(_server_root)):
         sys.path.insert(0, _p)
 
 from proto import perceiver_pb2
-from visual_odometry.common import (
+from idoslam.common import (
     bike_mask_for_frame,
     camera_from_first_frame,
     decode_rgb,
     iter_messages,
     load_segmentation_index,
+    pair_pose_output_dir,
     seg_path,
 )
 
@@ -55,8 +56,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def output_path(recording: Path, frame_a: int, frame_b: int) -> Path:
-    stem = recording.name.removesuffix(".vis.pb") if recording.name.endswith(".vis.pb") else recording.stem
-    return recording.parent / f"{stem}.sift_pair_{frame_a}_{frame_b}"
+    return pair_pose_output_dir(recording, frame_a, frame_b)
 
 
 def rotation_matrix_to_quaternion_xyzw(r: np.ndarray) -> np.ndarray:

@@ -37,6 +37,10 @@ uv run python reconstruct/main.py ../recordings/<name>/<name>.vis.pb --no-splat 
 uv run python reconstruct/main.py ../recordings/<name>/<name>.vis.pb --max-frames 100 --sample-every 10  # quick test
 uv run python reconstruct/main.py ../recordings/<name>/<name>.vis.pb --dense-mvs   # + dense MVS (requires colmap binary)
 
+# IDOSLAM: unified trajectory + road-ground triangulation + canonical debug outputs
+uv run python idoslam/main.py ../recordings/<name>/<name>.vis.pb
+uv run python idoslam/main.py ../recordings/<name>/<name>.vis.pb --debug-render-video
+
 # Homography analysis (interactive, from server/)
 uv run python ../analysis/homography/main.py ../recordings/<name>/<name>.vis.pb
 ```
@@ -61,6 +65,7 @@ huggingface-cli login
 | `motioncap/` | Offline RAFT optical-flow motion heatmap → writes `.motion.pb` |
 | `genspark/` | Offline AI video analysis (Gemini/Claude/OpenAI) |
 | `reconstruct/` | Offline COLMAP SfM + Gaussian Splatting → writes `.recon/`, `.splat.ply`, `.recon.pb` |
+| `idoslam/` | Offline SLAM pipeline → writes `.idoslam.pb`; `--debug-render-video` also emits debug MP4/PNG artifacts |
 
 ## Motion Capture (`motioncap/`)
 

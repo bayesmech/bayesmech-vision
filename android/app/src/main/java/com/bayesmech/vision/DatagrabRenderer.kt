@@ -258,12 +258,11 @@ class DatagrabRenderer(val activity: MainActivity) :
 
     fun sendUserTextInput(text: String) {
         val client = streamClient ?: return
-        val deviceTimestampNs = DeviceTimestamp.nowNs()
+        val frameTimestampNs = DeviceTimestamp.nowNs()
         val frame = com.bayesmech.vision.PerceiverDataFrame.newBuilder()
-            .setDeviceTimestampNs(deviceTimestampNs)
             .setFrameIdentifier(
                 com.bayesmech.vision.PerceiverFrameIdentifier.newBuilder()
-                    .setTimestampNs(deviceTimestampNs)
+                    .setTimestampNs(frameTimestampNs)
                     .setDeviceId(deviceId)
             )
             .setUserTextInput(text)
