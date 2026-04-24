@@ -45,6 +45,14 @@ def pairwise_motion_csv_path(recording_path: Path) -> Path:
     return pairwise_output_dir(recording_path) / "pairwise_sift_motion.csv"
 
 
+def pose_refine_output_dir(recording_path: Path) -> Path:
+    return workspace_path(recording_path) / "pose_refined"
+
+
+def refined_trajectory_csv_path(recording_path: Path) -> Path:
+    return pose_refine_output_dir(recording_path) / "trajectory_pairwise_sift_refined.csv"
+
+
 def plane_output_dir(recording_path: Path) -> Path:
     return workspace_path(recording_path) / "track_width_plane"
 

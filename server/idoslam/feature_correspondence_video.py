@@ -107,6 +107,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--fps", type=float, default=12.0)
     p.add_argument("--codec", type=str, default="mp4v")
     p.add_argument("--max-correspondences", type=int, default=160)
+    p.add_argument("--trail-threshold-px", type=float, default=2.0)
     return p.parse_args()
 
 
@@ -170,59 +171,67 @@ def sample_correspondences(correspondences: list[Correspondence], limit: int) ->
     return [correspondences[int(i)] for i in idx]
 
 
+def draw_text_block(
+    image: np.ndarray,
+    lines: list[str],
+    origin: tuple[int, int] = (18, 30),
+) -> None:
+    if not lines:
+        return
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    scale = 0.65
+    thickness = 2
+    line_height = 28
+    x0, y0 = origin
+    widths = [cv2.getTextSize(line, font, scale, thickness)[0][0] for line in lines]
+    block_w = max(widths) + 20
+    block_h = 16 + line_height * len(lines)
+    overlay = image.copy()
+    cv2.rectangle(overlay, (x0 - 10, y0 - 22), (x0 - 10 + block_w, y0 - 22 + block_h), (12, 12, 12), -1)
+    image[:] = cv2.addWeighted(overlay, 0.52, image, 0.48, 0.0)
+    for idx, line in enumerate(lines):
+        cv2.putText(
+            image,
+            line,
+            (x0, y0 + idx * line_height),
+            font,
+            scale,
+            (245, 245, 245),
+            thickness,
+            cv2.LINE_AA,
+        )
+
+
 def render_pair_frame(
-    left_bgr: np.ndarray,
-    right_bgr: np.ndarray,
+    bgr: np.ndarray,
     pair_log: PairLog,
     correspondences: list[Correspondence],
     total_correspondences: int,
+    line_threshold_px: float,
 ) -> np.ndarray:
-    header_h = 108
-    h, w = left_bgr.shape[:2]
-    canvas = np.full((h + header_h, w * 2, 3), (18, 18, 18), dtype=np.uint8)
-    canvas[header_h : header_h + h, :w] = left_bgr
-    canvas[header_h : header_h + h, w:] = right_bgr
-
-    cv2.putText(canvas, f"Frame {pair_log.frame_index}", (24, header_h - 18), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (245, 245, 245), 2, cv2.LINE_AA)
-    cv2.putText(canvas, f"Frame {pair_log.paired_frame_index}", (w + 24, header_h - 18), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (245, 245, 245), 2, cv2.LINE_AA)
-    cv2.putText(
+    canvas = bgr.copy()
+    draw_text_block(
         canvas,
-        f"pair {pair_log.frame_index}->{pair_log.paired_frame_index}  status={pair_log.status}",
-        (24, 30),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        0.78,
-        (240, 240, 240),
-        2,
-        cv2.LINE_AA,
-    )
-    cv2.putText(
-        canvas,
-        f"good={pair_log.good_match_count}  inliers={pair_log.inlier_count}  triangulated L/R={pair_log.triangulated_left}/{pair_log.triangulated_right}",
-        (24, 62),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        0.72,
-        (215, 215, 215),
-        2,
-        cv2.LINE_AA,
-    )
-    cv2.putText(
-        canvas,
-        f"rendered correspondences={len(correspondences)} / {total_correspondences}",
-        (24, 92),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        0.68,
-        (185, 185, 185),
-        2,
-        cv2.LINE_AA,
+        [
+            f"SIFT debug  frame {pair_log.paired_frame_index}  pair {pair_log.frame_index}->{pair_log.paired_frame_index}",
+            f"status={pair_log.status}  good={pair_log.good_match_count}  inliers={pair_log.inlier_count}",
+            f"shown={len(correspondences)} / {total_correspondences}  triangulated L/R={pair_log.triangulated_left}/{pair_log.triangulated_right}",
+        ],
     )
 
     for corr in correspondences:
         color = side_color(corr.side)
-        pt_a = (int(round(corr.source_x)), header_h + int(round(corr.source_y)))
-        pt_b = (w + int(round(corr.target_x)), header_h + int(round(corr.target_y)))
-        cv2.line(canvas, pt_a, pt_b, color, 1, cv2.LINE_AA)
-        cv2.circle(canvas, pt_a, 3, color, -1, cv2.LINE_AA)
-        cv2.circle(canvas, pt_b, 3, color, -1, cv2.LINE_AA)
+        src = np.array([float(corr.source_x), float(corr.source_y)], dtype=np.float64)
+        dst = np.array([float(corr.target_x), float(corr.target_y)], dtype=np.float64)
+        pt_src = tuple(int(round(v)) for v in src)
+        pt_dst = tuple(int(round(v)) for v in dst)
+        displacement = float(np.linalg.norm(dst - src))
+        if displacement > line_threshold_px:
+            cv2.line(canvas, pt_src, pt_dst, color, 2, cv2.LINE_AA)
+            cv2.circle(canvas, pt_src, 3, (16, 16, 16), -1, cv2.LINE_AA)
+            cv2.circle(canvas, pt_src, 2, color, -1, cv2.LINE_AA)
+        cv2.circle(canvas, pt_dst, 6, (18, 18, 18), -1, cv2.LINE_AA)
+        cv2.circle(canvas, pt_dst, 4, color, -1, cv2.LINE_AA)
 
     return canvas
 
@@ -252,21 +261,18 @@ def main() -> None:
     frame_reader = IndexedFrameReader(recording, needed_indices)
     writer: cv2.VideoWriter | None = None
     try:
-        first_left = frame_reader.read_bgr(pair_logs[0].frame_index)
-        first_right = frame_reader.read_bgr(pair_logs[0].paired_frame_index)
-        if first_left.shape[:2] != first_right.shape[:2]:
-            raise RuntimeError("Correspondence video requires consistent frame dimensions")
+        first_bgr = frame_reader.read_bgr(pair_logs[0].paired_frame_index)
 
         first_correspondences = sample_correspondences(
             grouped.get((pair_logs[0].frame_index, pair_logs[0].paired_frame_index), []),
             args.max_correspondences,
         )
         first_canvas = render_pair_frame(
-            left_bgr=first_left,
-            right_bgr=first_right,
+            bgr=first_bgr,
             pair_log=pair_logs[0],
             correspondences=first_correspondences,
             total_correspondences=len(grouped.get((pair_logs[0].frame_index, pair_logs[0].paired_frame_index), [])),
+            line_threshold_px=float(args.trail_threshold_px),
         )
 
         output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -284,11 +290,11 @@ def main() -> None:
             pair_key = (pair_log.frame_index, pair_log.paired_frame_index)
             correspondences = grouped.get(pair_key, [])
             canvas = render_pair_frame(
-                left_bgr=frame_reader.read_bgr(pair_log.frame_index),
-                right_bgr=frame_reader.read_bgr(pair_log.paired_frame_index),
+                bgr=frame_reader.read_bgr(pair_log.paired_frame_index),
                 pair_log=pair_log,
                 correspondences=sample_correspondences(correspondences, args.max_correspondences),
                 total_correspondences=len(correspondences),
+                line_threshold_px=float(args.trail_threshold_px),
             )
             writer.write(canvas)
             if pair_idx % 100 == 0:

@@ -18,7 +18,9 @@ for _p in (str(_project_root), str(_project_root / "proto"), str(_server_root)):
 
 from idoslam.common import (
     idoslam_proto_path,
+    pairwise_motion_csv_path,
     plane_width_csv_path,
+    refined_trajectory_csv_path,
     road_debug_video_output_path,
     seg_path,
     sift_debug_video_output_path,
@@ -71,6 +73,7 @@ def main() -> None:
     with tempfile.TemporaryDirectory(prefix="idoslam.") as workspace_str:
         workspace = Path(workspace_str)
         pairwise_dir = workspace / "pairwise"
+        refine_dir = workspace / "pose_refined"
         plane_dir = workspace / "track_width_plane"
         canonical_dir = workspace / "canonical"
         triangulated_dir = workspace / "triangulated"
@@ -89,6 +92,19 @@ def main() -> None:
         if args.max_frames > 0:
             pairwise_cmd.extend(["--max-frames", str(args.max_frames)])
         run_step("Pairwise trajectory", pairwise_cmd)
+
+        refine_cmd = [
+            python,
+            str(script_dir / "gps_pose_refiner.py"),
+            str(recording),
+            "--trajectory-csv",
+            str(pairwise_dir / "trajectory_pairwise_sift.csv"),
+            "--pair-motion-csv",
+            str(pairwise_dir / pairwise_motion_csv_path(recording).name),
+            "--output-dir",
+            str(refine_dir),
+        ]
+        run_step("GPS pose refinement", refine_cmd)
 
         if not args.skip_plane:
             plane_cmd = [
@@ -126,7 +142,7 @@ def main() -> None:
                 "--segmentation",
                 str(segmentation),
                 "--trajectory-csv",
-                str(pairwise_dir / "trajectory_pairwise_sift.csv"),
+                str(refine_dir / refined_trajectory_csv_path(recording).name),
                 "--output-dir",
                 str(triangulated_dir),
             ]
@@ -163,20 +179,20 @@ def main() -> None:
             ]
             run_step("SIFT correspondence video", sift_video_cmd)
 
-            internal_track_map = pairwise_dir / "track_plot.png"
+            internal_track_map = refine_dir / "track_plot.png"
             if internal_track_map.exists():
                 published_track_map = track_map_png_output_path(recording)
                 shutil.copy2(internal_track_map, published_track_map)
                 log.info("Wrote %s", published_track_map)
             else:
-                log.warning("Track map PNG was not produced by the pairwise stage")
+                log.warning("Track map PNG was not produced by the pose-refinement stage")
 
         output = args.output.resolve() if args.output else idoslam_proto_path(recording)
         written = write_idoslam_pb(
             recording=recording,
             segmentation=segmentation,
             output_path=output,
-            trajectory_csv=pairwise_dir / "trajectory_pairwise_sift.csv",
+            trajectory_csv=refine_dir / refined_trajectory_csv_path(recording).name,
             ground_points_csv=triangulated_dir / "ground_points.csv",
             correspondences_csv=triangulated_dir / "point_correspondences.csv",
             pair_logs_path=triangulated_dir / "pair_logs.json",

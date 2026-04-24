@@ -19,6 +19,7 @@ from idoslam.common import (
     idoslam_proto_path,
     iter_messages,
     pairwise_trajectory_csv_path,
+    refined_trajectory_csv_path,
     triangulated_correspondences_csv_path,
     triangulated_ground_points_csv_path,
     triangulated_pair_logs_path,
@@ -66,7 +67,11 @@ def write_idoslam_pb(
     segmentation = segmentation.resolve()
     output_path = (output_path.resolve() if output_path else idoslam_proto_path(recording))
 
-    trajectory_csv = trajectory_csv.resolve() if trajectory_csv else pairwise_trajectory_csv_path(recording)
+    if trajectory_csv is None:
+        preferred_csv = refined_trajectory_csv_path(recording)
+        trajectory_csv = preferred_csv if preferred_csv.exists() else pairwise_trajectory_csv_path(recording)
+    else:
+        trajectory_csv = trajectory_csv.resolve()
     if not trajectory_csv.exists():
         raise FileNotFoundError(f"Missing trajectory CSV: {trajectory_csv}")
 
