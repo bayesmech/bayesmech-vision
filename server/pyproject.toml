@@ -39,6 +39,7 @@ dependencies = [
     "gsplat",
     "plyfile",
     "rerun-sdk==0.22.1",
+    "lightglue",
 ]
 
 [project.optional-dependencies]
@@ -63,3 +64,6 @@ extra-index-url = [
     "https://pypi.org/simple",
     "https://docs.gsplat.studio/whl/pt27cu126",
 ]
+
+[tool.uv.sources]
+lightglue = { git = "https://github.com/cvg/LightGlue.git" }
