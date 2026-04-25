@@ -340,6 +340,8 @@ class FrameBuffer {
       const old = this.frames.get(key)!
       if (old.rgbBlobUrl) URL.revokeObjectURL(old.rgbBlobUrl)
       if (old.depthBlobUrl) URL.revokeObjectURL(old.depthBlobUrl)
+      this.insertionOrder = this.insertionOrder.filter(k => k !== key)
+      this.insertionOrder.push(key)
       this.frames.set(key, frame)
       return
     }
@@ -646,8 +648,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
     const skipDepth = !isLiveRef.current
 
+    let latestDecoded: DecodedFrame | null = null
     for (const proto of frames) {
       const frame = decoder.current.decodeFrame(proto, skipDepth)
+      latestDecoded = frame
       frameBuffer.current.push(frame)
       if (isLiveRef.current) {
         // Coverage tracking only meaningful in live mode
@@ -655,7 +659,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       }
     }
 
-    const latest = frameBuffer.current.latest()
+    const latest = latestDecoded ?? frameBuffer.current.latest()
 
     if (isLiveRef.current) {
       // Live mode: frameCount = total received, display follows when playing

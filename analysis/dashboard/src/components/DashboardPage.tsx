@@ -13,7 +13,12 @@ import type { GpsLocation, ImuData, SegmentationLegendEntry, SensorFrameData } f
 
 const XYZ = ['X', 'Y', 'Z']
 
-type DashboardTabId = 'segmentation' | 'motion-capture' | 'sensors' | 'path-planning'
+type DashboardTabId =
+  | 'segmentation'
+  | 'motion-capture'
+  | 'stable-entity-understanding'
+  | 'sensors'
+  | 'path-planning'
 
 const DASHBOARD_TABS: {
   id: DashboardTabId
@@ -32,6 +37,12 @@ const DASHBOARD_TABS: {
     label: 'Motion Capture',
     badge: 'MCAP',
     description: 'Review motion heatmaps and tracked object paths without on-frame labels.',
+  },
+  {
+    id: 'stable-entity-understanding',
+    label: 'Stable entity understanding',
+    badge: 'SEU',
+    description: 'Inspect depth, point cloud, and plane detections for the current frame.',
   },
   {
     id: 'sensors',
@@ -126,7 +137,6 @@ const DashboardPage = () => {
   const deviceId = displayedFrame?.device_id
     ? displayedFrame.device_id.slice(0, 8)
     : 'N/A'
-  const activeTabMeta = DASHBOARD_TABS.find((tab) => tab.id === activeTab) ?? DASHBOARD_TABS[0]
 
   const gpsTrack = useMemo(
     () => sensorData.flatMap((frame) => (frame.gps ? [frame.gps] : [])),
@@ -153,7 +163,7 @@ const DashboardPage = () => {
       {/* Playback controls — full width, above all streams */}
       <PlaybackControls />
 
-      {/* Video streams — RGB, Depth, Point Cloud, Planes */}
+      {/* Primary video stream */}
       <div
         className="streams-grid"
         style={{
@@ -169,36 +179,6 @@ const DashboardPage = () => {
           blobUrl={displayedFrame?.rgbBlobUrl}
           placeholderIcon={'🎥'}
           placeholderText="Waiting for RGB frames..."
-        />
-
-        <StreamViewer
-          title="Depth Map"
-          badge="DEPTH"
-          blobUrl={displayedFrame?.depthBlobUrl}
-          placeholderIcon={'🌊'}
-          placeholderText="Waiting for depth frames..."
-        />
-
-        <GeometryStreamViewer
-          title="Point Cloud"
-          badge="PCD"
-          placeholderIcon={'✦'}
-          placeholderText="Waiting for point cloud data..."
-          mode="point_cloud"
-          cameraPose={displayedFrame?.camera_pose}
-          cameraIntrinsics={displayedFrame?.camera_intrinsics}
-          geometry={displayedFrame?.inferred_geometry}
-        />
-
-        <GeometryStreamViewer
-          title="Plane Detection"
-          badge="PLANE"
-          placeholderIcon={'⬛'}
-          placeholderText="Waiting for plane data..."
-          mode="planes"
-          cameraPose={displayedFrame?.camera_pose}
-          cameraIntrinsics={displayedFrame?.camera_intrinsics}
-          geometry={displayedFrame?.inferred_geometry}
         />
       </div>
 
@@ -240,12 +220,6 @@ const DashboardPage = () => {
           id={`dashboard-panel-${activeTab}`}
           aria-labelledby={`dashboard-tab-${activeTab}`}
         >
-          <div className="dashboard-panel-header">
-            <span className="dashboard-panel-badge">{activeTabMeta.badge}</span>
-            <h3 className="dashboard-panel-title">{activeTabMeta.label}</h3>
-            <p className="dashboard-panel-description">{activeTabMeta.description}</p>
-          </div>
-
           {activeTab === 'segmentation' && (
             <>
               <div className="dashboard-summary-grid">
@@ -288,6 +262,61 @@ const DashboardPage = () => {
 
           {activeTab === 'motion-capture' && (
             <MotioncapPanel key={currentRecordingName ?? (isLive ? 'live' : 'idle')} />
+          )}
+
+          {activeTab === 'stable-entity-understanding' && (
+            <>
+              <div className="dashboard-summary-grid">
+                <InfoCard value={displayedFrame?.hasDepthData ? 'Available' : 'N/A'} label="Depth Map" />
+                <InfoCard
+                  value={displayedFrame?.inferred_geometry?.point_cloud_count ?? 0}
+                  label="Point Cloud Pts"
+                />
+                <InfoCard
+                  value={displayedFrame?.inferred_geometry?.plane_count ?? 0}
+                  label="Planes Detected"
+                />
+              </div>
+
+              <div
+                className="streams-grid"
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+                  gap: '1rem',
+                }}
+              >
+                <StreamViewer
+                  title="Depth Map"
+                  badge="DEPTH"
+                  blobUrl={displayedFrame?.depthBlobUrl}
+                  placeholderIcon={'🌊'}
+                  placeholderText="Waiting for depth frames..."
+                />
+
+                <GeometryStreamViewer
+                  title="Point Cloud"
+                  badge="PCD"
+                  placeholderIcon={'✦'}
+                  placeholderText="Waiting for point cloud data..."
+                  mode="point_cloud"
+                  cameraPose={displayedFrame?.camera_pose}
+                  cameraIntrinsics={displayedFrame?.camera_intrinsics}
+                  geometry={displayedFrame?.inferred_geometry}
+                />
+
+                <GeometryStreamViewer
+                  title="Plane Detection"
+                  badge="PLANE"
+                  placeholderIcon={'⬛'}
+                  placeholderText="Waiting for plane data..."
+                  mode="planes"
+                  cameraPose={displayedFrame?.camera_pose}
+                  cameraIntrinsics={displayedFrame?.camera_intrinsics}
+                  geometry={displayedFrame?.inferred_geometry}
+                />
+              </div>
+            </>
           )}
 
           {activeTab === 'path-planning' && (
