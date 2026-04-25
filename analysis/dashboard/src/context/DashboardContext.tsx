@@ -340,6 +340,8 @@ class FrameBuffer {
       const old = this.frames.get(key)!
       if (old.rgbBlobUrl) URL.revokeObjectURL(old.rgbBlobUrl)
       if (old.depthBlobUrl) URL.revokeObjectURL(old.depthBlobUrl)
+      this.insertionOrder = this.insertionOrder.filter(k => k !== key)
+      this.insertionOrder.push(key)
       this.frames.set(key, frame)
       return
     }
@@ -549,6 +551,7 @@ interface DashboardState {
   fps: number
   coverageStats: CoverageStats
   isLive: boolean
+  currentRecordingName: string | null
   // Trajectory
   trajectoryPositions: TrajectoryPoint[]
   firstTimestampNs: number
@@ -585,6 +588,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [frameCount, setFrameCount] = useState(0)
   const [fps, setFps] = useState(0)
   const [isLive, setIsLive] = useState(false)
+  const [currentRecordingName, setCurrentRecordingName] = useState<string | null>(null)
 
   // Playback state
   const [currentIndex, setCurrentIndex] = useState(0)
@@ -644,8 +648,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
     const skipDepth = !isLiveRef.current
 
+    let latestDecoded: DecodedFrame | null = null
     for (const proto of frames) {
       const frame = decoder.current.decodeFrame(proto, skipDepth)
+      latestDecoded = frame
       frameBuffer.current.push(frame)
       if (isLiveRef.current) {
         // Coverage tracking only meaningful in live mode
@@ -653,7 +659,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       }
     }
 
-    const latest = frameBuffer.current.latest()
+    const latest = latestDecoded ?? frameBuffer.current.latest()
 
     if (isLiveRef.current) {
       // Live mode: frameCount = total received, display follows when playing
@@ -826,9 +832,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setLastTimestampNs(0)
     setCoverageStats(ZERO_COVERAGE)
     setSensorData([])
+    setCurrentRecordingName(null)
 
     // Load on server
     await startPlayback(name)
+    setCurrentRecordingName(name)
 
     // Request stats, full trajectory, and full sensor data (precomputed once)
     dashboardWs.getStats()
@@ -867,6 +875,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setFirstTimestampNs(0)
     setLastTimestampNs(0)
     setCoverageStats(ZERO_COVERAGE)
+    setCurrentRecordingName(null)
 
     // Tell server to switch to live
     await apiSwitchToLive()
@@ -950,7 +959,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   return (
     <DashboardContext.Provider value={{
       connectionStatus, displayedFrame, displayedAnnotation, frameCount, fps, coverageStats,
-      isLive, trajectoryPositions, firstTimestampNs, lastTimestampNs, sensorData,
+      isLive, currentRecordingName, trajectoryPositions, firstTimestampNs, lastTimestampNs, sensorData,
       getFrame, getAnnotation, requestFrame, requestAnnotation,
       currentIndex, totalFrames, isPlaying, serverFps,
       play, pause, seekTo, skipForward, skipBackward, loadRecording, switchToLive,

@@ -15,6 +15,8 @@ from __future__ import annotations
 import struct
 import zlib
 from abc import ABC, abstractmethod
+from collections import defaultdict
+from functools import lru_cache
 from pathlib import Path
 
 import cv2
@@ -55,6 +57,11 @@ _TRACK_COLORS = [
 
 def _color_for(track_id: int):
     return _TRACK_COLORS[track_id % len(_TRACK_COLORS)]
+
+
+def _rgb_color_for(track_id: int) -> list[int]:
+    b, g, r = _color_for(track_id)
+    return [r, g, b]
 
 
 # ── Frame helpers ─────────────────────────────────────────────────────────────
@@ -114,6 +121,84 @@ def _decode_heatmap(data: bytes) -> np.ndarray:
     h, w = struct.unpack("<II", data[:8])
     raw = zlib.decompress(data[8:])
     return np.frombuffer(raw, dtype=np.uint8)[: h * w].reshape(h, w)
+
+
+def _motioncap_cache_key(motion_path: Path) -> tuple[str, int]:
+    stat = motion_path.stat()
+    return (str(motion_path), stat.st_mtime_ns)
+
+
+@lru_cache(maxsize=8)
+def _load_motioncap_overlay_data(
+    motion_path_str: str,
+    motion_mtime_ns: int,
+) -> tuple[list[motioncap_pb2.MotionCaptureResponse], list[motioncap_pb2.MotionTrack], dict[int, list[tuple[int, float, float, bool]]]]:
+    del motion_mtime_ns  # included only to invalidate the cache when the file changes
+
+    heatmap_records: list[motioncap_pb2.MotionCaptureResponse] = []
+    tracks: list[motioncap_pb2.MotionTrack] = []
+    for rec in _motion_io.read_file(Path(motion_path_str)):
+        if rec.tracks:
+            tracks = list(rec.tracks)
+        else:
+            heatmap_records.append(rec)
+
+    positions_by_hm_idx: dict[int, list[tuple[int, float, float, bool]]] = defaultdict(list)
+    for track in tracks:
+        for pos in track.positions:
+            positions_by_hm_idx[pos.frame_idx].append(
+                (track.track_id, pos.cx, pos.cy, pos.interpolated)
+            )
+
+    return heatmap_records, tracks, positions_by_hm_idx
+
+
+@lru_cache(maxsize=256)
+def _render_motioncap_heatmap_png(
+    motion_path_str: str,
+    motion_mtime_ns: int,
+    frame_index: int,
+) -> bytes | None:
+    heatmap_records, _, _ = _load_motioncap_overlay_data(motion_path_str, motion_mtime_ns)
+    if frame_index < 0 or frame_index >= len(heatmap_records):
+        return None
+
+    rec = heatmap_records[frame_index]
+    if not rec.heatmap.heatmap_data:
+        return None
+
+    hm = _decode_heatmap(rec.heatmap.heatmap_data)
+    hm_color = cv2.applyColorMap(hm, cv2.COLORMAP_JET)
+    ok, buf = cv2.imencode(".png", hm_color)
+    return buf.tobytes() if ok else None
+
+
+@lru_cache(maxsize=8)
+def _build_motioncap_track_legend(
+    motion_path_str: str,
+    motion_mtime_ns: int,
+) -> list[dict]:
+    _, tracks, _ = _load_motioncap_overlay_data(motion_path_str, motion_mtime_ns)
+
+    legend: list[dict] = []
+    for track in sorted(tracks, key=lambda item: item.track_id):
+        positions = [
+            {
+                "frame_idx": pos.frame_idx,
+                "cx": pos.cx,
+                "cy": pos.cy,
+            }
+            for pos in track.positions
+        ]
+        legend.append({
+            "track_id": track.track_id,
+            "color": _rgb_color_for(track.track_id),
+            "detected_frames": track.detected_frames,
+            "total_positions": track.total_positions,
+            "presence_fraction": track.presence_fraction,
+            "positions": positions,
+        })
+    return legend
 
 
 # ── Abstract base ─────────────────────────────────────────────────────────────
@@ -183,21 +268,38 @@ class MotioncapVideoLayer(VideoLayer):
       3. If neither exists, fall back to raw frames.
     """
 
-    def __init__(self, overlay_alpha: float = 0.5, tail_length: int = 30):
+    def __init__(
+        self,
+        overlay_alpha: float = 0.5,
+        tail_length: int = 30,
+        *,
+        use_prerendered_video: bool = True,
+        show_track_markers: bool = True,
+        show_track_labels: bool = True,
+    ):
         self.overlay_alpha = overlay_alpha
         self.tail_length = tail_length
+        self.use_prerendered_video = use_prerendered_video
+        self.show_track_markers = show_track_markers
+        self.show_track_labels = show_track_labels
 
     def render_frames(self, vis_path, frame_indices=None, jpeg_quality=75, max_width=0):
         base = vis_path.name.removesuffix(".vis.pb")
         mp4_path   = vis_path.parent / f"{base}.motion.mp4"
         motion_path = vis_path.parent / f"{base}.motion.pb"
 
-        if mp4_path.exists():
+        if self.use_prerendered_video and mp4_path.exists():
             return self._render_from_mp4(vis_path, mp4_path, motion_path, frame_indices, jpeg_quality, max_width)
         elif motion_path.exists():
             return self._render_from_pb(vis_path, motion_path, frame_indices, jpeg_quality, max_width)
         else:
             return RawVideoLayer().render_frames(vis_path, frame_indices, jpeg_quality, max_width)
+
+    def track_legend(self, motion_path: Path) -> list[dict]:
+        return _build_motioncap_track_legend(*_motioncap_cache_key(motion_path))
+
+    def heatmap_png(self, motion_path: Path, frame_index: int) -> bytes | None:
+        return _render_motioncap_heatmap_png(*_motioncap_cache_key(motion_path), frame_index)
 
     # ── Source: pre-rendered .motion.mp4 ──────────────────────────────────────
 
@@ -262,30 +364,17 @@ class MotioncapVideoLayer(VideoLayer):
 
     def _render_from_pb(self, vis_path, motion_path, frame_indices, jpeg_quality, max_width):
         """Render overlay on-demand when no mp4 is available."""
-        from collections import defaultdict
-
         vis_frames = _vis_io.read_file(vis_path)
         if frame_indices is None:
             frame_indices = list(range(len(vis_frames)))
-
-        heatmap_records, tracks = [], []
-        for rec in _motion_io.read_file(motion_path):
-            if rec.tracks:
-                tracks = list(rec.tracks)
-            else:
-                heatmap_records.append(rec)
+        heatmap_records, tracks, positions_by_hm_idx = _load_motioncap_overlay_data(
+            *_motioncap_cache_key(motion_path)
+        )
 
         hm_by_ts: dict[int, int] = {}
         for i, rec in enumerate(heatmap_records):
             if rec.HasField("frame_identifier"):
                 hm_by_ts[rec.frame_identifier.timestamp_ns] = i
-
-        positions_by_hm_idx: dict[int, list] = defaultdict(list)
-        for track in tracks:
-            for pos in track.positions:
-                positions_by_hm_idx[pos.frame_idx].append(
-                    (track.track_id, pos.cx, pos.cy, pos.interpolated)
-                )
 
         result = []
         for idx in frame_indices:
@@ -329,17 +418,22 @@ class MotioncapVideoLayer(VideoLayer):
                 c = tuple(int(v * fade) for v in color)
                 cv2.line(canvas, tail_pts[i - 1], tail_pts[i], c, 1, cv2.LINE_AA)
 
+        if not self.show_track_markers and not self.show_track_labels:
+            return
+
         for (tid, cx, cy, interp) in positions_by_hm_idx.get(current_hm_idx, []):
             color = _color_for(tid)
             center = (int(round(cx)), int(round(cy)))
-            if interp:
-                cv2.drawMarker(canvas, center, color, cv2.MARKER_CROSS, 10, 1, cv2.LINE_AA)
-            else:
-                cv2.circle(canvas, center, 6, color, 2, cv2.LINE_AA)
-            cv2.putText(
-                canvas, f"T{tid}", (center[0] + 8, center[1] - 8),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.45, color, 1, cv2.LINE_AA,
-            )
+            if self.show_track_markers:
+                if interp:
+                    cv2.drawMarker(canvas, center, color, cv2.MARKER_CROSS, 10, 1, cv2.LINE_AA)
+                else:
+                    cv2.circle(canvas, center, 6, color, 2, cv2.LINE_AA)
+            if self.show_track_labels:
+                cv2.putText(
+                    canvas, f"T{tid}", (center[0] + 8, center[1] - 8),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.45, color, 1, cv2.LINE_AA,
+                )
 
 
 # ── Registry ──────────────────────────────────────────────────────────────────

@@ -226,19 +226,32 @@ const LoadButton: React.FC = () => {
                       {rec.size_mb} MB &middot; {formatDate(rec.recorded_at)}
                     </div>
                   </div>
-                  {rec.has_segmentation && (
-                    <span style={{
-                      fontSize: '0.6rem',
-                      fontWeight: 600,
-                      padding: '0.15rem 0.4rem',
-                      border: '1px solid #00ff88',
-                      color: '#00ff88',
-                      letterSpacing: '0.08em',
-                      flexShrink: 0,
-                    }}>
-                      SEG
-                    </span>
-                  )}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexShrink: 0 }}>
+                    {rec.has_motioncap && (
+                      <span style={{
+                        fontSize: '0.6rem',
+                        fontWeight: 600,
+                        padding: '0.15rem 0.4rem',
+                        border: '1px solid #ffaa00',
+                        color: '#ffaa00',
+                        letterSpacing: '0.08em',
+                      }}>
+                        MOTION
+                      </span>
+                    )}
+                    {rec.has_segmentation && (
+                      <span style={{
+                        fontSize: '0.6rem',
+                        fontWeight: 600,
+                        padding: '0.15rem 0.4rem',
+                        border: '1px solid #00ff88',
+                        color: '#00ff88',
+                        letterSpacing: '0.08em',
+                      }}>
+                        SEG
+                      </span>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>

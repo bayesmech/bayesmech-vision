@@ -1,4 +1,4 @@
-import type { StreamStats, RecordingInfo } from '../types'
+import type { MotioncapTrackLegendItem, StreamStats, RecordingInfo } from '../types'
 
 export async function fetchStreamStats(): Promise<StreamStats> {
   const res = await fetch('/api/stream')
@@ -36,4 +36,19 @@ export async function uploadRecording(file: File): Promise<void> {
   formData.append('file', file)
   const res = await fetch('/api/upload_recording', { method: 'POST', body: formData })
   if (!res.ok) throw new Error(`Failed to upload recording: ${res.status}`)
+}
+
+export async function fetchPlaybackMotioncapTracks(): Promise<{
+  available: boolean
+  tracks: MotioncapTrackLegendItem[]
+}> {
+  const res = await fetch('/api/analysis/playback/analyses/motioncap/views/tracks')
+  if (!res.ok) throw new Error(`Failed to fetch motion capture tracks: ${res.status}`)
+  return res.json() as Promise<{ available: boolean; tracks: MotioncapTrackLegendItem[] }>
+}
+
+export async function fetchPlaybackMotioncapHeatmap(index: number): Promise<Blob> {
+  const res = await fetch(`/api/analysis/playback/analyses/motioncap/views/heatmap?frame_index=${index}`)
+  if (!res.ok) throw new Error(`Failed to fetch motion capture heatmap: ${res.status}`)
+  return res.blob()
 }
