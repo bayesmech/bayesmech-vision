@@ -37,6 +37,7 @@ class PairLog:
     inlier_count: int
     triangulated_left: int
     triangulated_right: int
+    on_road_count: int
 
 
 @dataclass
@@ -45,7 +46,7 @@ class Correspondence:
     source_y: float
     target_x: float
     target_y: float
-    side: str
+    on_road: bool
 
 
 class IndexedFrameReader:
@@ -101,9 +102,6 @@ class IndexedFrameReader:
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Render SIFT correspondence debug video")
     p.add_argument("recording", type=Path, help="Path to .vis.pb recording")
-    p.add_argument("--correspondences-csv", type=Path, default=None, help="Path to point_correspondences.csv")
-    p.add_argument("--pair-logs", type=Path, default=None, help="Path to pair_logs.json")
-    p.add_argument("--output", type=Path, default=None, help="Output mp4 path")
     p.add_argument("--fps", type=float, default=12.0)
     p.add_argument("--codec", type=str, default="mp4v")
     p.add_argument("--max-correspondences", type=int, default=160)
@@ -134,6 +132,7 @@ def load_pair_logs(path: Path) -> list[PairLog]:
             inlier_count=int(row.get("inlier_count", 0)),
             triangulated_left=int(row.get("triangulated_left", 0)),
             triangulated_right=int(row.get("triangulated_right", 0)),
+            on_road_count=int(row.get("on_road_count", 0)),
         )
         for row in rows
     ]
@@ -144,23 +143,25 @@ def load_correspondences(path: Path) -> dict[tuple[int, int], list[Correspondenc
     with path.open() as f:
         for row in csv.DictReader(f):
             key = (int(row["frame_index"]), int(row["paired_frame_index"]))
+            on_road_raw = str(row.get("on_road", "")).strip().lower()
+            on_road = on_road_raw in ("1", "true", "yes")
+            if not on_road_raw and str(row.get("side", "")).strip():
+                on_road = True
             grouped[key].append(
                 Correspondence(
                     source_x=float(row["source_x"]),
                     source_y=float(row["source_y"]),
                     target_x=float(row["target_x"]),
                     target_y=float(row["target_y"]),
-                    side=row.get("side", ""),
+                    on_road=on_road,
                 )
             )
     return grouped
 
 
-def side_color(side: str) -> tuple[int, int, int]:
-    if side == "left":
-        return (80, 220, 255)
-    if side == "right":
-        return (120, 255, 140)
+def match_color(on_road: bool) -> tuple[int, int, int]:
+    if on_road:
+        return (80, 80, 255)
     return (255, 255, 255)
 
 
@@ -215,12 +216,12 @@ def render_pair_frame(
         [
             f"SIFT debug  frame {pair_log.paired_frame_index}  pair {pair_log.frame_index}->{pair_log.paired_frame_index}",
             f"status={pair_log.status}  good={pair_log.good_match_count}  inliers={pair_log.inlier_count}",
-            f"shown={len(correspondences)} / {total_correspondences}  triangulated L/R={pair_log.triangulated_left}/{pair_log.triangulated_right}",
+            f"shown={len(correspondences)} / {total_correspondences}  on-road={pair_log.on_road_count}  triangulated={pair_log.triangulated_left + pair_log.triangulated_right}",
         ],
     )
 
     for corr in correspondences:
-        color = side_color(corr.side)
+        color = match_color(corr.on_road)
         src = np.array([float(corr.source_x), float(corr.source_y)], dtype=np.float64)
         dst = np.array([float(corr.target_x), float(corr.target_y)], dtype=np.float64)
         pt_src = tuple(int(round(v)) for v in src)
@@ -239,11 +240,9 @@ def render_pair_frame(
 def main() -> None:
     args = parse_args()
     recording = args.recording.resolve()
-    correspondences_csv = (
-        args.correspondences_csv.resolve() if args.correspondences_csv else default_correspondences_csv(recording)
-    )
-    pair_logs_path = args.pair_logs.resolve() if args.pair_logs else default_pair_logs_path(recording)
-    output_path = args.output.resolve() if args.output else default_output_path(recording)
+    correspondences_csv = default_correspondences_csv(recording)
+    pair_logs_path = default_pair_logs_path(recording)
+    output_path = default_output_path(recording)
 
     if not recording.exists():
         raise FileNotFoundError(f"Recording not found: {recording}")
@@ -256,6 +255,12 @@ def main() -> None:
     if not pair_logs:
         raise RuntimeError("No pair logs found")
     grouped = load_correspondences(correspondences_csv)
+    total_correspondence_count = sum(len(rows) for rows in grouped.values())
+    if total_correspondence_count == 0:
+        raise RuntimeError(
+            f"No correspondences found in {correspondences_csv}. "
+            "Rerun the triangulated stage to regenerate the SIFT debug data."
+        )
 
     needed_indices = {row.frame_index for row in pair_logs} | {row.paired_frame_index for row in pair_logs}
     frame_reader = IndexedFrameReader(recording, needed_indices)

@@ -75,9 +75,6 @@ class Anchor:
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Collapse repeated laps into one canonical track")
     p.add_argument("recording", type=Path, help="Path to .vis.pb recording")
-    p.add_argument("--segmentation", type=Path, default=None, help="Optional .seg.pb path")
-    p.add_argument("--width-csv", type=Path, default=None, help="Track width CSV; defaults to the plane-based output")
-    p.add_argument("--output-dir", type=Path, default=None, help="Optional output directory")
     p.add_argument("--sample-every", type=int, default=20, help="Frame stride for cross-lap anchor search")
     p.add_argument("--gps-radius-m", type=float, default=4.0, help="GPS proximity threshold for correspondence candidates")
     p.add_argument("--min-heading-cos", type=float, default=0.5, help="Minimum heading cosine for candidate pairs")
@@ -464,9 +461,9 @@ def write_canonical_plot(
 def main() -> None:
     args = parse_args()
     recording = args.recording.resolve()
-    segmentation = args.segmentation.resolve() if args.segmentation else seg_path(recording)
-    width_csv = args.width_csv.resolve() if args.width_csv else default_width_csv(recording)
-    out_dir = args.output_dir.resolve() if args.output_dir else output_path(recording)
+    segmentation = seg_path(recording)
+    width_csv = default_width_csv(recording)
+    out_dir = output_path(recording)
     out_dir.mkdir(parents=True, exist_ok=True)
 
     with width_csv.open() as f:

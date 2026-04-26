@@ -41,6 +41,9 @@ message IdoSlamPointCorrespondence {
   Vector3 world_point = 5;
 
   string side = 6;
+  bool on_road = 7;
+  bool triangulated = 8;
+  bool inlier = 9;
 }
 
 message IdoSlamPairDebug {
@@ -51,7 +54,32 @@ message IdoSlamPairDebug {
   uint32 inlier_count = 5;
   uint32 triangulated_left = 6;
   uint32 triangulated_right = 7;
-  repeated IdoSlamPointCorrespondence correspondences = 8;
+  uint32 on_road_count = 8;
+  repeated IdoSlamPointCorrespondence correspondences = 9;
+}
+
+message IdoSlamPairwiseMotion {
+  uint32 prev_frame_index = 1;
+  uint32 frame_index = 2;
+  uint64 prev_timestamp_ns = 3;
+  uint64 timestamp_ns = 4;
+  string status = 5;
+  uint32 keypoints_prev = 6;
+  uint32 keypoints = 7;
+  uint32 good_match_count = 8;
+  uint32 essential_inlier_count = 9;
+  float essential_inlier_ratio = 10;
+  float translation_magnitude = 11;
+  float rotation_deg = 12;
+  float dx = 13;
+  float dy = 14;
+  float dz = 15;
+  float qx = 16;
+  float qy = 17;
+  float qz = 18;
+  float qw = 19;
+  uint32 mask_pixels_prev = 20;
+  uint32 mask_pixels = 21;
 }
 
 message IdoSlamResponse {
@@ -60,7 +88,11 @@ message IdoSlamResponse {
   string segmentation_path = 3;
   string workspace_path = 4;
 
+  // Pre-GPS-refinement visual odometry poses.
   repeated IdoSlamFramePose frame_poses = 5;
   repeated IdoSlamGroundPoint ground_points = 6;
   repeated IdoSlamPairDebug pair_debug = 7;
+  // Post-GPS-refinement poses, when refinement is enabled and accepted.
+  repeated IdoSlamFramePose refined_frame_poses = 8;
+  repeated IdoSlamPairwiseMotion pairwise_motion = 9;
 }

@@ -42,7 +42,7 @@ from idoslam.common import (
     gps_to_local_xy,
     iter_messages,
     load_segmentation_index,
-    pairwise_output_dir,
+    preferred_trajectory_csv_path,
     project_track_to_2d,
     seg_path,
     triangulated_output_dir,
@@ -64,9 +64,6 @@ class PoseRow:
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Estimate road width from triangulated edge features")
     p.add_argument("recording", type=Path, help="Path to .vis.pb recording")
-    p.add_argument("--segmentation", type=Path, default=None, help="Optional .seg.pb path")
-    p.add_argument("--trajectory-csv", type=Path, default=None, help="Path to trajectory_pairwise_sift.csv")
-    p.add_argument("--output-dir", type=Path, default=None, help="Optional output directory")
     p.add_argument("--sample-every", type=int, default=4)
     p.add_argument("--pair-gap", type=int, default=4)
     p.add_argument("--mask-dilate", type=int, default=9)
@@ -89,7 +86,7 @@ def output_path(recording: Path) -> Path:
 
 
 def default_trajectory_path(recording: Path) -> Path:
-    return pairwise_output_dir(recording) / "trajectory_pairwise_sift.csv"
+    return preferred_trajectory_csv_path(recording)
 
 
 def quaternion_xyzw_to_matrix(q: np.ndarray) -> np.ndarray:
@@ -282,9 +279,9 @@ def write_track_width_plot(
 def main() -> None:
     args = parse_args()
     recording = args.recording.resolve()
-    segmentation = args.segmentation.resolve() if args.segmentation else seg_path(recording)
-    trajectory_csv = args.trajectory_csv.resolve() if args.trajectory_csv else default_trajectory_path(recording)
-    out_dir = args.output_dir.resolve() if args.output_dir else output_path(recording)
+    segmentation = seg_path(recording)
+    trajectory_csv = default_trajectory_path(recording)
+    out_dir = output_path(recording)
     out_dir.mkdir(parents=True, exist_ok=True)
 
     poses = load_trajectory(trajectory_csv)
@@ -368,6 +365,7 @@ def main() -> None:
             "inlier_count": 0,
             "triangulated_left": 0,
             "triangulated_right": 0,
+            "on_road_count": 0,
         }
         if desc_i is None or desc_j is None or len(kp_i) < 8 or len(kp_j) < 8:
             pair_logs.append(log_row)
@@ -381,6 +379,36 @@ def main() -> None:
             if m.distance < args.ratio_test * n.distance:
                 good_matches.append(m)
         log_row["good_match_count"] = len(good_matches)
+        match_rows: list[dict[str, object]] = []
+        on_road_count = 0
+        for m in good_matches:
+            pt_i = np.array(kp_i[m.queryIdx].pt, dtype=np.float64)
+            pt_j = np.array(kp_j[m.trainIdx].pt, dtype=np.float64)
+            xi = int(np.clip(round(pt_i[0]), 0, w - 1))
+            yi = int(np.clip(round(pt_i[1]), 0, h - 1))
+            xj = int(np.clip(round(pt_j[0]), 0, w - 1))
+            yj = int(np.clip(round(pt_j[1]), 0, h - 1))
+            on_road = bool(road_i[yi, xi] > 0 and road_j[yj, xj] > 0)
+            if on_road:
+                on_road_count += 1
+            row = {
+                "frame_index": idx,
+                "paired_frame_index": j,
+                "source_x": float(pt_i[0]),
+                "source_y": float(pt_i[1]),
+                "target_x": float(pt_j[0]),
+                "target_y": float(pt_j[1]),
+                "world_x": "",
+                "world_y": "",
+                "world_z": "",
+                "side": "",
+                "on_road": on_road,
+                "triangulated": False,
+                "inlier": False,
+            }
+            correspondence_rows.append(row)
+            match_rows.append(row)
+        log_row["on_road_count"] = on_road_count
         if len(good_matches) < args.min_good_matches:
             log_row["status"] = "too_few_matches"
             pair_logs.append(log_row)
@@ -414,13 +442,18 @@ def main() -> None:
         p_j = projection_matrix(intr, poses[j])
         left_count = 0
         right_count = 0
-        for m in inlier_matches:
+        for m, keep, row in zip(good_matches, inlier_mask, match_rows):
+            if not keep:
+                continue
+            row["inlier"] = True
             pt_i = np.array(kp_i[m.queryIdx].pt, dtype=np.float64)
             pt_j = np.array(kp_j[m.trainIdx].pt, dtype=np.float64)
             xi = int(np.clip(round(pt_i[0]), 0, w - 1))
             yi = int(np.clip(round(pt_i[1]), 0, h - 1))
             xj = int(np.clip(round(pt_j[0]), 0, w - 1))
             yj = int(np.clip(round(pt_j[1]), 0, h - 1))
+            if not row["on_road"]:
+                continue
             if edge_i[yi, xi] > args.edge_distance_px or edge_j[yj, xj] > args.edge_distance_px:
                 continue
             side_i = image_to_side(road_i, pt_i[0], pt_i[1], bike_x_i, min_segment_px)
@@ -440,20 +473,11 @@ def main() -> None:
                 continue
             boundary_points_world.append(world_point)
             boundary_meta.append((idx, j, side_i))
-            correspondence_rows.append(
-                {
-                    "frame_index": idx,
-                    "paired_frame_index": j,
-                    "source_x": float(pt_i[0]),
-                    "source_y": float(pt_i[1]),
-                    "target_x": float(pt_j[0]),
-                    "target_y": float(pt_j[1]),
-                    "world_x": float(world_point[0]),
-                    "world_y": float(world_point[1]),
-                    "world_z": float(world_point[2]),
-                    "side": side_i,
-                }
-            )
+            row["world_x"] = float(world_point[0])
+            row["world_y"] = float(world_point[1])
+            row["world_z"] = float(world_point[2])
+            row["side"] = side_i
+            row["triangulated"] = True
             if side_i == "left":
                 left_count += 1
             else:
@@ -590,6 +614,9 @@ def main() -> None:
                 "world_y",
                 "world_z",
                 "side",
+                "on_road",
+                "triangulated",
+                "inlier",
             ],
         )
         writer.writeheader()
@@ -620,6 +647,9 @@ def main() -> None:
                 "world_y",
                 "world_z",
                 "side",
+                "on_road",
+                "triangulated",
+                "inlier",
             ],
         )
         writer.writeheader()

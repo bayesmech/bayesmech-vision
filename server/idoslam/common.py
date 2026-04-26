@@ -45,12 +45,27 @@ def pairwise_motion_csv_path(recording_path: Path) -> Path:
     return pairwise_output_dir(recording_path) / "pairwise_sift_motion.csv"
 
 
+def pairwise_track_plot_path(recording_path: Path) -> Path:
+    return pairwise_output_dir(recording_path) / "track_plot.png"
+
+
 def pose_refine_output_dir(recording_path: Path) -> Path:
     return workspace_path(recording_path) / "pose_refined"
 
 
 def refined_trajectory_csv_path(recording_path: Path) -> Path:
     return pose_refine_output_dir(recording_path) / "trajectory_pairwise_sift_refined.csv"
+
+
+def refined_track_plot_path(recording_path: Path) -> Path:
+    return pose_refine_output_dir(recording_path) / "track_plot.png"
+
+
+def preferred_trajectory_csv_path(recording_path: Path) -> Path:
+    refined = refined_trajectory_csv_path(recording_path)
+    if refined.exists():
+        return refined
+    return pairwise_trajectory_csv_path(recording_path)
 
 
 def plane_output_dir(recording_path: Path) -> Path:
@@ -115,6 +130,22 @@ def sift_debug_video_output_path(recording_path: Path) -> Path:
 
 def track_map_png_output_path(recording_path: Path) -> Path:
     return recording_path.parent / f"{recording_stem(recording_path)}.idoslam.track_map.png"
+
+
+def pre_refinement_track_plot_output_path(recording_path: Path) -> Path:
+    return recording_path.parent / f"{recording_stem(recording_path)}.idoslam.pre_refinement_poses.png"
+
+
+def post_refinement_track_plot_output_path(recording_path: Path) -> Path:
+    return recording_path.parent / f"{recording_stem(recording_path)}.idoslam.post_refinement_poses.png"
+
+
+def road_feature_track_output_path(recording_path: Path) -> Path:
+    return recording_path.parent / f"{recording_stem(recording_path)}.idoslam.road_feature_track.png"
+
+
+def road_plane_projection_video_output_path(recording_path: Path) -> Path:
+    return recording_path.parent / f"{recording_stem(recording_path)}.idoslam.road_plane_projection.mp4"
 
 
 def idoslam_proto_path(recording_path: Path) -> Path:
@@ -256,6 +287,92 @@ def fit_similarity(src: np.ndarray, dst: np.ndarray) -> tuple[float, np.ndarray,
     return scale, rot, trans
 
 
+def rotation_matrix_2d(theta_rad: float) -> np.ndarray:
+    c = math.cos(theta_rad)
+    s = math.sin(theta_rad)
+    return np.array([[c, -s], [s, c]], dtype=np.float64)
+
+
+def estimate_pairwise_global_alignment(
+    visual_xy: np.ndarray,
+    gps_xy: np.ndarray,
+) -> dict[str, object]:
+    if len(visual_xy) != len(gps_xy):
+        raise ValueError("visual_xy and gps_xy must have the same length")
+    if len(visual_xy) < 2:
+        rot = np.eye(2, dtype=np.float64)
+        trans = gps_xy.mean(axis=0) - visual_xy.mean(axis=0) if len(visual_xy) else np.zeros(2, dtype=np.float64)
+        return {
+            "scale": 1.0,
+            "scale_divisor": 1.0,
+            "visual_to_gps_scale": 1.0,
+            "theta_rad": 0.0,
+            "theta_deg": 0.0,
+            "rotation": rot,
+            "translation": trans,
+            "pair_count": 0,
+        }
+
+    gps_frame_delta = gps_xy[1:] - gps_xy[:-1]
+    gps_frame_delta_norm = np.linalg.norm(gps_frame_delta, axis=1)
+    change_idx = np.concatenate(([0], np.flatnonzero(gps_frame_delta_norm > 1e-6) + 1))
+    if len(change_idx) < 2:
+        change_idx = np.arange(len(gps_xy), dtype=np.int64)
+
+    visual_delta = visual_xy[change_idx[1:]] - visual_xy[change_idx[:-1]]
+    gps_delta = gps_xy[change_idx[1:]] - gps_xy[change_idx[:-1]]
+    visual_norm = np.linalg.norm(visual_delta, axis=1)
+    gps_norm = np.linalg.norm(gps_delta, axis=1)
+    valid = (visual_norm > 1e-9) & (gps_norm > 1e-9)
+    if not np.any(valid):
+        rot = np.eye(2, dtype=np.float64)
+        trans = gps_xy.mean(axis=0) - visual_xy.mean(axis=0)
+        return {
+            "scale": 1.0,
+            "scale_divisor": 1.0,
+            "visual_to_gps_scale": 1.0,
+            "theta_rad": 0.0,
+            "theta_deg": 0.0,
+            "rotation": rot,
+            "translation": trans,
+            "pair_count": 0,
+        }
+
+    v = visual_delta[valid]
+    g = gps_delta[valid]
+    angles = np.arctan2(
+        v[:, 0] * g[:, 1] - v[:, 1] * g[:, 0],
+        np.sum(v * g, axis=1),
+    )
+    theta = float(math.atan2(float(np.mean(np.sin(angles))), float(np.mean(np.cos(angles)))))
+    scale_divisor = float(np.mean(visual_norm[valid] / gps_norm[valid]))
+    visual_to_gps_scale = 1.0 / scale_divisor if scale_divisor > 1e-12 else 1.0
+    rot = rotation_matrix_2d(theta)
+    transformed = ((rot @ visual_xy.T).T) / scale_divisor
+    trans = np.mean(gps_xy - transformed, axis=0)
+    return {
+        "scale": scale_divisor,
+        "scale_divisor": scale_divisor,
+        "visual_to_gps_scale": visual_to_gps_scale,
+        "theta_rad": theta,
+        "theta_deg": math.degrees(theta),
+        "rotation": rot,
+        "translation": trans,
+        "pair_count": int(np.count_nonzero(valid)),
+        "gps_change_index_count": int(len(change_idx)),
+    }
+
+
+def apply_pairwise_global_alignment(
+    visual_xy: np.ndarray,
+    alignment: dict[str, object],
+) -> np.ndarray:
+    scale_divisor = float(alignment.get("scale_divisor", alignment["scale"]))
+    rot = np.asarray(alignment["rotation"], dtype=np.float64)
+    trans = np.asarray(alignment["translation"], dtype=np.float64)
+    return ((rot @ visual_xy.T).T) / scale_divisor + trans
+
+
 def write_track_plot(
     out_path: Path,
     slam_rows: list[dict[str, float]],
@@ -272,14 +389,14 @@ def write_track_plot(
         for row in gps_rows
     }
     common_ts = sorted(set(slam_by_ts) & set(gps_by_ts))
-    if len(common_ts) < 20:
+    if len(common_ts) < 2:
         return
     slam_xyz = np.vstack([slam_by_ts[ts] for ts in common_ts])
     gps_latlon = np.vstack([gps_by_ts[ts] for ts in common_ts])
     slam_2d = project_track_to_2d(slam_xyz)
     gps_2d = gps_to_local_xy(gps_latlon[:, 0], gps_latlon[:, 1])
-    scale, rot, trans = fit_similarity(slam_2d, gps_2d)
-    aligned = (scale * (rot @ slam_2d.T)).T + trans
+    alignment = estimate_pairwise_global_alignment(slam_2d, gps_2d)
+    aligned = apply_pairwise_global_alignment(slam_2d, alignment)
 
     fig, axes = plt.subplots(1, 3, figsize=(15, 5))
     axes[0].plot(slam_2d[:, 0], slam_2d[:, 1], color="#c28f00", linewidth=2)
@@ -289,7 +406,11 @@ def write_track_plot(
     axes[2].plot(gps_2d[:, 0], gps_2d[:, 1], color="#2f7f3f", linewidth=2, label="GPS")
     axes[2].plot(aligned[:, 0], aligned[:, 1], color="#c28f00", linewidth=2, label="VO aligned")
     axes[2].legend()
-    axes[2].set_title("Overlay")
+    axes[2].set_title(
+        "Overlay "
+        f"theta={float(alignment['theta_deg']):.1f}deg "
+        f"scale_div={float(alignment['scale_divisor']):.2f}"
+    )
     for ax in axes:
         ax.set_aspect("equal", adjustable="box")
         ax.grid(True, alpha=0.3)

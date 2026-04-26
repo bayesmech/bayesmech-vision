@@ -40,8 +40,6 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("recording", type=Path, help="Path to .vis.pb recording")
     p.add_argument("frame_a", type=int, help="Global frame index for the first image")
     p.add_argument("frame_b", type=int, help="Global frame index for the second image")
-    p.add_argument("--segmentation", type=Path, default=None, help="Optional .seg.pb path")
-    p.add_argument("--output-dir", type=Path, default=None, help="Optional output directory")
     p.add_argument(
         "--mask-labels",
         default="bike",
@@ -169,8 +167,8 @@ def main() -> None:
         raise ValueError("frame_a must be smaller than frame_b")
 
     recording = args.recording.resolve()
-    segmentation = args.segmentation.resolve() if args.segmentation else seg_path(recording)
-    out_dir = args.output_dir.resolve() if args.output_dir else output_path(recording, args.frame_a, args.frame_b)
+    segmentation = seg_path(recording)
+    out_dir = output_path(recording, args.frame_a, args.frame_b)
     out_dir.mkdir(parents=True, exist_ok=True)
 
     labels = parse_labels(args.mask_labels)

@@ -52,8 +52,6 @@ from idoslam.sift_pair_pose import rotation_matrix_to_quaternion_xyzw
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Build a custom pairwise SIFT trajectory")
     p.add_argument("recording", type=Path, help="Path to .vis.pb recording")
-    p.add_argument("--segmentation", type=Path, default=None, help="Optional .seg.pb path")
-    p.add_argument("--output-dir", type=Path, default=None, help="Optional output directory")
     p.add_argument("--start-frame", type=int, default=0)
     p.add_argument("--max-frames", type=int, default=0)
     p.add_argument(
@@ -145,8 +143,8 @@ def world_quaternion_from_rotation(world_r_cam: np.ndarray) -> np.ndarray:
 def main() -> None:
     args = parse_args()
     recording = args.recording.resolve()
-    segmentation = args.segmentation.resolve() if args.segmentation else seg_path(recording)
-    out_dir = args.output_dir.resolve() if args.output_dir else output_path(recording)
+    segmentation = seg_path(recording)
+    out_dir = output_path(recording)
     out_dir.mkdir(parents=True, exist_ok=True)
 
     labels = parse_labels(args.mask_labels)

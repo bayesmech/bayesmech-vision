@@ -53,8 +53,6 @@ TRAVERSABLE_LABELS = ("road", "pavement")
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Estimate road width along the GPS track")
     p.add_argument("recording", type=Path, help="Path to .vis.pb recording")
-    p.add_argument("--segmentation", type=Path, default=None, help="Optional .seg.pb path")
-    p.add_argument("--output-dir", type=Path, default=None, help="Optional output directory")
     p.add_argument("--camera-height-m", type=float, default=1.45)
     p.add_argument("--pitch-deg", type=float, default=None, help="Optional fixed pitch; otherwise estimate from masks")
     p.add_argument("--pitch-sample-every", type=int, default=8)
@@ -285,8 +283,8 @@ def write_track_width_plot(
 def main() -> None:
     args = parse_args()
     recording = args.recording.resolve()
-    segmentation = args.segmentation.resolve() if args.segmentation else seg_path(recording)
-    out_dir = args.output_dir.resolve() if args.output_dir else output_path(recording)
+    segmentation = seg_path(recording)
+    out_dir = output_path(recording)
     out_dir.mkdir(parents=True, exist_ok=True)
 
     seg_frames, label_counts = load_segmentation_index(segmentation)

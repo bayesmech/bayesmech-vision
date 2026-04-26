@@ -39,7 +39,7 @@ from idoslam.common import (
     iter_messages,
     load_segmentation_index,
     plane_output_dir,
-    road_grid_debug_video_path,
+    road_debug_video_output_path,
     seg_path,
 )
 from idoslam.track_width_map_plane import (
@@ -353,10 +353,6 @@ class GroundPlaneContourTracker:
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Render stitched road-contour debug video")
     p.add_argument("recording", type=Path, help="Path to .vis.pb recording")
-    p.add_argument("--segmentation", type=Path, default=None, help="Optional .seg.pb path")
-    p.add_argument("--track-width-dir", type=Path, default=None, help="Directory with plane width output")
-    p.add_argument("--canonical-dir", type=Path, default=None, help="Directory with canonical track output")
-    p.add_argument("--output", type=Path, default=None, help="Output mp4 path")
     p.add_argument("--panel-width", type=int, default=560)
     p.add_argument("--mask-alpha", type=float, default=0.35)
     p.add_argument("--contour-hold-frames", type=int, default=6)
@@ -383,7 +379,7 @@ def default_canonical_dir(recording: Path) -> Path:
 
 
 def default_output_path(recording: Path) -> Path:
-    return road_grid_debug_video_path(recording)
+    return road_debug_video_output_path(recording)
 
 
 def alpha_fill_mask(
@@ -625,10 +621,10 @@ def render_frame(
 def main() -> None:
     args = parse_args()
     recording = args.recording.resolve()
-    segmentation = args.segmentation.resolve() if args.segmentation else seg_path(recording)
-    track_width_dir = args.track_width_dir.resolve() if args.track_width_dir else default_track_width_dir(recording)
-    canonical_dir = args.canonical_dir.resolve() if args.canonical_dir else default_canonical_dir(recording)
-    output_path = args.output.resolve() if args.output else default_output_path(recording)
+    segmentation = seg_path(recording)
+    track_width_dir = default_track_width_dir(recording)
+    canonical_dir = default_canonical_dir(recording)
+    output_path = default_output_path(recording)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     plane_summary = json.loads((track_width_dir / "summary.json").read_text())
