@@ -49,7 +49,6 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--bottom-border", type=int, default=24)
     p.add_argument("--ratio-test", type=float, default=0.75)
     p.add_argument("--essential-threshold", type=float, default=1.5)
-    p.add_argument("--max-draw-matches", type=int, default=150)
     return p.parse_args()
 
 
@@ -132,35 +131,6 @@ def combined_mask(
     return mask, int(np.count_nonzero(mask))
 
 
-def overlay_mask(image_bgr: np.ndarray, mask: np.ndarray) -> np.ndarray:
-    canvas = image_bgr.copy()
-    if np.any(mask):
-        overlay = canvas.copy()
-        overlay[mask > 0] = (40, 40, 240)
-        canvas = cv2.addWeighted(canvas, 0.75, overlay, 0.25, 0.0)
-    return canvas
-
-
-def draw_inlier_matches(
-    img_a: np.ndarray,
-    kp_a: list[cv2.KeyPoint],
-    img_b: np.ndarray,
-    kp_b: list[cv2.KeyPoint],
-    matches: list[cv2.DMatch],
-) -> np.ndarray:
-    return cv2.drawMatches(
-        img_a,
-        kp_a,
-        img_b,
-        kp_b,
-        matches,
-        None,
-        matchColor=(50, 220, 50),
-        singlePointColor=(255, 255, 255),
-        flags=cv2.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS,
-    )
-
-
 def main() -> None:
     args = parse_args()
     if args.frame_a >= args.frame_b:
@@ -233,20 +203,6 @@ def main() -> None:
     q = rotation_matrix_to_quaternion_xyzw(R)
     t_norm = float(np.linalg.norm(t))
     rot_deg = float(math.degrees(np.linalg.norm(cv2.Rodrigues(R)[0])))
-
-    vis_a = overlay_mask(bgr_a, mask_a)
-    vis_b = overlay_mask(bgr_b, mask_b)
-    match_vis = draw_inlier_matches(
-        vis_a,
-        kp_a,
-        vis_b,
-        kp_b,
-        inlier_matches[: args.max_draw_matches],
-    )
-
-    cv2.imwrite(str(out_dir / "frame_a.png"), vis_a)
-    cv2.imwrite(str(out_dir / "frame_b.png"), vis_b)
-    cv2.imwrite(str(out_dir / "matches_inliers.png"), match_vis)
 
     report = {
         "recording": str(recording),

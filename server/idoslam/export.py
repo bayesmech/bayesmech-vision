@@ -22,12 +22,10 @@ from idoslam.common import (
     idoslam_proto_path,
     iter_messages,
     pairwise_motion_csv_path,
-    pairwise_track_plot_path,
     pairwise_trajectory_csv_path,
     plane_output_dir,
     plane_width_csv_path,
     refined_trajectory_csv_path,
-    refined_track_plot_path,
     seg_path,
     triangulated_correspondences_csv_path,
     triangulated_ground_points_csv_path,
@@ -35,7 +33,6 @@ from idoslam.common import (
     triangulated_output_dir,
     triangulated_width_csv_path,
     workspace_path,
-    write_track_plot,
 )
 
 _idoslam_io = ProtoIO(idoslam_pb2.IdoSlamResponse)
@@ -72,25 +69,6 @@ def read_idoslam_pb(path: Path) -> idoslam_pb2.IdoSlamResponse:
     if not records:
         raise RuntimeError(f"No IdoSlamResponse records found in {path}")
     return records[-1]
-
-
-def _load_gps_rows(recording: Path) -> list[dict[str, float]]:
-    gps_rows: list[dict[str, float]] = []
-    for frame_index, frame in enumerate(iter_messages(recording, perceiver_pb2.PerceiverDataFrame)):
-        if not frame.HasField("gps_location"):
-            continue
-        gps_rows.append(
-            {
-                "frame_index": frame_index,
-                "frame_number": int(frame.frame_identifier.frame_number),
-                "timestamp_ns": int(frame.frame_identifier.timestamp_ns),
-                "latitude": float(frame.gps_location.latitude),
-                "longitude": float(frame.gps_location.longitude),
-                "altitude": float(frame.gps_location.altitude),
-                "accuracy": float(frame.gps_location.accuracy),
-            }
-        )
-    return gps_rows
 
 
 def _frame_pose_rows_from_proto(
@@ -487,18 +465,15 @@ def hydrate_workspace_from_idoslam_pb(recording: Path) -> dict[str, bool]:
         "has_triangulated_width": len(response.triangulated_width_estimates) > 0,
     }
 
-    gps_rows = _load_gps_rows(recording)
     if state["has_raw_poses"]:
         raw_csv = pairwise_trajectory_csv_path(recording)
         _write_frame_pose_csv(raw_csv, list(response.frame_poses))
         if state["has_pairwise_motion"]:
             _write_pairwise_motion_csv(pairwise_motion_csv_path(recording), list(response.pairwise_motion))
-        write_track_plot(pairwise_track_plot_path(recording), _frame_pose_rows_from_proto(list(response.frame_poses)), gps_rows)
 
     if state["has_refined_poses"]:
         refined_csv = refined_trajectory_csv_path(recording)
         _write_frame_pose_csv(refined_csv, list(response.refined_frame_poses))
-        write_track_plot(refined_track_plot_path(recording), _frame_pose_rows_from_proto(list(response.refined_frame_poses)), gps_rows)
 
     if state["has_ground_points"] or state["has_pair_debug"]:
         _write_triangulated_outputs(

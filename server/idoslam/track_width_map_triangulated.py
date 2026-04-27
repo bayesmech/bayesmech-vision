@@ -20,11 +20,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import cv2
-import matplotlib
 import numpy as np
-
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
 
 _server_root = Path(__file__).resolve().parent.parent
 _project_root = _server_root.parent
@@ -77,7 +73,6 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--closing-width", type=int, default=181)
     p.add_argument("--closing-height", type=int, default=9)
     p.add_argument("--min-segment-frac", type=float, default=0.06)
-    p.add_argument("--plot-every", type=int, default=25)
     return p.parse_args()
 
 
@@ -230,50 +225,6 @@ def smooth_series(values: np.ndarray, window: int) -> np.ndarray:
         chunk = values[lo:hi]
         out[i] = np.median(chunk)
     return out
-
-
-def write_track_width_plot(
-    out_path: Path,
-    gps_xy: np.ndarray,
-    left_offsets_m: np.ndarray,
-    right_offsets_m: np.ndarray,
-    valid_mask: np.ndarray,
-    plot_every: int,
-) -> None:
-    if len(gps_xy) < 2:
-        return
-    tangents = np.zeros_like(gps_xy)
-    tangents[1:-1] = gps_xy[2:] - gps_xy[:-2]
-    tangents[0] = gps_xy[1] - gps_xy[0]
-    tangents[-1] = gps_xy[-1] - gps_xy[-2]
-    tangent_norm = np.linalg.norm(tangents, axis=1, keepdims=True)
-    tangent_norm[tangent_norm < 1e-6] = 1.0
-    tangents = tangents / tangent_norm
-    normals = np.column_stack([-tangents[:, 1], tangents[:, 0]])
-
-    left_boundary = gps_xy + normals * left_offsets_m[:, None]
-    right_boundary = gps_xy - normals * right_offsets_m[:, None]
-
-    fig, ax = plt.subplots(figsize=(12, 12))
-    ax.plot(gps_xy[:, 0], gps_xy[:, 1], color="#b22222", linewidth=2.0, label="Bike GPS path")
-    ax.plot(left_boundary[valid_mask, 0], left_boundary[valid_mask, 1], color="#1f77b4", linewidth=1.5, label="Left edge")
-    ax.plot(right_boundary[valid_mask, 0], right_boundary[valid_mask, 1], color="#2ca02c", linewidth=1.5, label="Right edge")
-    valid_idx = np.flatnonzero(valid_mask)
-    for idx in valid_idx[:: max(plot_every, 1)]:
-        ax.plot(
-            [left_boundary[idx, 0], right_boundary[idx, 0]],
-            [left_boundary[idx, 1], right_boundary[idx, 1]],
-            color="#666666",
-            alpha=0.2,
-            linewidth=1.0,
-        )
-    ax.set_title("GPS Track With Triangulated Road Width")
-    ax.set_aspect("equal", adjustable="box")
-    ax.grid(True, alpha=0.3)
-    ax.legend()
-    fig.tight_layout()
-    fig.savefig(out_path, dpi=180)
-    plt.close(fig)
 
 
 def main() -> None:
@@ -657,15 +608,6 @@ def main() -> None:
 
     with (out_dir / "pair_logs.json").open("w") as f:
         json.dump(pair_logs, f, indent=2)
-
-    write_track_width_plot(
-        out_path=out_dir / "track_width_map.png",
-        gps_xy=gps_xy,
-        left_offsets_m=left_offsets,
-        right_offsets_m=right_offsets,
-        valid_mask=np.ones(len(gps_rows), dtype=bool),
-        plot_every=args.plot_every,
-    )
 
     summary = {
         "recording": str(recording),

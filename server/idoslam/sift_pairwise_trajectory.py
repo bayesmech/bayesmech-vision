@@ -44,7 +44,6 @@ from idoslam.common import (
     pairwise_output_dir,
     project_track_to_2d,
     seg_path,
-    write_track_plot,
 )
 from idoslam.sift_pair_pose import rotation_matrix_to_quaternion_xyzw
 
@@ -102,38 +101,6 @@ def combined_mask(
         h = image_shape[0]
         mask[h - min(bottom_border, h) :, :] = 255
     return mask, int(np.count_nonzero(mask))
-
-
-def draw_match_debug(
-    prev_bgr: np.ndarray,
-    prev_mask: np.ndarray,
-    prev_kp: list[cv2.KeyPoint],
-    cur_bgr: np.ndarray,
-    cur_mask: np.ndarray,
-    cur_kp: list[cv2.KeyPoint],
-    matches: list[cv2.DMatch],
-) -> np.ndarray:
-    left = prev_bgr.copy()
-    right = cur_bgr.copy()
-    if np.any(prev_mask):
-        overlay = left.copy()
-        overlay[prev_mask > 0] = (40, 40, 240)
-        left = cv2.addWeighted(left, 0.75, overlay, 0.25, 0.0)
-    if np.any(cur_mask):
-        overlay = right.copy()
-        overlay[cur_mask > 0] = (40, 40, 240)
-        right = cv2.addWeighted(right, 0.75, overlay, 0.25, 0.0)
-    return cv2.drawMatches(
-        left,
-        prev_kp,
-        right,
-        cur_kp,
-        matches,
-        None,
-        matchColor=(50, 220, 50),
-        singlePointColor=(255, 255, 255),
-        flags=cv2.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS,
-    )
 
 
 def world_quaternion_from_rotation(world_r_cam: np.ndarray) -> np.ndarray:
@@ -240,8 +207,6 @@ def main() -> None:
     gps_writer.writeheader()
 
     events_file = (out_dir / "events.jsonl").open("w")
-    debug_dir = out_dir / "debug_pairs"
-    debug_dir.mkdir(parents=True, exist_ok=True)
 
     first_q = world_quaternion_from_rotation(world_r_cam)
     traj_rows = [
@@ -398,18 +363,6 @@ def main() -> None:
         pair_writer.writerow(pair_row)
         events_file.write(json.dumps(pair_row) + "\n")
 
-        if pair_status != "ok":
-            debug_image = draw_match_debug(
-                prev_bgr,
-                prev_mask,
-                prev_kp if prev_kp is not None else [],
-                cur_bgr,
-                cur_mask,
-                cur_kp if cur_kp is not None else [],
-                good_matches[:150],
-            )
-            cv2.imwrite(str(debug_dir / f"pair_{cur_index - 1:05d}_{cur_index:05d}_{pair_status}.png"), debug_image)
-
         prev_frame = cur_frame
         prev_bgr = cur_bgr
         prev_gray = cur_gray
@@ -425,8 +378,6 @@ def main() -> None:
                 f"Processed {processed_pairs} pairs in {elapsed:.1f}s "
                 f"({processed_pairs / max(elapsed, 1e-6):.1f} pairs/s), ok={ok_pairs}"
             )
-
-    write_track_plot(out_dir / "track_plot.png", traj_rows, gps_rows)
 
     if traj_rows and gps_rows:
         slam_xyz = np.array([[r["x"], r["y"], r["z"]] for r in traj_rows], dtype=np.float64)

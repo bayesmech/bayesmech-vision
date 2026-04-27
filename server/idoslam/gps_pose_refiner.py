@@ -31,7 +31,6 @@ from idoslam.common import (
     pose_refine_output_dir,
     project_track_to_2d,
     refined_trajectory_csv_path,
-    write_track_plot,
 )
 
 
@@ -451,28 +450,9 @@ def copy_raw_outputs(
     trajectory_csv: Path,
     out_csv: Path,
     out_dir: Path,
-    traj_rows_for_plot: list[dict[str, float]],
-    gps_rows: list[dict[str, float]],
     summary: dict[str, object],
 ) -> None:
     shutil.copy2(trajectory_csv, out_csv)
-    write_track_plot(out_dir / "track_plot.png", traj_rows_for_plot, gps_rows)
-    write_track_plot(out_dir / "pre_refinement_poses.png", traj_rows_for_plot, gps_rows)
-    write_track_plot(out_dir / "post_refinement_poses.png", traj_rows_for_plot, gps_rows)
-    raw_track_plot = trajectory_csv.parent / "track_plot.png"
-    if not (out_dir / "track_plot.png").exists() and raw_track_plot.exists():
-        shutil.copy2(raw_track_plot, out_dir / "track_plot.png")
-    if not (out_dir / "pre_refinement_poses.png").exists() and raw_track_plot.exists():
-        shutil.copy2(raw_track_plot, out_dir / "pre_refinement_poses.png")
-    if not (out_dir / "post_refinement_poses.png").exists() and raw_track_plot.exists():
-        shutil.copy2(raw_track_plot, out_dir / "post_refinement_poses.png")
-    summary.update(
-        {
-            "pre_refinement_pose_plot": str(out_dir / "pre_refinement_poses.png"),
-            "post_refinement_pose_plot": str(out_dir / "post_refinement_poses.png"),
-            "selected_pose_plot": str(out_dir / "track_plot.png"),
-        }
-    )
     (out_dir / "summary.json").write_text(json.dumps(summary, indent=2))
 
 
@@ -537,17 +517,6 @@ def main() -> None:
     needed_timestamps = {row.timestamp_ns for row in traj_rows}
     gps_rows = load_gps_rows(recording, needed_timestamps)
 
-    plot_traj_rows = [
-        {
-            "frame_index": row.frame_index,
-            "frame_number": row.frame_number,
-            "timestamp_ns": row.timestamp_ns,
-            "x": row.x,
-            "y": row.y,
-            "z": row.z,
-        }
-        for row in traj_rows
-    ]
     base_summary: dict[str, object] = {
         "recording": str(recording),
         "trajectory_csv": str(trajectory_csv),
@@ -564,7 +533,7 @@ def main() -> None:
             "accepted": False,
             "reason": "disabled_in_config",
         }
-        copy_raw_outputs(trajectory_csv, out_csv, out_dir, plot_traj_rows, gps_rows, summary)
+        copy_raw_outputs(trajectory_csv, out_csv, out_dir, summary)
         print(json.dumps(summary, indent=2))
         return
 
@@ -611,7 +580,7 @@ def main() -> None:
             "reason": "too_few_gps_matches",
             "gps_match_count": len(observed_indices),
         }
-        copy_raw_outputs(trajectory_csv, out_csv, out_dir, plot_traj_rows, gps_rows, summary)
+        copy_raw_outputs(trajectory_csv, out_csv, out_dir, summary)
         print(json.dumps(summary, indent=2))
         return
 
@@ -633,7 +602,7 @@ def main() -> None:
             "accepted": False,
             "reason": "invalid_two_point_anchor_similarity",
         }
-        copy_raw_outputs(trajectory_csv, out_csv, out_dir, plot_traj_rows, gps_rows, summary)
+        copy_raw_outputs(trajectory_csv, out_csv, out_dir, summary)
         print(json.dumps(summary, indent=2))
         return
 
@@ -732,11 +701,7 @@ def main() -> None:
     refined_coords2 = inverse_metric_track_xy(refined_metric_xy, similarity_scale, similarity_rot, similarity_trans)
     refined_xyz = plane_mean[None, :] + refined_coords2 @ plane_basis2.T + heights[:, None] * plane_normal[None, :]
     chosen_metric_xy = refined_metric_xy if accepted else raw_metric_xy
-    chosen_coords2 = inverse_metric_track_xy(chosen_metric_xy, similarity_scale, similarity_rot, similarity_trans)
-    chosen_xyz = plane_mean[None, :] + chosen_coords2 @ plane_basis2.T + heights[:, None] * plane_normal[None, :]
 
-    refined_candidate_rows: list[dict[str, float]] = []
-    selected_rows: list[dict[str, float]] = []
     with out_csv.open("w", newline="") as f:
         fieldnames = ["frame_index", "frame_number", "timestamp_ns", "x", "y", "z", "qx", "qy", "qz", "qw"]
         writer = csv.DictWriter(f, fieldnames=fieldnames)
@@ -754,26 +719,7 @@ def main() -> None:
                 "qz": row.qz,
                 "qw": row.qw,
             }
-            selected_row = {
-                "frame_index": row.frame_index,
-                "frame_number": row.frame_number,
-                "timestamp_ns": row.timestamp_ns,
-                "x": float(chosen_xyz[idx, 0]),
-                "y": float(chosen_xyz[idx, 1]),
-                "z": float(chosen_xyz[idx, 2]),
-                "qx": row.qx,
-                "qy": row.qy,
-                "qz": row.qz,
-                "qw": row.qw,
-            }
             writer.writerow(refined_row)
-            refined_candidate_rows.append(refined_row)
-            selected_rows.append(selected_row)
-
-    write_track_plot(out_dir / "pre_refinement_poses.png", plot_traj_rows, gps_rows)
-    write_track_plot(out_dir / "post_refinement_poses.png", refined_candidate_rows, gps_rows)
-    write_track_plot(out_dir / "track_plot.png", refined_candidate_rows, gps_rows)
-    write_track_plot(out_dir / "selected_poses.png", selected_rows, gps_rows)
     anchor_frame_indices = {int(idx) for idx in anchor_frame_indices_arr}
     write_gps_score_csv(
         out_dir / "gps_pose_refinement_scores.csv",
@@ -795,10 +741,6 @@ def main() -> None:
         refined_metric_xy,
         chosen_metric_xy,
     )
-    raw_track_plot = trajectory_csv.parent / "track_plot.png"
-    if not (out_dir / "track_plot.png").exists() and raw_track_plot.exists():
-        shutil.copy2(raw_track_plot, out_dir / "track_plot.png")
-
     summary = {
         **base_summary,
         "applied": True,
@@ -830,10 +772,6 @@ def main() -> None:
         "pairwise_change_csv": str(out_dir / "pairwise_pose_change_scores.csv"),
         "refined_trajectory_csv": str(out_csv),
         "stored_refined_pose_source": "optimized_candidate",
-        "pre_refinement_pose_plot": str(out_dir / "pre_refinement_poses.png"),
-        "post_refinement_pose_plot": str(out_dir / "post_refinement_poses.png"),
-        "stored_refined_pose_plot": str(out_dir / "track_plot.png"),
-        "selected_pose_plot": str(out_dir / "selected_poses.png"),
         "solver_success": bool(result.success),
         "solver_status": int(result.status),
         "solver_message": str(result.message),

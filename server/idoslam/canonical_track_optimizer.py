@@ -25,11 +25,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import cv2
-import matplotlib
 import numpy as np
-
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
 
 _server_root = Path(__file__).resolve().parent.parent
 _project_root = _server_root.parent
@@ -88,7 +84,6 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--min-inliers", type=int, default=25)
     p.add_argument("--min-inlier-ratio", type=float, default=0.35)
     p.add_argument("--bins", type=int, default=320, help="Canonical progress bins")
-    p.add_argument("--plot-every", type=int, default=10)
     return p.parse_args()
 
 
@@ -417,45 +412,6 @@ def visual_match_report(
     _, _, _, pose_mask = cv2.recoverPose(e_mat, pts_a, pts_b, k)
     inliers = int(np.count_nonzero(pose_mask))
     return len(good_matches), inliers, 0.0 if len(good_matches) == 0 else inliers / len(good_matches)
-
-
-def write_canonical_plot(
-    out_path: Path,
-    centerline: np.ndarray,
-    left_boundary: np.ndarray,
-    right_boundary: np.ndarray,
-    lap_trajectories: dict[int, np.ndarray],
-    anchors_by_lap: dict[int, list[Anchor]],
-    plot_every: int,
-) -> None:
-    fig, ax = plt.subplots(figsize=(12, 12))
-    ax.plot(centerline[:, 0], centerline[:, 1], color="#444444", linewidth=2.5, label="Canonical centerline")
-    ax.plot(left_boundary[:, 0], left_boundary[:, 1], color="#1f77b4", linewidth=1.8, label="Left boundary")
-    ax.plot(right_boundary[:, 0], right_boundary[:, 1], color="#2ca02c", linewidth=1.8, label="Right boundary")
-
-    cmap = plt.get_cmap("tab10")
-    for lap_id, xy in lap_trajectories.items():
-        ax.plot(xy[:, 0], xy[:, 1], color=cmap(lap_id % 10), linewidth=1.1, alpha=0.85, label=f"Lap {lap_id}")
-        if len(xy) > 0:
-            ax.plot(xy[:: max(plot_every, 1), 0], xy[:: max(plot_every, 1), 1], ".", color=cmap(lap_id % 10), alpha=0.35, markersize=2)
-
-    for lap_id, anchors in anchors_by_lap.items():
-        if not anchors:
-            continue
-        pts = np.array([[a.frame_index, a.ref_frame_index] for a in anchors], dtype=np.float64)
-        # Anchors are recorded in CSV; no need to draw them on the map.
-
-    ax.set_title("Canonical Closed Track With Per-Lap Trajectories")
-    ax.set_aspect("equal", adjustable="box")
-    ax.grid(True, alpha=0.3)
-    handles, labels = ax.get_legend_handles_labels()
-    uniq = {}
-    for h, l in zip(handles, labels):
-        uniq[l] = h
-    ax.legend(uniq.values(), uniq.keys(), fontsize=8)
-    fig.tight_layout()
-    fig.savefig(out_path, dpi=180)
-    plt.close(fig)
 
 
 def main() -> None:
@@ -824,16 +780,6 @@ def main() -> None:
             },
             indent=2,
         )
-    )
-
-    write_canonical_plot(
-        out_path=out_dir / "canonical_track_map.png",
-        centerline=centerline,
-        left_boundary=left_boundary,
-        right_boundary=right_boundary,
-        lap_trajectories=lap_trajectories,
-        anchors_by_lap=anchors_by_lap,
-        plot_every=args.plot_every,
     )
 
     summary = {

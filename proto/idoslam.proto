@@ -143,8 +143,8 @@ message IdoSlamResponse {
   repeated IdoSlamFramePose refined_frame_poses = 8;
   repeated IdoSlamPairwiseMotion pairwise_motion = 9;
 
-  // Derived road-width/canonical-track artifacts needed to re-render debug
-  // videos after hydrating a workspace from this checkpoint.
+  // Derived road-width/canonical-track artifacts needed to hydrate dashboard
+  // visualizations from this checkpoint.
   repeated IdoSlamTrackWidthEstimate plane_width_estimates = 10;
   string plane_width_summary_json = 11;
   repeated IdoSlamCanonicalCenterlinePoint canonical_centerline = 12;

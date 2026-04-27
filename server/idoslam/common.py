@@ -8,11 +8,7 @@ from pathlib import Path
 from typing import Iterator
 
 import cv2
-import matplotlib
 import numpy as np
-
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
 
 _server_root = Path(__file__).resolve().parent.parent
 _project_root = _server_root.parent
@@ -45,20 +41,12 @@ def pairwise_motion_csv_path(recording_path: Path) -> Path:
     return pairwise_output_dir(recording_path) / "pairwise_sift_motion.csv"
 
 
-def pairwise_track_plot_path(recording_path: Path) -> Path:
-    return pairwise_output_dir(recording_path) / "track_plot.png"
-
-
 def pose_refine_output_dir(recording_path: Path) -> Path:
     return workspace_path(recording_path) / "pose_refined"
 
 
 def refined_trajectory_csv_path(recording_path: Path) -> Path:
     return pose_refine_output_dir(recording_path) / "trajectory_pairwise_sift_refined.csv"
-
-
-def refined_track_plot_path(recording_path: Path) -> Path:
-    return pose_refine_output_dir(recording_path) / "track_plot.png"
 
 
 def preferred_trajectory_csv_path(recording_path: Path) -> Path:
@@ -114,38 +102,6 @@ def visual_pairs_output_dir(recording_path: Path) -> Path:
 
 def pair_pose_output_dir(recording_path: Path, frame_a: int, frame_b: int) -> Path:
     return workspace_path(recording_path) / f"pair_pose_{frame_a}_{frame_b}"
-
-
-def road_grid_debug_video_path(recording_path: Path) -> Path:
-    return workspace_path(recording_path) / "road_grid_debug.mp4"
-
-
-def road_debug_video_output_path(recording_path: Path) -> Path:
-    return recording_path.parent / f"{recording_stem(recording_path)}.idoslam.road_debug.mp4"
-
-
-def sift_debug_video_output_path(recording_path: Path) -> Path:
-    return recording_path.parent / f"{recording_stem(recording_path)}.idoslam.sift_debug.mp4"
-
-
-def track_map_png_output_path(recording_path: Path) -> Path:
-    return recording_path.parent / f"{recording_stem(recording_path)}.idoslam.track_map.png"
-
-
-def pre_refinement_track_plot_output_path(recording_path: Path) -> Path:
-    return recording_path.parent / f"{recording_stem(recording_path)}.idoslam.pre_refinement_poses.png"
-
-
-def post_refinement_track_plot_output_path(recording_path: Path) -> Path:
-    return recording_path.parent / f"{recording_stem(recording_path)}.idoslam.post_refinement_poses.png"
-
-
-def road_feature_track_output_path(recording_path: Path) -> Path:
-    return recording_path.parent / f"{recording_stem(recording_path)}.idoslam.road_feature_track.png"
-
-
-def road_plane_projection_video_output_path(recording_path: Path) -> Path:
-    return recording_path.parent / f"{recording_stem(recording_path)}.idoslam.road_plane_projection.mp4"
 
 
 def idoslam_proto_path(recording_path: Path) -> Path:
@@ -361,59 +317,3 @@ def estimate_pairwise_global_alignment(
         "pair_count": int(np.count_nonzero(valid)),
         "gps_change_index_count": int(len(change_idx)),
     }
-
-
-def apply_pairwise_global_alignment(
-    visual_xy: np.ndarray,
-    alignment: dict[str, object],
-) -> np.ndarray:
-    scale_divisor = float(alignment.get("scale_divisor", alignment["scale"]))
-    rot = np.asarray(alignment["rotation"], dtype=np.float64)
-    trans = np.asarray(alignment["translation"], dtype=np.float64)
-    return ((rot @ visual_xy.T).T) / scale_divisor + trans
-
-
-def write_track_plot(
-    out_path: Path,
-    slam_rows: list[dict[str, float]],
-    gps_rows: list[dict[str, float]],
-) -> None:
-    if not slam_rows or not gps_rows:
-        return
-    slam_by_ts = {
-        int(row["timestamp_ns"]): np.array([row["x"], row["y"], row["z"]], dtype=np.float64)
-        for row in slam_rows
-    }
-    gps_by_ts = {
-        int(row["timestamp_ns"]): np.array([row["latitude"], row["longitude"]], dtype=np.float64)
-        for row in gps_rows
-    }
-    common_ts = sorted(set(slam_by_ts) & set(gps_by_ts))
-    if len(common_ts) < 2:
-        return
-    slam_xyz = np.vstack([slam_by_ts[ts] for ts in common_ts])
-    gps_latlon = np.vstack([gps_by_ts[ts] for ts in common_ts])
-    slam_2d = project_track_to_2d(slam_xyz)
-    gps_2d = gps_to_local_xy(gps_latlon[:, 0], gps_latlon[:, 1])
-    alignment = estimate_pairwise_global_alignment(slam_2d, gps_2d)
-    aligned = apply_pairwise_global_alignment(slam_2d, alignment)
-
-    fig, axes = plt.subplots(1, 3, figsize=(15, 5))
-    axes[0].plot(slam_2d[:, 0], slam_2d[:, 1], color="#c28f00", linewidth=2)
-    axes[0].set_title("VO PCA Projection")
-    axes[1].plot(gps_2d[:, 0], gps_2d[:, 1], color="#2f7f3f", linewidth=2)
-    axes[1].set_title("GPS Local ENU")
-    axes[2].plot(gps_2d[:, 0], gps_2d[:, 1], color="#2f7f3f", linewidth=2, label="GPS")
-    axes[2].plot(aligned[:, 0], aligned[:, 1], color="#c28f00", linewidth=2, label="VO aligned")
-    axes[2].legend()
-    axes[2].set_title(
-        "Overlay "
-        f"theta={float(alignment['theta_deg']):.1f}deg "
-        f"scale_div={float(alignment['scale_divisor']):.2f}"
-    )
-    for ax in axes:
-        ax.set_aspect("equal", adjustable="box")
-        ax.grid(True, alpha=0.3)
-    fig.tight_layout()
-    fig.savefig(out_path, dpi=160)
-    plt.close(fig)
