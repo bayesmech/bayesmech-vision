@@ -18,11 +18,12 @@ const StreamViewer: React.FC<StreamViewerProps> = ({
   placeholderIcon,
   placeholderText,
   headerExtra,
-  holdLastMs = 0,
+  holdLastMs = 250,
 }) => {
-  const lastValidUrl = useRef<string | undefined>(undefined)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
   const lastValidTime = useRef(0)
-  const [displayUrl, setDisplayUrl] = useState<string | undefined>(undefined)
+  const hasFrameRef = useRef(false)
+  const [hasFrame, setHasFrame] = useState(false)
   const [showPlaceholder, setShowPlaceholder] = useState(true)
 
   useEffect(() => {
@@ -31,15 +32,21 @@ const StreamViewer: React.FC<StreamViewerProps> = ({
       const image = new Image()
       image.onload = () => {
         if (cancelled) return
-        lastValidUrl.current = blobUrl
+        const canvas = canvasRef.current
+        const ctx = canvas?.getContext('2d')
+        if (!canvas || !ctx) return
+        canvas.width = image.naturalWidth || 1
+        canvas.height = image.naturalHeight || 1
+        ctx.clearRect(0, 0, canvas.width, canvas.height)
+        ctx.drawImage(image, 0, 0, canvas.width, canvas.height)
         lastValidTime.current = Date.now()
-        setDisplayUrl(blobUrl)
+        hasFrameRef.current = true
+        setHasFrame(true)
         setShowPlaceholder(false)
       }
       image.onerror = () => {
         if (cancelled) return
-        if (!lastValidUrl.current) {
-          setDisplayUrl(undefined)
+        if (!hasFrameRef.current) {
           setShowPlaceholder(true)
         }
       }
@@ -48,23 +55,28 @@ const StreamViewer: React.FC<StreamViewerProps> = ({
         cancelled = true
       }
     }
-    if (holdLastMs <= 0 || !lastValidUrl.current) {
-      setDisplayUrl(undefined)
+    if (holdLastMs <= 0 || !hasFrameRef.current) {
+      const canvas = canvasRef.current
+      const ctx = canvas?.getContext('2d')
+      if (canvas && ctx) ctx.clearRect(0, 0, canvas.width, canvas.height)
+      hasFrameRef.current = false
+      setHasFrame(false)
       setShowPlaceholder(true)
       return
     }
-    setDisplayUrl(lastValidUrl.current)
     setShowPlaceholder(false)
     const elapsed = Date.now() - lastValidTime.current
     const remaining = Math.max(0, holdLastMs - elapsed)
     const timer = setTimeout(() => {
-      setDisplayUrl(undefined)
+      const canvas = canvasRef.current
+      const ctx = canvas?.getContext('2d')
+      if (canvas && ctx) ctx.clearRect(0, 0, canvas.width, canvas.height)
+      hasFrameRef.current = false
+      setHasFrame(false)
       setShowPlaceholder(true)
     }, remaining)
     return () => clearTimeout(timer)
   }, [blobUrl, holdLastMs])
-
-  const showImage = displayUrl && !showPlaceholder
 
   return (
     <div className="stream-card">
@@ -86,13 +98,18 @@ const StreamViewer: React.FC<StreamViewerProps> = ({
           position: 'relative',
         }}
       >
-        {showImage ? (
-          <img
-            src={displayUrl}
-            alt={title}
-            style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-          />
-        ) : (
+        <canvas
+          ref={canvasRef}
+          aria-label={title}
+          role="img"
+          style={{
+            width: '100%',
+            height: '100%',
+            objectFit: 'contain',
+            display: hasFrame ? 'block' : 'none',
+          }}
+        />
+        {showPlaceholder && (
           <div className="no-stream" style={{ textAlign: 'center', opacity: 0.5 }}>
             <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>{placeholderIcon}</div>
             <div>{placeholderText}</div>

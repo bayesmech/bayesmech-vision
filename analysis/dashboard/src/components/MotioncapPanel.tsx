@@ -14,6 +14,15 @@ const revokeUrls = (cache: Map<number, string>): void => {
   cache.clear()
 }
 
+function drawImageToCanvas(canvas: HTMLCanvasElement, image: HTMLImageElement): void {
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return
+  canvas.width = image.naturalWidth || 1
+  canvas.height = image.naturalHeight || 1
+  ctx.clearRect(0, 0, canvas.width, canvas.height)
+  ctx.drawImage(image, 0, 0, canvas.width, canvas.height)
+}
+
 const MotioncapLegend: React.FC<{
   tracks: MotioncapTrackLegendItem[]
   available: boolean | null
@@ -73,8 +82,11 @@ const MotioncapPanel: React.FC = () => {
   const [motioncapAvailable, setMotioncapAvailable] = useState<boolean | null>(
     currentRecordingName ? null : false,
   )
-  const [baseFrameUrl, setBaseFrameUrl] = useState<string | undefined>(undefined)
   const [heatmapUrl, setHeatmapUrl] = useState<string | undefined>(undefined)
+  const [hasBaseFrame, setHasBaseFrame] = useState(false)
+  const [hasHeatmap, setHasHeatmap] = useState(false)
+  const baseCanvasRef = useRef<HTMLCanvasElement>(null)
+  const heatmapCanvasRef = useRef<HTMLCanvasElement>(null)
   const heatmapCacheRef = useRef<Map<number, string>>(new Map())
   const requestIdRef = useRef(0)
 
@@ -108,20 +120,50 @@ const MotioncapPanel: React.FC = () => {
 
   useEffect(() => {
     const url = displayedFrame?.rgbBlobUrl
-    if (!url) {
-      setBaseFrameUrl(undefined)
+    if (!url || motioncapAvailable !== true) {
+      setHasBaseFrame(false)
       return
     }
     let cancelled = false
     const image = new Image()
     image.onload = () => {
-      if (!cancelled) setBaseFrameUrl(url)
+      if (cancelled) return
+      const canvas = baseCanvasRef.current
+      if (!canvas) return
+      drawImageToCanvas(canvas, image)
+      setHasBaseFrame(true)
+    }
+    image.onerror = () => {
+      if (!cancelled) setHasBaseFrame(false)
     }
     image.src = url
     return () => {
       cancelled = true
     }
-  }, [displayedFrame?.rgbBlobUrl])
+  }, [displayedFrame?.rgbBlobUrl, motioncapAvailable])
+
+  useEffect(() => {
+    if (!heatmapUrl || motioncapAvailable !== true) {
+      setHasHeatmap(false)
+      return
+    }
+    let cancelled = false
+    const image = new Image()
+    image.onload = () => {
+      if (cancelled) return
+      const canvas = heatmapCanvasRef.current
+      if (!canvas) return
+      drawImageToCanvas(canvas, image)
+      setHasHeatmap(true)
+    }
+    image.onerror = () => {
+      if (!cancelled) setHasHeatmap(false)
+    }
+    image.src = heatmapUrl
+    return () => {
+      cancelled = true
+    }
+  }, [heatmapUrl, motioncapAvailable])
 
   useEffect(() => {
     if (isLive || !currentRecordingName || motioncapAvailable !== true || !displayedFrame?.rgbBlobUrl) {
@@ -155,6 +197,7 @@ const MotioncapPanel: React.FC = () => {
       .catch(() => {
         if (requestIdRef.current !== requestId) return
         setHeatmapUrl(undefined)
+        setHasHeatmap(false)
       })
   }, [currentIndex, currentRecordingName, displayedFrame?.rgbBlobUrl, isLive, motioncapAvailable])
 
@@ -191,20 +234,22 @@ const MotioncapPanel: React.FC = () => {
           <span className="stream-badge">MOTION</span>
         </div>
         <div className="motioncap-viewer">
-          {baseFrameUrl && motioncapAvailable === true ? (
+          {motioncapAvailable === true ? (
             <>
-              <img
-                src={baseFrameUrl}
-                alt="Motion capture base frame"
+              <canvas
+                ref={baseCanvasRef}
+                aria-label="Motion capture base frame"
+                role="img"
                 className="motioncap-layer"
+                style={{ display: hasBaseFrame ? 'block' : 'none' }}
               />
-              {heatmapUrl && (
-                <img
-                  src={heatmapUrl}
-                  alt="Motion capture heatmap"
-                  className="motioncap-layer motioncap-heatmap"
-                />
-              )}
+              <canvas
+                ref={heatmapCanvasRef}
+                aria-label="Motion capture heatmap"
+                role="img"
+                className="motioncap-layer motioncap-heatmap"
+                style={{ display: hasHeatmap ? 'block' : 'none' }}
+              />
               <svg
                 className="motioncap-svg"
                 viewBox={`0 0 ${frameWidth} ${frameHeight}`}
@@ -222,6 +267,12 @@ const MotioncapPanel: React.FC = () => {
                   />
                 ))}
               </svg>
+              {!hasBaseFrame && (
+                <div className="no-stream" style={{ textAlign: 'center', opacity: 0.5 }}>
+                  <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>🔥</div>
+                  <div>{placeholderText}</div>
+                </div>
+              )}
             </>
           ) : (
             <div className="no-stream" style={{ textAlign: 'center', opacity: 0.5 }}>

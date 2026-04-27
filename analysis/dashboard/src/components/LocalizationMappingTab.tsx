@@ -36,6 +36,18 @@ interface RoadProjectionData {
   cameraHeightM: number
 }
 
+interface CameraAttitudeData {
+  pitchDeg: number
+  yawDeg: number
+  rollDeg: number
+  cameraRight: Point3
+  cameraUp: Point3
+  cameraBack: Point3
+  worldRight: Point3
+  worldUp: Point3
+  worldForward: Point3
+}
+
 interface Alignment2D {
   thetaDeg: number
   scaleDivisor: number
@@ -123,6 +135,22 @@ function normalize3(v: Point3): Point3 {
   const len = Math.hypot(v.x, v.y, v.z)
   if (len < 1e-9) return { x: 1, y: 0, z: 0 }
   return { x: v.x / len, y: v.y / len, z: v.z / len }
+}
+
+function add3(a: Point3, b: Point3): Point3 {
+  return { x: a.x + b.x, y: a.y + b.y, z: a.z + b.z }
+}
+
+function scale3(v: Point3, scale: number): Point3 {
+  return { x: v.x * scale, y: v.y * scale, z: v.z * scale }
+}
+
+function cross3(a: Point3, b: Point3): Point3 {
+  return {
+    x: a.y * b.z - a.z * b.y,
+    y: a.z * b.x - a.x * b.z,
+    z: a.x * b.y - a.y * b.x,
+  }
 }
 
 function covarianceMultiply(cov: number[][], v: Point3): Point3 {
@@ -566,9 +594,9 @@ const SiftCorrespondencePanel: React.FC<{ slam: SlamResponse | null }> = ({ slam
     const canvas = canvasRef.current
     const ctx = canvas?.getContext('2d')
     if (!canvas || !ctx) return
-    if (!displayedFrame?.rgbBlobUrl || !pair) {
+    if (!displayedFrame?.rgbBlobUrl) {
       drawCanvasBackground(ctx, VIDEO_WIDTH, VIDEO_HEIGHT)
-      drawEmptyCanvasLabel(ctx, 'No SIFT correspondence data')
+      drawEmptyCanvasLabel(ctx, 'No RGB frame data')
       return
     }
 
@@ -578,6 +606,7 @@ const SiftCorrespondencePanel: React.FC<{ slam: SlamResponse | null }> = ({ slam
       if (cancelled) return
       drawCanvasBackground(ctx, VIDEO_WIDTH, VIDEO_HEIGHT)
       const rect = drawImageContain(ctx, image, VIDEO_WIDTH, VIDEO_HEIGHT)
+      if (!pair) return
       const scaleX = rect.width / Math.max(image.naturalWidth, 1)
       const scaleY = rect.height / Math.max(image.naturalHeight, 1)
       const correspondences = pair.correspondences ?? []
@@ -609,7 +638,7 @@ const SiftCorrespondencePanel: React.FC<{ slam: SlamResponse | null }> = ({ slam
     image.onerror = () => {
       if (cancelled) return
       drawCanvasBackground(ctx, VIDEO_WIDTH, VIDEO_HEIGHT)
-      drawEmptyCanvasLabel(ctx, 'No SIFT correspondence data')
+      drawEmptyCanvasLabel(ctx, 'No RGB frame data')
     }
     image.src = displayedFrame.rgbBlobUrl
     return () => {
@@ -800,6 +829,85 @@ function buildRoadProjectionData(
   }
 }
 
+function rotateByQuat(v: Point3, q: { x: number; y: number; z: number; w: number }): Point3 {
+  const len = Math.hypot(q.x, q.y, q.z, q.w) || 1
+  const qx = q.x / len
+  const qy = q.y / len
+  const qz = q.z / len
+  const qw = q.w / len
+  const tx = 2 * (qy * v.z - qz * v.y)
+  const ty = 2 * (qz * v.x - qx * v.z)
+  const tz = 2 * (qx * v.y - qy * v.x)
+  return {
+    x: v.x + qw * tx + qy * tz - qz * ty,
+    y: v.y + qw * ty + qz * tx - qx * tz,
+    z: v.z + qw * tz + qx * ty - qy * tx,
+  }
+}
+
+function gpsDeltaMeters(from: GpsLocation, to: GpsLocation): Point2 {
+  const radiusM = 6378137.0
+  const lat0 = from.latitude * Math.PI / 180
+  return {
+    x: (to.longitude - from.longitude) * Math.PI / 180 * Math.cos(lat0) * radiusM,
+    y: (to.latitude - from.latitude) * Math.PI / 180 * radiusM,
+  }
+}
+
+function gpsForwardVector(sensorData: SensorFrameData[], currentIndex: number, frame: DecodedFrame | null): Point3 | null {
+  const currentGps = frame?.gps ?? sensorData[currentIndex]?.gps
+  const futureGps = sensorData[currentIndex + 5]?.gps
+  if (currentGps && futureGps) {
+    const delta = gpsDeltaMeters(currentGps, futureGps)
+    if (Math.hypot(delta.x, delta.y) > 1e-4) {
+      return normalize3({ x: delta.x, y: 0, z: -delta.y })
+    }
+  }
+
+  if (currentGps && Number.isFinite(currentGps.bearing)) {
+    const bearingRad = currentGps.bearing * Math.PI / 180
+    return normalize3({ x: Math.sin(bearingRad), y: 0, z: -Math.cos(bearingRad) })
+  }
+  return null
+}
+
+function buildCameraAttitudeData(
+  frame: DecodedFrame | null,
+  sensorData: SensorFrameData[],
+  currentIndex: number,
+): CameraAttitudeData | null {
+  const pose = frame?.camera_pose
+  const forward = gpsForwardVector(sensorData, currentIndex, frame)
+  if (!pose || !forward) return null
+
+  const worldUp = { x: 0, y: 1, z: 0 }
+  const worldForward = normalize3({ x: forward.x, y: 0, z: forward.z })
+  const worldRight = normalize3(cross3(worldUp, worldForward))
+  const cameraRight = normalize3(rotateByQuat({ x: 1, y: 0, z: 0 }, pose.rotation))
+  const cameraUp = normalize3(rotateByQuat({ x: 0, y: 1, z: 0 }, pose.rotation))
+  const cameraBack = normalize3(rotateByQuat({ x: 0, y: 0, z: 1 }, pose.rotation))
+  const cameraForward = scale3(cameraBack, -1)
+
+  const forwardComponent = dot3(cameraForward, worldForward)
+  const rightComponent = dot3(cameraForward, worldRight)
+  const upComponent = dot3(cameraForward, worldUp)
+  const yawDeg = Math.atan2(rightComponent, forwardComponent) * 180 / Math.PI
+  const pitchDeg = Math.atan2(upComponent, Math.hypot(forwardComponent, rightComponent)) * 180 / Math.PI
+  const rollDeg = Math.atan2(dot3(cameraRight, worldUp), dot3(cameraUp, worldUp)) * 180 / Math.PI
+
+  return {
+    pitchDeg,
+    yawDeg,
+    rollDeg,
+    cameraRight,
+    cameraUp,
+    cameraBack,
+    worldRight,
+    worldUp,
+    worldForward,
+  }
+}
+
 function drawMaskOverlay(ctx: CanvasRenderingContext2D, rect: ImageRect, mask: MaskRaster, color: [number, number, number, number]): void {
   const overlay = document.createElement('canvas')
   overlay.width = mask.width
@@ -864,9 +972,9 @@ const RoadProjectionPanels: React.FC<{ slam: SlamResponse | null }> = ({ slam })
     const canvas = imageCanvasRef.current
     const ctx = canvas?.getContext('2d')
     if (!canvas || !ctx) return
-    if (!displayedFrame?.rgbBlobUrl || !projection) {
+    if (!displayedFrame?.rgbBlobUrl) {
       drawCanvasBackground(ctx, VIDEO_WIDTH, VIDEO_HEIGHT)
-      drawEmptyCanvasLabel(ctx, 'No road estimate data')
+      drawEmptyCanvasLabel(ctx, 'No RGB frame data')
       return
     }
     let cancelled = false
@@ -875,23 +983,25 @@ const RoadProjectionPanels: React.FC<{ slam: SlamResponse | null }> = ({ slam })
       if (cancelled) return
       drawCanvasBackground(ctx, VIDEO_WIDTH, VIDEO_HEIGHT)
       const rect = drawImageContain(ctx, image, VIDEO_WIDTH, VIDEO_HEIGHT)
-      drawMaskOverlay(ctx, rect, projection.road, [47, 136, 255, 95])
-      drawImagePolyline(ctx, rect, projection.leftImage, projection.road, '#ff5bd5', 3)
-      drawImagePolyline(ctx, rect, projection.rightImage, projection.road, '#46d884', 3)
-      drawImagePolyline(ctx, rect, projection.midImage, projection.road, 'rgba(255, 255, 255, 0.75)', 2)
-      drawImagePointList(ctx, rect, projection.leftImage, projection.road, '#ff5bd5', 2.5)
-      drawImagePointList(ctx, rect, projection.rightImage, projection.road, '#46d884', 2.5)
+      if (!projection) return
+      const road = projection.road
+      drawMaskOverlay(ctx, rect, road, [47, 136, 255, 95])
+      drawImagePolyline(ctx, rect, projection.leftImage, road, '#ff5bd5', 3)
+      drawImagePolyline(ctx, rect, projection.rightImage, road, '#46d884', 3)
+      drawImagePolyline(ctx, rect, projection.midImage, road, 'rgba(255, 255, 255, 0.75)', 2)
+      drawImagePointList(ctx, rect, projection.leftImage, road, '#ff5bd5', 2.5)
+      drawImagePointList(ctx, rect, projection.rightImage, road, '#46d884', 2.5)
       if (selectedImagePoint) {
         drawDot(ctx, {
-          x: rect.x + selectedImagePoint.x / projection.road.width * rect.width,
-          y: rect.y + selectedImagePoint.y / projection.road.height * rect.height,
+          x: rect.x + selectedImagePoint.x / road.width * rect.width,
+          y: rect.y + selectedImagePoint.y / road.height * rect.height,
         }, '#ffd400', 7)
       }
     }
     image.onerror = () => {
       if (cancelled) return
       drawCanvasBackground(ctx, VIDEO_WIDTH, VIDEO_HEIGHT)
-      drawEmptyCanvasLabel(ctx, 'No road estimate data')
+      drawEmptyCanvasLabel(ctx, 'No RGB frame data')
     }
     image.src = displayedFrame.rgbBlobUrl
     return () => {
@@ -955,7 +1065,7 @@ const RoadProjectionPanels: React.FC<{ slam: SlamResponse | null }> = ({ slam })
   }, [displayedFrame, projection])
 
   return (
-    <div className="slam-two-column">
+    <>
       <div className="stream-card">
         <div className="stream-header">
           <span className="stream-title">Road Mask + Edge Estimates</span>
@@ -976,6 +1086,127 @@ const RoadProjectionPanels: React.FC<{ slam: SlamResponse | null }> = ({ slam })
         </div>
         <canvas className="slam-canvas" ref={groundCanvasRef} width={VIDEO_WIDTH} height={VIDEO_HEIGHT} />
       </div>
+    </>
+  )
+}
+
+function cameraPointToMotionWorld(point: Point3, data: CameraAttitudeData): Point3 {
+  const world = add3(
+    add3(scale3(data.cameraRight, point.x), scale3(data.cameraUp, point.y)),
+    scale3(data.cameraBack, point.z),
+  )
+  return {
+    x: dot3(world, data.worldRight),
+    y: dot3(world, data.worldUp),
+    z: dot3(world, data.worldForward),
+  }
+}
+
+function projectAttitudePoint(point: Point3): Point2 {
+  const scale = 170
+  return {
+    x: VIDEO_WIDTH * 0.5 + point.x * scale + point.z * scale * 0.36,
+    y: VIDEO_HEIGHT * 0.58 - point.y * scale + point.z * scale * 0.16,
+  }
+}
+
+function drawAttitudeLine(ctx: CanvasRenderingContext2D, a: Point3, b: Point3, color: string, width = 1.5): void {
+  const pa = projectAttitudePoint(a)
+  const pb = projectAttitudePoint(b)
+  ctx.strokeStyle = color
+  ctx.lineWidth = width
+  ctx.beginPath()
+  ctx.moveTo(pa.x, pa.y)
+  ctx.lineTo(pb.x, pb.y)
+  ctx.stroke()
+}
+
+function drawAttitudeGround(ctx: CanvasRenderingContext2D): void {
+  const y = -0.52
+  ctx.strokeStyle = 'rgba(47, 136, 255, 0.22)'
+  ctx.lineWidth = 1
+  for (let x = -2.4; x <= 2.4; x += 0.4) {
+    drawAttitudeLine(ctx, { x, y, z: -0.35 }, { x, y, z: 2.7 }, 'rgba(47, 136, 255, 0.22)', 1)
+  }
+  for (let z = -0.2; z <= 2.7; z += 0.4) {
+    drawAttitudeLine(ctx, { x: -2.4, y, z }, { x: 2.4, y, z }, 'rgba(47, 136, 255, 0.22)', 1)
+  }
+  drawAttitudeLine(ctx, { x: 0, y, z: -0.2 }, { x: 0, y, z: 2.75 }, 'rgba(255, 255, 255, 0.28)', 1.2)
+}
+
+function drawCameraWireframe(ctx: CanvasRenderingContext2D, data: CameraAttitudeData): void {
+  const nearZ = -0.45
+  const farZ = -1.2
+  const nearW = 0.28
+  const nearH = 0.18
+  const farW = 0.9
+  const farH = 0.58
+  const localCorners = [
+    { x: -nearW, y: -nearH, z: nearZ },
+    { x: nearW, y: -nearH, z: nearZ },
+    { x: nearW, y: nearH, z: nearZ },
+    { x: -nearW, y: nearH, z: nearZ },
+    { x: -farW, y: -farH, z: farZ },
+    { x: farW, y: -farH, z: farZ },
+    { x: farW, y: farH, z: farZ },
+    { x: -farW, y: farH, z: farZ },
+  ].map(point => cameraPointToMotionWorld(point, data))
+
+  const edges = [
+    [0, 1], [1, 2], [2, 3], [3, 0],
+    [4, 5], [5, 6], [6, 7], [7, 4],
+    [0, 4], [1, 5], [2, 6], [3, 7],
+  ]
+  for (const [a, b] of edges) {
+    drawAttitudeLine(ctx, localCorners[a], localCorners[b], '#ffffff', 2)
+  }
+
+  drawAttitudeLine(ctx, { x: 0, y: -0.52, z: 0 }, { x: 0, y: 0.85, z: 0 }, '#46d884', 2)
+}
+
+function drawCameraAttitude(ctx: CanvasRenderingContext2D, data: CameraAttitudeData | null): void {
+  drawCanvasBackground(ctx, VIDEO_WIDTH, VIDEO_HEIGHT)
+  drawAttitudeGround(ctx)
+  if (!data) {
+    drawEmptyCanvasLabel(ctx, 'Waiting for camera pose and GPS forward data')
+    return
+  }
+
+  drawCameraWireframe(ctx, data)
+  ctx.fillStyle = '#f5f5f5'
+  ctx.font = '15px monospace'
+  ctx.textAlign = 'left'
+  ctx.textBaseline = 'top'
+  ctx.fillText(`pitch ${data.pitchDeg.toFixed(1)} deg`, 16, 16)
+  ctx.fillText(`yaw   ${data.yawDeg.toFixed(1)} deg`, 16, 38)
+  ctx.fillText(`roll  ${data.rollDeg.toFixed(1)} deg`, 16, 60)
+}
+
+const CameraAttitudePanel: React.FC<{
+  frame: DecodedFrame | null
+  sensorData: SensorFrameData[]
+  currentIndex: number
+}> = ({ frame, sensorData, currentIndex }) => {
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const attitude = useMemo(
+    () => buildCameraAttitudeData(frame, sensorData, currentIndex),
+    [frame, sensorData, currentIndex],
+  )
+
+  useEffect(() => {
+    const canvas = canvasRef.current
+    const ctx = canvas?.getContext('2d')
+    if (!canvas || !ctx) return
+    drawCameraAttitude(ctx, attitude)
+  }, [attitude])
+
+  return (
+      <div className="stream-card">
+        <div className="stream-header">
+        <span className="stream-title">Camera wrt. ground pose</span>
+        <span className="stream-badge">POSE</span>
+      </div>
+      <canvas className="slam-canvas" ref={canvasRef} width={VIDEO_WIDTH} height={VIDEO_HEIGHT} />
     </div>
   )
 }
@@ -1014,9 +1245,18 @@ const LocalizationMappingTab: React.FC = () => {
           currentPose={refinedCurrentPose}
           showCurrent
         />
-        <SiftCorrespondencePanel slam={idoslamData} />
       </div>
-      <RoadProjectionPanels slam={idoslamData} />
+      <div className="slam-two-column">
+        <SiftCorrespondencePanel slam={idoslamData} />
+        <CameraAttitudePanel
+          frame={displayedFrame}
+          sensorData={sensorData}
+          currentIndex={currentIndex}
+        />
+      </div>
+      <div className="slam-two-column">
+        <RoadProjectionPanels slam={idoslamData} />
+      </div>
     </section>
   )
 }
