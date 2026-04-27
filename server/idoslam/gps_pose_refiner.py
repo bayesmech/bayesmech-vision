@@ -185,6 +185,8 @@ def track_plane(points_xyz: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndar
     _, _, vh = np.linalg.svd(centered, full_matrices=False)
     basis2 = vh[:2].T
     normal = vh[2]
+    if np.linalg.det(np.column_stack([basis2, normal])) < 0.0:
+        normal = -normal
     coords2 = centered @ basis2
     heights = centered @ normal
     return mean.reshape(3), basis2, normal, coords2, heights
@@ -192,10 +194,6 @@ def track_plane(points_xyz: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndar
 
 def metric_track_xy(coords2: np.ndarray, scale: float, rot: np.ndarray, trans: np.ndarray) -> np.ndarray:
     return (scale * (rot @ coords2.T)).T + trans
-
-
-def inverse_metric_track_xy(metric_xy: np.ndarray, scale: float, rot: np.ndarray, trans: np.ndarray) -> np.ndarray:
-    return (rot.T @ ((metric_xy - trans) / scale).T).T
 
 
 def fit_two_point_similarity(src: np.ndarray, dst: np.ndarray) -> tuple[float, np.ndarray, np.ndarray]:
@@ -212,6 +210,76 @@ def fit_two_point_similarity(src: np.ndarray, dst: np.ndarray) -> tuple[float, n
     scale = dst_len / src_len
     trans = dst[0] - scale * (rot @ src[0])
     return scale, rot, trans
+
+
+def quaternion_xyzw_to_matrix(q: np.ndarray) -> np.ndarray:
+    x, y, z, w = q
+    xx, yy, zz = x * x, y * y, z * z
+    xy, xz, yz = x * y, x * z, y * z
+    wx, wy, wz = w * x, w * y, w * z
+    return np.array(
+        [
+            [1.0 - 2.0 * (yy + zz), 2.0 * (xy - wz), 2.0 * (xz + wy)],
+            [2.0 * (xy + wz), 1.0 - 2.0 * (xx + zz), 2.0 * (yz - wx)],
+            [2.0 * (xz - wy), 2.0 * (yz + wx), 1.0 - 2.0 * (xx + yy)],
+        ],
+        dtype=np.float64,
+    )
+
+
+def rotation_matrix_to_quaternion_xyzw(r: np.ndarray) -> np.ndarray:
+    u, _, vt = np.linalg.svd(r)
+    r = u @ vt
+    if np.linalg.det(r) < 0.0:
+        u[:, -1] *= -1.0
+        r = u @ vt
+
+    trace = float(np.trace(r))
+    if trace > 0.0:
+        s = math.sqrt(trace + 1.0) * 2.0
+        w = 0.25 * s
+        x = (r[2, 1] - r[1, 2]) / s
+        y = (r[0, 2] - r[2, 0]) / s
+        z = (r[1, 0] - r[0, 1]) / s
+    elif r[0, 0] > r[1, 1] and r[0, 0] > r[2, 2]:
+        s = math.sqrt(1.0 + r[0, 0] - r[1, 1] - r[2, 2]) * 2.0
+        w = (r[2, 1] - r[1, 2]) / s
+        x = 0.25 * s
+        y = (r[0, 1] + r[1, 0]) / s
+        z = (r[0, 2] + r[2, 0]) / s
+    elif r[1, 1] > r[2, 2]:
+        s = math.sqrt(1.0 + r[1, 1] - r[0, 0] - r[2, 2]) * 2.0
+        w = (r[0, 2] - r[2, 0]) / s
+        x = (r[0, 1] + r[1, 0]) / s
+        y = 0.25 * s
+        z = (r[1, 2] + r[2, 1]) / s
+    else:
+        s = math.sqrt(1.0 + r[2, 2] - r[0, 0] - r[1, 1]) * 2.0
+        w = (r[1, 0] - r[0, 1]) / s
+        x = (r[0, 2] + r[2, 0]) / s
+        y = (r[1, 2] + r[2, 1]) / s
+        z = 0.25 * s
+    q = np.array([x, y, z, w], dtype=np.float64)
+    norm = np.linalg.norm(q)
+    return q if norm == 0.0 else q / norm
+
+
+def metric_world_rotation(plane_basis2: np.ndarray, plane_normal: np.ndarray, similarity_rot: np.ndarray) -> np.ndarray:
+    plane_from_visual = np.column_stack([plane_basis2, plane_normal]).T
+    metric_from_plane = np.eye(3, dtype=np.float64)
+    metric_from_plane[:2, :2] = similarity_rot
+    metric_from_visual = metric_from_plane @ plane_from_visual
+    if np.linalg.det(metric_from_visual) < 0.0:
+        raise RuntimeError("GPS metric pose transform must be a proper rotation")
+    return metric_from_visual
+
+
+def transform_pose_quaternion_to_metric_world(
+    row: TrajectoryRow,
+    metric_from_visual: np.ndarray,
+) -> np.ndarray:
+    visual_r_cam = quaternion_xyzw_to_matrix(np.array([row.qx, row.qy, row.qz, row.qw], dtype=np.float64))
+    return rotation_matrix_to_quaternion_xyzw(metric_from_visual @ visual_r_cam)
 
 
 def rmse_m(pred_xy: np.ndarray, target_xy: np.ndarray) -> float:
@@ -585,7 +653,7 @@ def main() -> None:
         return
 
     points_xyz = np.array([[row.x, row.y, row.z] for row in traj_rows], dtype=np.float64)
-    plane_mean, plane_basis2, plane_normal, raw_coords2, heights = track_plane(points_xyz)
+    _plane_mean, plane_basis2, plane_normal, raw_coords2, heights = track_plane(points_xyz)
     obs_idx_arr = np.asarray(observed_indices, dtype=np.int32)
     gps_xy_obs = np.asarray(observed_xy_m, dtype=np.float64)
     gps_accuracy_obs = np.asarray(observed_accuracy_m, dtype=np.float64)
@@ -698,26 +766,27 @@ def main() -> None:
         accepted = False
         reason = "solver_failed"
 
-    refined_coords2 = inverse_metric_track_xy(refined_metric_xy, similarity_scale, similarity_rot, similarity_trans)
-    refined_xyz = plane_mean[None, :] + refined_coords2 @ plane_basis2.T + heights[:, None] * plane_normal[None, :]
     chosen_metric_xy = refined_metric_xy if accepted else raw_metric_xy
+    metric_from_visual = metric_world_rotation(plane_basis2, plane_normal, similarity_rot)
+    refined_heights_m = similarity_scale * heights
 
     with out_csv.open("w", newline="") as f:
         fieldnames = ["frame_index", "frame_number", "timestamp_ns", "x", "y", "z", "qx", "qy", "qz", "qw"]
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
         for idx, row in enumerate(traj_rows):
+            refined_q = transform_pose_quaternion_to_metric_world(row, metric_from_visual)
             refined_row = {
                 "frame_index": row.frame_index,
                 "frame_number": row.frame_number,
                 "timestamp_ns": row.timestamp_ns,
-                "x": float(refined_xyz[idx, 0]),
-                "y": float(refined_xyz[idx, 1]),
-                "z": float(refined_xyz[idx, 2]),
-                "qx": row.qx,
-                "qy": row.qy,
-                "qz": row.qz,
-                "qw": row.qw,
+                "x": float(refined_metric_xy[idx, 0]),
+                "y": float(refined_metric_xy[idx, 1]),
+                "z": float(refined_heights_m[idx]),
+                "qx": float(refined_q[0]),
+                "qy": float(refined_q[1]),
+                "qz": float(refined_q[2]),
+                "qw": float(refined_q[3]),
             }
             writer.writerow(refined_row)
     anchor_frame_indices = {int(idx) for idx in anchor_frame_indices_arr}
@@ -772,6 +841,7 @@ def main() -> None:
         "pairwise_change_csv": str(out_dir / "pairwise_pose_change_scores.csv"),
         "refined_trajectory_csv": str(out_csv),
         "stored_refined_pose_source": "optimized_candidate",
+        "stored_refined_pose_frame": "gps_local_metric_xy_track_plane_height_z",
         "solver_success": bool(result.success),
         "solver_status": int(result.status),
         "solver_message": str(result.message),
