@@ -1,4 +1,6 @@
 import type { StreamStats, RecordingInfo } from '../types'
+import type { bayesmech } from '../proto/bundle'
+import { decodeIdoSlamResponse } from './proto'
 
 export async function fetchStreamStats(): Promise<StreamStats> {
   const res = await fetch('/api/stream')
@@ -29,6 +31,14 @@ export async function stopPlayback(): Promise<void> {
 export async function switchToLive(): Promise<void> {
   const res = await fetch('/api/playback/live', { method: 'POST' })
   if (!res.ok) throw new Error(`Failed to switch to live: ${res.status}`)
+}
+
+export async function fetchIdoSlam(fileName?: string): Promise<bayesmech.vision.IdoSlamResponse | null> {
+  const query = fileName ? `?file=${encodeURIComponent(fileName)}` : ''
+  const res = await fetch(`/api/idoslam${query}`)
+  if (res.status === 404) return null
+  if (!res.ok) throw new Error(`Failed to fetch idoslam data: ${res.status}`)
+  return decodeIdoSlamResponse(new Uint8Array(await res.arrayBuffer()))
 }
 
 export async function uploadRecording(file: File): Promise<void> {

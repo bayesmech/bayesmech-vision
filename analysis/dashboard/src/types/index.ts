@@ -5,6 +5,8 @@ export type PerceiverDataFrame = bayesmech.vision.PerceiverDataFrame
 export type IPerceiverDataFrame = bayesmech.vision.IPerceiverDataFrame
 export type SegmentationResponse = bayesmech.vision.SegmentationResponse
 export type ISegmentationResponse = bayesmech.vision.ISegmentationResponse
+export type IdoSlamResponse = bayesmech.vision.IdoSlamResponse
+export type IIdoSlamResponse = bayesmech.vision.IIdoSlamResponse
 
 // === Legacy interfaces used by existing components ===
 
@@ -116,6 +118,7 @@ export interface RecordingInfo {
   size_mb: number
   recorded_at: number
   has_segmentation: boolean
+  has_idoslam?: boolean
 }
 
 // === Decoded frame for UI consumption ===
@@ -160,10 +163,19 @@ export interface SegmentationLegendEntry {
   color: [number, number, number]
 }
 
+export interface DecodedMask {
+  objectId: number
+  label: string
+  width: number
+  height: number
+  mask: Uint8Array
+}
+
 export interface DecodedAnnotation {
   frameNumber: number
   blobUrl: string
   legend: SegmentationLegendEntry[]
+  masks: DecodedMask[]
 }
 
 // === Precomputed sensor data for file-mode playback ===

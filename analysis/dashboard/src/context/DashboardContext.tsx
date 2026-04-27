@@ -2,10 +2,11 @@ import React, { createContext, useContext, useState, useEffect, useRef, useCallb
 import type {
   ConnectionStatus, DecodedFrame, DecodedAnnotation, CoverageStats,
   TrajectoryPoint, CameraPose, CameraIntrinsics, ImuData, Vec3, SensorFrameData,
+  DecodedMask,
 } from '../types'
 import { dashboardWs } from '../services/websocket'
-import { startPlayback, switchToLive as apiSwitchToLive } from '../services/api'
-import { bytesToBlobUrl, compositeMasksToDataUrl, MASK_COLORS } from '../services/proto'
+import { fetchIdoSlam, startPlayback, switchToLive as apiSwitchToLive } from '../services/api'
+import { bytesToBlobUrl, compositeMasksToDataUrl, decodeMask, MASK_COLORS } from '../services/proto'
 import { bayesmech } from '../proto/bundle'
 
 // =====================================================================
@@ -306,7 +307,18 @@ class FrameDecoder {
     // Deduplicate by objectId — one legend entry per tracked object
     const seen = new Set<number>()
     const legend: import('../types').SegmentationLegendEntry[] = []
+    const decodedMasks: DecodedMask[] = []
     for (const m of masks) {
+      if (m.maskData && m.maskData.length >= 9) {
+        const decoded = decodeMask(m.maskData as Uint8Array)
+        decodedMasks.push({
+          objectId: m.objectId ?? 0,
+          label: m.label || 'UNDEFINED',
+          width: decoded.width,
+          height: decoded.height,
+          mask: decoded.mask,
+        })
+      }
       const objId = m.objectId ?? 0
       if (seen.has(objId)) continue
       seen.add(objId)
@@ -314,7 +326,7 @@ class FrameDecoder {
       legend.push({ objectId: objId, label: m.label || 'UNDEFINED', color: [c[0], c[1], c[2]] })
     }
 
-    return { frameNumber, blobUrl: dataUrl, legend }
+    return { frameNumber, blobUrl: dataUrl, legend, masks: decodedMasks }
   }
 }
 
@@ -554,6 +566,9 @@ interface DashboardState {
   lastTimestampNs: number
   // Precomputed sensor data (available after recording load)
   sensorData: SensorFrameData[]
+  // Precomputed SLAM pipeline artifacts (available when .idoslam.pb exists)
+  idoslamData: bayesmech.vision.IdoSlamResponse | null
+  idoslamError: string | null
   // Buffer access
   getFrame: (frameNumber: number) => DecodedFrame | null
   getAnnotation: (frameNumber: number) => DecodedAnnotation | null
@@ -599,6 +614,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   // Precomputed sensor data (loaded once per recording)
   const [sensorData, setSensorData] = useState<SensorFrameData[]>([])
+  const [idoslamData, setIdoslamData] = useState<bayesmech.vision.IdoSlamResponse | null>(null)
+  const [idoslamError, setIdoslamError] = useState<string | null>(null)
 
   const [coverageStats, setCoverageStats] = useState<CoverageStats>(ZERO_COVERAGE)
 
@@ -641,10 +658,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const shouldProcess = isLiveRef.current || seekPendingRef.current || isPlayingRef.current
     if (!shouldProcess) return
 
-    const skipDepth = !isLiveRef.current
-
     for (const proto of frames) {
-      const frame = decoder.current.decodeFrame(proto, skipDepth)
+      const frame = decoder.current.decodeFrame(proto, false)
       frameBuffer.current.push(frame)
       if (isLiveRef.current) {
         // Coverage tracking only meaningful in live mode
@@ -825,9 +840,16 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setLastTimestampNs(0)
     setCoverageStats(ZERO_COVERAGE)
     setSensorData([])
+    setIdoslamData(null)
+    setIdoslamError(null)
 
     // Load on server
     await startPlayback(name)
+    try {
+      setIdoslamData(await fetchIdoSlam(name))
+    } catch (e) {
+      setIdoslamError(e instanceof Error ? e.message : 'Failed to fetch idoslam data')
+    }
 
     // Request stats, full trajectory, and full sensor data (precomputed once)
     dashboardWs.getStats()
@@ -866,6 +888,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setFirstTimestampNs(0)
     setLastTimestampNs(0)
     setCoverageStats(ZERO_COVERAGE)
+    setSensorData([])
+    setIdoslamData(null)
+    setIdoslamError(null)
 
     // Tell server to switch to live
     await apiSwitchToLive()
@@ -950,6 +975,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     <DashboardContext.Provider value={{
       connectionStatus, displayedFrame, displayedAnnotation, frameCount, fps, coverageStats,
       isLive, trajectoryPositions, firstTimestampNs, lastTimestampNs, sensorData,
+      idoslamData, idoslamError,
       getFrame, getAnnotation, requestFrame, requestAnnotation,
       currentIndex, totalFrames, isPlaying, serverFps,
       play, pause, seekTo, skipForward, skipBackward, loadRecording, switchToLive,

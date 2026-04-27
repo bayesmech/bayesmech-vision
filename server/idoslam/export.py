@@ -16,17 +16,24 @@ for _p in (str(_project_root), str(_project_root / "proto"), str(_server_root)):
 from proto import idoslam_pb2, perceiver_pb2
 from streamlog.protoio import ProtoIO
 from idoslam.common import (
+    canonical_centerline_csv_path,
+    canonical_lap_trajectories_csv_path,
+    canonical_output_dir,
     idoslam_proto_path,
     iter_messages,
     pairwise_motion_csv_path,
     pairwise_track_plot_path,
     pairwise_trajectory_csv_path,
+    plane_output_dir,
+    plane_width_csv_path,
     refined_trajectory_csv_path,
     refined_track_plot_path,
     seg_path,
     triangulated_correspondences_csv_path,
     triangulated_ground_points_csv_path,
     triangulated_pair_logs_path,
+    triangulated_output_dir,
+    triangulated_width_csv_path,
     workspace_path,
     write_track_plot,
 )
@@ -178,6 +185,200 @@ def _write_pairwise_motion_csv(path: Path, pairwise_motion: list[idoslam_pb2.Ido
             )
 
 
+def _add_track_width_estimates(dest, csv_path: Path) -> None:
+    if not csv_path.exists():
+        return
+    with csv_path.open() as f:
+        for row in csv.DictReader(f):
+            estimate = dest.add()
+            estimate.frame_index = int(row["frame_index"])
+            estimate.frame_number = int(row["frame_number"])
+            estimate.timestamp_ns = int(row["timestamp_ns"])
+            estimate.latitude = float(row.get("latitude", 0.0) or 0.0)
+            estimate.longitude = float(row.get("longitude", 0.0) or 0.0)
+            estimate.width_m = float(row.get("width_m", 0.0) or 0.0)
+            estimate.left_offset_m = float(row.get("left_offset_m", 0.0) or 0.0)
+            estimate.right_offset_m = float(row.get("right_offset_m", 0.0) or 0.0)
+            estimate.bike_fraction = float(row.get("bike_fraction", 0.0) or 0.0)
+            estimate.method = str(row.get("method", ""))
+
+
+def _write_track_width_estimates_csv(
+    path: Path,
+    rows,
+    *,
+    include_bike_fraction: bool,
+    include_method: bool,
+) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fieldnames = [
+        "frame_index",
+        "frame_number",
+        "timestamp_ns",
+        "latitude",
+        "longitude",
+        "width_m",
+        "left_offset_m",
+        "right_offset_m",
+    ]
+    if include_bike_fraction:
+        fieldnames.append("bike_fraction")
+    if include_method:
+        fieldnames.append("method")
+    with path.open("w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        for row in rows:
+            out = {
+                "frame_index": int(row.frame_index),
+                "frame_number": int(row.frame_number),
+                "timestamp_ns": int(row.timestamp_ns),
+                "latitude": float(row.latitude),
+                "longitude": float(row.longitude),
+                "width_m": float(row.width_m),
+                "left_offset_m": float(row.left_offset_m),
+                "right_offset_m": float(row.right_offset_m),
+            }
+            if include_bike_fraction:
+                out["bike_fraction"] = float(row.bike_fraction)
+            if include_method:
+                out["method"] = str(row.method)
+            writer.writerow(out)
+
+
+def _add_canonical_centerline(dest, csv_path: Path) -> None:
+    if not csv_path.exists():
+        return
+    with csv_path.open() as f:
+        for row in csv.DictReader(f):
+            point = dest.add()
+            point.bin_index = int(row["bin_index"])
+            point.progress_m = float(row["progress_m"])
+            point.center_x = float(row["center_x"])
+            point.center_y = float(row["center_y"])
+            point.width_m = float(row["width_m"])
+            point.left_x = float(row["left_x"])
+            point.left_y = float(row["left_y"])
+            point.right_x = float(row["right_x"])
+            point.right_y = float(row["right_y"])
+
+
+def _write_canonical_centerline_csv(path: Path, rows) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", newline="") as f:
+        writer = csv.DictWriter(
+            f,
+            fieldnames=["bin_index", "progress_m", "center_x", "center_y", "width_m", "left_x", "left_y", "right_x", "right_y"],
+        )
+        writer.writeheader()
+        for row in rows:
+            writer.writerow(
+                {
+                    "bin_index": int(row.bin_index),
+                    "progress_m": float(row.progress_m),
+                    "center_x": float(row.center_x),
+                    "center_y": float(row.center_y),
+                    "width_m": float(row.width_m),
+                    "left_x": float(row.left_x),
+                    "left_y": float(row.left_y),
+                    "right_x": float(row.right_x),
+                    "right_y": float(row.right_y),
+                }
+            )
+
+
+def _add_canonical_frame_tracks(dest, csv_path: Path) -> None:
+    if not csv_path.exists():
+        return
+    with csv_path.open() as f:
+        for row in csv.DictReader(f):
+            track = dest.add()
+            track.frame_index = int(row["frame_index"])
+            track.frame_number = int(row["frame_number"])
+            track.timestamp_ns = int(row["timestamp_ns"])
+            track.lap_id = int(row["lap_id"])
+            track.is_partial_lap = str(row["is_partial_lap"]).strip().lower() == "true"
+            track.progress_m = float(row["progress_m"])
+            track.progress_fraction = float(row["progress_fraction"])
+            track.gps_x = float(row["gps_x"])
+            track.gps_y = float(row["gps_y"])
+            track.canonical_x = float(row["canonical_x"])
+            track.canonical_y = float(row["canonical_y"])
+            track.lateral_offset_m = float(row["lateral_offset_m"])
+            image_lateral = str(row.get("image_lateral_m", "")).strip()
+            if image_lateral:
+                track.image_lateral_m = float(image_lateral)
+                track.has_image_lateral_m = True
+            track.trajectory_lateral_m = float(row["trajectory_lateral_m"])
+            track.trajectory_x = float(row["trajectory_x"])
+            track.trajectory_y = float(row["trajectory_y"])
+            track.width_m = float(row["width_m"])
+            track.half_width_m = float(row["half_width_m"])
+
+
+def _write_canonical_frame_tracks_csv(path: Path, rows) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", newline="") as f:
+        writer = csv.DictWriter(
+            f,
+            fieldnames=[
+                "frame_index",
+                "frame_number",
+                "timestamp_ns",
+                "lap_id",
+                "is_partial_lap",
+                "progress_m",
+                "progress_fraction",
+                "gps_x",
+                "gps_y",
+                "canonical_x",
+                "canonical_y",
+                "lateral_offset_m",
+                "image_lateral_m",
+                "trajectory_lateral_m",
+                "trajectory_x",
+                "trajectory_y",
+                "width_m",
+                "half_width_m",
+            ],
+        )
+        writer.writeheader()
+        for row in rows:
+            writer.writerow(
+                {
+                    "frame_index": int(row.frame_index),
+                    "frame_number": int(row.frame_number),
+                    "timestamp_ns": int(row.timestamp_ns),
+                    "lap_id": int(row.lap_id),
+                    "is_partial_lap": bool(row.is_partial_lap),
+                    "progress_m": float(row.progress_m),
+                    "progress_fraction": float(row.progress_fraction),
+                    "gps_x": float(row.gps_x),
+                    "gps_y": float(row.gps_y),
+                    "canonical_x": float(row.canonical_x),
+                    "canonical_y": float(row.canonical_y),
+                    "lateral_offset_m": float(row.lateral_offset_m),
+                    "image_lateral_m": float(row.image_lateral_m) if row.has_image_lateral_m else "",
+                    "trajectory_lateral_m": float(row.trajectory_lateral_m),
+                    "trajectory_x": float(row.trajectory_x),
+                    "trajectory_y": float(row.trajectory_y),
+                    "width_m": float(row.width_m),
+                    "half_width_m": float(row.half_width_m),
+                }
+            )
+
+
+def _read_text_if_exists(path: Path) -> str:
+    return path.read_text() if path.exists() else ""
+
+
+def _write_text_if_present(path: Path, text: str) -> None:
+    if not text:
+        return
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text)
+
+
 def _write_triangulated_outputs(
     response: idoslam_pb2.IdoSlamResponse,
     ground_points_csv: Path,
@@ -281,6 +482,9 @@ def hydrate_workspace_from_idoslam_pb(recording: Path) -> dict[str, bool]:
         "has_ground_points": len(response.ground_points) > 0,
         "has_pair_debug": len(response.pair_debug) > 0,
         "has_correspondences": has_correspondences,
+        "has_plane_width": len(response.plane_width_estimates) > 0,
+        "has_canonical_track": len(response.canonical_centerline) > 0 and len(response.canonical_frame_tracks) > 0,
+        "has_triangulated_width": len(response.triangulated_width_estimates) > 0,
     }
 
     gps_rows = _load_gps_rows(recording)
@@ -303,6 +507,29 @@ def hydrate_workspace_from_idoslam_pb(recording: Path) -> dict[str, bool]:
             triangulated_correspondences_csv_path(recording),
             triangulated_pair_logs_path(recording),
         )
+
+    if state["has_plane_width"]:
+        _write_track_width_estimates_csv(
+            plane_width_csv_path(recording),
+            response.plane_width_estimates,
+            include_bike_fraction=True,
+            include_method=False,
+        )
+    _write_text_if_present(plane_output_dir(recording) / "summary.json", response.plane_width_summary_json)
+
+    if state["has_canonical_track"]:
+        _write_canonical_centerline_csv(canonical_centerline_csv_path(recording), response.canonical_centerline)
+        _write_canonical_frame_tracks_csv(canonical_lap_trajectories_csv_path(recording), response.canonical_frame_tracks)
+    _write_text_if_present(canonical_output_dir(recording) / "summary.json", response.canonical_summary_json)
+
+    if state["has_triangulated_width"]:
+        _write_track_width_estimates_csv(
+            triangulated_width_csv_path(recording),
+            response.triangulated_width_estimates,
+            include_bike_fraction=False,
+            include_method=True,
+        )
+    _write_text_if_present(triangulated_output_dir(recording) / "summary.json", response.triangulated_summary_json)
 
     return state
 
@@ -392,6 +619,16 @@ def write_idoslam_pb(recording: Path) -> Path:
                 motion.qw = float(row.get("qw", 1.0))
                 motion.mask_pixels_prev = int(row.get("mask_pixels_prev", 0))
                 motion.mask_pixels = int(row.get("mask_pixels", 0))
+
+    _add_track_width_estimates(resp.plane_width_estimates, plane_width_csv_path(recording))
+    resp.plane_width_summary_json = _read_text_if_exists(plane_output_dir(recording) / "summary.json")
+
+    _add_canonical_centerline(resp.canonical_centerline, canonical_centerline_csv_path(recording))
+    _add_canonical_frame_tracks(resp.canonical_frame_tracks, canonical_lap_trajectories_csv_path(recording))
+    resp.canonical_summary_json = _read_text_if_exists(canonical_output_dir(recording) / "summary.json")
+
+    _add_track_width_estimates(resp.triangulated_width_estimates, triangulated_width_csv_path(recording))
+    resp.triangulated_summary_json = _read_text_if_exists(triangulated_output_dir(recording) / "summary.json")
 
     ground_points_csv = triangulated_ground_points_csv_path(recording)
     if ground_points_csv.exists():

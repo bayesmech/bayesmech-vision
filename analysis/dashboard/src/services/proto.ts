@@ -13,7 +13,7 @@
 import pako from 'pako'
 import { bayesmech } from '../proto/bundle'
 
-const { PerceiverDataFrame, SegmentationResponse } = bayesmech.vision
+const { PerceiverDataFrame, SegmentationResponse, IdoSlamResponse } = bayesmech.vision
 
 export const PREFIX_FRAME = 0x01
 export const PREFIX_ANNOTATION = 0x02
@@ -46,6 +46,10 @@ export function decodeFrames(payload: Uint8Array): bayesmech.vision.PerceiverDat
 
 export function decodeAnnotations(payload: Uint8Array): bayesmech.vision.SegmentationResponse[] {
   return readDelimited(payload, (b) => SegmentationResponse.decode(b))
+}
+
+export function decodeIdoSlamResponse(payload: Uint8Array): bayesmech.vision.IdoSlamResponse {
+  return IdoSlamResponse.decode(payload)
 }
 
 /**

@@ -8,6 +8,7 @@ WS  /ws/dashboard            Dashboard <- binary protobuf stream + annotations
 GET /api/health              Server status
 GET /api/stream              FrameStore stats
 GET /api/recordings          List saved .pb recordings
+GET /api/idoslam             Return IdoSlamResponse for a recording
 POST /api/playback/start     Load a recording into the store
 POST /api/playback/stop      Stop active replay
 GET /api/playback/status     Replay status
@@ -47,6 +48,7 @@ sys.path.append(str(_project_root / "proto"))
 sys.path.append(str(_server_root))
 from proto import perceiver_pb2
 from proto import insightgen_pb2
+from proto import idoslam_pb2
 
 from streamlog.frame_store import FrameStore
 from streamlog.annotator import Annotator
@@ -54,6 +56,7 @@ from streamlog.dashboard_bridge import DashboardBridge
 from streamlog.video_layers import LAYER_REGISTRY, MotioncapVideoLayer
 from streamlog.highlight_clipper import extract_highlights, clip_frame_indices
 from streamlog.chat_manager import ChatManager
+from streamlog.protoio import ProtoIO
 
 # ── Logging ───────────────────────────────────────────────────────────────────
 
@@ -79,6 +82,8 @@ RECORDINGS_DIR.mkdir(exist_ok=True)
 store = FrameStore()
 annotator = Annotator()
 bridge = DashboardBridge(store, annotator)
+_idoslam_io = ProtoIO(idoslam_pb2.IdoSlamResponse)
+_idoslam_io.FRAME_SIZE_LIMIT = 512 * 1024 * 1024
 
 # Load genspark config for chat follow-up
 _genspark_config_path = _server_root / "genspark" / "config.yaml"
@@ -321,6 +326,24 @@ def _recording_file(file_name: str, suffix: str) -> Path:
     return _recording_dir(file_name) / f"{file_name}.{suffix}"
 
 
+def _safe_recording_stem(file_name: str) -> str:
+    safe_name = Path(file_name).name
+    for suffix in (".vis.pb", ".idoslam.pb", ".seg.pb"):
+        safe_name = safe_name.removesuffix(suffix)
+    return safe_name
+
+
+def _idoslam_path_for_request(file_name: str | None) -> Path | None:
+    if file_name:
+        safe_name = _safe_recording_stem(file_name)
+        return _recording_file(safe_name, "idoslam.pb")
+    if store.current_file is None:
+        return None
+    current = store.current_file
+    stem = current.name.removesuffix(".vis.pb") if current.name.endswith(".vis.pb") else current.stem
+    return current.parent / f"{stem}.idoslam.pb"
+
+
 def _build_summary_markdown(summary: insightgen_pb2.GensparkSummary) -> str:
     parts: list[str] = []
     if summary.title.strip():
@@ -453,8 +476,38 @@ async def list_recordings():
             "size_mb": round(vis.stat().st_size / (1024 ** 2), 2),
             "recorded_at": _parse_recording_timestamp(d.name, d.stat().st_mtime),
             "has_segmentation": (d / f"{d.name}.seg.pb").exists(),
+            "has_idoslam": (d / f"{d.name}.idoslam.pb").exists(),
         })
     return {"recordings": recordings}
+
+
+@app.get("/api/idoslam")
+async def idoslam_data(file: str | None = None):
+    """
+    Return the latest IdoSlamResponse for a recording.
+
+    The on-disk checkpoint uses the repository's length-delimited protobuf
+    format; this endpoint unwraps the latest record and returns the raw message
+    bytes for direct browser-side protobuf decoding.
+    """
+    pb_path = _idoslam_path_for_request(file)
+    if pb_path is None or not pb_path.exists():
+        return Response(status_code=404)
+    try:
+        records = await asyncio.get_event_loop().run_in_executor(
+            None,
+            _idoslam_io.read_file,
+            pb_path,
+        )
+        if not records:
+            return Response(status_code=404)
+        return Response(
+            content=records[-1].SerializeToString(),
+            media_type="application/x-protobuf",
+        )
+    except Exception as exc:
+        logger.error("idoslam_data error for %s: %s", pb_path, exc, exc_info=True)
+        return Response(status_code=500)
 
 
 @app.post("/api/insightgen/recordings")

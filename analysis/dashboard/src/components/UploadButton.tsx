@@ -239,6 +239,19 @@ const LoadButton: React.FC = () => {
                       SEG
                     </span>
                   )}
+                  {rec.has_idoslam && (
+                    <span style={{
+                      fontSize: '0.6rem',
+                      fontWeight: 600,
+                      padding: '0.15rem 0.4rem',
+                      border: '1px solid #2f88ff',
+                      color: '#69a8ff',
+                      letterSpacing: '0.08em',
+                      flexShrink: 0,
+                    }}>
+                      SLAM
+                    </span>
+                  )}
                 </div>
               ))}
             </div>

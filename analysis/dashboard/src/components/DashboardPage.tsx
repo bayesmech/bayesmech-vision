@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { useDashboard } from '../context/DashboardContext'
 import StreamViewer from './StreamViewer'
 import GeometryStreamViewer from './GeometryStreamViewer'
@@ -7,6 +7,7 @@ import MotionChart from './MotionChart'
 import InfoCard from './InfoCard'
 import TrajectoryCanvas from './TrajectoryCanvas'
 import GpsMapViewer from './GpsMapViewer'
+import LocalizationMappingTab from './LocalizationMappingTab'
 import type { ImuData, SegmentationLegendEntry } from '../types'
 
 const XYZ = ['X', 'Y', 'Z']
@@ -61,6 +62,7 @@ const SegmentationLegend: React.FC<{ legend?: SegmentationLegendEntry[] }> = ({ 
 
 const DashboardPage = () => {
   const { displayedFrame, displayedAnnotation, frameCount, fps } = useDashboard()
+  const [activeTab, setActiveTab] = useState<'capture' | 'slam'>('capture')
 
   const source = displayedFrame?.source ?? 'none'
   const deviceId = displayedFrame?.device_id
@@ -72,6 +74,27 @@ const DashboardPage = () => {
       {/* Playback controls — full width, above all streams */}
       <PlaybackControls />
 
+      <div className="dashboard-tabs">
+        <button
+          className={activeTab === 'capture' ? 'active' : ''}
+          onClick={() => setActiveTab('capture')}
+          type="button"
+        >
+          Capture
+        </button>
+        <button
+          className={activeTab === 'slam' ? 'active' : ''}
+          onClick={() => setActiveTab('slam')}
+          type="button"
+        >
+          Localization + Mapping
+        </button>
+      </div>
+
+      {activeTab === 'slam' ? (
+        <LocalizationMappingTab />
+      ) : (
+        <>
       {/* Video streams — RGB, Depth, Point Cloud, Planes */}
       <div
         className="streams-grid"
@@ -199,6 +222,8 @@ const DashboardPage = () => {
         <TrajectoryCanvas />
         <GpsMapViewer gps={displayedFrame?.gps} />
       </div>
+        </>
+      )}
     </section>
   )
 }

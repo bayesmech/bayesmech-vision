@@ -110,6 +110,54 @@ body {
   letter-spacing: 0.1em;
 }
 
+.dashboard-tabs {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.dashboard-tabs button {
+  appearance: none;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-bottom: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  padding: 0.55rem 0.8rem;
+  text-transform: uppercase;
+}
+
+.dashboard-tabs button.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-glow);
+}
+
+.slam-two-column {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.slam-canvas {
+  width: 100%;
+  height: auto;
+  display: block;
+  background: #030303;
+  border: 1px solid var(--border);
+}
+
+.slam-canvas.clickable {
+  cursor: crosshair;
+}
+
 .stream-card {
   background: var(--bg-card);
   border: 1px solid var(--border);

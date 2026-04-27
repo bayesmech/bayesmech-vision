@@ -82,6 +82,53 @@ message IdoSlamPairwiseMotion {
   uint32 mask_pixels = 21;
 }
 
+message IdoSlamTrackWidthEstimate {
+  uint32 frame_index = 1;
+  uint32 frame_number = 2;
+  uint64 timestamp_ns = 3;
+  double latitude = 4;
+  double longitude = 5;
+  double width_m = 6;
+  double left_offset_m = 7;
+  double right_offset_m = 8;
+  double bike_fraction = 9;
+  string method = 10;
+}
+
+message IdoSlamCanonicalCenterlinePoint {
+  uint32 bin_index = 1;
+  double progress_m = 2;
+  double center_x = 3;
+  double center_y = 4;
+  double width_m = 5;
+  double left_x = 6;
+  double left_y = 7;
+  double right_x = 8;
+  double right_y = 9;
+}
+
+message IdoSlamCanonicalFrameTrack {
+  uint32 frame_index = 1;
+  uint32 frame_number = 2;
+  uint64 timestamp_ns = 3;
+  int32 lap_id = 4;
+  bool is_partial_lap = 5;
+  double progress_m = 6;
+  double progress_fraction = 7;
+  double gps_x = 8;
+  double gps_y = 9;
+  double canonical_x = 10;
+  double canonical_y = 11;
+  double lateral_offset_m = 12;
+  double image_lateral_m = 13;
+  bool has_image_lateral_m = 14;
+  double trajectory_lateral_m = 15;
+  double trajectory_x = 16;
+  double trajectory_y = 17;
+  double width_m = 18;
+  double half_width_m = 19;
+}
+
 message IdoSlamResponse {
   PerceiverFrameIdentifier first_frame_id = 1;
   string recording_path = 2;
@@ -95,4 +142,14 @@ message IdoSlamResponse {
   // Post-GPS-refinement poses, when refinement is enabled and accepted.
   repeated IdoSlamFramePose refined_frame_poses = 8;
   repeated IdoSlamPairwiseMotion pairwise_motion = 9;
+
+  // Derived road-width/canonical-track artifacts needed to re-render debug
+  // videos after hydrating a workspace from this checkpoint.
+  repeated IdoSlamTrackWidthEstimate plane_width_estimates = 10;
+  string plane_width_summary_json = 11;
+  repeated IdoSlamCanonicalCenterlinePoint canonical_centerline = 12;
+  repeated IdoSlamCanonicalFrameTrack canonical_frame_tracks = 13;
+  string canonical_summary_json = 14;
+  repeated IdoSlamTrackWidthEstimate triangulated_width_estimates = 15;
+  string triangulated_summary_json = 16;
 }
