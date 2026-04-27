@@ -1,13 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { bayesmech } from '../proto/bundle'
 import { useDashboard } from '../context/DashboardContext'
-import type { DecodedAnnotation, DecodedFrame } from '../types'
+import type { DecodedAnnotation, DecodedFrame, GpsLocation, SensorFrameData } from '../types'
 
-const MAP_WIDTH = 900
-const MAP_HEIGHT = 560
+const TRACK_PLOT_WIDTH = 720
+const TRACK_PLOT_HEIGHT = 520
 const VIDEO_WIDTH = 900
 const VIDEO_HEIGHT = 506
-const ROAD_LABELS = new Set(['road', 'pavement'])
+const ROAD_LABELS = new Set(['road', 'pavement', 'bike'])
 
 type Point2 = { x: number; y: number }
 type Point3 = { x: number; y: number; z: number }
@@ -34,6 +34,21 @@ interface RoadProjectionData {
   rightGround: Point2[]
   pitchDeg: number
   cameraHeightM: number
+}
+
+interface Alignment2D {
+  thetaDeg: number
+  scaleDivisor: number
+  rotation: number[][]
+  translation: Point2
+}
+
+interface TrackPlotData {
+  slamPca: Point2[]
+  gpsLocal: Point2[] | null
+  aligned: Point2[] | null
+  currentAligned: Point2 | null
+  alignment: Alignment2D | null
 }
 
 class GroundProjector {
@@ -98,11 +113,6 @@ function poseToVec3(pose: SlamPose): Point3 | null {
   const pos = pose.worldPose?.position
   if (!pos) return null
   return { x: pos.x ?? 0, y: pos.y ?? 0, z: pos.z ?? 0 }
-}
-
-function groundPointToVec3(point: bayesmech.vision.IVector3 | null | undefined): Point3 | null {
-  if (!point) return null
-  return { x: point.x ?? 0, y: point.y ?? 0, z: point.z ?? 0 }
 }
 
 function dot3(a: Point3, b: Point3): number {
@@ -251,48 +261,25 @@ const SlamMapCanvas: React.FC<{
   title: string
   badge: string
   poses: SlamPose[]
-  groundPoints: Point3[]
+  sensorData: SensorFrameData[]
   currentPose: SlamPose | null
   showCurrent: boolean
-}> = ({ title, badge, poses, groundPoints, currentPose, showCurrent }) => {
+}> = ({ title, badge, poses, sensorData, currentPose, showCurrent }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
   useEffect(() => {
     const canvas = canvasRef.current
     const ctx = canvas?.getContext('2d')
     if (!canvas || !ctx) return
-    drawCanvasBackground(ctx, MAP_WIDTH, MAP_HEIGHT)
-
-    const path3 = poses.map(poseToVec3).filter((p): p is Point3 => p !== null)
-    const current3 = currentPose ? poseToVec3(currentPose) : null
-    const allPoints3 = [...path3, ...groundPoints, ...(current3 ? [current3] : [])]
-    if (allPoints3.length === 0) {
-      drawEmptyCanvasLabel(ctx, 'No SLAM map data')
+    const plotData = buildTrackPlotData(poses, sensorData, currentPose)
+    drawCanvasBackground(ctx, TRACK_PLOT_WIDTH, TRACK_PLOT_HEIGHT)
+    if (!plotData) {
+      drawEmptyCanvasLabel(ctx, 'No GPS-matched SLAM map data')
       return
     }
-    const project = createPcaProjector(allPoints3)
-    const path = path3.map(project)
-    const mapGroundPoints = groundPoints.map(project)
-    const current = current3 ? project(current3) : null
-    const allPoints = [...path, ...mapGroundPoints, ...(current ? [current] : [])]
-    const map = fitPoints(allPoints, MAP_WIDTH, MAP_HEIGHT)
 
-    ctx.fillStyle = 'rgba(47, 136, 255, 0.42)'
-    for (let i = 0; i < mapGroundPoints.length; i += Math.max(1, Math.ceil(mapGroundPoints.length / 4000))) {
-      const p = map(mapGroundPoints[i])
-      ctx.fillRect(p.x - 1, p.y - 1, 2, 2)
-    }
-
-    drawPolyline(ctx, path, map, '#00ff88', 2)
-    if (path.length > 0) drawDot(ctx, map(path[0]), '#f7f7f7', 4)
-    if (showCurrent && current) {
-      const p = map(current)
-      drawDot(ctx, p, '#ffd400', 7)
-      ctx.strokeStyle = '#101010'
-      ctx.lineWidth = 2
-      ctx.stroke()
-    }
-  }, [poses, groundPoints, currentPose, showCurrent])
+    drawAlignedTrajectory(ctx, plotData.aligned ?? plotData.slamPca, showCurrent ? plotData.currentAligned : null)
+  }, [poses, sensorData, currentPose, showCurrent])
 
   return (
     <div className="stream-card">
@@ -300,9 +287,21 @@ const SlamMapCanvas: React.FC<{
         <span className="stream-title">{title}</span>
         <span className="stream-badge">{badge}</span>
       </div>
-      <canvas className="slam-canvas" ref={canvasRef} width={MAP_WIDTH} height={MAP_HEIGHT} />
+      <canvas className="slam-canvas" ref={canvasRef} width={TRACK_PLOT_WIDTH} height={TRACK_PLOT_HEIGHT} />
     </div>
   )
+}
+
+function drawAlignedTrajectory(
+  ctx: CanvasRenderingContext2D,
+  trajectory: Point2[],
+  currentPoint: Point2 | null,
+): void {
+  const points = currentPoint ? [...trajectory, currentPoint] : trajectory
+  if (points.length === 0) return
+  const map = fitPoints(points, TRACK_PLOT_WIDTH, TRACK_PLOT_HEIGHT, 38)
+  drawPolyline(ctx, trajectory, map, '#ffffff', 2.4)
+  if (currentPoint) drawDot(ctx, map(currentPoint), '#ffd400', 6.5)
 }
 
 function drawEmptyCanvasLabel(ctx: CanvasRenderingContext2D, label: string): void {
@@ -351,6 +350,203 @@ function imageRectFor(canvasWidth: number, canvasHeight: number, imageWidth: num
   return { x: (canvasWidth - width) / 2, y: (canvasHeight - height) / 2, width, height }
 }
 
+function timestampNumber(value: number | { toString(): string } | null | undefined): number {
+  if (value === null || value === undefined) return 0
+  return Number(value.toString())
+}
+
+function gpsToLocalXY(points: GpsLocation[]): Point2[] {
+  if (points.length === 0) return []
+  const radiusM = 6378137.0
+  const lat0 = points[0].latitude * Math.PI / 180
+  const lon0 = points[0].longitude * Math.PI / 180
+  return points.map((point) => {
+    const lat = point.latitude * Math.PI / 180
+    const lon = point.longitude * Math.PI / 180
+    return {
+      x: (lon - lon0) * Math.cos(lat0) * radiusM,
+      y: (lat - lat0) * radiusM,
+    }
+  })
+}
+
+function rotationMatrix2D(thetaRad: number): number[][] {
+  const c = Math.cos(thetaRad)
+  const s = Math.sin(thetaRad)
+  return [[c, -s], [s, c]]
+}
+
+function estimatePairwiseGlobalAlignment(visualXY: Point2[], gpsXY: Point2[]): Alignment2D {
+  if (visualXY.length < 2 || visualXY.length !== gpsXY.length) {
+    const visualMean = meanPoint2(visualXY)
+    const gpsMean = meanPoint2(gpsXY)
+    return {
+      thetaDeg: 0,
+      scaleDivisor: 1,
+      rotation: [[1, 0], [0, 1]],
+      translation: { x: gpsMean.x - visualMean.x, y: gpsMean.y - visualMean.y },
+    }
+  }
+
+  const changeIdx = [0]
+  for (let i = 1; i < gpsXY.length; i += 1) {
+    if (Math.hypot(gpsXY[i].x - gpsXY[i - 1].x, gpsXY[i].y - gpsXY[i - 1].y) > 1e-6) {
+      changeIdx.push(i)
+    }
+  }
+  if (changeIdx.length < 2) {
+    changeIdx.length = 0
+    for (let i = 0; i < gpsXY.length; i += 1) changeIdx.push(i)
+  }
+
+  const angles: number[] = []
+  const visualNorms: number[] = []
+  const gpsNorms: number[] = []
+  for (let i = 1; i < changeIdx.length; i += 1) {
+    const a = changeIdx[i - 1]
+    const b = changeIdx[i]
+    const v = { x: visualXY[b].x - visualXY[a].x, y: visualXY[b].y - visualXY[a].y }
+    const g = { x: gpsXY[b].x - gpsXY[a].x, y: gpsXY[b].y - gpsXY[a].y }
+    const vn = Math.hypot(v.x, v.y)
+    const gn = Math.hypot(g.x, g.y)
+    if (vn <= 1e-9 || gn <= 1e-9) continue
+    angles.push(Math.atan2(v.x * g.y - v.y * g.x, v.x * g.x + v.y * g.y))
+    visualNorms.push(vn)
+    gpsNorms.push(gn)
+  }
+
+  if (angles.length === 0) {
+    const visualMean = meanPoint2(visualXY)
+    const gpsMean = meanPoint2(gpsXY)
+    return {
+      thetaDeg: 0,
+      scaleDivisor: 1,
+      rotation: [[1, 0], [0, 1]],
+      translation: { x: gpsMean.x - visualMean.x, y: gpsMean.y - visualMean.y },
+    }
+  }
+
+  const sinMean = angles.reduce((sum, angle) => sum + Math.sin(angle), 0) / angles.length
+  const cosMean = angles.reduce((sum, angle) => sum + Math.cos(angle), 0) / angles.length
+  const thetaRad = Math.atan2(sinMean, cosMean)
+  const scaleDivisor = visualNorms.reduce((sum, norm, i) => sum + norm / gpsNorms[i], 0) / visualNorms.length
+  const rotation = rotationMatrix2D(thetaRad)
+  const transformed = visualXY.map(point => applyAlignmentRotation(point, rotation, scaleDivisor))
+  const residuals = gpsXY.map((gps, i) => ({ x: gps.x - transformed[i].x, y: gps.y - transformed[i].y }))
+  const translation = meanPoint2(residuals)
+  return {
+    thetaDeg: thetaRad * 180 / Math.PI,
+    scaleDivisor,
+    rotation,
+    translation,
+  }
+}
+
+function meanPoint2(points: Point2[]): Point2 {
+  if (points.length === 0) return { x: 0, y: 0 }
+  const sum = points.reduce((acc, point) => ({ x: acc.x + point.x, y: acc.y + point.y }), { x: 0, y: 0 })
+  return { x: sum.x / points.length, y: sum.y / points.length }
+}
+
+function applyAlignmentRotation(point: Point2, rotation: number[][], scaleDivisor: number): Point2 {
+  const scale = scaleDivisor > 1e-12 ? scaleDivisor : 1
+  return {
+    x: (rotation[0][0] * point.x + rotation[0][1] * point.y) / scale,
+    y: (rotation[1][0] * point.x + rotation[1][1] * point.y) / scale,
+  }
+}
+
+function applyTrackAlignment(point: Point2, alignment: Alignment2D): Point2 {
+  const rotated = applyAlignmentRotation(point, alignment.rotation, alignment.scaleDivisor)
+  return { x: rotated.x + alignment.translation.x, y: rotated.y + alignment.translation.y }
+}
+
+function alignmentRmse(aligned: Point2[], gps: Point2[]): number {
+  if (aligned.length === 0 || aligned.length !== gps.length) return Infinity
+  const mse = aligned.reduce((sum, point, i) => {
+    const dx = point.x - gps[i].x
+    const dy = point.y - gps[i].y
+    return sum + dx * dx + dy * dy
+  }, 0) / aligned.length
+  return Math.sqrt(mse)
+}
+
+function buildTrackPlotData(
+  poses: SlamPose[],
+  sensorData: SensorFrameData[],
+  currentPose: SlamPose | null,
+): TrackPlotData | null {
+  const gpsByFrameNumber = new Map<number, GpsLocation>()
+  const gpsByFrameIndex = new Map<number, GpsLocation>()
+  const gpsByTimestamp = new Map<number, GpsLocation>()
+  sensorData.forEach((frame, index) => {
+    if (!frame.gps) return
+    gpsByFrameNumber.set(Number(frame.fn), frame.gps)
+    gpsByFrameIndex.set(index, frame.gps)
+    gpsByTimestamp.set(Number(frame.ts), frame.gps)
+  })
+
+  const allPosePoints = poses.map(poseToVec3).filter((point): point is Point3 => point !== null)
+  if (allPosePoints.length < 2) return null
+
+  const gpsForPose = (pose: SlamPose): GpsLocation | undefined => {
+    const frameNumber = Number(pose.frameId?.frameNumber ?? -1)
+    const frameIndex = Number(pose.frameIndex ?? -1)
+    const timestamp = timestampNumber(pose.frameId?.timestampNs)
+    return gpsByFrameNumber.get(frameNumber) ?? gpsByFrameIndex.get(frameIndex) ?? gpsByTimestamp.get(timestamp)
+  }
+
+  const matched: { timestamp: number; point: Point3; gps: GpsLocation }[] = []
+  for (const pose of poses) {
+    const timestamp = timestampNumber(pose.frameId?.timestampNs)
+    const gps = gpsForPose(pose)
+    const point = poseToVec3(pose)
+    if (!gps || !point) continue
+    matched.push({ timestamp, point, gps })
+  }
+  matched.sort((a, b) => a.timestamp - b.timestamp)
+  if (matched.length < 2) {
+    const project = createPcaProjector(allPosePoints)
+    const slamPca = allPosePoints.map(point => project(point))
+    const currentPoint = currentPose ? poseToVec3(currentPose) : null
+    const currentAligned = currentPoint ? project(currentPoint) : null
+    return { slamPca, gpsLocal: null, aligned: null, currentAligned, alignment: null }
+  }
+
+  const project = createPcaProjector(matched.map(row => row.point))
+  const gpsLocal = gpsToLocalXY(matched.map(row => row.gps))
+  const rawPca = matched.map(row => project(row.point))
+  let best: {
+    slamPca: Point2[]
+    aligned: Point2[]
+    alignment: Alignment2D
+    error: number
+    signX: number
+    signY: number
+  } | null = null
+  for (const sx of [1, -1]) {
+    for (const sy of [1, -1]) {
+      const slamPca = rawPca.map(point => ({ x: sx * point.x, y: sy * point.y }))
+      const alignment = estimatePairwiseGlobalAlignment(slamPca, gpsLocal)
+      const aligned = slamPca.map(point => applyTrackAlignment(point, alignment))
+      const error = alignmentRmse(aligned, gpsLocal)
+      if (!best || error < best.error) best = { slamPca, aligned, alignment, error, signX: sx, signY: sy }
+    }
+  }
+  if (!best) return null
+  const currentPoint = currentPose ? poseToVec3(currentPose) : null
+  const currentRaw = currentPoint ? project(currentPoint) : null
+  const currentPca = currentRaw ? { x: best.signX * currentRaw.x, y: best.signY * currentRaw.y } : null
+  const currentAligned = currentPca ? applyTrackAlignment(currentPca, best.alignment) : null
+  return {
+    slamPca: best.slamPca,
+    gpsLocal,
+    aligned: best.aligned,
+    currentAligned,
+    alignment: best.alignment,
+  }
+}
+
 const SiftCorrespondencePanel: React.FC<{ slam: SlamResponse | null }> = ({ slam }) => {
   const { displayedFrame, currentIndex } = useDashboard()
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -370,14 +566,16 @@ const SiftCorrespondencePanel: React.FC<{ slam: SlamResponse | null }> = ({ slam
     const canvas = canvasRef.current
     const ctx = canvas?.getContext('2d')
     if (!canvas || !ctx) return
-    drawCanvasBackground(ctx, VIDEO_WIDTH, VIDEO_HEIGHT)
     if (!displayedFrame?.rgbBlobUrl || !pair) {
+      drawCanvasBackground(ctx, VIDEO_WIDTH, VIDEO_HEIGHT)
       drawEmptyCanvasLabel(ctx, 'No SIFT correspondence data')
       return
     }
 
+    let cancelled = false
     const image = new Image()
     image.onload = () => {
+      if (cancelled) return
       drawCanvasBackground(ctx, VIDEO_WIDTH, VIDEO_HEIGHT)
       const rect = drawImageContain(ctx, image, VIDEO_WIDTH, VIDEO_HEIGHT)
       const scaleX = rect.width / Math.max(image.naturalWidth, 1)
@@ -408,7 +606,15 @@ const SiftCorrespondencePanel: React.FC<{ slam: SlamResponse | null }> = ({ slam
         drawDot(ctx, { x: sx, y: sy }, road ? '#ff3838' : '#ffffff', road ? 2.8 : 2)
       }
     }
+    image.onerror = () => {
+      if (cancelled) return
+      drawCanvasBackground(ctx, VIDEO_WIDTH, VIDEO_HEIGHT)
+      drawEmptyCanvasLabel(ctx, 'No SIFT correspondence data')
+    }
     image.src = displayedFrame.rgbBlobUrl
+    return () => {
+      cancelled = true
+    }
   }, [displayedFrame, pair])
 
   return (
@@ -658,13 +864,15 @@ const RoadProjectionPanels: React.FC<{ slam: SlamResponse | null }> = ({ slam })
     const canvas = imageCanvasRef.current
     const ctx = canvas?.getContext('2d')
     if (!canvas || !ctx) return
-    drawCanvasBackground(ctx, VIDEO_WIDTH, VIDEO_HEIGHT)
     if (!displayedFrame?.rgbBlobUrl || !projection) {
+      drawCanvasBackground(ctx, VIDEO_WIDTH, VIDEO_HEIGHT)
       drawEmptyCanvasLabel(ctx, 'No road estimate data')
       return
     }
+    let cancelled = false
     const image = new Image()
     image.onload = () => {
+      if (cancelled) return
       drawCanvasBackground(ctx, VIDEO_WIDTH, VIDEO_HEIGHT)
       const rect = drawImageContain(ctx, image, VIDEO_WIDTH, VIDEO_HEIGHT)
       drawMaskOverlay(ctx, rect, projection.road, [47, 136, 255, 95])
@@ -680,7 +888,15 @@ const RoadProjectionPanels: React.FC<{ slam: SlamResponse | null }> = ({ slam })
         }, '#ffd400', 7)
       }
     }
+    image.onerror = () => {
+      if (cancelled) return
+      drawCanvasBackground(ctx, VIDEO_WIDTH, VIDEO_HEIGHT)
+      drawEmptyCanvasLabel(ctx, 'No road estimate data')
+    }
     image.src = displayedFrame.rgbBlobUrl
+    return () => {
+      cancelled = true
+    }
   }, [displayedFrame, projection, selectedImagePoint])
 
   useEffect(() => {
@@ -765,13 +981,7 @@ const RoadProjectionPanels: React.FC<{ slam: SlamResponse | null }> = ({ slam })
 }
 
 const LocalizationMappingTab: React.FC = () => {
-  const { currentIndex, displayedFrame, idoslamData, idoslamError } = useDashboard()
-  const groundPoints = useMemo(
-    () => (idoslamData?.groundPoints ?? [])
-      .map(point => groundPointToVec3(point.point))
-      .filter((p): p is Point3 => p !== null),
-    [idoslamData],
-  )
+  const { currentIndex, displayedFrame, idoslamData, idoslamError, sensorData } = useDashboard()
   const rawCurrentPose = useMemo(
     () => currentPoseForFrame(idoslamData?.framePoses ?? [], displayedFrame, currentIndex),
     [idoslamData, displayedFrame, currentIndex],
@@ -787,12 +997,12 @@ const LocalizationMappingTab: React.FC = () => {
 
   return (
     <section className="stream-section">
-      <div className="slam-two-column">
+      <div className="slam-overview-row">
         <SlamMapCanvas
           title="Pre-GPS Optimization Map"
           badge="VO"
           poses={idoslamData?.framePoses ?? []}
-          groundPoints={groundPoints}
+          sensorData={sensorData}
           currentPose={rawCurrentPose}
           showCurrent={false}
         />
@@ -800,13 +1010,12 @@ const LocalizationMappingTab: React.FC = () => {
           title="Post-GPS Optimization Map"
           badge="GPS"
           poses={idoslamData?.refinedFramePoses ?? []}
-          groundPoints={groundPoints}
+          sensorData={sensorData}
           currentPose={refinedCurrentPose}
           showCurrent
         />
+        <SiftCorrespondencePanel slam={idoslamData} />
       </div>
-
-      <SiftCorrespondencePanel slam={idoslamData} />
       <RoadProjectionPanels slam={idoslamData} />
     </section>
   )

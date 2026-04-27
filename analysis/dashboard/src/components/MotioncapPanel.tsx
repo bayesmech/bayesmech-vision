@@ -73,6 +73,7 @@ const MotioncapPanel: React.FC = () => {
   const [motioncapAvailable, setMotioncapAvailable] = useState<boolean | null>(
     currentRecordingName ? null : false,
   )
+  const [baseFrameUrl, setBaseFrameUrl] = useState<string | undefined>(undefined)
   const [heatmapUrl, setHeatmapUrl] = useState<string | undefined>(undefined)
   const heatmapCacheRef = useRef<Map<number, string>>(new Map())
   const requestIdRef = useRef(0)
@@ -104,6 +105,23 @@ const MotioncapPanel: React.FC = () => {
       cancelled = true
     }
   }, [currentRecordingName, isLive])
+
+  useEffect(() => {
+    const url = displayedFrame?.rgbBlobUrl
+    if (!url) {
+      setBaseFrameUrl(undefined)
+      return
+    }
+    let cancelled = false
+    const image = new Image()
+    image.onload = () => {
+      if (!cancelled) setBaseFrameUrl(url)
+    }
+    image.src = url
+    return () => {
+      cancelled = true
+    }
+  }, [displayedFrame?.rgbBlobUrl])
 
   useEffect(() => {
     if (isLive || !currentRecordingName || motioncapAvailable !== true || !displayedFrame?.rgbBlobUrl) {
@@ -173,10 +191,10 @@ const MotioncapPanel: React.FC = () => {
           <span className="stream-badge">MOTION</span>
         </div>
         <div className="motioncap-viewer">
-          {displayedFrame?.rgbBlobUrl && motioncapAvailable === true ? (
+          {baseFrameUrl && motioncapAvailable === true ? (
             <>
               <img
-                src={displayedFrame.rgbBlobUrl}
+                src={baseFrameUrl}
                 alt="Motion capture base frame"
                 className="motioncap-layer"
               />

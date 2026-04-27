@@ -736,23 +736,25 @@ def main() -> None:
     chosen_xyz = plane_mean[None, :] + chosen_coords2 @ plane_basis2.T + heights[:, None] * plane_normal[None, :]
 
     refined_candidate_rows: list[dict[str, float]] = []
-    written_rows: list[dict[str, float]] = []
+    selected_rows: list[dict[str, float]] = []
     with out_csv.open("w", newline="") as f:
         fieldnames = ["frame_index", "frame_number", "timestamp_ns", "x", "y", "z", "qx", "qy", "qz", "qw"]
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
         for idx, row in enumerate(traj_rows):
-            refined_candidate_rows.append(
-                {
-                    "frame_index": row.frame_index,
-                    "frame_number": row.frame_number,
-                    "timestamp_ns": row.timestamp_ns,
-                    "x": float(refined_xyz[idx, 0]),
-                    "y": float(refined_xyz[idx, 1]),
-                    "z": float(refined_xyz[idx, 2]),
-                }
-            )
-            out_row = {
+            refined_row = {
+                "frame_index": row.frame_index,
+                "frame_number": row.frame_number,
+                "timestamp_ns": row.timestamp_ns,
+                "x": float(refined_xyz[idx, 0]),
+                "y": float(refined_xyz[idx, 1]),
+                "z": float(refined_xyz[idx, 2]),
+                "qx": row.qx,
+                "qy": row.qy,
+                "qz": row.qz,
+                "qw": row.qw,
+            }
+            selected_row = {
                 "frame_index": row.frame_index,
                 "frame_number": row.frame_number,
                 "timestamp_ns": row.timestamp_ns,
@@ -764,12 +766,14 @@ def main() -> None:
                 "qz": row.qz,
                 "qw": row.qw,
             }
-            writer.writerow(out_row)
-            written_rows.append(out_row)
+            writer.writerow(refined_row)
+            refined_candidate_rows.append(refined_row)
+            selected_rows.append(selected_row)
 
     write_track_plot(out_dir / "pre_refinement_poses.png", plot_traj_rows, gps_rows)
     write_track_plot(out_dir / "post_refinement_poses.png", refined_candidate_rows, gps_rows)
-    write_track_plot(out_dir / "track_plot.png", written_rows, gps_rows)
+    write_track_plot(out_dir / "track_plot.png", refined_candidate_rows, gps_rows)
+    write_track_plot(out_dir / "selected_poses.png", selected_rows, gps_rows)
     anchor_frame_indices = {int(idx) for idx in anchor_frame_indices_arr}
     write_gps_score_csv(
         out_dir / "gps_pose_refinement_scores.csv",
@@ -824,9 +828,12 @@ def main() -> None:
         "max_step_delta_m": max_step_delta_m,
         "gps_score_csv": str(out_dir / "gps_pose_refinement_scores.csv"),
         "pairwise_change_csv": str(out_dir / "pairwise_pose_change_scores.csv"),
+        "refined_trajectory_csv": str(out_csv),
+        "stored_refined_pose_source": "optimized_candidate",
         "pre_refinement_pose_plot": str(out_dir / "pre_refinement_poses.png"),
         "post_refinement_pose_plot": str(out_dir / "post_refinement_poses.png"),
-        "selected_pose_plot": str(out_dir / "track_plot.png"),
+        "stored_refined_pose_plot": str(out_dir / "track_plot.png"),
+        "selected_pose_plot": str(out_dir / "selected_poses.png"),
         "solver_success": bool(result.success),
         "solver_status": int(result.status),
         "solver_message": str(result.message),

@@ -22,31 +22,45 @@ const StreamViewer: React.FC<StreamViewerProps> = ({
 }) => {
   const lastValidUrl = useRef<string | undefined>(undefined)
   const lastValidTime = useRef(0)
-  const [showPlaceholder, setShowPlaceholder] = useState(!blobUrl)
+  const [displayUrl, setDisplayUrl] = useState<string | undefined>(undefined)
+  const [showPlaceholder, setShowPlaceholder] = useState(true)
 
-  // Track the last valid URL
-  if (blobUrl) {
-    lastValidUrl.current = blobUrl
-    lastValidTime.current = Date.now()
-  }
-
-  const displayUrl = blobUrl ?? (holdLastMs > 0 ? lastValidUrl.current : undefined)
-
-  // When blobUrl goes falsy and we have a holdLastMs, start a timer
   useEffect(() => {
     if (blobUrl) {
-      setShowPlaceholder(false)
-      return
+      let cancelled = false
+      const image = new Image()
+      image.onload = () => {
+        if (cancelled) return
+        lastValidUrl.current = blobUrl
+        lastValidTime.current = Date.now()
+        setDisplayUrl(blobUrl)
+        setShowPlaceholder(false)
+      }
+      image.onerror = () => {
+        if (cancelled) return
+        if (!lastValidUrl.current) {
+          setDisplayUrl(undefined)
+          setShowPlaceholder(true)
+        }
+      }
+      image.src = blobUrl
+      return () => {
+        cancelled = true
+      }
     }
     if (holdLastMs <= 0 || !lastValidUrl.current) {
+      setDisplayUrl(undefined)
       setShowPlaceholder(true)
       return
     }
-    // Hold the last image; only show placeholder after the hold period
+    setDisplayUrl(lastValidUrl.current)
     setShowPlaceholder(false)
     const elapsed = Date.now() - lastValidTime.current
     const remaining = Math.max(0, holdLastMs - elapsed)
-    const timer = setTimeout(() => setShowPlaceholder(true), remaining)
+    const timer = setTimeout(() => {
+      setDisplayUrl(undefined)
+      setShowPlaceholder(true)
+    }, remaining)
     return () => clearTimeout(timer)
   }, [blobUrl, holdLastMs])
 

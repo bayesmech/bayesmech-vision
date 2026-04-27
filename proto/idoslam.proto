@@ -139,7 +139,7 @@ message IdoSlamResponse {
   repeated IdoSlamFramePose frame_poses = 5;
   repeated IdoSlamGroundPoint ground_points = 6;
   repeated IdoSlamPairDebug pair_debug = 7;
-  // Post-GPS-refinement poses, when refinement is enabled and accepted.
+  // Post-GPS-refinement optimized poses, when refinement is enabled.
   repeated IdoSlamFramePose refined_frame_poses = 8;
   repeated IdoSlamPairwiseMotion pairwise_motion = 9;
 

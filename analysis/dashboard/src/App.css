@@ -117,6 +117,14 @@ body {
   margin-bottom: 1.5rem;
 }
 
+.slam-overview-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(240px, 0.55fr);
+  gap: 1rem;
+  align-items: start;
+  margin-bottom: 1.5rem;
+}
+
 .slam-canvas {
   width: 100%;
   height: auto;
@@ -455,6 +463,10 @@ body {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   }
+
+  .slam-overview-row {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 720px) {
@@ -489,6 +501,10 @@ body {
   }
 
   .dashboard-motioncap-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .slam-overview-row {
     grid-template-columns: 1fr;
   }
 }

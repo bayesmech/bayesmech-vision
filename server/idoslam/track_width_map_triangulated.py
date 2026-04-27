@@ -49,7 +49,7 @@ from idoslam.common import (
 )
 
 
-TRAVERSABLE_LABELS = ("road", "pavement")
+TRAVERSABLE_LABELS = ("road", "pavement", "bike")
 
 
 @dataclass
