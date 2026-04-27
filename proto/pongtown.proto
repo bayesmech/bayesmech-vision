@@ -1,0 +1,67 @@
+syntax = "proto3";
+
+package bayesmech.vision;
+
+option java_multiple_files = true;
+option java_package = "com.bayesmech.vision";
+
+import "perceiver.proto";
+
+// Pongtown pipeline output: per-frame ping-pong table quadrilateral + camera
+// pose relative to the table, plus a trailing summary record carrying the
+// globally-refined table pose in ARCore world coordinates.
+//
+// Wire format (length-delimited): N per-frame PongtownResponse records
+// followed by exactly one summary record. The summary record has an empty
+// frame_identifier and global_table_pose.has_pose == true.
+message PongtownResponse {
+
+  PerceiverFrameIdentifier frame_identifier = 1;
+
+  message TablePose {
+    enum Method {
+      UNKNOWN = 0;
+      QUAD_FULL = 1;            // 4 strong table lines from RANSAC
+      QUAD_FROM_MIDLINE = 2;    // 3 table lines + reflection through net midline
+      QUAD_FAILED = 3;
+      OFF_SCREEN = 4;           // global pose reprojects entirely outside frame
+    }
+    Method method = 1;
+    float quad_quality = 2;                            // Stage 1, [0, 1]
+    float pnp_iou = 3;                                 // Stage 2, [0, 1]
+
+    // Image-space quadrilateral, CCW from top-left of mask bbox.
+    // Layout: [u0, v0, u1, v1, u2, v2, u3, v3]
+    repeated float quad_img = 4 [packed = true];
+
+    // Detected net midline (segment): [u0, v0, u1, v1]
+    repeated float midline_img = 5 [packed = true];
+
+    // Per-frame camera-to-table transform (Stage 2). 4x4 row-major.
+    repeated float T_table_to_camera = 6 [packed = true];
+
+    // Reprojection of the GLOBAL pose into this frame (Stage 3).
+    // Layout matches quad_img.
+    repeated float quad_img_global = 7 [packed = true];
+    float global_iou = 8;
+  }
+  TablePose table_pose = 2;
+
+  // Summary record only.
+  message GlobalTablePose {
+    bool has_pose = 1;
+    repeated float T_table_to_world = 2 [packed = true];   // 4x4 row-major
+    float refined_cost = 3;
+    uint32 frames_used = 4;
+    float mean_iou = 5;
+    float p10_iou = 6;
+    float p90_iou = 7;
+  }
+  GlobalTablePose global_table_pose = 3;
+
+  // Canonical geometry (summary record only, mm).
+  float table_width_mm = 4;     // 2740
+  float table_height_mm = 5;    // 1525
+  float net_overhang_mm = 6;    // 152.5 (net hangs 152.5 mm past each long edge)
+  float net_height_mm = 7;      // 152.5
+}
