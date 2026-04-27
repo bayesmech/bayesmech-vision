@@ -119,6 +119,7 @@ export interface RecordingInfo {
   recorded_at: number
   has_segmentation: boolean
   has_idoslam?: boolean
+  has_motioncap: boolean
 }
 
 // === Decoded frame for UI consumption ===
@@ -127,6 +128,7 @@ export interface DecodedFrame {
   source: string
   device_id: string
   timestamp_ns: number
+  device_timestamp_ns?: number
   frame_number: number
   rgb_width?: number
   rgb_height?: number
@@ -190,4 +192,19 @@ export interface SensorFrameData {
     magnetic_field?: Vec3
   }
   gps?: GpsLocation
+}
+
+export interface MotioncapTrackPosition {
+  frame_idx: number
+  cx: number
+  cy: number
+}
+
+export interface MotioncapTrackLegendItem {
+  track_id: number
+  color: [number, number, number]
+  detected_frames: number
+  total_positions: number
+  presence_fraction: number
+  positions: MotioncapTrackPosition[]
 }

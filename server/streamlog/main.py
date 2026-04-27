@@ -9,6 +9,8 @@ GET /api/health              Server status
 GET /api/stream              FrameStore stats
 GET /api/recordings          List saved .pb recordings
 GET /api/idoslam             Return IdoSlamResponse for a recording
+GET /api/analysis/recordings/{name}   Discover generated analysis artifacts for a recording
+GET /api/analysis/playback            Discover generated analysis artifacts for the current playback
 POST /api/playback/start     Load a recording into the store
 POST /api/playback/stop      Stop active replay
 GET /api/playback/status     Replay status
@@ -32,13 +34,17 @@ import sys
 import time
 import yaml
 from contextlib import asynccontextmanager
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
+from typing import Any, Callable
+from urllib.parse import quote
 
 import aiohttp
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request, Response, UploadFile, File, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 _server_root = Path(__file__).parent.parent
@@ -49,6 +55,10 @@ sys.path.append(str(_server_root))
 from proto import perceiver_pb2
 from proto import insightgen_pb2
 from proto import idoslam_pb2
+from proto import motioncap_pb2
+from proto import reconstruction_pb2
+from proto import segmentation_pb2
+from proto import snookestown_pb2
 
 from streamlog.frame_store import FrameStore
 from streamlog.annotator import Annotator
@@ -92,6 +102,11 @@ if _genspark_config_path.exists():
     with open(_genspark_config_path) as _f:
         _genspark_config = yaml.safe_load(_f) or {}
 chat_manager = ChatManager(_genspark_config.get("gemini", {}), RECORDINGS_DIR)
+
+_seg_io = ProtoIO(segmentation_pb2.SegmentationResponse)
+_motion_io = ProtoIO(motioncap_pb2.MotionCaptureResponse)
+_recon_io = ProtoIO(reconstruction_pb2.ReconstructionResponse)
+_snook_io = ProtoIO(snookestown_pb2.SnookerResponse)
 
 # Wire: annotation results -> broadcast to dashboards
 annotator.set_annotation_callback(bridge.broadcast_annotation)
@@ -422,6 +437,467 @@ def _build_chat_history_delta(
 
     return response
 
+
+def _normalize_key(value: str) -> str:
+    return value.strip().lower().replace("-", "_")
+
+
+def _frame_timestamp_ns(message: Any) -> int | None:
+    try:
+        if not message.HasField("frame_identifier"):
+            return None
+        timestamp_ns = int(message.frame_identifier.timestamp_ns)
+        return timestamp_ns if timestamp_ns > 0 else None
+    except Exception:
+        return None
+
+
+def _frame_number(message: Any) -> int | None:
+    try:
+        if not message.HasField("frame_identifier"):
+            return None
+        return int(message.frame_identifier.frame_number)
+    except Exception:
+        return None
+
+
+def _has_motioncap_summary(message: motioncap_pb2.MotionCaptureResponse) -> bool:
+    return bool(message.tracks)
+
+
+def _has_snook_summary(message: snookestown_pb2.SnookerResponse) -> bool:
+    return bool(message.tracks) or int(message.total_frames) > 0
+
+
+@dataclass(frozen=True)
+class AnalysisArtifactSpec:
+    name: str
+    title: str
+    suffix: str
+    media_type: str | None
+    kind: str
+    encoding: str
+    aliases: tuple[str, ...] = ()
+    is_directory: bool = False
+    proto_message_type: str | None = None
+    proto_io: ProtoIO | None = None
+    sliceable: bool = False
+    timestamp_getter: Callable[[Any], int | None] | None = None
+    frame_number_getter: Callable[[Any], int | None] | None = None
+    summary_predicate: Callable[[Any], bool] | None = None
+
+    def path_for(self, recording_name: str) -> Path:
+        return _recording_dir(recording_name) / f"{recording_name}.{self.suffix}"
+
+
+@dataclass(frozen=True)
+class AnalysisViewSpec:
+    name: str
+    title: str
+    media_type: str
+    query_parameters: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class AnalysisSpec:
+    name: str
+    title: str
+    artifacts: tuple[AnalysisArtifactSpec, ...]
+    aliases: tuple[str, ...] = ()
+    views: tuple[AnalysisViewSpec, ...] = ()
+
+
+_ANALYSIS_SPECS: tuple[AnalysisSpec, ...] = (
+    AnalysisSpec(
+        name="segmentation",
+        title="Segmentation",
+        artifacts=(
+            AnalysisArtifactSpec(
+                name="proto",
+                title="Segmentation Protobuf",
+                suffix="seg.pb",
+                media_type="application/x-protobuf",
+                kind="protobuf",
+                encoding="length-delimited-protobuf",
+                aliases=("pb",),
+                proto_message_type="bayesmech.vision.SegmentationResponse",
+                proto_io=_seg_io,
+                sliceable=True,
+                timestamp_getter=_frame_timestamp_ns,
+                frame_number_getter=_frame_number,
+            ),
+        ),
+    ),
+    AnalysisSpec(
+        name="motioncap",
+        title="Motion Capture",
+        artifacts=(
+            AnalysisArtifactSpec(
+                name="proto",
+                title="Motion Capture Protobuf",
+                suffix="motion.pb",
+                media_type="application/x-protobuf",
+                kind="protobuf",
+                encoding="length-delimited-protobuf",
+                aliases=("pb",),
+                proto_message_type="bayesmech.vision.MotionCaptureResponse",
+                proto_io=_motion_io,
+                sliceable=True,
+                timestamp_getter=_frame_timestamp_ns,
+                frame_number_getter=_frame_number,
+                summary_predicate=_has_motioncap_summary,
+            ),
+            AnalysisArtifactSpec(
+                name="video",
+                title="Motion Capture Video",
+                suffix="motion.mp4",
+                media_type="video/mp4",
+                kind="video",
+                encoding="binary",
+            ),
+        ),
+        aliases=("motion_cap",),
+        views=(
+            AnalysisViewSpec(
+                name="tracks",
+                title="Track Legend",
+                media_type="application/json",
+            ),
+            AnalysisViewSpec(
+                name="heatmap",
+                title="Rendered Heatmap",
+                media_type="image/png",
+                query_parameters=("frame_index", "timestamp_ns"),
+            ),
+        ),
+    ),
+    AnalysisSpec(
+        name="idoslam",
+        title="Localization and Mapping",
+        artifacts=(
+            AnalysisArtifactSpec(
+                name="proto",
+                title="IdoSlam Response",
+                suffix="idoslam.pb",
+                media_type="application/x-protobuf",
+                kind="protobuf",
+                encoding="length-delimited-protobuf",
+                aliases=("pb", "slam"),
+                proto_message_type="bayesmech.vision.IdoSlamResponse",
+                proto_io=_idoslam_io,
+            ),
+        ),
+        aliases=("slam", "localization_mapping"),
+    ),
+    AnalysisSpec(
+        name="genspark",
+        title="AI Analysis",
+        artifacts=(
+            AnalysisArtifactSpec(
+                name="proto",
+                title="Genspark Response",
+                suffix="genspark.pb",
+                media_type="application/x-protobuf",
+                kind="protobuf",
+                encoding="protobuf",
+                aliases=("pb",),
+                proto_message_type="bayesmech.vision.GensparkResponse",
+            ),
+        ),
+        aliases=("insightgen",),
+    ),
+    AnalysisSpec(
+        name="chat",
+        title="Follow-up Chat",
+        artifacts=(
+            AnalysisArtifactSpec(
+                name="proto",
+                title="Chat History",
+                suffix="chat.pb",
+                media_type="application/x-protobuf",
+                kind="protobuf",
+                encoding="protobuf",
+                aliases=("pb",),
+                proto_message_type="bayesmech.vision.ChatHistory",
+            ),
+        ),
+    ),
+    AnalysisSpec(
+        name="reconstruction",
+        title="3D Reconstruction",
+        artifacts=(
+            AnalysisArtifactSpec(
+                name="proto",
+                title="Reconstruction Summary",
+                suffix="recon.pb",
+                media_type="application/x-protobuf",
+                kind="protobuf",
+                encoding="length-delimited-protobuf",
+                aliases=("pb",),
+                proto_message_type="bayesmech.vision.ReconstructionResponse",
+                proto_io=_recon_io,
+            ),
+            AnalysisArtifactSpec(
+                name="splat",
+                title="Gaussian Splat PLY",
+                suffix="splat.ply",
+                media_type="application/octet-stream",
+                kind="point-cloud",
+                encoding="ply",
+                aliases=("splat_ply",),
+            ),
+            AnalysisArtifactSpec(
+                name="workspace",
+                title="Reconstruction Workspace",
+                suffix="recon",
+                media_type=None,
+                kind="workspace",
+                encoding="directory",
+                is_directory=True,
+            ),
+        ),
+        aliases=("reconstruct",),
+    ),
+    AnalysisSpec(
+        name="snookestown",
+        title="Snookestown",
+        artifacts=(
+            AnalysisArtifactSpec(
+                name="proto",
+                title="Snookestown Protobuf",
+                suffix="snook.pb",
+                media_type="application/x-protobuf",
+                kind="protobuf",
+                encoding="length-delimited-protobuf",
+                aliases=("pb",),
+                proto_message_type="bayesmech.vision.SnookerResponse",
+                proto_io=_snook_io,
+                sliceable=True,
+                timestamp_getter=_frame_timestamp_ns,
+                frame_number_getter=_frame_number,
+                summary_predicate=_has_snook_summary,
+            ),
+            AnalysisArtifactSpec(
+                name="video",
+                title="Top-down Video",
+                suffix="snook.mp4",
+                media_type="video/mp4",
+                kind="video",
+                encoding="binary",
+            ),
+            AnalysisArtifactSpec(
+                name="segmentation_video",
+                title="Segmentation Overlay Video",
+                suffix="snook.segoverlay.mp4",
+                media_type="video/mp4",
+                kind="video",
+                encoding="binary",
+                aliases=("segoverlay", "overlay_video"),
+            ),
+            AnalysisArtifactSpec(
+                name="workspace",
+                title="Snookestown Workspace",
+                suffix="snook",
+                media_type=None,
+                kind="workspace",
+                encoding="directory",
+                is_directory=True,
+            ),
+        ),
+        aliases=("snooker",),
+    ),
+)
+
+_ANALYSIS_BY_KEY: dict[str, AnalysisSpec] = {}
+for _spec in _ANALYSIS_SPECS:
+    for _key in (_spec.name, *_spec.aliases):
+        _ANALYSIS_BY_KEY[_normalize_key(_key)] = _spec
+
+
+def _analysis_scope_prefix(recording_name: str | None = None) -> str:
+    if recording_name is None:
+        return "/api/analysis/playback"
+    return f"/api/analysis/recordings/{quote(recording_name)}"
+
+
+def _recording_exists(recording_name: str) -> bool:
+    return _recording_file(recording_name, "vis.pb").exists()
+
+
+def _ensure_recording_exists(recording_name: str) -> str:
+    safe_name = Path(recording_name).name
+    if not _recording_exists(safe_name):
+        raise HTTPException(status_code=404, detail=f"Recording not found: {safe_name}")
+    return safe_name
+
+
+def _current_recording_name() -> str | None:
+    current_file = store.current_file
+    if current_file is None or store.source != "file":
+        return None
+    return current_file.name.removesuffix(".vis.pb")
+
+
+def _resolve_analysis_spec(analysis_name: str) -> AnalysisSpec:
+    spec = _ANALYSIS_BY_KEY.get(_normalize_key(Path(analysis_name).name))
+    if spec is None:
+        raise HTTPException(status_code=404, detail=f"Unknown analysis: {analysis_name}")
+    return spec
+
+
+def _resolve_artifact_spec(analysis_spec: AnalysisSpec, artifact_name: str) -> AnalysisArtifactSpec:
+    key = _normalize_key(Path(artifact_name).name)
+    for artifact in analysis_spec.artifacts:
+        if key == _normalize_key(artifact.name):
+            return artifact
+        if any(key == _normalize_key(alias) for alias in artifact.aliases):
+            return artifact
+    raise HTTPException(
+        status_code=404,
+        detail=f"Unknown artifact {artifact_name!r} for analysis {analysis_spec.name!r}",
+    )
+
+
+def _build_view_metadata(scope_prefix: str, analysis_spec: AnalysisSpec) -> list[dict[str, Any]]:
+    return [
+        {
+            "name": view.name,
+            "title": view.title,
+            "media_type": view.media_type,
+            "query_parameters": list(view.query_parameters),
+            "url": f"{scope_prefix}/analyses/{analysis_spec.name}/views/{view.name}",
+        }
+        for view in analysis_spec.views
+    ]
+
+
+def _build_artifact_metadata(
+    recording_name: str,
+    analysis_spec: AnalysisSpec,
+    artifact_spec: AnalysisArtifactSpec,
+    scope_prefix: str,
+) -> dict[str, Any]:
+    path = artifact_spec.path_for(recording_name)
+    available = path.exists()
+    metadata: dict[str, Any] = {
+        "name": artifact_spec.name,
+        "title": artifact_spec.title,
+        "available": available,
+        "kind": artifact_spec.kind,
+        "encoding": artifact_spec.encoding,
+        "media_type": artifact_spec.media_type,
+        "is_directory": artifact_spec.is_directory,
+        "downloadable": available and not artifact_spec.is_directory,
+        "sliceable": artifact_spec.sliceable,
+        "proto_message_type": artifact_spec.proto_message_type,
+        "relative_path": str(path.relative_to(RECORDINGS_DIR)) if available else None,
+        "size_bytes": path.stat().st_size if available and path.is_file() else None,
+        "download_url": None,
+        "records_url": None,
+    }
+    if available and not artifact_spec.is_directory:
+        metadata["download_url"] = (
+            f"{scope_prefix}/analyses/{analysis_spec.name}/artifacts/{artifact_spec.name}"
+        )
+    if available and artifact_spec.sliceable:
+        metadata["records_url"] = (
+            f"{scope_prefix}/analyses/{analysis_spec.name}/records?artifact={artifact_spec.name}"
+        )
+    if available and artifact_spec.is_directory:
+        try:
+            metadata["entry_count"] = sum(1 for _ in path.iterdir())
+        except OSError:
+            metadata["entry_count"] = None
+    return metadata
+
+
+def _build_analysis_metadata(
+    recording_name: str,
+    analysis_spec: AnalysisSpec,
+    scope_prefix: str,
+) -> dict[str, Any]:
+    artifacts = [
+        _build_artifact_metadata(recording_name, analysis_spec, artifact_spec, scope_prefix)
+        for artifact_spec in analysis_spec.artifacts
+    ]
+    return {
+        "name": analysis_spec.name,
+        "title": analysis_spec.title,
+        "available": any(artifact["available"] for artifact in artifacts),
+        "artifacts": artifacts,
+        "views": _build_view_metadata(scope_prefix, analysis_spec),
+    }
+
+
+def _build_recording_analysis_index(recording_name: str, *, playback: bool = False) -> dict[str, Any]:
+    scope_prefix = _analysis_scope_prefix(None if playback else recording_name)
+    analyses = [
+        _build_analysis_metadata(recording_name, analysis_spec, scope_prefix)
+        for analysis_spec in _ANALYSIS_SPECS
+    ]
+    return {
+        "recording": recording_name,
+        "source": "playback" if playback else "recording",
+        "analyses": analyses,
+    }
+
+
+def _encode_record_slice(
+    artifact_spec: AnalysisArtifactSpec,
+    path: Path,
+    *,
+    start_timestamp_ns: int | None = None,
+    end_timestamp_ns: int | None = None,
+    start_frame_number: int | None = None,
+    end_frame_number: int | None = None,
+    limit: int | None = None,
+    include_summary: bool = False,
+) -> tuple[bytes, int]:
+    if artifact_spec.proto_io is None or not artifact_spec.sliceable:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Artifact {artifact_spec.name!r} does not support record slicing",
+        )
+
+    selected: list[Any] = []
+    summaries: list[Any] = []
+    summary_predicate = artifact_spec.summary_predicate
+
+    for record in artifact_spec.proto_io.read_file(path):
+        if summary_predicate is not None and summary_predicate(record):
+            if include_summary:
+                summaries.append(record)
+            continue
+
+        timestamp_ns = (
+            artifact_spec.timestamp_getter(record)
+            if artifact_spec.timestamp_getter is not None
+            else None
+        )
+        frame_number = (
+            artifact_spec.frame_number_getter(record)
+            if artifact_spec.frame_number_getter is not None
+            else None
+        )
+
+        if start_timestamp_ns is not None and (timestamp_ns is None or timestamp_ns < start_timestamp_ns):
+            continue
+        if end_timestamp_ns is not None and (timestamp_ns is None or timestamp_ns > end_timestamp_ns):
+            continue
+        if start_frame_number is not None and (frame_number is None or frame_number < start_frame_number):
+            continue
+        if end_frame_number is not None and (frame_number is None or frame_number > end_frame_number):
+            continue
+
+        selected.append(record)
+        if limit is not None and len(selected) >= limit:
+            break
+
+    if include_summary:
+        selected.extend(summaries)
+
+    return artifact_spec.proto_io.encode(selected), len(selected)
+
 def _extract_thumbnail(pb_path: Path) -> bytes | None:
     """Return RGB bytes of the frame at ~20 s into the recording (best-effort)."""
     target_ns = 20 * 1_000_000_000
@@ -470,6 +946,14 @@ async def list_recordings():
         vis = d / f"{d.name}.vis.pb"
         if not vis.exists():
             continue
+        available_analyses = [
+            analysis_spec.name
+            for analysis_spec in _ANALYSIS_SPECS
+            if any(
+                artifact_spec.path_for(d.name).exists()
+                for artifact_spec in analysis_spec.artifacts
+            )
+        ]
         recordings.append({
             "name": d.name,
             "title": _parse_title(d.name),
@@ -477,6 +961,12 @@ async def list_recordings():
             "recorded_at": _parse_recording_timestamp(d.name, d.stat().st_mtime),
             "has_segmentation": (d / f"{d.name}.seg.pb").exists(),
             "has_idoslam": (d / f"{d.name}.idoslam.pb").exists(),
+            "has_motioncap": (
+                (d / f"{d.name}.motion.pb").exists()
+                or (d / f"{d.name}.motion.mp4").exists()
+            ),
+            "available_analyses": available_analyses,
+            "analysis_url": f"/api/analysis/recordings/{quote(d.name)}",
         })
     return {"recordings": recordings}
 
@@ -508,6 +998,359 @@ async def idoslam_data(file: str | None = None):
     except Exception as exc:
         logger.error("idoslam_data error for %s: %s", pb_path, exc, exc_info=True)
         return Response(status_code=500)
+
+
+def _resolve_recording_analysis(
+    recording_name: str,
+    analysis_name: str,
+) -> tuple[str, AnalysisSpec]:
+    safe_name = _ensure_recording_exists(recording_name)
+    analysis_spec = _resolve_analysis_spec(analysis_name)
+    return safe_name, analysis_spec
+
+
+def _resolve_recording_artifact(
+    recording_name: str,
+    analysis_name: str,
+    artifact_name: str,
+) -> tuple[str, AnalysisSpec, AnalysisArtifactSpec, Path]:
+    safe_name, analysis_spec = _resolve_recording_analysis(recording_name, analysis_name)
+    artifact_spec = _resolve_artifact_spec(analysis_spec, artifact_name)
+    path = artifact_spec.path_for(safe_name)
+    if not path.exists():
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                f"Artifact {artifact_spec.name!r} for analysis "
+                f"{analysis_spec.name!r} is not available for recording {safe_name!r}"
+            ),
+        )
+    return safe_name, analysis_spec, artifact_spec, path
+
+
+def _resolve_playback_analysis(analysis_name: str) -> tuple[str, AnalysisSpec]:
+    recording_name = _current_recording_name()
+    if recording_name is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Playback is not currently bound to a recording",
+        )
+    return recording_name, _resolve_analysis_spec(analysis_name)
+
+
+def _resolve_playback_artifact(
+    analysis_name: str,
+    artifact_name: str,
+) -> tuple[str, AnalysisSpec, AnalysisArtifactSpec, Path]:
+    recording_name, analysis_spec = _resolve_playback_analysis(analysis_name)
+    artifact_spec = _resolve_artifact_spec(analysis_spec, artifact_name)
+    path = artifact_spec.path_for(recording_name)
+    if not path.exists():
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                f"Artifact {artifact_spec.name!r} for analysis "
+                f"{analysis_spec.name!r} is not available for the current playback"
+            ),
+        )
+    return recording_name, analysis_spec, artifact_spec, path
+
+
+def _download_artifact_response(path: Path, artifact_spec: AnalysisArtifactSpec) -> FileResponse:
+    if artifact_spec.is_directory:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Artifact {artifact_spec.name!r} is a directory workspace and "
+                "cannot be downloaded directly"
+            ),
+        )
+    return FileResponse(
+        path,
+        media_type=artifact_spec.media_type or "application/octet-stream",
+        filename=path.name,
+    )
+
+
+def _resolve_motioncap_frame_index(
+    motion_path: Path,
+    *,
+    frame_index: int | None,
+    timestamp_ns: int | None,
+) -> int:
+    if frame_index is not None and timestamp_ns is not None:
+        raise HTTPException(
+            status_code=400,
+            detail="Provide either frame_index or timestamp_ns, not both",
+        )
+    if frame_index is None and timestamp_ns is None:
+        raise HTTPException(
+            status_code=400,
+            detail="Provide either frame_index or timestamp_ns",
+        )
+    if frame_index is not None:
+        if frame_index < 0:
+            raise HTTPException(status_code=400, detail="frame_index must be >= 0")
+        return frame_index
+
+    heatmap_index = 0
+    for record in _motion_io.read_file(motion_path):
+        if record.tracks:
+            continue
+        if int(record.frame_identifier.timestamp_ns) == int(timestamp_ns):
+            return heatmap_index
+        heatmap_index += 1
+
+    raise HTTPException(
+        status_code=404,
+        detail=f"No motion capture frame found for timestamp {timestamp_ns}",
+    )
+
+
+def _motioncap_layer() -> MotioncapVideoLayer:
+    return MotioncapVideoLayer(
+        use_prerendered_video=False,
+        show_track_markers=False,
+        show_track_labels=False,
+    )
+
+
+async def _motioncap_tracks_response(motion_path: Path | None) -> dict[str, Any]:
+    if motion_path is None:
+        return {"available": False, "tracks": []}
+    tracks = await asyncio.to_thread(_motioncap_layer().track_legend, motion_path)
+    return {"available": True, "tracks": tracks}
+
+
+async def _motioncap_heatmap_response(
+    motion_path: Path | None,
+    *,
+    frame_index: int | None,
+    timestamp_ns: int | None,
+) -> Response:
+    if motion_path is None:
+        raise HTTPException(status_code=404, detail="Motion capture is not available")
+
+    resolved_index = await asyncio.to_thread(
+        _resolve_motioncap_frame_index,
+        motion_path,
+        frame_index=frame_index,
+        timestamp_ns=timestamp_ns,
+    )
+    png_bytes = await asyncio.to_thread(_motioncap_layer().heatmap_png, motion_path, resolved_index)
+    if png_bytes is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No motion capture heatmap found for frame index {resolved_index}",
+        )
+    return Response(content=png_bytes, media_type="image/png")
+
+
+@app.get("/api/analysis/recordings/{recording_name}")
+async def analysis_recording_index(recording_name: str):
+    safe_name = _ensure_recording_exists(recording_name)
+    return _build_recording_analysis_index(safe_name)
+
+
+@app.get("/api/analysis/playback")
+async def analysis_playback_index():
+    recording_name = _current_recording_name()
+    if recording_name is None:
+        return {
+            "recording": None,
+            "source": store.source,
+            "analyses": [],
+        }
+    payload = _build_recording_analysis_index(recording_name, playback=True)
+    payload["source"] = store.source
+    return payload
+
+
+@app.get("/api/analysis/recordings/{recording_name}/analyses/{analysis_name}")
+async def analysis_recording_detail(recording_name: str, analysis_name: str):
+    safe_name, analysis_spec = _resolve_recording_analysis(recording_name, analysis_name)
+    return _build_analysis_metadata(
+        safe_name,
+        analysis_spec,
+        _analysis_scope_prefix(safe_name),
+    )
+
+
+@app.get("/api/analysis/playback/analyses/{analysis_name}")
+async def analysis_playback_detail(analysis_name: str):
+    recording_name, analysis_spec = _resolve_playback_analysis(analysis_name)
+    return _build_analysis_metadata(
+        recording_name,
+        analysis_spec,
+        _analysis_scope_prefix(),
+    )
+
+
+@app.get("/api/analysis/recordings/{recording_name}/analyses/{analysis_name}/artifacts/{artifact_name}")
+async def analysis_recording_artifact_download(
+    recording_name: str,
+    analysis_name: str,
+    artifact_name: str,
+):
+    _, _, artifact_spec, path = _resolve_recording_artifact(recording_name, analysis_name, artifact_name)
+    return _download_artifact_response(path, artifact_spec)
+
+
+@app.get("/api/analysis/playback/analyses/{analysis_name}/artifacts/{artifact_name}")
+async def analysis_playback_artifact_download(
+    analysis_name: str,
+    artifact_name: str,
+):
+    _, _, artifact_spec, path = _resolve_playback_artifact(analysis_name, artifact_name)
+    return _download_artifact_response(path, artifact_spec)
+
+
+@app.get("/api/analysis/recordings/{recording_name}/analyses/{analysis_name}/records")
+async def analysis_recording_records(
+    recording_name: str,
+    analysis_name: str,
+    artifact: str = "proto",
+    start_timestamp_ns: int | None = None,
+    end_timestamp_ns: int | None = None,
+    start_frame_number: int | None = None,
+    end_frame_number: int | None = None,
+    limit: int | None = None,
+    include_summary: bool = False,
+):
+    _, _, artifact_spec, path = _resolve_recording_artifact(recording_name, analysis_name, artifact)
+    if limit is not None and limit < 1:
+        raise HTTPException(status_code=400, detail="limit must be >= 1")
+    if (
+        start_timestamp_ns is not None
+        and end_timestamp_ns is not None
+        and start_timestamp_ns > end_timestamp_ns
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="start_timestamp_ns must be <= end_timestamp_ns",
+        )
+    if (
+        start_frame_number is not None
+        and end_frame_number is not None
+        and start_frame_number > end_frame_number
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="start_frame_number must be <= end_frame_number",
+        )
+
+    payload, record_count = await asyncio.to_thread(
+        _encode_record_slice,
+        artifact_spec,
+        path,
+        start_timestamp_ns=start_timestamp_ns,
+        end_timestamp_ns=end_timestamp_ns,
+        start_frame_number=start_frame_number,
+        end_frame_number=end_frame_number,
+        limit=limit,
+        include_summary=include_summary,
+    )
+    return Response(
+        content=payload,
+        media_type=artifact_spec.media_type or "application/octet-stream",
+        headers={
+            "X-Bayesmech-Record-Count": str(record_count),
+            "X-Bayesmech-Encoding": artifact_spec.encoding,
+        },
+    )
+
+
+@app.get("/api/analysis/playback/analyses/{analysis_name}/records")
+async def analysis_playback_records(
+    analysis_name: str,
+    artifact: str = "proto",
+    start_timestamp_ns: int | None = None,
+    end_timestamp_ns: int | None = None,
+    start_frame_number: int | None = None,
+    end_frame_number: int | None = None,
+    limit: int | None = None,
+    include_summary: bool = False,
+):
+    _, _, artifact_spec, path = _resolve_playback_artifact(analysis_name, artifact)
+    if limit is not None and limit < 1:
+        raise HTTPException(status_code=400, detail="limit must be >= 1")
+    if (
+        start_timestamp_ns is not None
+        and end_timestamp_ns is not None
+        and start_timestamp_ns > end_timestamp_ns
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="start_timestamp_ns must be <= end_timestamp_ns",
+        )
+    if (
+        start_frame_number is not None
+        and end_frame_number is not None
+        and start_frame_number > end_frame_number
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="start_frame_number must be <= end_frame_number",
+        )
+
+    payload, record_count = await asyncio.to_thread(
+        _encode_record_slice,
+        artifact_spec,
+        path,
+        start_timestamp_ns=start_timestamp_ns,
+        end_timestamp_ns=end_timestamp_ns,
+        start_frame_number=start_frame_number,
+        end_frame_number=end_frame_number,
+        limit=limit,
+        include_summary=include_summary,
+    )
+    return Response(
+        content=payload,
+        media_type=artifact_spec.media_type or "application/octet-stream",
+        headers={
+            "X-Bayesmech-Record-Count": str(record_count),
+            "X-Bayesmech-Encoding": artifact_spec.encoding,
+        },
+    )
+
+
+@app.get("/api/analysis/recordings/{recording_name}/analyses/motioncap/views/tracks")
+async def analysis_recording_motioncap_tracks(recording_name: str):
+    safe_name = _ensure_recording_exists(recording_name)
+    motion_path = _resolve_artifact_spec(_resolve_analysis_spec("motioncap"), "proto").path_for(safe_name)
+    return await _motioncap_tracks_response(motion_path if motion_path.exists() else None)
+
+
+@app.get("/api/analysis/playback/analyses/motioncap/views/tracks")
+async def analysis_playback_motioncap_tracks():
+    return await _motioncap_tracks_response(_current_motioncap_path())
+
+
+@app.get("/api/analysis/recordings/{recording_name}/analyses/motioncap/views/heatmap")
+async def analysis_recording_motioncap_heatmap(
+    recording_name: str,
+    frame_index: int | None = None,
+    timestamp_ns: int | None = None,
+):
+    safe_name = _ensure_recording_exists(recording_name)
+    motion_path = _resolve_artifact_spec(_resolve_analysis_spec("motioncap"), "proto").path_for(safe_name)
+    return await _motioncap_heatmap_response(
+        motion_path if motion_path.exists() else None,
+        frame_index=frame_index,
+        timestamp_ns=timestamp_ns,
+    )
+
+
+@app.get("/api/analysis/playback/analyses/motioncap/views/heatmap")
+async def analysis_playback_motioncap_heatmap(
+    frame_index: int | None = None,
+    timestamp_ns: int | None = None,
+):
+    return await _motioncap_heatmap_response(
+        _current_motioncap_path(),
+        frame_index=frame_index,
+        timestamp_ns=timestamp_ns,
+    )
 
 
 @app.post("/api/insightgen/recordings")
@@ -786,6 +1629,28 @@ async def playback_status():
         "is_replaying": store.is_replaying,
         "source": store.source,
     }
+
+
+def _current_motioncap_path() -> Path | None:
+    recording_name = _current_recording_name()
+    if recording_name is None:
+        return None
+    motion_path = _resolve_artifact_spec(_resolve_analysis_spec("motioncap"), "proto").path_for(recording_name)
+    return motion_path if motion_path.exists() else None
+
+
+@app.get("/api/playback/motioncap/tracks")
+async def playback_motioncap_tracks():
+    return await _motioncap_tracks_response(_current_motioncap_path())
+
+
+@app.get("/api/playback/motioncap/heatmap")
+async def playback_motioncap_heatmap(index: int):
+    return await _motioncap_heatmap_response(
+        _current_motioncap_path(),
+        frame_index=index,
+        timestamp_ns=None,
+    )
 
 
 @app.post("/api/upload_recording")

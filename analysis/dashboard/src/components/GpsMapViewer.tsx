@@ -6,14 +6,20 @@ import type { GpsLocation } from '../types'
 interface GpsMapViewerProps {
   gps: GpsLocation | undefined
   title?: string
+  pathPoints?: GpsLocation[]
 }
 
-const GpsMapViewer: React.FC<GpsMapViewerProps> = ({ gps, title = 'GPS Location' }) => {
+const GpsMapViewer: React.FC<GpsMapViewerProps> = ({
+  gps,
+  title = 'GPS Location',
+  pathPoints,
+}) => {
   const mapContainerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<L.Map | null>(null)
   const markerRef = useRef<L.CircleMarker | null>(null)
   const pathRef = useRef<L.Polyline | null>(null)
   const coordsRef = useRef<[number, number][]>([])
+  const lastPointKeyRef = useRef<string | null>(null)
 
   // Initialize map
   useEffect(() => {
@@ -40,16 +46,61 @@ const GpsMapViewer: React.FC<GpsMapViewerProps> = ({ gps, title = 'GPS Location'
     }
   }, [])
 
-  // Update marker and path when GPS changes
+  // File mode: paint the full recorded GPS route once the data is available.
+  useEffect(() => {
+    if (!mapRef.current) return
+
+    if (!pathPoints || pathPoints.length === 0) {
+      coordsRef.current = []
+      lastPointKeyRef.current = null
+      if (pathRef.current) pathRef.current.setLatLngs([])
+      return
+    }
+
+    const latlngs = pathPoints.map((point) => [point.latitude, point.longitude] as [number, number])
+    coordsRef.current = latlngs
+
+    if (pathRef.current) {
+      pathRef.current.setLatLngs(latlngs)
+    } else {
+      pathRef.current = L.polyline(latlngs, {
+        color: '#3498db',
+        weight: 3,
+        opacity: 0.7,
+      }).addTo(mapRef.current)
+    }
+
+    if (latlngs.length === 1) {
+      mapRef.current.setView(latlngs[0], 17)
+    } else {
+      mapRef.current.fitBounds(latlngs, { padding: [24, 24], maxZoom: 17 })
+    }
+  }, [pathPoints])
+
+  // Update marker and path when GPS changes.
   useEffect(() => {
     if (!mapRef.current || !gps) return
 
     const latlng: [number, number] = [gps.latitude, gps.longitude]
+    const pointKey = `${gps.timestamp_ms}:${latlng[0].toFixed(6)}:${latlng[1].toFixed(6)}`
 
-    // Add to path
-    coordsRef.current.push(latlng)
+    if (!pathPoints || pathPoints.length === 0) {
+      if (pointKey !== lastPointKeyRef.current) {
+        coordsRef.current.push(latlng)
+        lastPointKeyRef.current = pointKey
+      }
 
-    // Update or create marker
+      if (pathRef.current) {
+        pathRef.current.setLatLngs(coordsRef.current)
+      } else {
+        pathRef.current = L.polyline(coordsRef.current, {
+          color: '#3498db',
+          weight: 3,
+          opacity: 0.7,
+        }).addTo(mapRef.current)
+      }
+    }
+
     if (markerRef.current) {
       markerRef.current.setLatLng(latlng)
     } else {
@@ -60,25 +111,15 @@ const GpsMapViewer: React.FC<GpsMapViewerProps> = ({ gps, title = 'GPS Location'
         fillOpacity: 1,
         weight: 2,
       }).addTo(mapRef.current)
+    }
 
-      // First GPS fix: zoom to location
+    if ((pathPoints?.length ?? 0) <= 1 && coordsRef.current.length <= 1) {
       mapRef.current.setView(latlng, 17)
+      return
     }
 
-    // Update or create path
-    if (pathRef.current) {
-      pathRef.current.setLatLngs(coordsRef.current)
-    } else {
-      pathRef.current = L.polyline(coordsRef.current, {
-        color: '#3498db',
-        weight: 3,
-        opacity: 0.7,
-      }).addTo(mapRef.current)
-    }
-
-    // Pan to keep marker centered
     mapRef.current.panTo(latlng, { animate: true, duration: 0.3 })
-  }, [gps])
+  }, [gps, pathPoints])
 
   return (
     <div style={{
