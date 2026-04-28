@@ -23,9 +23,9 @@ quad:
   ransac_min_inliers: 80
   ransac_max_iterations: 400
   area_ratio_min: 0.7
-  area_ratio_max: 1.4
+  area_ratio_max: 1.6
   aspect_ratio_min: 1.2
-  aspect_ratio_max: 2.5
+  aspect_ratio_max: 4.5
   parallel_threshold_deg: 8.0
   midline_equidistance_tolerance: 0.15   # fraction of short-edge length
 

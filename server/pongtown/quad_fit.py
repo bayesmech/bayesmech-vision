@@ -223,7 +223,9 @@ def fit_net_midline(
     return best
 
 
-def quad_passes_sanity(quad: np.ndarray, mask: np.ndarray, cfg: dict) -> bool:
+def quad_passes_sanity(
+    quad: np.ndarray, mask: np.ndarray, cfg: dict, *, check_area_ratio: bool = True
+) -> bool:
     qcfg = cfg["quad"]
     pts = quad.astype(np.float32).reshape(-1, 1, 2)
     if not cv2.isContourConvex(pts):
@@ -232,9 +234,10 @@ def quad_passes_sanity(quad: np.ndarray, mask: np.ndarray, cfg: dict) -> bool:
     area_mask = float(mask.sum())
     if area_mask < qcfg["min_mask_area_px"]:
         return False
-    ratio = area_quad / area_mask
-    if not (qcfg["area_ratio_min"] <= ratio <= qcfg["area_ratio_max"]):
-        return False
+    if check_area_ratio:
+        ratio = area_quad / area_mask
+        if not (qcfg["area_ratio_min"] <= ratio <= qcfg["area_ratio_max"]):
+            return False
     edges = [np.linalg.norm(quad[(i + 1) % 4] - quad[i]) for i in range(4)]
     long_edge = max(edges)
     short_edge = min(edges)
@@ -261,9 +264,20 @@ def synthesise_missing_short_edge(
         i for i, a in enumerate(angs)
         if _angle_diff_mod_pi(a, mid_ang) < math.radians(cfg["quad"]["parallel_threshold_deg"])
     ]
-    if len(short_idx) != 1:
+    if not short_idx:
         return None
-    si = short_idx[0]
+    if len(short_idx) > 1:
+        # Multiple parallel-to-midline candidates: keep the one farthest from
+        # the midline (the genuine outer edge; the others are likely artefacts).
+        a_m, b_m, c_m = midline
+        dists = []
+        for i in short_idx:
+            L_i = three_lines[i][0]
+            p = np.array([-L_i[2] * L_i[0], -L_i[2] * L_i[1]])
+            dists.append(abs(a_m * p[0] + b_m * p[1] + c_m))
+        si = short_idx[int(np.argmax(dists))]
+    else:
+        si = short_idx[0]
     Ls, _ = three_lines[si]
     a_m, b_m, c_m = midline
     a_s, b_s, c_s = Ls
@@ -281,30 +295,37 @@ def _midline_to_line_params(midline_pts: np.ndarray) -> tuple[float, float, floa
 
 
 def _midline_constraint_ok(quad: np.ndarray, midline_L, cfg: dict) -> bool:
-    """Midline must be roughly parallel to the two short edges and bisect the long edges."""
-    qcfg = cfg["quad"]
-    edges = [(quad[i], quad[(i + 1) % 4]) for i in range(4)]
-    edge_lengths = [np.linalg.norm(p2 - p1) for p1, p2 in edges]
-    order = np.argsort(edge_lengths)
-    short_a, short_b = order[0], order[1]
-    short_angs = []
-    for i in (short_a, short_b):
-        L = line_from_two_points(edges[i][0], edges[i][1])
-        short_angs.append(_line_angle_mod_pi(L))
-    mid_ang = _line_angle_mod_pi(midline_L)
-    parallel_thresh = math.radians(qcfg["parallel_threshold_deg"])
-    if not all(_angle_diff_mod_pi(a, mid_ang) < parallel_thresh for a in short_angs):
-        return False
-    centres = []
-    for i in (short_a, short_b):
-        c = (edges[i][0] + edges[i][1]) / 2.0
-        centres.append(c)
-    d0 = signed_distance_to_line(np.array([centres[0]]), midline_L)[0]
-    d1 = signed_distance_to_line(np.array([centres[1]]), midline_L)[0]
-    if d0 * d1 >= 0:
-        return False
-    asymmetry = abs(abs(d0) - abs(d1)) / max(abs(d0) + abs(d1), 1.0)
-    return asymmetry < qcfg["midline_equidistance_tolerance"]
+    """The midline must cross through the table quad — i.e. some quad vertices
+    lie on each side of the (infinite) midline. This is the perspective-safe
+    invariant: 'midline parallel to short edges' fails because short edges
+    converge at a vanishing point.
+    """
+    d = signed_distance_to_line(quad, midline_L)
+    return float(d.min()) < 0 < float(d.max())
+
+
+def _approx_quad_from_mask(mask: np.ndarray) -> np.ndarray | None:
+    """Try to extract a 4-corner polygon from the largest contour's convex hull
+    via approxPolyDP with an epsilon sweep. Returns (4, 2) float64 CCW from
+    top-left of bbox, or None if no 4-vertex approximation is found."""
+    contours, _ = cv2.findContours(
+        mask.astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+    )
+    if not contours:
+        return None
+    biggest = max(contours, key=cv2.contourArea)
+    hull = cv2.convexHull(biggest)
+    perim = cv2.arcLength(hull, True)
+    if perim < 1.0:
+        return None
+    for eps_frac in (0.005, 0.01, 0.02, 0.03, 0.05, 0.08, 0.12, 0.18, 0.25):
+        approx = cv2.approxPolyDP(hull, eps_frac * perim, True)
+        if len(approx) == 4:
+            pts = approx.reshape(-1, 2).astype(np.float64)
+            return _ccw_from_top_left(pts)
+        if len(approx) < 4:
+            return None
+    return None
 
 
 def fit_table_quadrilateral(
@@ -316,20 +337,6 @@ def fit_table_quadrilateral(
     qcfg = cfg["quad"]
     if table_mask is None or table_mask.sum() < qcfg["min_mask_area_px"]:
         return QuadResult(METHOD_QUAD_FAILED, None, None, 0.0)
-
-    rng = np.random.default_rng(13)
-    pts, ang = extract_edge_points(table_mask)
-    if len(pts) < qcfg["ransac_min_inliers"]:
-        return QuadResult(METHOD_QUAD_FAILED, None, None, 0.0)
-    lines = ransac_lines(
-        pts, ang,
-        k=4,
-        distance_threshold=qcfg["ransac_distance_threshold_px"],
-        angle_threshold_rad=math.radians(qcfg["ransac_angle_threshold_deg"]),
-        min_inliers=qcfg["ransac_min_inliers"],
-        max_iterations=qcfg["ransac_max_iterations"],
-        rng=rng,
-    )
 
     midline_pts: np.ndarray | None = None
     midline_L: tuple[float, float, float] | None = None
@@ -343,32 +350,65 @@ def fit_table_quadrilateral(
     method = METHOD_QUAD_FAILED
     quad: np.ndarray | None = None
 
-    if len(lines) == 4:
-        pairs = cluster_into_two_pairs(lines)
-        if pairs is not None:
-            cand = quad_from_two_pairs(lines, pairs[0], pairs[1])
-            if cand is not None and quad_passes_sanity(cand, table_mask, cfg):
-                if midline_L is None or _midline_constraint_ok(cand, midline_L, cfg):
-                    quad = cand
-                    method = METHOD_QUAD_FULL
+    # Primary: approxPolyDP on convex hull of largest contour. The midline
+    # invariant is informational (not gating) at Stage 1 — perspective-safe
+    # midline detection is too noisy on real frames; Stage 2 IPPE
+    # disambiguation uses the midline against canonical geometry directly.
+    cand = _approx_quad_from_mask(table_mask)
+    if cand is not None and quad_passes_sanity(cand, table_mask, cfg):
+        quad = cand
+        method = METHOD_QUAD_FULL
 
-    if quad is None and midline_L is not None and len(lines) >= 3:
-        # Try with the strongest 3 lines (drop weakest if we have 4) +
-        # midline reflection. Sort by inlier count descending.
-        top3 = sorted(lines, key=lambda x: -len(x[1]))[:3]
-        synth = synthesise_missing_short_edge(top3, midline_L, cfg=cfg)
-        if synth is not None:
-            pairs = cluster_into_two_pairs(synth)
-            if pairs is not None:
-                cand = quad_from_two_pairs(synth, pairs[0], pairs[1])
-                if cand is not None and quad_passes_sanity(cand, table_mask, cfg):
-                    quad = cand
-                    method = METHOD_QUAD_FROM_MIDLINE
+    # Recovery: 3-line RANSAC + midline reflection.
+    if quad is None and midline_L is not None:
+        pts, ang = extract_edge_points(table_mask)
+        if len(pts) >= qcfg["ransac_min_inliers"]:
+            rng = np.random.default_rng(13)
+            lines = ransac_lines(
+                pts, ang,
+                k=4,
+                distance_threshold=qcfg["ransac_distance_threshold_px"],
+                angle_threshold_rad=math.radians(qcfg["ransac_angle_threshold_deg"]),
+                min_inliers=qcfg["ransac_min_inliers"],
+                max_iterations=qcfg["ransac_max_iterations"],
+                rng=rng,
+            )
+            if len(lines) >= 3:
+                # Filter lines geometrically against midline: keep the
+                # parallel-to-midline candidate farthest from midline (the
+                # genuine outer short edge) plus the 2 strongest
+                # perpendicular-to-midline lines (the long edges).
+                mid_ang = _line_angle_mod_pi(midline_L)
+                par_thresh = math.radians(qcfg["parallel_threshold_deg"])
+                a_m, b_m, c_m = midline_L
+                parallel: list[tuple[int, float]] = []
+                perpendicular: list[tuple[int, int]] = []
+                for i, (L, ix) in enumerate(lines):
+                    a_i = _line_angle_mod_pi(L)
+                    diff = _angle_diff_mod_pi(a_i, mid_ang)
+                    if diff < par_thresh:
+                        p = np.array([-L[2] * L[0], -L[2] * L[1]])
+                        d = abs(a_m * p[0] + b_m * p[1] + c_m)
+                        parallel.append((i, d))
+                    elif abs(diff - math.pi / 2) < par_thresh:
+                        perpendicular.append((i, len(ix)))
+                if parallel and len(perpendicular) >= 2:
+                    short_i = max(parallel, key=lambda x: x[1])[0]
+                    long_i = sorted(perpendicular, key=lambda x: -x[1])[:2]
+                    chosen = [lines[short_i]] + [lines[j] for j, _ in long_i]
+                    synth = synthesise_missing_short_edge(chosen, midline_L, cfg=cfg)
+                    if synth is not None:
+                        pairs = cluster_into_two_pairs(synth)
+                        if pairs is not None:
+                            rcand = quad_from_two_pairs(synth, pairs[0], pairs[1])
+                            if rcand is not None and quad_passes_sanity(
+                                rcand, table_mask, cfg, check_area_ratio=False
+                            ):
+                                quad = rcand
+                                method = METHOD_QUAD_FROM_MIDLINE
 
     if quad is None:
         return QuadResult(METHOD_QUAD_FAILED, None, midline_pts, 0.0)
 
-    total_inliers = sum(len(ix) for _, ix in lines if len(ix) > 0)
-    inlier_ratio = min(1.0, total_inliers / max(len(pts) * 0.5, 1.0))
-    quality = 0.7 * inlier_ratio + 0.3 * midline_q
+    quality = 0.7 + 0.3 * midline_q
     return QuadResult(method, quad, midline_pts, float(quality))
