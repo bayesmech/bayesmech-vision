@@ -103,6 +103,7 @@ class FrameBundle:
     table_legs_mask: np.ndarray         # pixels we want OUTSIDE the quad
     net_mask: np.ndarray | None
     person_mask: np.ndarray
+    bat_mask: np.ndarray
     geometry: spatial_pb2.InferredGeometry | None = None
     raw_frame: perceiver_pb2.PerceiverDataFrame | None = None
 
@@ -150,6 +151,7 @@ def iter_bundles(
         table_legs = np.zeros((H, W), dtype=bool)
         net = np.zeros((H, W), dtype=bool)
         person = np.zeros((H, W), dtype=bool)
+        bat = np.zeros((H, W), dtype=bool)
         any_table = any_net = False
         if seg is not None:
             for m in seg.masks:
@@ -171,6 +173,8 @@ def iter_bundles(
                     any_net = True
                 elif cls == "person":
                     person |= arr
+                elif cls == "bat":
+                    bat |= arr
 
         yield FrameBundle(
             frame_idx=idx,
@@ -184,6 +188,7 @@ def iter_bundles(
             table_legs_mask=table_legs,
             net_mask=net if any_net else None,
             person_mask=person,
+            bat_mask=bat,
             geometry=frame.inferred_geometry if frame.HasField("inferred_geometry") else None,
             raw_frame=frame,
         )

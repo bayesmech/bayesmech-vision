@@ -22,8 +22,9 @@ sys.path.insert(0, str(_project_root))
 sys.path.insert(0, str(_project_root / "proto"))
 sys.path.insert(0, str(_server_root))
 
+from pongtown.iou_scorer import IoUScorer, summarise
 from pongtown.loader import iter_bundles
-from pongtown.pose import PoseResult, solve_table_pose
+from pongtown.pose import PoseResult, canonical_corners_mm, solve_table_pose
 from pongtown.quad_fit import (
     METHOD_QUAD_FAILED,
     fit_table_quadrilateral,
@@ -326,46 +327,74 @@ def main() -> None:
         t[0] / 1000, t[1] / 1000, t[2] / 1000,
     )
 
-    # Reproject the global pose into every frame and rebuild Stage 3 panel.
-    if debug and odir is not None:
-        for r in results:
-            b = r["bundle"]
-            if (b.frame_idx % every) != 0:
-                continue
-            T_camera_to_world = b.T_camera_to_world
-            T_world_to_camera = np.linalg.inv(T_camera_to_world)
-            T_table_to_camera = T_world_to_camera @ T_global_world
-            R = T_table_to_camera[:3, :3]
-            tv = T_table_to_camera[:3, 3]
-            rv, _ = cv2.Rodrigues(R)
-            mask_overlay = {
-                "legs": b.table_legs_mask,
-                "table": b.table_mask,
-                "net": b.net_mask,
-                "person": b.person_mask,
-            }
-            stage3 = render_pose_panel(
-                b.rgb, rv, tv, b.intrinsics, 0.0,
-                f"f{b.frame_idx} stage3 global",
-                mask_overlays=mask_overlay,
-                quad_thickness=3,
-            )
-            stage1 = render_stage1_panel(
-                b.rgb, b.table_mask, b.net_mask, b.person_mask,
-                r["qres"].quad_img, r["qres"].midline_img,
-                f"f{b.frame_idx} stage1 q={r['qres'].quality:.2f}",
-                legs_mask=b.table_legs_mask,
-            )
-            stage2 = render_pose_panel(
-                b.rgb, r["pres"].rvec, r["pres"].tvec, b.intrinsics,
-                r["pres"].pnp_iou,
-                f"f{b.frame_idx} stage2",
-                mask_overlays=mask_overlay,
-            )
-            cv2.imwrite(
-                str(odir / f"frame_{b.frame_idx:06d}.png"),
-                montage([stage1, stage2, stage3]),
-            )
+    # Reproject the global pose into every frame, score IoU, optionally render.
+    scorer = IoUScorer()
+    P_corners_mm = canonical_corners_mm(
+        cfg["table"]["width_mm"], cfg["table"]["height_mm"]
+    )
+    frame_scores = []
+    for r in results:
+        b = r["bundle"]
+        T_camera_to_world = b.T_camera_to_world
+        T_world_to_camera = np.linalg.inv(T_camera_to_world)
+        T_table_to_camera = T_world_to_camera @ T_global_world
+        R = T_table_to_camera[:3, :3]
+        tv = T_table_to_camera[:3, 3]
+        rv, _ = cv2.Rodrigues(R)
+        proj_c, _ = cv2.projectPoints(P_corners_mm, rv, tv, b.intrinsics, None)
+        quad_global = proj_c.reshape(-1, 2)
+        score = scorer.score(
+            quad_img=quad_global,
+            image_shape=b.rgb.shape[:2],
+            table_top_mask=b.table_top_mask,
+            net_mask=b.net_mask,
+            person_mask=b.person_mask,
+            bat_mask=b.bat_mask,
+        )
+        frame_scores.append(score)
+
+        if not (debug and odir is not None and (b.frame_idx % every) == 0):
+            continue
+        mask_overlay = {
+            "legs": b.table_legs_mask,
+            "table": b.table_mask,
+            "net": b.net_mask,
+            "person": b.person_mask,
+        }
+        stage3 = render_pose_panel(
+            b.rgb, rv, tv, b.intrinsics, score.iou,
+            f"f{b.frame_idx} stage3 global",
+            mask_overlays=mask_overlay,
+            quad_thickness=3,
+        )
+        stage1 = render_stage1_panel(
+            b.rgb, b.table_mask, b.net_mask, b.person_mask,
+            r["qres"].quad_img, r["qres"].midline_img,
+            f"f{b.frame_idx} stage1 q={r['qres'].quality:.2f}",
+            legs_mask=b.table_legs_mask,
+        )
+        stage2 = render_pose_panel(
+            b.rgb, r["pres"].rvec, r["pres"].tvec, b.intrinsics,
+            r["pres"].pnp_iou,
+            f"f{b.frame_idx} stage2",
+            mask_overlays=mask_overlay,
+        )
+        cv2.imwrite(
+            str(odir / f"frame_{b.frame_idx:06d}.png"),
+            montage([stage1, stage2, stage3]),
+        )
+
+    # ── Final stats ──────────────────────────────────────────────────────────
+    summary = summarise(frame_scores)
+    if summary.get("n", 0) == 0:
+        log.warning("No frames with target pixels — cannot compute IoU summary")
+    else:
+        log.info(
+            "Stage 3 IoU summary across %d frames: mean=%.3f min=%.3f max=%.3f",
+            summary["n"], summary["mean"], summary["min"], summary["max"],
+        )
+        deciles = " ".join(f"p{q}={summary[f'p{q}']:.3f}" for q in range(10, 100, 10))
+        log.info("Stage 3 IoU deciles: %s", deciles)
 
 
 if __name__ == "__main__":

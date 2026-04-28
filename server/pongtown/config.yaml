@@ -10,6 +10,7 @@ mask_labels:
   table_legs: ["legs", "legs and sides", "apron"]
   net:        ["net"]
   person:     ["person", "player", "human"]
+  bat:        ["bat", "paddle", "racket"]
 
 table:
   width_mm: 2740
