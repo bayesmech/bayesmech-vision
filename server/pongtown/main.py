@@ -251,6 +251,7 @@ def main() -> None:
                 image_shape=b.rgb.shape[:2],
                 T_camera_to_world=b.T_camera_to_world,
                 world_up_axis=1,
+                half_rectangle=False,
             )
         results.append({
             "bundle": b,
@@ -301,9 +302,21 @@ def main() -> None:
             return
 
     # ── Stage 3: weighted RANSAC over per-frame poses lifted to world ────────
+    min_quality = float(cfg.get("world", {}).get("ransac_min_quality", 0.0))
+    eligible = [r for r in valid if r["qres"].quality >= min_quality]
+    if not eligible:
+        log.warning(
+            "No frames meet world.ransac_min_quality=%.2f; falling back to all valid",
+            min_quality,
+        )
+        eligible = valid
+    log.info(
+        "Stage 3 candidates: %d / %d frames at quality >= %.2f",
+        len(eligible), len(valid), min_quality,
+    )
     poses_T = []
     weights = []
-    for r in valid:
+    for r in eligible:
         T_world = _lift_to_world(r["pres"].T_table_to_camera, r["bundle"].T_camera_to_world)
         poses_T.append(T_world)
         weights.append(0.5 * r["qres"].quality + 0.5 * r["pres"].pnp_iou)

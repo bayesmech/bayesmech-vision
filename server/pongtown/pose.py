@@ -30,6 +30,24 @@ def canonical_corners_mm(W: float = 2740.0, H: float = 1525.0) -> np.ndarray:
     )
 
 
+def canonical_half_rectangle_mm(W: float = 2740.0, H: float = 1525.0) -> np.ndarray:
+    """4 corners of the camera-side half of the table, ordered to match the
+    half-quad emitted by quad_fit: [outer1, outer2, mid1, mid2] CCW.
+
+    The visible half occupies x ∈ [0, W/2] in canonical table-local coords
+    (origin at full-table centre, +x = camera side, +z = table normal).
+    """
+    return np.array(
+        [
+            [+W / 2, -H / 2, 0.0],   # outer1
+            [+W / 2, +H / 2, 0.0],   # outer2
+            [0.0,    +H / 2, 0.0],   # mid1
+            [0.0,    -H / 2, 0.0],   # mid2
+        ],
+        dtype=np.float64,
+    )
+
+
 def canonical_midline_mm(H: float = 1525.0) -> np.ndarray:
     """Two endpoints of the table midline in table-local frame."""
     return np.array([[0.0, -H / 2, 0.0], [0.0, +H / 2, 0.0]], dtype=np.float64)
@@ -103,6 +121,7 @@ def solve_table_pose(
     image_shape: tuple[int, int] | None = None,
     T_camera_to_world: np.ndarray | None = None,
     world_up_axis: int = 1,
+    half_rectangle: bool = False,
 ) -> PoseResult:
     """Solve table pose via IPPE_SQUARE on 4 corners, disambiguated by midline,
     refined with LM if midline is available.
@@ -110,23 +129,59 @@ def solve_table_pose(
     if quad_img is None or len(quad_img) != 4:
         return PoseResult(None, None, None, 0.0, False)
 
-    P_corners = canonical_corners_mm(
-        cfg["table"]["width_mm"], cfg["table"]["height_mm"]
-    )
+    if half_rectangle:
+        P_corners = canonical_half_rectangle_mm(
+            cfg["table"]["width_mm"], cfg["table"]["height_mm"]
+        )
+    else:
+        P_corners = canonical_corners_mm(
+            cfg["table"]["width_mm"], cfg["table"]["height_mm"]
+        )
     P_mid = canonical_midline_mm(cfg["table"]["height_mm"])
 
     quad = np.ascontiguousarray(quad_img.astype(np.float64))
-    try:
-        ok, rvecs, tvecs, _ = cv2.solvePnPGeneric(
-            P_corners, quad, K, None, flags=cv2.SOLVEPNP_IPPE
-        )
-    except cv2.error:
+    # In half_rectangle mode we don't know whether the half_quad's CCW
+    # orientation in image space matches the canonical CCW orientation in
+    # 3D, because image y is flipped. Try both forward and reversed orderings
+    # and pick the one with the smaller mean IPPE reprojection error. (For
+    # full-rectangle mode the canonical is symmetric and reversing has no
+    # effect, so we can just try forward.)
+    orderings = [(quad, P_corners)]
+    if half_rectangle:
+        orderings.append((quad[::-1].copy(), P_corners))
+    best_ok = False
+    best_rvecs = None
+    best_tvecs = None
+    best_err = float("inf")
+    best_quad = quad
+    for q, P in orderings:
+        try:
+            ok, rvecs, tvecs, _ = cv2.solvePnPGeneric(
+                P, q, K, None, flags=cv2.SOLVEPNP_IPPE
+            )
+        except cv2.error:
+            continue
+        if not ok or len(rvecs) == 0:
+            continue
+        # Mean reprojection error across the IPPE solutions.
+        errs = []
+        for rv, tv in zip(rvecs, tvecs):
+            re = _project_world_to_image(P, rv, tv, K)
+            errs.append(float(np.linalg.norm(re - q, axis=1).mean()))
+        err = min(errs)
+        if err < best_err:
+            best_err = err
+            best_ok = True
+            best_rvecs = rvecs
+            best_tvecs = tvecs
+            best_quad = q
+    if not best_ok:
         return PoseResult(None, None, None, 0.0, False)
-    if not ok or len(rvecs) == 0:
-        return PoseResult(None, None, None, 0.0, False)
+    rvecs, tvecs = best_rvecs, best_tvecs
+    quad = best_quad
 
     m_endpoints_img: np.ndarray | None = None
-    if midline_img is not None:
+    if midline_img is not None and not half_rectangle:
         m_endpoints_img = intersect_midline_with_table_long_edges(quad, midline_img)
     best_idx = 0
     # Disambiguate IPPE's planar ambiguity. Priority: ARCore world-up (the
@@ -185,7 +240,10 @@ def solve_table_pose(
 
     iou = 0.0
     if image_shape is not None and table_mask is not None:
-        reproj_corners = _project_world_to_image(P_corners, rvec, tvec, K)
+        # Score against the FULL canonical rectangle regardless of which corners
+        # were used for PnP — gives a stable comparable IoU across modes.
+        P_full = canonical_corners_mm(cfg["table"]["width_mm"], cfg["table"]["height_mm"])
+        reproj_corners = _project_world_to_image(P_full, rvec, tvec, K)
         h, w = image_shape
         canvas = np.zeros((h, w), dtype=np.uint8)
         cv2.fillPoly(

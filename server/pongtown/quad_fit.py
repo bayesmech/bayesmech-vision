@@ -25,9 +25,13 @@ METHOD_QUAD_FAILED = 3
 @dataclass
 class QuadResult:
     method: int
-    quad_img: np.ndarray | None
+    quad_img: np.ndarray | None        # full-table quad (after expansion)
     midline_img: np.ndarray | None
     quality: float
+    half_quad_img: np.ndarray | None = None  # 4 corners of the visible (near) half,
+                                              # ordered CCW [outer1, outer2, mid1, mid2]
+                                              # where the (mid1, mid2) edge sits on the
+                                              # table midline (= net base).
 
 
 def extract_edge_points(mask: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
@@ -330,7 +334,7 @@ def _identify_midline_edge(quad: np.ndarray, net_mask: np.ndarray) -> int:
 
 def expand_half_to_full_table(
     quad: np.ndarray, net_mask: np.ndarray | None
-) -> tuple[np.ndarray, bool]:
+) -> tuple[np.ndarray, bool, np.ndarray | None]:
     """Expand a one-half-of-the-table quad to a full-table quad by reflecting
     the outer (non-midline) edge through the midline (= the quad edge nearest
     the net). Returns (full_quad, was_expanded).
@@ -343,10 +347,10 @@ def expand_half_to_full_table(
     full-table quad.
     """
     if net_mask is None or not net_mask.any():
-        return quad, False
+        return quad, False, None
     mid_i = _identify_midline_edge(quad, net_mask)
     if mid_i < 0:
-        return quad, False
+        return quad, False, None
     # Quad ordering: index mid_i and mid_i+1 = the midline edge endpoints.
     # mid_i+2 and mid_i+3 = outer-end corners. Long edges connect (mid_i ↔
     # mid_i+3) and (mid_i+1 ↔ mid_i+2).
@@ -357,7 +361,12 @@ def expand_half_to_full_table(
     try:
         midline_L = line_from_two_points(A, B)
     except ValueError:
-        return quad, False
+        return quad, False, None
+    # Half-quad ordered [outer1, outer2, mid1, mid2] CCW around the half.
+    # Caller (solve_table_pose with half_rectangle=True) tries both
+    # forward and reversed orderings and picks the one with smaller IPPE
+    # reprojection error to handle the math-CCW vs image-CCW ambiguity.
+    half_quad = np.array([D, C, B, A])
     # Gate: only expand if the net centroid is close to the midline edge
     # (relative to the quad's short dimension). If the net is near the
     # middle — i.e. input is already a full table — leave it.
@@ -371,7 +380,7 @@ def expand_half_to_full_table(
     edges = [np.linalg.norm(quad[(i + 1) % 4] - quad[i]) for i in range(4)]
     short_dim = min(edges)
     if perp_dist > short_dim * 0.25:
-        return quad, False
+        return quad, False, half_quad
     # Compute the vanishing point V = intersection of the two long edges
     # (D-A and C-B). Both long edges of the near half lie along table-3D
     # directions perpendicular to midline; in image they converge at V.
@@ -379,7 +388,7 @@ def expand_half_to_full_table(
         long_L = line_from_two_points(D, A)
         long_R = line_from_two_points(C, B)
     except ValueError:
-        return quad, False
+        return quad, False, half_quad
     V = line_intersection(long_L, long_R)
     # Cross-ratio extension: for points colinear with V, equal 3D spacing
     # corresponds to equal spacing of 1/|P-V| in image. The far outer corners
@@ -407,7 +416,7 @@ def expand_half_to_full_table(
         ref = _reflect_points(outer, midline_L)
         D_far, C_far = ref[0], ref[1]
     full = np.array([D, C, C_far, D_far])
-    return _ccw_from_top_left(full), True
+    return _ccw_from_top_left(full), True, half_quad
 
 
 def _quad_fit_quality(
@@ -523,6 +532,7 @@ def fit_table_quadrilateral(
 
     method = METHOD_QUAD_FAILED
     quad: np.ndarray | None = None
+    half_quad: np.ndarray | None = None
 
     # Primary: approxPolyDP on convex hull of largest contour. The midline
     # invariant is informational (not gating) at Stage 1 — perspective-safe
@@ -535,8 +545,9 @@ def fit_table_quadrilateral(
         # quad. (SAM3 typically emits a single 'ping-pong table top' mask
         # for the half nearest the camera.) The midline is identified as
         # the quad edge closest to the net mask centroid.
-        cand, _ = expand_half_to_full_table(cand, net_mask)
+        cand, _, half_quad_local = expand_half_to_full_table(cand, net_mask)
         quad = cand
+        half_quad = half_quad_local
         method = METHOD_QUAD_FULL
 
     # Recovery: 3-line RANSAC + midline reflection.
@@ -589,11 +600,11 @@ def fit_table_quadrilateral(
 
 
     if quad is None:
-        return QuadResult(METHOD_QUAD_FAILED, None, midline_pts, 0.0)
+        return QuadResult(METHOD_QUAD_FAILED, None, midline_pts, 0.0, None)
 
     # Quality: how tightly the visible-half table_top mask is captured by the
     # camera-side half of the quad. The far half of the quad has no mask
     # support by design (SAM3 only segments the near half), so we restrict
     # the score to the near half.
     quality = _quad_fit_quality(quad, table_mask, net_mask)
-    return QuadResult(method, quad, midline_pts, float(quality))
+    return QuadResult(method, quad, midline_pts, float(quality), half_quad)

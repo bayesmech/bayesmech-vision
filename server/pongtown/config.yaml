@@ -35,6 +35,13 @@ pnp:
   iou_min: 0.6
 
 world:
+  # Frames with quad-fit quality below this threshold are excluded from
+  # Stage 3 RANSAC aggregation. The cross-ratio quad extension is very
+  # sensitive to long-edge noise on low-quality fits — those frames'
+  # PnP-recovered poses have 20-40 px reprojection error and contribute
+  # noise rather than signal. High-quality fits (q ≥ 0.85) have 1-5 px
+  # error and clean poses.
+  ransac_min_quality: 0.85
   refine: true
   refine_sample_size: 50
   iou_alpha: 1.0          # weight on table-rect IoU term
