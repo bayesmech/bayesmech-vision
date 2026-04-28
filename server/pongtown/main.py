@@ -332,9 +332,35 @@ def main() -> None:
     P_corners_mm = canonical_corners_mm(
         cfg["table"]["width_mm"], cfg["table"]["height_mm"]
     )
-    frame_scores = []
+    stage1_scores = []
+    stage2_scores = []
+    stage3_scores = []
     for r in results:
         b = r["bundle"]
+        # Stage 1: the detected/extended quad in image space.
+        s1 = scorer.score(
+            quad_img=r["qres"].quad_img,
+            image_shape=b.rgb.shape[:2],
+            table_top_mask=b.table_top_mask, net_mask=b.net_mask,
+            person_mask=b.person_mask, bat_mask=b.bat_mask,
+        )
+        stage1_scores.append(s1)
+        # Stage 2: reproject canonical rect from this frame's PnP pose.
+        if r["pres"].success:
+            proj_c2, _ = cv2.projectPoints(
+                P_corners_mm, r["pres"].rvec, r["pres"].tvec, b.intrinsics, None
+            )
+            quad_pnp = proj_c2.reshape(-1, 2)
+        else:
+            quad_pnp = None
+        s2 = scorer.score(
+            quad_img=quad_pnp,
+            image_shape=b.rgb.shape[:2],
+            table_top_mask=b.table_top_mask, net_mask=b.net_mask,
+            person_mask=b.person_mask, bat_mask=b.bat_mask,
+        )
+        stage2_scores.append(s2)
+        # Stage 3: reproject canonical rect from the global pose.
         T_camera_to_world = b.T_camera_to_world
         T_world_to_camera = np.linalg.inv(T_camera_to_world)
         T_table_to_camera = T_world_to_camera @ T_global_world
@@ -351,7 +377,7 @@ def main() -> None:
             person_mask=b.person_mask,
             bat_mask=b.bat_mask,
         )
-        frame_scores.append(score)
+        stage3_scores.append(score)
 
         if not (debug and odir is not None and (b.frame_idx % every) == 0):
             continue
@@ -385,16 +411,21 @@ def main() -> None:
         )
 
     # ── Final stats ──────────────────────────────────────────────────────────
-    summary = summarise(frame_scores)
-    if summary.get("n", 0) == 0:
-        log.warning("No frames with target pixels — cannot compute IoU summary")
-    else:
+    for label, scores in (
+        ("Stage 1", stage1_scores),
+        ("Stage 2", stage2_scores),
+        ("Stage 3", stage3_scores),
+    ):
+        s = summarise(scores)
+        if s.get("n", 0) == 0:
+            log.warning("%s: no frames with target pixels", label)
+            continue
         log.info(
-            "Stage 3 IoU summary across %d frames: mean=%.3f min=%.3f max=%.3f",
-            summary["n"], summary["mean"], summary["min"], summary["max"],
+            "%s IoU: n=%d mean=%.3f min=%.3f max=%.3f",
+            label, s["n"], s["mean"], s["min"], s["max"],
         )
-        deciles = " ".join(f"p{q}={summary[f'p{q}']:.3f}" for q in range(10, 100, 10))
-        log.info("Stage 3 IoU deciles: %s", deciles)
+        deciles = " ".join(f"p{q}={s[f'p{q}']:.3f}" for q in range(10, 100, 10))
+        log.info("%s IoU deciles: %s", label, deciles)
 
 
 if __name__ == "__main__":
