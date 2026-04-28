@@ -98,7 +98,9 @@ class FrameBundle:
     rgb: np.ndarray
     intrinsics: np.ndarray
     T_camera_to_world: np.ndarray
-    table_mask: np.ndarray | None
+    table_mask: np.ndarray | None       # alias for table_top_mask
+    table_top_mask: np.ndarray | None
+    table_legs_mask: np.ndarray         # pixels we want OUTSIDE the quad
     net_mask: np.ndarray | None
     person_mask: np.ndarray
     geometry: spatial_pb2.InferredGeometry | None = None
@@ -144,7 +146,8 @@ def iter_bundles(
         T = _pose_to_matrix(frame.camera_pose)
 
         seg = seg_by_fn.get(frame.frame_identifier.frame_number)
-        table = np.zeros((H, W), dtype=bool)
+        table_top = np.zeros((H, W), dtype=bool)
+        table_legs = np.zeros((H, W), dtype=bool)
         net = np.zeros((H, W), dtype=bool)
         person = np.zeros((H, W), dtype=bool)
         any_table = any_net = False
@@ -158,9 +161,11 @@ def iter_bundles(
                     arr = cv2.resize(
                         arr.astype(np.uint8), (W, H), interpolation=cv2.INTER_NEAREST
                     ).astype(bool)
-                if cls == "table":
-                    table |= arr
+                if cls == "table_top":
+                    table_top |= arr
                     any_table = True
+                elif cls == "table_legs":
+                    table_legs |= arr
                 elif cls == "net":
                     net |= arr
                     any_net = True
@@ -174,7 +179,9 @@ def iter_bundles(
             rgb=rgb,
             intrinsics=cached_K,
             T_camera_to_world=T,
-            table_mask=table if any_table else None,
+            table_mask=table_top if any_table else None,
+            table_top_mask=table_top if any_table else None,
+            table_legs_mask=table_legs,
             net_mask=net if any_net else None,
             person_mask=person,
             geometry=frame.inferred_geometry if frame.HasField("inferred_geometry") else None,

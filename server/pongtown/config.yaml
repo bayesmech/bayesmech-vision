@@ -6,9 +6,10 @@ extraction:
   max_frames: 0      # 0 = no cap
 
 mask_labels:
-  table: ["table", "table-top", "tabletop", "ping pong table", "ping-pong table"]
-  net:   ["net", "ping pong net", "ping-pong net"]
-  person: ["person", "player", "human"]
+  table_top:  ["table top", "table-top", "tabletop"]
+  table_legs: ["legs", "legs and sides", "apron"]
+  net:        ["net"]
+  person:     ["person", "player", "human"]
 
 table:
   width_mm: 2740

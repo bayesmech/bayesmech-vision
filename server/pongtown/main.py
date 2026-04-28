@@ -91,6 +91,7 @@ def main() -> None:
                 b.rgb, b.table_mask, b.net_mask, b.person_mask,
                 qres.quad_img, qres.midline_img,
                 f"f{b.frame_idx} stage1 m={qres.method} q={qres.quality:.2f}",
+                legs_mask=b.table_legs_mask,
             )
             cv2.imwrite(str(odir / f"frame_{b.frame_idx:06d}.png"), panel)
 

@@ -5,9 +5,10 @@ import cv2
 import numpy as np
 
 
-COLOR_TABLE = (255, 255, 0)   # cyan in BGR
-COLOR_NET = (255, 0, 255)     # magenta
-COLOR_PERSON = (0, 255, 255)  # yellow
+COLOR_TABLE = (255, 255, 0)    # cyan in BGR — table top
+COLOR_LEGS = (50, 50, 200)     # dark red — table legs/apron (should be OUTSIDE quad)
+COLOR_NET = (255, 0, 255)      # magenta
+COLOR_PERSON = (0, 255, 255)   # yellow
 COLOR_QUAD = (255, 255, 255)  # white
 COLOR_MIDLINE = (0, 0, 255)   # red
 COLOR_LINE = (0, 255, 0)      # green
@@ -28,8 +29,11 @@ def render_stage1_panel(
     quad_img: np.ndarray | None,
     midline_img: np.ndarray | None,
     title: str,
+    legs_mask: np.ndarray | None = None,
 ) -> np.ndarray:
     img = rgb_bgr.copy()
+    if legs_mask is not None and legs_mask.any():
+        img = _alpha_blend(img, legs_mask, COLOR_LEGS, alpha=0.4)
     if table_mask is not None:
         img = _alpha_blend(img, table_mask, COLOR_TABLE)
     if net_mask is not None:
