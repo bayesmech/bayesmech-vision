@@ -304,6 +304,112 @@ def _midline_constraint_ok(quad: np.ndarray, midline_L, cfg: dict) -> bool:
     return float(d.min()) < 0 < float(d.max())
 
 
+def _reflect_points(pts: np.ndarray, L: tuple[float, float, float]) -> np.ndarray:
+    """Reflect (N, 2) points across line ax+by+c=0 (a^2+b^2=1)."""
+    a, b, c = L
+    d = pts[:, 0] * a + pts[:, 1] * b + c
+    return pts - 2.0 * d[:, None] * np.array([a, b])[None, :]
+
+
+def _identify_midline_edge(quad: np.ndarray, net_mask: np.ndarray) -> int:
+    """Return the index i of the quad edge (i, i+1) closest to the net mask.
+    That edge sits on the table midline (= the boundary between the visible
+    half and the missing far half)."""
+    if not net_mask.any():
+        return -1
+    ys, xs = np.where(net_mask)
+    net_centroid = np.array([float(xs.mean()), float(ys.mean())])
+    best_i, best_d = -1, float("inf")
+    for i in range(4):
+        mid = (quad[i] + quad[(i + 1) % 4]) / 2.0
+        d = float(np.linalg.norm(mid - net_centroid))
+        if d < best_d:
+            best_d, best_i = d, i
+    return best_i
+
+
+def expand_half_to_full_table(
+    quad: np.ndarray, net_mask: np.ndarray | None
+) -> tuple[np.ndarray, bool]:
+    """Expand a one-half-of-the-table quad to a full-table quad by reflecting
+    the outer (non-midline) edge through the midline (= the quad edge nearest
+    the net). Returns (full_quad, was_expanded).
+
+    The visible mask is one half of the table top (~1.37m × 1.525m). The quad
+    fitted to that mask has 4 edges: one runs along the midline (where the
+    net sits) and the opposite edge runs along the outer short edge of the
+    half. Reflecting that outer edge through the midline edge yields the
+    outer short edge of the missing far half, and we combine them into the
+    full-table quad.
+    """
+    if net_mask is None or not net_mask.any():
+        return quad, False
+    mid_i = _identify_midline_edge(quad, net_mask)
+    if mid_i < 0:
+        return quad, False
+    # Quad ordering: index mid_i and mid_i+1 = the midline edge endpoints.
+    # mid_i+2 and mid_i+3 = outer-end corners. Long edges connect (mid_i ↔
+    # mid_i+3) and (mid_i+1 ↔ mid_i+2).
+    A = quad[mid_i]                       # midline corner, side L
+    B = quad[(mid_i + 1) % 4]              # midline corner, side R
+    C = quad[(mid_i + 2) % 4]              # outer corner, side R (opposite of B)
+    D = quad[(mid_i + 3) % 4]              # outer corner, side L (opposite of A)
+    try:
+        midline_L = line_from_two_points(A, B)
+    except ValueError:
+        return quad, False
+    # Gate: only expand if the net centroid is close to the midline edge
+    # (relative to the quad's short dimension). If the net is near the
+    # middle — i.e. input is already a full table — leave it.
+    ys, xs = np.where(net_mask)
+    net_centroid = np.array([float(xs.mean()), float(ys.mean())])
+    perp_dist = abs(
+        midline_L[0] * net_centroid[0]
+        + midline_L[1] * net_centroid[1]
+        + midline_L[2]
+    )
+    edges = [np.linalg.norm(quad[(i + 1) % 4] - quad[i]) for i in range(4)]
+    short_dim = min(edges)
+    if perp_dist > short_dim * 0.25:
+        return quad, False
+    # Compute the vanishing point V = intersection of the two long edges
+    # (D-A and C-B). Both long edges of the near half lie along table-3D
+    # directions perpendicular to midline; in image they converge at V.
+    try:
+        long_L = line_from_two_points(D, A)
+        long_R = line_from_two_points(C, B)
+    except ValueError:
+        return quad, False
+    V = line_intersection(long_L, long_R)
+    # Cross-ratio extension: for points colinear with V, equal 3D spacing
+    # corresponds to equal spacing of 1/|P-V| in image. The far outer corners
+    # D' and C' satisfy 1/|D'-V| = 2/|A-V| - 1/|D-V| (and analogously for C').
+    if V is not None:
+        Vp = np.array(V)
+        far = []
+        for outer, mid in [(D, A), (C, B)]:
+            r0 = float(np.linalg.norm(outer - Vp))
+            r1 = float(np.linalg.norm(mid - Vp))
+            denom = 2.0 / r1 - 1.0 / r0
+            if denom <= 1e-6:
+                # Vanishing point at infinity (parallel long edges); fall back
+                # to 2D reflection.
+                far.append(_reflect_points(outer.reshape(1, 2), midline_L)[0])
+                continue
+            r2 = 1.0 / denom
+            direction = (mid - Vp) / r1
+            far.append(Vp + r2 * direction)
+        D_far, C_far = far[0], far[1]
+    else:
+        # Long edges parallel — vanishing point at infinity, 2D reflection
+        # is exact.
+        outer = np.array([D, C])
+        ref = _reflect_points(outer, midline_L)
+        D_far, C_far = ref[0], ref[1]
+    full = np.array([D, C, C_far, D_far])
+    return _ccw_from_top_left(full), True
+
+
 def _approx_quad_from_mask(mask: np.ndarray) -> np.ndarray | None:
     """Try to extract a 4-corner polygon from the largest contour's convex hull
     via approxPolyDP with an epsilon sweep. Returns (4, 2) float64 CCW from
@@ -356,6 +462,12 @@ def fit_table_quadrilateral(
     # disambiguation uses the midline against canonical geometry directly.
     cand = _approx_quad_from_mask(table_mask)
     if cand is not None and quad_passes_sanity(cand, table_mask, cfg):
+        # If the segmentation only covers one half of the table, reflect
+        # the outer corners through the midline to produce the full-table
+        # quad. (SAM3 typically emits a single 'ping-pong table top' mask
+        # for the half nearest the camera.) The midline is identified as
+        # the quad edge closest to the net mask centroid.
+        cand, _ = expand_half_to_full_table(cand, net_mask)
         quad = cand
         method = METHOD_QUAD_FULL
 
