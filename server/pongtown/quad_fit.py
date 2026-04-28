@@ -410,6 +410,74 @@ def expand_half_to_full_table(
     return _ccw_from_top_left(full), True
 
 
+def _quad_fit_quality(
+    quad: np.ndarray, table_mask: np.ndarray, net_mask: np.ndarray | None
+) -> float:
+    """Score the per-frame quad fit by how tightly the visible (near) half of
+    the quad covers the table_top mask.
+
+    quality = 0.5 * precision + 0.5 * recall, where:
+      precision = |near_half(quad) ∩ table_mask| / |near_half(quad)|
+                  (penalises pixels in the near-half quad that aren't on the
+                  visible table top — extra pixels)
+      recall    = |near_half(quad) ∩ table_mask| / |table_mask|
+                  (penalises mask pixels that fall outside the near-half quad
+                  — missed pixels)
+
+    The 'near half' is the half of the quad that contains the table-top mask
+    centroid (the camera-side half). Returns 0..1.
+    """
+    if not table_mask.any():
+        return 0.0
+    h, w = table_mask.shape
+    # Rasterise the full quad.
+    full = np.zeros((h, w), dtype=np.uint8)
+    cv2.fillPoly(full, [np.round(quad).astype(np.int32).reshape(-1, 1, 2)], 1)
+    full_b = full.astype(bool)
+    # Identify the near half: split the quad at its midline (the line through
+    # the midpoints of the two long opposite-pair edges).
+    edge_lengths = [np.linalg.norm(quad[(i + 1) % 4] - quad[i]) for i in range(4)]
+    mean_02 = (edge_lengths[0] + edge_lengths[2]) / 2.0
+    mean_13 = (edge_lengths[1] + edge_lengths[3]) / 2.0
+    long_idx = (0, 2) if mean_02 >= mean_13 else (1, 3)
+    mid_a = (quad[long_idx[0]] + quad[(long_idx[0] + 1) % 4]) / 2.0
+    mid_b = (quad[long_idx[1]] + quad[(long_idx[1] + 1) % 4]) / 2.0
+    try:
+        L_split = line_from_two_points(mid_a, mid_b)
+    except ValueError:
+        return 0.0
+    # Build a "near-half" polygon: vertices of the long-pair[0] edge plus the
+    # two midpoints (or long-pair[1] vertices, depending on which side has
+    # the mask centroid).
+    ys, xs = np.where(table_mask)
+    centroid = np.array([float(xs.mean()), float(ys.mean())])
+    a, b, c = L_split
+    centroid_d = a * centroid[0] + b * centroid[1] + c
+    # Pick the side with same sign as centroid_d.
+    side_sign = 1.0 if centroid_d > 0 else -1.0
+    half_canvas = np.zeros((h, w), dtype=np.uint8)
+    near_half_poly: list[np.ndarray] = []
+    for v in quad:
+        if (a * v[0] + b * v[1] + c) * side_sign >= 0:
+            near_half_poly.append(v)
+    near_half_poly.extend([mid_a, mid_b])
+    if len(near_half_poly) < 3:
+        return 0.0
+    pts = np.array(near_half_poly, dtype=np.float64)
+    centre = pts.mean(axis=0)
+    angles = np.arctan2(pts[:, 1] - centre[1], pts[:, 0] - centre[0])
+    pts_ccw = pts[np.argsort(angles)]
+    cv2.fillPoly(half_canvas, [np.round(pts_ccw).astype(np.int32).reshape(-1, 1, 2)], 1)
+    half_b = half_canvas.astype(bool)
+
+    inter = (half_b & table_mask).sum()
+    half_area = half_b.sum()
+    mask_area = table_mask.sum()
+    precision = float(inter) / float(max(half_area, 1))
+    recall = float(inter) / float(max(mask_area, 1))
+    return 0.5 * precision + 0.5 * recall
+
+
 def _approx_quad_from_mask(mask: np.ndarray) -> np.ndarray | None:
     """Try to extract a 4-corner polygon from the largest contour's convex hull
     via approxPolyDP with an epsilon sweep. Returns (4, 2) float64 CCW from
@@ -519,8 +587,13 @@ def fit_table_quadrilateral(
                                 quad = rcand
                                 method = METHOD_QUAD_FROM_MIDLINE
 
+
     if quad is None:
         return QuadResult(METHOD_QUAD_FAILED, None, midline_pts, 0.0)
 
-    quality = 0.7 + 0.3 * midline_q
+    # Quality: how tightly the visible-half table_top mask is captured by the
+    # camera-side half of the quad. The far half of the quad has no mask
+    # support by design (SAM3 only segments the near half), so we restrict
+    # the score to the near half.
+    quality = _quad_fit_quality(quad, table_mask, net_mask)
     return QuadResult(method, quad, midline_pts, float(quality))

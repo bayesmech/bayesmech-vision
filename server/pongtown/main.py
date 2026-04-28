@@ -8,10 +8,12 @@ from __future__ import annotations
 
 import argparse
 import logging
+import math
 import sys
 from pathlib import Path
 
 import cv2
+import numpy as np
 import yaml
 
 _server_root = Path(__file__).resolve().parent.parent
@@ -21,11 +23,16 @@ sys.path.insert(0, str(_project_root / "proto"))
 sys.path.insert(0, str(_server_root))
 
 from pongtown.loader import iter_bundles
+from pongtown.pose import PoseResult, solve_table_pose
 from pongtown.quad_fit import (
     METHOD_QUAD_FAILED,
     fit_table_quadrilateral,
 )
-from pongtown.render import montage, render_stage1_panel
+from pongtown.render import (
+    montage,
+    render_pose_panel,
+    render_stage1_panel,
+)
 
 
 log = logging.getLogger("pongtown")
@@ -38,7 +45,6 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--sample-every", type=int, default=1)
     p.add_argument("--stop-after", type=int, choices=[1, 2, 3], default=3)
     p.add_argument("--no-debug", action="store_true")
-    p.add_argument("--render-mp4", action="store_true")
     return p.parse_args()
 
 
@@ -50,6 +56,159 @@ def _seg_path_for(vis: Path) -> Path:
 def _debug_dir(vis: Path) -> Path:
     stem = vis.name.removesuffix(".vis.pb")
     return vis.parent / f"{stem}.pongtown.debug"
+
+
+def _pongtown_pb_path(vis: Path) -> Path:
+    stem = vis.name.removesuffix(".vis.pb")
+    return vis.parent / f"{stem}.pongtown.pb"
+
+
+def _lift_to_world(T_table_to_camera: np.ndarray, T_camera_to_world: np.ndarray) -> np.ndarray:
+    return T_camera_to_world @ T_table_to_camera
+
+
+def _decompose_xy_yaw_height(T: np.ndarray, world_up_axis: int) -> np.ndarray:
+    """Project SE(3) onto (x, y, z, yaw) where yaw is rotation about world_up.
+    Returns 4-vector (x, y, z, yaw)."""
+    t = T[:3, 3]
+    R = T[:3, :3]
+    if world_up_axis == 1:  # Y up (ARCore default)
+        x_axis = R[:, 0]  # table-local +X in world
+        yaw = math.atan2(x_axis[2], x_axis[0])
+    else:
+        x_axis = R[:, 0]
+        yaw = math.atan2(x_axis[1], x_axis[0])
+    return np.array([float(t[0]), float(t[1]), float(t[2]), float(yaw)])
+
+
+def _compose_xy_yaw_height(p: np.ndarray, world_up_axis: int) -> np.ndarray:
+    """Inverse of _decompose. Table-local Z (table normal) maps to world up."""
+    x, y_up, z, yaw = float(p[0]), float(p[1]), float(p[2]), float(p[3])
+    c, s = math.cos(yaw), math.sin(yaw)
+    if world_up_axis == 1:
+        # table x → (cos yaw, 0, sin yaw)
+        # table y → (-sin yaw, 0, cos yaw)
+        # table z (up) → (0, 1, 0)
+        R = np.array(
+            [
+                [c, -s, 0.0],
+                [0.0, 0.0, 1.0],
+                [s,  c,  0.0],
+            ]
+        )
+    else:
+        R = np.array(
+            [
+                [c, -s, 0.0],
+                [s,  c, 0.0],
+                [0.0, 0.0, 1.0],
+            ]
+        )
+    T = np.eye(4)
+    T[:3, :3] = R
+    T[:3, 3] = [x, y_up, z]
+    return T
+
+
+def _weighted_geometric_median(points: np.ndarray, weights: np.ndarray, n_iters: int = 64) -> np.ndarray:
+    pts = np.asarray(points, dtype=np.float64)
+    w = np.asarray(weights, dtype=np.float64)
+    x = (pts * w[:, None]).sum(axis=0) / w.sum()
+    eps = 1e-6
+    for _ in range(n_iters):
+        d = np.linalg.norm(pts - x, axis=1)
+        d = np.where(d < eps, eps, d)
+        w_eff = w / d
+        x_new = (pts * w_eff[:, None]).sum(axis=0) / w_eff.sum()
+        if np.linalg.norm(x_new - x) < eps:
+            return x_new
+        x = x_new
+    return x
+
+
+def _weighted_circular_median_mod_pi(angles: np.ndarray, weights: np.ndarray) -> float:
+    z = np.exp(2j * angles)
+    avg = (z * weights).sum() / weights.sum()
+    a = math.atan2(avg.imag, avg.real) / 2.0
+    if a < 0:
+        a += math.pi
+    return a
+
+
+def _so3_average(rotations: np.ndarray, weights: np.ndarray) -> np.ndarray:
+    """Weighted Frobenius-norm-minimising mean rotation (Procrustes).
+
+    rotations: (N, 3, 3); weights: (N,). Returns (3, 3).
+    """
+    M = (weights[:, None, None] * rotations).sum(axis=0)
+    U, _, Vt = np.linalg.svd(M)
+    R = U @ Vt
+    if np.linalg.det(R) < 0:
+        # Reflection — flip last col of U.
+        U[:, -1] *= -1
+        R = U @ Vt
+    return R
+
+
+def _weighted_ransac_pose(
+    poses_T: np.ndarray,                 # (N, 4, 4) per-frame T_table_to_world
+    weights: np.ndarray,
+    *,
+    pos_inlier_thresh_m: float = 0.20,
+    rot_inlier_thresh_rad: float = math.radians(8.0),
+    n_iter: int = 200,
+    rng: np.random.Generator | None = None,
+) -> tuple[np.ndarray, np.ndarray]:
+    """RANSAC over per-frame T_table_to_world poses, weighted by quad-fit
+    quality + PnP IoU. Returns (best_T, inlier_mask).
+
+    Each iteration picks one pose (sampled with probability ∝ weight) as the
+    proposal, counts weighted inliers within position and rotation thresholds,
+    and keeps the proposal with the highest total inlier weight. Final pose
+    is the weighted geometric median translation + Procrustes mean rotation
+    of the inlier set.
+    """
+    if rng is None:
+        rng = np.random.default_rng(0)
+    n = poses_T.shape[0]
+    if n == 0:
+        return np.eye(4), np.zeros(0, dtype=bool)
+    probs = weights / weights.sum() if weights.sum() > 0 else np.full(n, 1.0 / n)
+    pos_thresh_mm = pos_inlier_thresh_m * 1000.0
+    cos_rot_thresh = math.cos(rot_inlier_thresh_rad)
+    Rs = poses_T[:, :3, :3]
+    ts = poses_T[:, :3, 3]
+
+    best_score = -1.0
+    best_inliers = np.zeros(n, dtype=bool)
+    for _ in range(min(n_iter, 5 * n)):
+        i = int(rng.choice(n, p=probs))
+        cand_R = Rs[i]
+        cand_t = ts[i]
+        # Position distance.
+        dpos = np.linalg.norm(ts - cand_t, axis=1)
+        # Rotation distance: trace((R_cand^T R_i) - 1) / 2 = cos(angle).
+        traces = np.einsum("ij,kij->k", cand_R, Rs)
+        cos_ang = (traces - 1.0) / 2.0
+        ok = (dpos < pos_thresh_mm) & (cos_ang > cos_rot_thresh)
+        score = float(weights[ok].sum())
+        if score > best_score:
+            best_score = score
+            best_inliers = ok
+
+    if best_inliers.sum() == 0:
+        return poses_T[int(np.argmax(weights))], np.ones(n, dtype=bool)
+
+    in_T = poses_T[best_inliers]
+    in_w = weights[best_inliers]
+    in_w_norm = in_w / in_w.sum()
+    t_med = _weighted_geometric_median(in_T[:, :3, 3], in_w)
+    R_avg = _so3_average(in_T[:, :3, :3], in_w_norm)
+
+    out = np.eye(4)
+    out[:3, :3] = R_avg
+    out[:3, 3] = t_med
+    return out, best_inliers
 
 
 def main() -> None:
@@ -73,34 +232,140 @@ def main() -> None:
 
     every = max(1, int(cfg["overlay"]["every_n_frames"]))
 
-    stage1_results: list[tuple[int, object]] = []
+    # ── Stage 1 + per-frame PnP (Stage 2) ────────────────────────────────────
+    results: list[dict] = []  # one entry per loaded frame
 
     for b in iter_bundles(
         vis_path, seg_path, cfg["mask_labels"],
         max_frames=args.max_frames, sample_every=args.sample_every,
     ):
         qres = fit_table_quadrilateral(b.table_mask, b.net_mask, cfg=cfg)
-        stage1_results.append((b.frame_idx, qres))
-        if qres.method != METHOD_QUAD_FAILED:
-            log.info(
-                "frame %d: stage1 method=%d quality=%.2f",
-                b.frame_idx, qres.method, qres.quality,
+        pres = PoseResult(None, None, None, 0.0, False)
+        if args.stop_after >= 2 and qres.method != METHOD_QUAD_FAILED:
+            pres = solve_table_pose(
+                qres.quad_img, qres.midline_img, b.intrinsics,
+                cfg=cfg,
+                table_mask=b.table_mask, net_mask=b.net_mask,
+                person_mask=b.person_mask,
+                image_shape=b.rgb.shape[:2],
+                T_camera_to_world=b.T_camera_to_world,
+                world_up_axis=1,
             )
+        results.append({
+            "bundle": b,
+            "qres": qres,
+            "pres": pres,
+        })
         if debug and odir is not None and (b.frame_idx % every) == 0:
-            panel = render_stage1_panel(
+            mask_overlay = {
+                "legs": b.table_legs_mask,
+                "table": b.table_mask,
+                "net": b.net_mask,
+                "person": b.person_mask,
+            }
+            panels = [render_stage1_panel(
                 b.rgb, b.table_mask, b.net_mask, b.person_mask,
                 qres.quad_img, qres.midline_img,
-                f"f{b.frame_idx} stage1 m={qres.method} q={qres.quality:.2f}",
+                f"f{b.frame_idx} stage1 q={qres.quality:.2f}",
                 legs_mask=b.table_legs_mask,
-            )
-            cv2.imwrite(str(odir / f"frame_{b.frame_idx:06d}.png"), panel)
+            )]
+            if args.stop_after >= 2:
+                panels.append(render_pose_panel(
+                    b.rgb, pres.rvec, pres.tvec, b.intrinsics,
+                    pres.pnp_iou,
+                    f"f{b.frame_idx} stage2",
+                    mask_overlays=mask_overlay,
+                ))
+            cv2.imwrite(str(odir / f"frame_{b.frame_idx:06d}.png"), montage(panels))
 
     if args.stop_after == 1:
-        ok = sum(1 for _, r in stage1_results if r.method != METHOD_QUAD_FAILED)
-        log.info("Stage 1 done: %d / %d frames with a quad", ok, len(stage1_results))
+        ok = sum(1 for r in results if r["qres"].method != METHOD_QUAD_FAILED)
+        log.info("Stage 1 done: %d / %d frames with a quad", ok, len(results))
         return
 
-    raise NotImplementedError("Stages 2 and 3 are added in later tasks")
+    valid = [r for r in results if r["pres"].success]
+    if args.stop_after == 2 or not valid:
+        ious = [r["pres"].pnp_iou for r in valid]
+        if ious:
+            log.info(
+                "Stage 2 done: %d/%d ok, mean PnP IoU %.3f, p10=%.3f, p90=%.3f",
+                len(valid), len(results),
+                float(np.mean(ious)),
+                float(np.percentile(ious, 10)),
+                float(np.percentile(ious, 90)),
+            )
+        else:
+            log.info("Stage 2 done: 0 valid poses")
+        if args.stop_after == 2:
+            return
+
+    # ── Stage 3: weighted RANSAC over per-frame poses lifted to world ────────
+    poses_T = []
+    weights = []
+    for r in valid:
+        T_world = _lift_to_world(r["pres"].T_table_to_camera, r["bundle"].T_camera_to_world)
+        poses_T.append(T_world)
+        weights.append(0.5 * r["qres"].quality + 0.5 * r["pres"].pnp_iou)
+    poses_T = np.stack(poses_T, axis=0)
+    weights = np.array(weights)
+    if poses_T.shape[0] == 0:
+        log.warning("No valid poses for Stage 3")
+        return
+
+    T_global_world, inlier_mask = _weighted_ransac_pose(
+        poses_T, weights,
+        pos_inlier_thresh_m=cfg.get("world", {}).get("ransac_pos_inlier_m", 0.20),
+        rot_inlier_thresh_rad=math.radians(
+            cfg.get("world", {}).get("ransac_yaw_inlier_deg", 8.0)
+        ),
+    )
+    t = T_global_world[:3, 3]
+    log.info(
+        "Stage 3 RANSAC: inliers %d/%d, t=(%.3f, %.3f, %.3f) m",
+        int(inlier_mask.sum()), len(inlier_mask),
+        t[0] / 1000, t[1] / 1000, t[2] / 1000,
+    )
+
+    # Reproject the global pose into every frame and rebuild Stage 3 panel.
+    if debug and odir is not None:
+        for r in results:
+            b = r["bundle"]
+            if (b.frame_idx % every) != 0:
+                continue
+            T_camera_to_world = b.T_camera_to_world
+            T_world_to_camera = np.linalg.inv(T_camera_to_world)
+            T_table_to_camera = T_world_to_camera @ T_global_world
+            R = T_table_to_camera[:3, :3]
+            tv = T_table_to_camera[:3, 3]
+            rv, _ = cv2.Rodrigues(R)
+            mask_overlay = {
+                "legs": b.table_legs_mask,
+                "table": b.table_mask,
+                "net": b.net_mask,
+                "person": b.person_mask,
+            }
+            stage3 = render_pose_panel(
+                b.rgb, rv, tv, b.intrinsics, 0.0,
+                f"f{b.frame_idx} stage3 global",
+                mask_overlays=mask_overlay,
+                quad_thickness=3,
+            )
+            stage1 = render_stage1_panel(
+                b.rgb, b.table_mask, b.net_mask, b.person_mask,
+                r["qres"].quad_img, r["qres"].midline_img,
+                f"f{b.frame_idx} stage1 q={r['qres'].quality:.2f}",
+                legs_mask=b.table_legs_mask,
+            )
+            stage2 = render_pose_panel(
+                b.rgb, r["pres"].rvec, r["pres"].tvec, b.intrinsics,
+                r["pres"].pnp_iou,
+                f"f{b.frame_idx} stage2",
+                mask_overlays=mask_overlay,
+            )
+            cv2.imwrite(
+                str(odir / f"frame_{b.frame_idx:06d}.png"),
+                montage([stage1, stage2, stage3]),
+            )
 
 
 if __name__ == "__main__":
