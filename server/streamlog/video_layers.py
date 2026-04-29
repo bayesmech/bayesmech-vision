@@ -417,8 +417,8 @@ class MotioncapVideoLayer(VideoLayer):
             tail_start = max(0, current_hm_idx - self.tail_length)
             tail_pts = []
             for fi in range(tail_start, current_hm_idx + 1):
-                for (tid, cx, cy, _interp) in positions_by_hm_idx.get(fi, []):
-                    if tid == track.track_id:
+                for (tid, cx, cy, interp) in positions_by_hm_idx.get(fi, []):
+                    if tid == track.track_id and not interp:
                         tail_pts.append((int(round(cx)), int(round(cy))))
             for i in range(1, len(tail_pts)):
                 fade = (i / len(tail_pts)) ** 1.5
@@ -429,13 +429,12 @@ class MotioncapVideoLayer(VideoLayer):
             return
 
         for (tid, cx, cy, interp) in positions_by_hm_idx.get(current_hm_idx, []):
+            if interp:
+                continue
             color = _color_for(tid)
             center = (int(round(cx)), int(round(cy)))
             if self.show_track_markers:
-                if interp:
-                    cv2.drawMarker(canvas, center, color, cv2.MARKER_CROSS, 10, 1, cv2.LINE_AA)
-                else:
-                    cv2.circle(canvas, center, 6, color, 2, cv2.LINE_AA)
+                cv2.circle(canvas, center, 6, color, 2, cv2.LINE_AA)
             if self.show_track_labels:
                 cv2.putText(
                     canvas, f"T{tid}", (center[0] + 8, center[1] - 8),

@@ -607,12 +607,16 @@ def main() -> None:
 
     writer = cv2.VideoWriter(str(vid_path), codec, fps_v, (w_img, h_img))
 
-    # Build per-frame lookup for track positions
+    # Build per-frame lookup for detected track positions. Interpolated points
+    # stay in the protobuf output, but rendering them as live detections creates
+    # convincing phantom objects when a long gap is guessed incorrectly.
     frame_to_positions: dict[int, list] = {i: [] for i in range(total)}
     for track in tracks:
         for frame_idx, tp in track.positions.items():
+            if tp.interpolated:
+                continue
             frame_to_positions[frame_idx].append(
-                (track.track_id, tp.cx, tp.cy, tp.interpolated)
+                (track.track_id, tp.cx, tp.cy)
             )
 
     print(f"\nWriting {vid_path.name}  ({fps_v:.1f} fps) …")
@@ -631,22 +635,18 @@ def main() -> None:
             tail_pts   = [
                 (int(round(track.positions[fi].cx)), int(round(track.positions[fi].cy)))
                 for fi in range(tail_start, frame_idx + 1)
-                if fi in track.positions
+                if fi in track.positions and not track.positions[fi].interpolated
             ]
             for i in range(1, len(tail_pts)):
                 fade = (i / len(tail_pts)) ** 1.5
                 c    = tuple(int(v * fade) for v in color)
                 cv2.line(canvas, tail_pts[i - 1], tail_pts[i], c, 1, cv2.LINE_AA)
 
-        # Current-frame blobs
-        for tid, cx, cy, interp in frame_to_positions[frame_idx]:
+        # Current-frame detected blobs
+        for tid, cx, cy in frame_to_positions[frame_idx]:
             color  = _color_for(tid)
             center = (int(round(cx)), int(round(cy)))
-            if interp:
-                cv2.drawMarker(canvas, center, color, markerType=cv2.MARKER_CROSS,
-                               markerSize=10, thickness=1, line_type=cv2.LINE_AA)
-            else:
-                cv2.circle(canvas, center, 6, color, 2, cv2.LINE_AA)
+            cv2.circle(canvas, center, 6, color, 2, cv2.LINE_AA)
             cv2.putText(canvas, f"T{tid}",
                         (center[0] + 8, center[1] - 8),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.45, color, 1, cv2.LINE_AA)
