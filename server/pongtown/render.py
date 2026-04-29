@@ -63,6 +63,11 @@ def render_pose_panel(
     quad_thickness: int = 2,
     net_rvec: np.ndarray | None = None,
     net_tvec: np.ndarray | None = None,
+    table_width_mm: float = 2740.0,
+    table_height_mm: float = 1525.0,
+    draw_net: bool = True,
+    net_width_mm: float = 1830.0,
+    net_height_mm: float = 152.5,
 ) -> np.ndarray:
     """Render table rectangle + net rectangle + midline.
 
@@ -99,32 +104,35 @@ def render_pose_panel(
 
     # Table projection.
     if rvec is not None and tvec is not None:
-        P_corners = canonical_corners_mm()
-        P_mid = canonical_midline_mm()
+        P_corners = canonical_corners_mm(table_width_mm, table_height_mm)
         proj_c, _ = cv2.projectPoints(P_corners, rvec, tvec, K, None)
-        proj_m, _ = cv2.projectPoints(P_mid, rvec, tvec, K, None)
         cv2.polylines(
             img, [np.round(proj_c).astype(np.int32).reshape(-1, 1, 2)], True,
             COLOR_QUAD, quad_thickness,
         )
-        p1 = tuple(np.round(proj_m[0, 0]).astype(int))
-        p2 = tuple(np.round(proj_m[1, 0]).astype(int))
-        cv2.line(img, p1, p2, COLOR_MIDLINE, 2)
+        if draw_net:
+            P_mid = canonical_midline_mm(table_height_mm)
+            proj_m, _ = cv2.projectPoints(P_mid, rvec, tvec, K, None)
+            p1 = tuple(np.round(proj_m[0, 0]).astype(int))
+            p2 = tuple(np.round(proj_m[1, 0]).astype(int))
+            cv2.line(img, p1, p2, COLOR_MIDLINE, 2)
         cv2.putText(img, f"{title} iou={iou:.2f}", (10, y), font, scale, COLOR_QUAD, thick)
     else:
         cv2.putText(img, f"{title} table PnP FAILED", (10, y), font, scale, COLOR_OFF, thick)
     y += 18
 
     # Net projection — independent net PnP if available, else fall back to table pose.
-    if net_rvec is not None and net_tvec is not None:
-        P_net = canonical_net_local_mm()
+    if not draw_net:
+        pass
+    elif net_rvec is not None and net_tvec is not None:
+        P_net = canonical_net_local_mm(net_width_mm, net_height_mm)
         proj_n, _ = cv2.projectPoints(P_net, net_rvec, net_tvec, K, None)
         cv2.polylines(
             img, [np.round(proj_n).astype(np.int32).reshape(-1, 1, 2)], True,
             COLOR_NET, 2,
         )
     elif rvec is not None and tvec is not None:
-        P_net = canonical_net_strip_mm()
+        P_net = canonical_net_strip_mm(net_width_mm, net_height_mm)
         proj_n, _ = cv2.projectPoints(P_net, rvec, tvec, K, None)
         cv2.polylines(
             img, [np.round(proj_n).astype(np.int32).reshape(-1, 1, 2)], True,

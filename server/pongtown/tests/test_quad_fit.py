@@ -58,3 +58,16 @@ def test_handles_partial_occlusion_without_crashing():
     # that reflects through midline (right≈540) is acceptable.
     right_x = float(np.max(res.quad_img[:, 0]))
     assert (abs(right_x - 200) < 10) or (abs(right_x - 540) < 12)
+
+
+def test_full_table_mask_quality_without_net():
+    H, W = 480, 640
+    corners = np.array([[100, 80], [540, 80], [540, 400], [100, 400]], dtype=np.float32)
+    table_mask = _draw_filled_quad((H, W), corners)
+    cfg = _load_cfg()
+    cfg["quad"]["score_full_table_mask"] = True
+
+    res = fit_table_quadrilateral(table_mask, None, cfg=cfg)
+    assert res.quad_img is not None
+    assert res.midline_img is None
+    assert res.quality > 0.95

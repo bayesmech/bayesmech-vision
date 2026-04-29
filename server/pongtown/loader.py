@@ -91,6 +91,15 @@ def _pose_to_matrix(pose) -> np.ndarray:
 
 
 @dataclass
+class MaskObject:
+    object_id: int
+    label: str
+    confidence: float
+    pixel_count: int
+    mask: np.ndarray
+
+
+@dataclass
 class FrameBundle:
     frame_idx: int
     timestamp_ns: int
@@ -105,6 +114,7 @@ class FrameBundle:
     person_mask: np.ndarray
     bat_mask: np.ndarray
     ball_mask: np.ndarray
+    ball_objects: list[MaskObject]
     geometry: spatial_pb2.InferredGeometry | None = None
     raw_frame: perceiver_pb2.PerceiverDataFrame | None = None
 
@@ -154,6 +164,7 @@ def iter_bundles(
         person = np.zeros((H, W), dtype=bool)
         bat = np.zeros((H, W), dtype=bool)
         ball = np.zeros((H, W), dtype=bool)
+        ball_objects: list[MaskObject] = []
         any_table = any_net = False
         if seg is not None:
             for m in seg.masks:
@@ -179,6 +190,15 @@ def iter_bundles(
                     bat |= arr
                 elif cls == "ball":
                     ball |= arr
+                    ball_objects.append(
+                        MaskObject(
+                            object_id=int(m.object_id),
+                            label=str(m.label),
+                            confidence=float(m.confidence),
+                            pixel_count=int(m.pixel_count),
+                            mask=arr,
+                        )
+                    )
 
         yield FrameBundle(
             frame_idx=idx,
@@ -194,6 +214,7 @@ def iter_bundles(
             person_mask=person,
             bat_mask=bat,
             ball_mask=ball,
+            ball_objects=ball_objects,
             geometry=frame.inferred_geometry if frame.HasField("inferred_geometry") else None,
             raw_frame=frame,
         )

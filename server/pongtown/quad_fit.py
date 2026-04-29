@@ -487,6 +487,20 @@ def _quad_fit_quality(
     return 0.5 * precision + 0.5 * recall
 
 
+def _full_table_quad_fit_quality(quad: np.ndarray, table_mask: np.ndarray) -> float:
+    """Score a fitted full-table quad against a full tabletop mask."""
+    if not table_mask.any():
+        return 0.0
+    h, w = table_mask.shape
+    canvas = np.zeros((h, w), dtype=np.uint8)
+    cv2.fillPoly(canvas, [np.round(quad).astype(np.int32).reshape(-1, 1, 2)], 1)
+    quad_b = canvas.astype(bool)
+    inter = int((quad_b & table_mask).sum())
+    precision = float(inter) / float(max(int(quad_b.sum()), 1))
+    recall = float(inter) / float(max(int(table_mask.sum()), 1))
+    return 0.5 * precision + 0.5 * recall
+
+
 def _approx_quad_from_mask(mask: np.ndarray) -> np.ndarray | None:
     """Try to extract a 4-corner polygon from the largest contour's convex hull
     via approxPolyDP with an epsilon sweep. Returns (4, 2) float64 CCW from
@@ -602,11 +616,14 @@ def fit_table_quadrilateral(
     if quad is None:
         return QuadResult(METHOD_QUAD_FAILED, None, midline_pts, 0.0, None)
 
-    # Quality: how tightly the visible-half table_top mask is captured by the
-    # camera-side half of the quad. The far half of the quad has no mask
-    # support by design (SAM3 only segments the near half), so we restrict
-    # the score to the near half.
-    quality = _quad_fit_quality(quad, table_mask, net_mask)
+    if bool(qcfg.get("score_full_table_mask", False)):
+        quality = _full_table_quad_fit_quality(quad, table_mask)
+    else:
+        # Quality: how tightly the visible-half table_top mask is captured by the
+        # camera-side half of the quad. The far half of the quad has no mask
+        # support by design (SAM3 only segments the near half), so we restrict
+        # the score to the near half.
+        quality = _quad_fit_quality(quad, table_mask, net_mask)
     return QuadResult(method, quad, midline_pts, float(quality), half_quad)
 
 

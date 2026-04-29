@@ -7,9 +7,10 @@ option java_package = "com.bayesmech.vision";
 
 import "perceiver.proto";
 
-// Pongtown pipeline output: per-frame ping-pong table quadrilateral + camera
-// pose relative to the table, plus a trailing summary record carrying the
-// globally-refined table pose in ARCore world coordinates.
+// Pongtown pipeline output: per-frame table quadrilateral + camera pose
+// relative to the table, plus sport-specific tracking payloads.  The same
+// schema is used for ping-pong and snooker; sport_mode and the tracking oneof
+// identify which payload is present.
 //
 // Wire format (length-delimited): N per-frame PongtownResponse records
 // followed by exactly one summary record. The summary record has an empty
@@ -17,6 +18,12 @@ import "perceiver.proto";
 message PongtownResponse {
 
   PerceiverFrameIdentifier frame_identifier = 1;
+
+  enum SportMode {
+    SPORT_MODE_UNKNOWN = 0;
+    PINGPONG = 1;
+    SNOOKER = 2;
+  }
 
   message TablePose {
     enum Method {
@@ -130,7 +137,7 @@ message PongtownResponse {
     TableSide side = 14;
     bool inside_table = 15;
   }
-  repeated BallPosition ball_positions = 10;
+  repeated BallPosition ball_positions = 10 [deprecated = true];
 
   message BallTrajectorySegment {
     uint32 start_observation_idx = 1;
@@ -186,7 +193,47 @@ message PongtownResponse {
     repeated BallTrajectorySegment segments = 11;
     repeated BallBounce bounces = 12;
   }
-  BallTrajectory ball_trajectory = 11;
+  BallTrajectory ball_trajectory = 11 [deprecated = true];
+
+  message PingPongTracking {
+    // Per-frame records contain this frame's ball position(s). The summary
+    // record contains the ordered trajectory, table collision/bounce
+    // candidates, and motion segments.
+    repeated BallPosition ball_positions = 1;
+    BallTrajectory ball_trajectory = 2;
+  }
+
+  message SnookerBallPosition {
+    uint32 object_id = 1;       // SAM3 object id; stable within a segmentation run.
+    string label = 2;           // e.g. "red ball", "white ball", "black ball".
+    uint32 frame_idx = 3;
+    uint32 frame_number = 4;
+    uint64 timestamp_ns = 5;
+    float u_img = 6;
+    float v_img = 7;
+    uint32 area_px = 8;
+    float confidence = 9;
+    bool has_table_position = 10;
+    // Ray-cast intersection with the table plane.
+    repeated float cam_xyz_mm = 11 [packed = true];    // length 3 when has_table_position
+    repeated float table_xyz_mm = 12 [packed = true];  // length 3 when has_table_position
+    bool inside_table = 13;
+  }
+
+  message SnookerTracking {
+    // Per-frame records contain all visible ball observations for that frame.
+    // The summary record stores aggregate counts only to avoid duplicating the
+    // full per-frame observation set.
+    repeated SnookerBallPosition ball_positions = 1;
+    uint32 observed_frames = 2;
+    uint32 total_observations = 3;
+  }
+
+  SportMode sport_mode = 12;
+  oneof tracking {
+    PingPongTracking pingpong_tracking = 13;
+    SnookerTracking snooker_tracking = 14;
+  }
 
   // Summary record only.
   message GlobalTablePose {

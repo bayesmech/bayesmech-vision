@@ -3971,6 +3971,15 @@ export namespace bayesmech {
             /** PongtownResponse ballTrajectory */
             ballTrajectory?: (bayesmech.vision.PongtownResponse.IBallTrajectory|null);
 
+            /** PongtownResponse sportMode */
+            sportMode?: (bayesmech.vision.PongtownResponse.SportMode|null);
+
+            /** PongtownResponse pingpongTracking */
+            pingpongTracking?: (bayesmech.vision.PongtownResponse.IPingPongTracking|null);
+
+            /** PongtownResponse snookerTracking */
+            snookerTracking?: (bayesmech.vision.PongtownResponse.ISnookerTracking|null);
+
             /** PongtownResponse globalTablePose */
             globalTablePose?: (bayesmech.vision.PongtownResponse.IGlobalTablePose|null);
 
@@ -4014,6 +4023,15 @@ export namespace bayesmech {
             /** PongtownResponse ballTrajectory. */
             public ballTrajectory?: (bayesmech.vision.PongtownResponse.IBallTrajectory|null);
 
+            /** PongtownResponse sportMode. */
+            public sportMode: bayesmech.vision.PongtownResponse.SportMode;
+
+            /** PongtownResponse pingpongTracking. */
+            public pingpongTracking?: (bayesmech.vision.PongtownResponse.IPingPongTracking|null);
+
+            /** PongtownResponse snookerTracking. */
+            public snookerTracking?: (bayesmech.vision.PongtownResponse.ISnookerTracking|null);
+
             /** PongtownResponse globalTablePose. */
             public globalTablePose?: (bayesmech.vision.PongtownResponse.IGlobalTablePose|null);
 
@@ -4028,6 +4046,9 @@ export namespace bayesmech {
 
             /** PongtownResponse netHeightMm. */
             public netHeightMm: number;
+
+            /** PongtownResponse tracking. */
+            public tracking?: ("pingpongTracking"|"snookerTracking");
 
             /**
              * Creates a new PongtownResponse instance using the specified properties.
@@ -4108,6 +4129,13 @@ export namespace bayesmech {
         }
 
         namespace PongtownResponse {
+
+            /** SportMode enum. */
+            enum SportMode {
+                SPORT_MODE_UNKNOWN = 0,
+                PINGPONG = 1,
+                SNOOKER = 2
+            }
 
             /** Properties of a TablePose. */
             interface ITablePose {
@@ -5307,6 +5335,387 @@ export namespace bayesmech {
 
                 /**
                  * Gets the default type url for BallTrajectory
+                 * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+                 * @returns The default type url
+                 */
+                public static getTypeUrl(typeUrlPrefix?: string): string;
+            }
+
+            /** Properties of a PingPongTracking. */
+            interface IPingPongTracking {
+
+                /** PingPongTracking ballPositions */
+                ballPositions?: (bayesmech.vision.PongtownResponse.IBallPosition[]|null);
+
+                /** PingPongTracking ballTrajectory */
+                ballTrajectory?: (bayesmech.vision.PongtownResponse.IBallTrajectory|null);
+            }
+
+            /** Represents a PingPongTracking. */
+            class PingPongTracking implements IPingPongTracking {
+
+                /**
+                 * Constructs a new PingPongTracking.
+                 * @param [properties] Properties to set
+                 */
+                constructor(properties?: bayesmech.vision.PongtownResponse.IPingPongTracking);
+
+                /** PingPongTracking ballPositions. */
+                public ballPositions: bayesmech.vision.PongtownResponse.IBallPosition[];
+
+                /** PingPongTracking ballTrajectory. */
+                public ballTrajectory?: (bayesmech.vision.PongtownResponse.IBallTrajectory|null);
+
+                /**
+                 * Creates a new PingPongTracking instance using the specified properties.
+                 * @param [properties] Properties to set
+                 * @returns PingPongTracking instance
+                 */
+                public static create(properties?: bayesmech.vision.PongtownResponse.IPingPongTracking): bayesmech.vision.PongtownResponse.PingPongTracking;
+
+                /**
+                 * Encodes the specified PingPongTracking message. Does not implicitly {@link bayesmech.vision.PongtownResponse.PingPongTracking.verify|verify} messages.
+                 * @param message PingPongTracking message or plain object to encode
+                 * @param [writer] Writer to encode to
+                 * @returns Writer
+                 */
+                public static encode(message: bayesmech.vision.PongtownResponse.IPingPongTracking, writer?: $protobuf.Writer): $protobuf.Writer;
+
+                /**
+                 * Encodes the specified PingPongTracking message, length delimited. Does not implicitly {@link bayesmech.vision.PongtownResponse.PingPongTracking.verify|verify} messages.
+                 * @param message PingPongTracking message or plain object to encode
+                 * @param [writer] Writer to encode to
+                 * @returns Writer
+                 */
+                public static encodeDelimited(message: bayesmech.vision.PongtownResponse.IPingPongTracking, writer?: $protobuf.Writer): $protobuf.Writer;
+
+                /**
+                 * Decodes a PingPongTracking message from the specified reader or buffer.
+                 * @param reader Reader or buffer to decode from
+                 * @param [length] Message length if known beforehand
+                 * @returns PingPongTracking
+                 * @throws {Error} If the payload is not a reader or valid buffer
+                 * @throws {$protobuf.util.ProtocolError} If required fields are missing
+                 */
+                public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): bayesmech.vision.PongtownResponse.PingPongTracking;
+
+                /**
+                 * Decodes a PingPongTracking message from the specified reader or buffer, length delimited.
+                 * @param reader Reader or buffer to decode from
+                 * @returns PingPongTracking
+                 * @throws {Error} If the payload is not a reader or valid buffer
+                 * @throws {$protobuf.util.ProtocolError} If required fields are missing
+                 */
+                public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): bayesmech.vision.PongtownResponse.PingPongTracking;
+
+                /**
+                 * Verifies a PingPongTracking message.
+                 * @param message Plain object to verify
+                 * @returns `null` if valid, otherwise the reason why it is not
+                 */
+                public static verify(message: { [k: string]: any }): (string|null);
+
+                /**
+                 * Creates a PingPongTracking message from a plain object. Also converts values to their respective internal types.
+                 * @param object Plain object
+                 * @returns PingPongTracking
+                 */
+                public static fromObject(object: { [k: string]: any }): bayesmech.vision.PongtownResponse.PingPongTracking;
+
+                /**
+                 * Creates a plain object from a PingPongTracking message. Also converts values to other types if specified.
+                 * @param message PingPongTracking
+                 * @param [options] Conversion options
+                 * @returns Plain object
+                 */
+                public static toObject(message: bayesmech.vision.PongtownResponse.PingPongTracking, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+                /**
+                 * Converts this PingPongTracking to JSON.
+                 * @returns JSON object
+                 */
+                public toJSON(): { [k: string]: any };
+
+                /**
+                 * Gets the default type url for PingPongTracking
+                 * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+                 * @returns The default type url
+                 */
+                public static getTypeUrl(typeUrlPrefix?: string): string;
+            }
+
+            /** Properties of a SnookerBallPosition. */
+            interface ISnookerBallPosition {
+
+                /** SnookerBallPosition objectId */
+                objectId?: (number|null);
+
+                /** SnookerBallPosition label */
+                label?: (string|null);
+
+                /** SnookerBallPosition frameIdx */
+                frameIdx?: (number|null);
+
+                /** SnookerBallPosition frameNumber */
+                frameNumber?: (number|null);
+
+                /** SnookerBallPosition timestampNs */
+                timestampNs?: (number|Long|null);
+
+                /** SnookerBallPosition uImg */
+                uImg?: (number|null);
+
+                /** SnookerBallPosition vImg */
+                vImg?: (number|null);
+
+                /** SnookerBallPosition areaPx */
+                areaPx?: (number|null);
+
+                /** SnookerBallPosition confidence */
+                confidence?: (number|null);
+
+                /** SnookerBallPosition hasTablePosition */
+                hasTablePosition?: (boolean|null);
+
+                /** SnookerBallPosition camXyzMm */
+                camXyzMm?: (number[]|null);
+
+                /** SnookerBallPosition tableXyzMm */
+                tableXyzMm?: (number[]|null);
+
+                /** SnookerBallPosition insideTable */
+                insideTable?: (boolean|null);
+            }
+
+            /** Represents a SnookerBallPosition. */
+            class SnookerBallPosition implements ISnookerBallPosition {
+
+                /**
+                 * Constructs a new SnookerBallPosition.
+                 * @param [properties] Properties to set
+                 */
+                constructor(properties?: bayesmech.vision.PongtownResponse.ISnookerBallPosition);
+
+                /** SnookerBallPosition objectId. */
+                public objectId: number;
+
+                /** SnookerBallPosition label. */
+                public label: string;
+
+                /** SnookerBallPosition frameIdx. */
+                public frameIdx: number;
+
+                /** SnookerBallPosition frameNumber. */
+                public frameNumber: number;
+
+                /** SnookerBallPosition timestampNs. */
+                public timestampNs: (number|Long);
+
+                /** SnookerBallPosition uImg. */
+                public uImg: number;
+
+                /** SnookerBallPosition vImg. */
+                public vImg: number;
+
+                /** SnookerBallPosition areaPx. */
+                public areaPx: number;
+
+                /** SnookerBallPosition confidence. */
+                public confidence: number;
+
+                /** SnookerBallPosition hasTablePosition. */
+                public hasTablePosition: boolean;
+
+                /** SnookerBallPosition camXyzMm. */
+                public camXyzMm: number[];
+
+                /** SnookerBallPosition tableXyzMm. */
+                public tableXyzMm: number[];
+
+                /** SnookerBallPosition insideTable. */
+                public insideTable: boolean;
+
+                /**
+                 * Creates a new SnookerBallPosition instance using the specified properties.
+                 * @param [properties] Properties to set
+                 * @returns SnookerBallPosition instance
+                 */
+                public static create(properties?: bayesmech.vision.PongtownResponse.ISnookerBallPosition): bayesmech.vision.PongtownResponse.SnookerBallPosition;
+
+                /**
+                 * Encodes the specified SnookerBallPosition message. Does not implicitly {@link bayesmech.vision.PongtownResponse.SnookerBallPosition.verify|verify} messages.
+                 * @param message SnookerBallPosition message or plain object to encode
+                 * @param [writer] Writer to encode to
+                 * @returns Writer
+                 */
+                public static encode(message: bayesmech.vision.PongtownResponse.ISnookerBallPosition, writer?: $protobuf.Writer): $protobuf.Writer;
+
+                /**
+                 * Encodes the specified SnookerBallPosition message, length delimited. Does not implicitly {@link bayesmech.vision.PongtownResponse.SnookerBallPosition.verify|verify} messages.
+                 * @param message SnookerBallPosition message or plain object to encode
+                 * @param [writer] Writer to encode to
+                 * @returns Writer
+                 */
+                public static encodeDelimited(message: bayesmech.vision.PongtownResponse.ISnookerBallPosition, writer?: $protobuf.Writer): $protobuf.Writer;
+
+                /**
+                 * Decodes a SnookerBallPosition message from the specified reader or buffer.
+                 * @param reader Reader or buffer to decode from
+                 * @param [length] Message length if known beforehand
+                 * @returns SnookerBallPosition
+                 * @throws {Error} If the payload is not a reader or valid buffer
+                 * @throws {$protobuf.util.ProtocolError} If required fields are missing
+                 */
+                public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): bayesmech.vision.PongtownResponse.SnookerBallPosition;
+
+                /**
+                 * Decodes a SnookerBallPosition message from the specified reader or buffer, length delimited.
+                 * @param reader Reader or buffer to decode from
+                 * @returns SnookerBallPosition
+                 * @throws {Error} If the payload is not a reader or valid buffer
+                 * @throws {$protobuf.util.ProtocolError} If required fields are missing
+                 */
+                public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): bayesmech.vision.PongtownResponse.SnookerBallPosition;
+
+                /**
+                 * Verifies a SnookerBallPosition message.
+                 * @param message Plain object to verify
+                 * @returns `null` if valid, otherwise the reason why it is not
+                 */
+                public static verify(message: { [k: string]: any }): (string|null);
+
+                /**
+                 * Creates a SnookerBallPosition message from a plain object. Also converts values to their respective internal types.
+                 * @param object Plain object
+                 * @returns SnookerBallPosition
+                 */
+                public static fromObject(object: { [k: string]: any }): bayesmech.vision.PongtownResponse.SnookerBallPosition;
+
+                /**
+                 * Creates a plain object from a SnookerBallPosition message. Also converts values to other types if specified.
+                 * @param message SnookerBallPosition
+                 * @param [options] Conversion options
+                 * @returns Plain object
+                 */
+                public static toObject(message: bayesmech.vision.PongtownResponse.SnookerBallPosition, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+                /**
+                 * Converts this SnookerBallPosition to JSON.
+                 * @returns JSON object
+                 */
+                public toJSON(): { [k: string]: any };
+
+                /**
+                 * Gets the default type url for SnookerBallPosition
+                 * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+                 * @returns The default type url
+                 */
+                public static getTypeUrl(typeUrlPrefix?: string): string;
+            }
+
+            /** Properties of a SnookerTracking. */
+            interface ISnookerTracking {
+
+                /** SnookerTracking ballPositions */
+                ballPositions?: (bayesmech.vision.PongtownResponse.ISnookerBallPosition[]|null);
+
+                /** SnookerTracking observedFrames */
+                observedFrames?: (number|null);
+
+                /** SnookerTracking totalObservations */
+                totalObservations?: (number|null);
+            }
+
+            /** Represents a SnookerTracking. */
+            class SnookerTracking implements ISnookerTracking {
+
+                /**
+                 * Constructs a new SnookerTracking.
+                 * @param [properties] Properties to set
+                 */
+                constructor(properties?: bayesmech.vision.PongtownResponse.ISnookerTracking);
+
+                /** SnookerTracking ballPositions. */
+                public ballPositions: bayesmech.vision.PongtownResponse.ISnookerBallPosition[];
+
+                /** SnookerTracking observedFrames. */
+                public observedFrames: number;
+
+                /** SnookerTracking totalObservations. */
+                public totalObservations: number;
+
+                /**
+                 * Creates a new SnookerTracking instance using the specified properties.
+                 * @param [properties] Properties to set
+                 * @returns SnookerTracking instance
+                 */
+                public static create(properties?: bayesmech.vision.PongtownResponse.ISnookerTracking): bayesmech.vision.PongtownResponse.SnookerTracking;
+
+                /**
+                 * Encodes the specified SnookerTracking message. Does not implicitly {@link bayesmech.vision.PongtownResponse.SnookerTracking.verify|verify} messages.
+                 * @param message SnookerTracking message or plain object to encode
+                 * @param [writer] Writer to encode to
+                 * @returns Writer
+                 */
+                public static encode(message: bayesmech.vision.PongtownResponse.ISnookerTracking, writer?: $protobuf.Writer): $protobuf.Writer;
+
+                /**
+                 * Encodes the specified SnookerTracking message, length delimited. Does not implicitly {@link bayesmech.vision.PongtownResponse.SnookerTracking.verify|verify} messages.
+                 * @param message SnookerTracking message or plain object to encode
+                 * @param [writer] Writer to encode to
+                 * @returns Writer
+                 */
+                public static encodeDelimited(message: bayesmech.vision.PongtownResponse.ISnookerTracking, writer?: $protobuf.Writer): $protobuf.Writer;
+
+                /**
+                 * Decodes a SnookerTracking message from the specified reader or buffer.
+                 * @param reader Reader or buffer to decode from
+                 * @param [length] Message length if known beforehand
+                 * @returns SnookerTracking
+                 * @throws {Error} If the payload is not a reader or valid buffer
+                 * @throws {$protobuf.util.ProtocolError} If required fields are missing
+                 */
+                public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): bayesmech.vision.PongtownResponse.SnookerTracking;
+
+                /**
+                 * Decodes a SnookerTracking message from the specified reader or buffer, length delimited.
+                 * @param reader Reader or buffer to decode from
+                 * @returns SnookerTracking
+                 * @throws {Error} If the payload is not a reader or valid buffer
+                 * @throws {$protobuf.util.ProtocolError} If required fields are missing
+                 */
+                public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): bayesmech.vision.PongtownResponse.SnookerTracking;
+
+                /**
+                 * Verifies a SnookerTracking message.
+                 * @param message Plain object to verify
+                 * @returns `null` if valid, otherwise the reason why it is not
+                 */
+                public static verify(message: { [k: string]: any }): (string|null);
+
+                /**
+                 * Creates a SnookerTracking message from a plain object. Also converts values to their respective internal types.
+                 * @param object Plain object
+                 * @returns SnookerTracking
+                 */
+                public static fromObject(object: { [k: string]: any }): bayesmech.vision.PongtownResponse.SnookerTracking;
+
+                /**
+                 * Creates a plain object from a SnookerTracking message. Also converts values to other types if specified.
+                 * @param message SnookerTracking
+                 * @param [options] Conversion options
+                 * @returns Plain object
+                 */
+                public static toObject(message: bayesmech.vision.PongtownResponse.SnookerTracking, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+                /**
+                 * Converts this SnookerTracking to JSON.
+                 * @returns JSON object
+                 */
+                public toJSON(): { [k: string]: any };
+
+                /**
+                 * Gets the default type url for SnookerTracking
                  * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
                  * @returns The default type url
                  */
