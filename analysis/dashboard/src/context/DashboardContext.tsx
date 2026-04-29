@@ -734,11 +734,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const shouldProcess = isLiveRef.current || seekPendingRef.current || isPlayingRef.current
     if (!shouldProcess) return
 
-    const skipDepth = !isLiveRef.current
-
     let latestDecoded: DecodedFrame | null = null
     for (const proto of frames) {
-      const frame = decoder.current.decodeFrame(proto, skipDepth)
+      const frame = decoder.current.decodeFrame(proto)
       latestDecoded = frame
       frameBuffer.current.push(frame)
       if (isLiveRef.current) {
