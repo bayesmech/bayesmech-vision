@@ -95,7 +95,6 @@ const MotioncapLegend: React.FC<{
   <div className="stream-card" style={{ display: 'flex', flexDirection: 'column' }}>
     <div className="stream-header">
       <span className="stream-title">Tracks</span>
-      <span className="stream-badge">KEY</span>
     </div>
     <div className="motioncap-legend-list">
       {isLive && (
@@ -285,7 +284,6 @@ const MotioncapPanel: React.FC = () => {
       <div className="stream-card">
         <div className="stream-header">
           <span className="stream-title">Motion Capture</span>
-          <span className="stream-badge">MOTION</span>
         </div>
         <div className="motioncap-viewer">
           {motioncapAvailable === true ? (

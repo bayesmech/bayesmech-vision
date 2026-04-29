@@ -68,20 +68,20 @@ uv run python motioncap/main.py ../recordings/<name>.vis.pb --output-video
 ```
 Android App → WS /ar-stream → FrameStore → DashboardBridge → WS /ws/dashboard → React
                                                 ↑
-                                          Annotator (loads .seg.pb)
+                                          Annotator (loads .segmentation.pb)
 ```
 
 - **Android** (`android/`): captures ARCore frames (RGB + depth + IMU + GPS + geometry) as `PerceiverDataFrame` protos, streams live via WebSocket.
-- **Server** (`server/streamlog/`): FastAPI app serving port 8080. `FrameStore` holds all frames in memory with pub/sub for live broadcast. `DashboardBridge` manages binary WebSocket protocol to browsers. `Annotator` loads pre-computed `.seg.pb` files and serves annotation lookups by `(timestamp_ns, frame_number)`.
+- **Server** (`server/streamlog/`): FastAPI app serving port 8080. `FrameStore` holds all frames in memory with pub/sub for live broadcast. `DashboardBridge` manages binary WebSocket protocol to browsers. `Annotator` loads pre-computed `.segmentation.pb` files and serves annotation lookups by `(timestamp_ns, frame_number)`.
 - **Dashboard** (`dashboard/`): React + Vite SPA. `DashboardContext` owns all frame/annotation ring-buffers and playback state. After `npm run build`, the `dist/` is served as static files by FastAPI at `/`.
-- **Segmentation** (`server/segmentation/`): Offline-only. Reads `.vis.pb`, runs SAM2 in 100-frame chunks, writes `.seg.pb` to the same `recordings/` directory.
+- **Segmentation** (`server/segmentation/`): Offline-only. Reads `.vis.pb`, runs SAM2 in 100-frame chunks, writes `.segmentation.pb` to the same `recordings/` directory.
 
 ### Recording File Formats
 
 | Extension | Contents |
 |-----------|----------|
 | `.vis.pb` | Length-delimited `PerceiverDataFrame` protos |
-| `.seg.pb` | Length-delimited `SegmentationResponse` protos |
+| `.segmentation.pb` | Length-delimited `SegmentationResponse` protos |
 
 Wire format for both: `[uint32 BE = N][N bytes proto]` repeated. Implemented in `server/streamlog/protoio.py` and mirrored in `dashboard/src/services/proto.ts`.
 

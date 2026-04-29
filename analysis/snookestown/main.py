@@ -14,7 +14,7 @@ Usage
 
     # Explicit seg file:
     uv run python ../analysis/snookestown/main.py ../recordings/<name>/<name>.vis.pb \\
-        --seg ../recordings/<name>/<name>.seg.pb
+        --seg ../recordings/<name>/<name>.segmentation.pb
 """
 from __future__ import annotations
 
@@ -260,7 +260,7 @@ def load_data(vis_path: Path, seg_path: Path):
                 pass
             break
 
-    print("Loading .seg.pb …")
+    print("Loading .segmentation.pb …")
     seg_responses = _seg_io.read_file(seg_path)
 
     frames_list: list[tuple[FrameMasks | None, int, int]] = []
@@ -312,13 +312,17 @@ def load_data(vis_path: Path, seg_path: Path):
 def main():
     ap = argparse.ArgumentParser(description="Snooker pose visualizer")
     ap.add_argument("recording", type=Path, help="Path to .vis.pb")
-    ap.add_argument("--seg", type=Path, default=None, help="Path to .seg.pb (default: sibling)")
+    ap.add_argument("--seg", type=Path, default=None, help="Path to .segmentation.pb (default: sibling)")
     args = ap.parse_args()
 
     vis_path = args.recording.resolve()
-    seg_path = args.seg.resolve() if args.seg else (
-        vis_path.parent / (vis_path.name.removesuffix(".vis.pb") + ".seg.pb")
-    )
+    if args.seg:
+        seg_path = args.seg.resolve()
+    else:
+        stem = vis_path.name.removesuffix(".vis.pb")
+        primary_seg_path = vis_path.parent / f"{stem}.segmentation.pb"
+        legacy_seg_path = vis_path.parent / f"{stem}.seg.pb"
+        seg_path = primary_seg_path if primary_seg_path.exists() or not legacy_seg_path.exists() else legacy_seg_path
 
     frames_list, K, img_h, img_w = load_data(vis_path, seg_path)
     n_frames = len(frames_list)

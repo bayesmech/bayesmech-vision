@@ -2,19 +2,19 @@
 """
 Unified motion capture: RAFT optical flow + persistent object tracking.
 
-Two pipeline steps, both written to a single .motion.pb output:
+Two pipeline steps, both written to a single .motioncap.pb output:
   Step 1 — RAFT: dense optical flow residuals → per-frame heatmaps
   Step 2 — Tracking: temporal filter + blob detection + nearest-neighbour tracker
 
 Both steps are controlled via config.yaml:
-  pipeline.regenerate_raft: false      → skip RAFT, load heatmaps from existing .motion.pb
-  pipeline.regenerate_tracking: false  → skip tracker, load tracks from existing .motion.pb
+  pipeline.regenerate_raft: false      → skip RAFT, load heatmaps from existing .motioncap.pb
+  pipeline.regenerate_tracking: false  → skip tracker, load tracks from existing .motioncap.pb
 
 Output
 ------
-  <name>.motion.pb   — length-delimited MotionCaptureResponse frames (heatmaps)
+  <name>.motioncap.pb   — length-delimited MotionCaptureResponse frames (heatmaps)
                        followed by one summary record containing all tracks
-  <name>.motion.mp4  — (optional) heatmap overlay on RGB with track visualization
+  <name>.motioncap.mp4  — (optional) heatmap overlay on RGB with track visualization
 
 Usage
 -----
@@ -26,9 +26,14 @@ Usage
 
 import argparse
 import bisect
+import gc
+import os
 import sys
 import time
 from pathlib import Path
+
+# Must be set before torch is imported by motioncap.raft_motion.
+os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
 
 import cv2
 import numpy as np
@@ -82,12 +87,26 @@ _TRACK_COLORS = [
 
 def _motion_path(rec: Path) -> Path:
     stem = rec.name.removesuffix(".vis.pb") if rec.name.endswith(".vis.pb") else rec.stem
+    return rec.parent / (stem + ".motioncap.pb")
+
+
+def _legacy_motion_path(rec: Path) -> Path:
+    stem = rec.name.removesuffix(".vis.pb") if rec.name.endswith(".vis.pb") else rec.stem
     return rec.parent / (stem + ".motion.pb")
 
 
+def _existing_motion_path(rec: Path) -> Path:
+    primary = _motion_path(rec)
+    legacy = _legacy_motion_path(rec)
+    return primary if primary.exists() or not legacy.exists() else legacy
+
+
 def _video_path(motion_pb: Path) -> Path:
-    stem = motion_pb.name.removesuffix(".motion.pb")
-    return motion_pb.parent / (stem + ".motion.mp4")
+    if motion_pb.name.endswith(".motioncap.pb"):
+        stem = motion_pb.name.removesuffix(".motioncap.pb")
+    else:
+        stem = motion_pb.name.removesuffix(".motion.pb")
+    return motion_pb.parent / (stem + ".motioncap.mp4")
 
 
 def _color_for(track_id: int) -> tuple[int, int, int]:
@@ -109,6 +128,34 @@ def _to_heatmap_u8(
     if scale > 0:
         r = (r / scale * 255.0).clip(0, 255)
     return r.astype(np.uint8)
+
+
+def _clear_cuda_cache(device) -> None:
+    """Drop Python refs and release PyTorch's unused CUDA cache."""
+    gc.collect()
+    if getattr(device, "type", None) == "cuda":
+        import torch
+        torch.cuda.empty_cache()
+
+
+def _resize_for_feature_encoder(
+    rgb: np.ndarray,
+    cfg: dict,
+) -> tuple[np.ndarray, float, float]:
+    """Resize RGB for RAFT's feature encoder and return input/original scales."""
+    inference_height = cfg.get("raft", {}).get("inference_height")
+    h, w = rgb.shape[:2]
+    if (
+        inference_height is None
+        or inference_height <= 0
+        or h <= inference_height
+    ):
+        return rgb, 1.0, 1.0
+
+    feat_h = int(inference_height)
+    feat_w = max(8, int(round(w * feat_h / h)))
+    resized = cv2.resize(rgb, (feat_w, feat_h), interpolation=cv2.INTER_AREA)
+    return resized, feat_w / w, feat_h / h
 
 
 # ── Proto track encoding / decoding ───────────────────────────────────────────
@@ -153,13 +200,13 @@ def _decode_tracks_record(
     return tracks
 
 
-# ── Load existing .motion.pb ──────────────────────────────────────────────────
+# ── Load existing .motioncap.pb ────────────────────────────────────────────────
 
 def _load_heatmaps_from_pb(
     motion_path: Path,
 ) -> tuple[list[np.ndarray], list[int], list[int]] | None:
     """
-    Read heatmaps + frame metadata from an existing .motion.pb.
+    Read heatmaps + frame metadata from an existing .motioncap.pb.
     Skips the trailing tracks-summary record.
     Returns (heatmaps, frame_ids, timestamps) or None if file is absent/empty.
     """
@@ -187,7 +234,7 @@ def _load_heatmaps_from_pb(
 
 def _load_tracks_from_pb(motion_path: Path) -> list[Track] | None:
     """
-    Read the tracks-summary record from an existing .motion.pb.
+    Read the tracks-summary record from an existing .motioncap.pb.
     Returns None if no summary record exists.
     """
     if not motion_path.exists():
@@ -207,7 +254,7 @@ def main() -> None:
     parser.add_argument("--max-frames", type=int, default=0,
                         help="Limit to first N frames for testing (0 = all)")
     parser.add_argument("--output-video", action="store_true",
-                        help="Write a .motion.mp4 with heatmap overlay and track visualization")
+                        help="Write a .motioncap.mp4 with heatmap overlay and track visualization")
     args = parser.parse_args()
 
     cfg = _CONFIG
@@ -221,6 +268,7 @@ def main() -> None:
         sys.exit(1)
 
     out_path = _motion_path(rec_path)
+    read_path = _existing_motion_path(rec_path)
 
     # ── Step 1: RAFT heatmaps ─────────────────────────────────────────────────
 
@@ -232,14 +280,14 @@ def main() -> None:
     methods:    list[int]        = []   # method_used per frame
 
     if not regen_raft:
-        loaded = _load_heatmaps_from_pb(out_path)
+        loaded = _load_heatmaps_from_pb(read_path)
         if loaded is not None:
             heatmaps, frame_ids, timestamps = loaded
             if args.max_frames > 0 and len(heatmaps) > args.max_frames:
                 heatmaps   = heatmaps[:args.max_frames]
                 frame_ids  = frame_ids[:args.max_frames]
                 timestamps = timestamps[:args.max_frames]
-            print(f"Loaded {len(heatmaps)} heatmaps from {out_path.name} "
+            print(f"Loaded {len(heatmaps)} heatmaps from {read_path.name} "
                   f"(regenerate_raft=false)")
             # Populate dummy per-frame metadata (not needed for proto re-write)
             max_raws = [1.0] * len(heatmaps)
@@ -355,6 +403,7 @@ def main() -> None:
                         methods.append(Method.OPTICAL_FLOW)
                     except Exception as exc:
                         tqdm.write(f"Warning: frame {idx} failed: {exc}")
+                        _clear_cuda_cache(device)
                         raw_residuals.append(np.zeros((h, w), dtype=np.float16))
                         max_raws.append(0.0)
                         methods.append(Method.OPTICAL_FLOW)
@@ -424,11 +473,16 @@ def main() -> None:
                     rich_detections.append([])
                     continue
 
-                # Feature encoder — fast (~10 ms), no full RAFT pass
-                t_rgb, _, _ = _to_tensor(rgb, device)
+                # Feature encoder — use the same inference resolution as RAFT.
+                rgb_feat, feat_scale_x, feat_scale_y = _resize_for_feature_encoder(
+                    rgb, cfg
+                )
+                t_rgb, _, _ = _to_tensor(rgb_feat, device)
                 fmap = model.feature_encoder(t_rgb)       # (1, 256, fH, fW)
                 fmap_np = fmap.squeeze(0).cpu().numpy()   # (256, fH, fW)
                 _, fH, fW = fmap_np.shape
+                del t_rgb, fmap
+                _clear_cuda_cache(device)
 
                 # Flow small for this frame (if available)
                 fs = flow_smalls[fidx] if flow_smalls else None
@@ -436,10 +490,10 @@ def main() -> None:
                 frame_rich: list[RichDetection] = []
                 for det in blobs:
                     r0, c0, r1, c1 = det.bbox
-                    fr0 = max(0, r0 // 8)
-                    fc0 = max(0, c0 // 8)
-                    fr1 = min(fH, max(fr0 + 1, (r1 + 1) // 8 + 1))
-                    fc1 = min(fW, max(fc0 + 1, (c1 + 1) // 8 + 1))
+                    fr0 = max(0, int(r0 * feat_scale_y) // 8)
+                    fc0 = max(0, int(c0 * feat_scale_x) // 8)
+                    fr1 = min(fH, max(fr0 + 1, int((r1 + 1) * feat_scale_y) // 8 + 1))
+                    fc1 = min(fW, max(fc0 + 1, int((c1 + 1) * feat_scale_x) // 8 + 1))
                     patch = fmap_np[:, fr0:fr1, fc0:fc1]   # (256, ph, pw)
                     desc  = patch.mean(axis=(1, 2)).astype(np.float32)
                     norm  = float(np.linalg.norm(desc))
@@ -449,8 +503,9 @@ def main() -> None:
                     flow_vec = None
                     if fs is not None:
                         cy, cx = det.centroid
-                        fcy = min(int(cy) // 8, fH - 1)
-                        fcx = min(int(cx) // 8, fW - 1)
+                        fsH, fsW = fs.shape[:2]
+                        fcy = min(int(cy) // 8, fsH - 1)
+                        fcx = min(int(cx) // 8, fsW - 1)
                         # flow_small stores (dx, dy); flow_vec is (dy, dx) to match (cy,cx)
                         flow_vec = (float(fs[fcy, fcx, 1]),
                                     float(fs[fcy, fcx, 0]))
@@ -470,9 +525,9 @@ def main() -> None:
     tracks: list[Track] | None = None
 
     if not regen_tracking:
-        tracks = _load_tracks_from_pb(out_path)
+        tracks = _load_tracks_from_pb(read_path)
         if tracks is not None:
-            print(f"\nLoaded {len(tracks)} track(s) from {out_path.name} "
+            print(f"\nLoaded {len(tracks)} track(s) from {read_path.name} "
                   f"(regenerate_tracking=false)")
 
     if tracks is None:
@@ -486,7 +541,7 @@ def main() -> None:
             print(f"  Track {t.track_id}: {detected} detected + {interp} interpolated "
                   f"({detected / total:.1%} presence)")
 
-    # ── Write .motion.pb (heatmaps + tracks summary) ──────────────────────────
+    # ── Write .motioncap.pb (heatmaps + tracks summary) ───────────────────────
 
     print(f"\nWriting {out_path.name} …")
     if out_path.exists():

@@ -68,8 +68,8 @@ _SAM3_INTERNAL_CONFIG_OVERRIDES = {
 def seg_path(recording_path: Path) -> Path:
     name = recording_path.name
     if name.endswith(".vis.pb"):
-        return recording_path.parent / (name.removesuffix(".vis.pb") + ".seg.pb")
-    return recording_path.with_suffix(".seg.pb")
+        return recording_path.parent / (name.removesuffix(".vis.pb") + ".segmentation.pb")
+    return recording_path.with_suffix(".segmentation.pb")
 
 
 # ── Frame decoding ──────────────────────────────────────────────────────────
