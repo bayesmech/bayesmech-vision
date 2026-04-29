@@ -11,6 +11,7 @@ mask_labels:
   net:        ["net"]
   person:     ["person", "player", "human"]
   bat:        ["bat", "paddle", "racket"]
+  ball:       ["ball"]
 
 table:
   width_mm: 2740

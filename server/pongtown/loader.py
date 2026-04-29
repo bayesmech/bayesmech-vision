@@ -104,6 +104,7 @@ class FrameBundle:
     net_mask: np.ndarray | None
     person_mask: np.ndarray
     bat_mask: np.ndarray
+    ball_mask: np.ndarray
     geometry: spatial_pb2.InferredGeometry | None = None
     raw_frame: perceiver_pb2.PerceiverDataFrame | None = None
 
@@ -152,6 +153,7 @@ def iter_bundles(
         net = np.zeros((H, W), dtype=bool)
         person = np.zeros((H, W), dtype=bool)
         bat = np.zeros((H, W), dtype=bool)
+        ball = np.zeros((H, W), dtype=bool)
         any_table = any_net = False
         if seg is not None:
             for m in seg.masks:
@@ -175,6 +177,8 @@ def iter_bundles(
                     person |= arr
                 elif cls == "bat":
                     bat |= arr
+                elif cls == "ball":
+                    ball |= arr
 
         yield FrameBundle(
             frame_idx=idx,
@@ -189,6 +193,7 @@ def iter_bundles(
             net_mask=net if any_net else None,
             person_mask=person,
             bat_mask=bat,
+            ball_mask=ball,
             geometry=frame.inferred_geometry if frame.HasField("inferred_geometry") else None,
             raw_frame=frame,
         )
