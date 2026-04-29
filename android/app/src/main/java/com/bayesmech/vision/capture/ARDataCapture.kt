@@ -123,7 +123,7 @@ class ARDataCapture(
         frameNum: Int
     ): PerceiverDataFrame {
         val builder = PerceiverDataFrame.newBuilder()
-        val deviceTimestampNs = DeviceTimestamp.forFrame(frame)
+        val frameTimestampNs = DeviceTimestamp.forFrame(frame)
         val encodedRgb = if (currentQuality.sendRgb && config.sendRgbFrames && capturedFrame.rgbBitmap != null) {
             CameraDataExtractor.extractRgbFrame(
                 capturedFrame.rgbBitmap,
@@ -146,11 +146,10 @@ class ARDataCapture(
         val recordedDepthHeight = encodedDepth?.height ?: 0
 
         builder.frameIdentifier = PerceiverFrameIdentifier.newBuilder()
-            .setTimestampNs(deviceTimestampNs)
+            .setTimestampNs(frameTimestampNs)
             .setFrameNumber(frameNum)
             .setDeviceId(deviceId)
             .build()
-        builder.deviceTimestampNs = deviceTimestampNs
 
         builder.cameraPose = CameraDataExtractor.extractCameraPose(camera)
         builder.cameraIntrinsics = CameraDataExtractor.extractCameraIntrinsics(

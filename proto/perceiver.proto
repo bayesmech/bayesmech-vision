@@ -10,14 +10,12 @@ import "spatial.proto";
 
 // Message being sent from all Perceiver devices (i.e. phones with cameras and sensors).
 message PerceiverDataFrame {
+  reserved 10;
+  reserved "device_timestamp_ns";
+
   // Metadata detailing which device this arframe comes from,
   // what frame number it is, and when it was captured.
   PerceiverFrameIdentifier frame_identifier = 1;
-
-  // Most precise device-local timestamp available for this record, in nanoseconds.
-  // For ARCore camera frames this should be the camera/frame timestamp when available;
-  // otherwise it should fall back to the best monotonic device clock available.
-  int64 device_timestamp_ns = 10;
 
   // Camera pose in world coordinates
   Pose camera_pose = 2;

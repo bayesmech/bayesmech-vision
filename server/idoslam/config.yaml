@@ -1,0 +1,28 @@
+# IDOSLAM configuration
+
+pose_refinement:
+  enabled: true
+
+  solver:
+    loss: "soft_l1"
+    f_scale: 1.0
+    max_nfev: 250
+
+  weights:
+    # Visual relative-motion preservation stays dominant.
+    visual: 1.0
+    # GPS is a weak drift-correction prior, not a hard replacement of XY.
+    gps_visual_ratio: 0.15
+    smoothness: 0.05
+    non_ok_pair_scale: 0.1
+
+  gps:
+    min_common_points: 20
+    min_accuracy_m: 3.0
+    max_accuracy_m: 30.0
+
+  acceptance:
+    require_gps_improvement: true
+    min_gps_rmse_improvement_m: 0.05
+    max_visual_residual_rmse_m: 2.5
+    max_step_delta_m: 4.0

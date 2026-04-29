@@ -339,9 +339,6 @@ export namespace bayesmech {
             /** PerceiverDataFrame frameIdentifier */
             frameIdentifier?: (bayesmech.vision.IPerceiverFrameIdentifier|null);
 
-            /** PerceiverDataFrame deviceTimestampNs */
-            deviceTimestampNs?: (number|Long|null);
-
             /** PerceiverDataFrame cameraPose */
             cameraPose?: (bayesmech.vision.IPose|null);
 
@@ -378,9 +375,6 @@ export namespace bayesmech {
 
             /** PerceiverDataFrame frameIdentifier. */
             public frameIdentifier?: (bayesmech.vision.IPerceiverFrameIdentifier|null);
-
-            /** PerceiverDataFrame deviceTimestampNs. */
-            public deviceTimestampNs: (number|Long);
 
             /** PerceiverDataFrame cameraPose. */
             public cameraPose?: (bayesmech.vision.IPose|null);
@@ -1931,6 +1925,2025 @@ export namespace bayesmech {
 
             /**
              * Gets the default type url for SegmentationRequest
+             * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns The default type url
+             */
+            public static getTypeUrl(typeUrlPrefix?: string): string;
+        }
+
+        /** Properties of a MotionCaptureRequest. */
+        interface IMotionCaptureRequest {
+
+            /** MotionCaptureRequest frameIdentifier */
+            frameIdentifier?: (bayesmech.vision.IPerceiverFrameIdentifier|null);
+
+            /** MotionCaptureRequest currentFrame */
+            currentFrame?: (bayesmech.vision.IImageFrame|null);
+
+            /** MotionCaptureRequest referenceFrame */
+            referenceFrame?: (bayesmech.vision.IImageFrame|null);
+        }
+
+        /** Represents a MotionCaptureRequest. */
+        class MotionCaptureRequest implements IMotionCaptureRequest {
+
+            /**
+             * Constructs a new MotionCaptureRequest.
+             * @param [properties] Properties to set
+             */
+            constructor(properties?: bayesmech.vision.IMotionCaptureRequest);
+
+            /** MotionCaptureRequest frameIdentifier. */
+            public frameIdentifier?: (bayesmech.vision.IPerceiverFrameIdentifier|null);
+
+            /** MotionCaptureRequest currentFrame. */
+            public currentFrame?: (bayesmech.vision.IImageFrame|null);
+
+            /** MotionCaptureRequest referenceFrame. */
+            public referenceFrame?: (bayesmech.vision.IImageFrame|null);
+
+            /**
+             * Creates a new MotionCaptureRequest instance using the specified properties.
+             * @param [properties] Properties to set
+             * @returns MotionCaptureRequest instance
+             */
+            public static create(properties?: bayesmech.vision.IMotionCaptureRequest): bayesmech.vision.MotionCaptureRequest;
+
+            /**
+             * Encodes the specified MotionCaptureRequest message. Does not implicitly {@link bayesmech.vision.MotionCaptureRequest.verify|verify} messages.
+             * @param message MotionCaptureRequest message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encode(message: bayesmech.vision.IMotionCaptureRequest, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Encodes the specified MotionCaptureRequest message, length delimited. Does not implicitly {@link bayesmech.vision.MotionCaptureRequest.verify|verify} messages.
+             * @param message MotionCaptureRequest message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encodeDelimited(message: bayesmech.vision.IMotionCaptureRequest, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Decodes a MotionCaptureRequest message from the specified reader or buffer.
+             * @param reader Reader or buffer to decode from
+             * @param [length] Message length if known beforehand
+             * @returns MotionCaptureRequest
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): bayesmech.vision.MotionCaptureRequest;
+
+            /**
+             * Decodes a MotionCaptureRequest message from the specified reader or buffer, length delimited.
+             * @param reader Reader or buffer to decode from
+             * @returns MotionCaptureRequest
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): bayesmech.vision.MotionCaptureRequest;
+
+            /**
+             * Verifies a MotionCaptureRequest message.
+             * @param message Plain object to verify
+             * @returns `null` if valid, otherwise the reason why it is not
+             */
+            public static verify(message: { [k: string]: any }): (string|null);
+
+            /**
+             * Creates a MotionCaptureRequest message from a plain object. Also converts values to their respective internal types.
+             * @param object Plain object
+             * @returns MotionCaptureRequest
+             */
+            public static fromObject(object: { [k: string]: any }): bayesmech.vision.MotionCaptureRequest;
+
+            /**
+             * Creates a plain object from a MotionCaptureRequest message. Also converts values to other types if specified.
+             * @param message MotionCaptureRequest
+             * @param [options] Conversion options
+             * @returns Plain object
+             */
+            public static toObject(message: bayesmech.vision.MotionCaptureRequest, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+            /**
+             * Converts this MotionCaptureRequest to JSON.
+             * @returns JSON object
+             */
+            public toJSON(): { [k: string]: any };
+
+            /**
+             * Gets the default type url for MotionCaptureRequest
+             * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns The default type url
+             */
+            public static getTypeUrl(typeUrlPrefix?: string): string;
+        }
+
+        /** Properties of a MotionCaptureResponse. */
+        interface IMotionCaptureResponse {
+
+            /** MotionCaptureResponse frameIdentifier */
+            frameIdentifier?: (bayesmech.vision.IPerceiverFrameIdentifier|null);
+
+            /** MotionCaptureResponse heatmap */
+            heatmap?: (bayesmech.vision.MotionCaptureResponse.IMotionHeatmap|null);
+
+            /** MotionCaptureResponse methodUsed */
+            methodUsed?: (bayesmech.vision.MotionCaptureResponse.StabilizationMethod|null);
+
+            /** MotionCaptureResponse stabilizationConfidence */
+            stabilizationConfidence?: (number|null);
+
+            /** MotionCaptureResponse tracks */
+            tracks?: (bayesmech.vision.IMotionTrack[]|null);
+
+            /** MotionCaptureResponse totalFrames */
+            totalFrames?: (number|null);
+        }
+
+        /** Represents a MotionCaptureResponse. */
+        class MotionCaptureResponse implements IMotionCaptureResponse {
+
+            /**
+             * Constructs a new MotionCaptureResponse.
+             * @param [properties] Properties to set
+             */
+            constructor(properties?: bayesmech.vision.IMotionCaptureResponse);
+
+            /** MotionCaptureResponse frameIdentifier. */
+            public frameIdentifier?: (bayesmech.vision.IPerceiverFrameIdentifier|null);
+
+            /** MotionCaptureResponse heatmap. */
+            public heatmap?: (bayesmech.vision.MotionCaptureResponse.IMotionHeatmap|null);
+
+            /** MotionCaptureResponse methodUsed. */
+            public methodUsed: bayesmech.vision.MotionCaptureResponse.StabilizationMethod;
+
+            /** MotionCaptureResponse stabilizationConfidence. */
+            public stabilizationConfidence: number;
+
+            /** MotionCaptureResponse tracks. */
+            public tracks: bayesmech.vision.IMotionTrack[];
+
+            /** MotionCaptureResponse totalFrames. */
+            public totalFrames: number;
+
+            /**
+             * Creates a new MotionCaptureResponse instance using the specified properties.
+             * @param [properties] Properties to set
+             * @returns MotionCaptureResponse instance
+             */
+            public static create(properties?: bayesmech.vision.IMotionCaptureResponse): bayesmech.vision.MotionCaptureResponse;
+
+            /**
+             * Encodes the specified MotionCaptureResponse message. Does not implicitly {@link bayesmech.vision.MotionCaptureResponse.verify|verify} messages.
+             * @param message MotionCaptureResponse message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encode(message: bayesmech.vision.IMotionCaptureResponse, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Encodes the specified MotionCaptureResponse message, length delimited. Does not implicitly {@link bayesmech.vision.MotionCaptureResponse.verify|verify} messages.
+             * @param message MotionCaptureResponse message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encodeDelimited(message: bayesmech.vision.IMotionCaptureResponse, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Decodes a MotionCaptureResponse message from the specified reader or buffer.
+             * @param reader Reader or buffer to decode from
+             * @param [length] Message length if known beforehand
+             * @returns MotionCaptureResponse
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): bayesmech.vision.MotionCaptureResponse;
+
+            /**
+             * Decodes a MotionCaptureResponse message from the specified reader or buffer, length delimited.
+             * @param reader Reader or buffer to decode from
+             * @returns MotionCaptureResponse
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): bayesmech.vision.MotionCaptureResponse;
+
+            /**
+             * Verifies a MotionCaptureResponse message.
+             * @param message Plain object to verify
+             * @returns `null` if valid, otherwise the reason why it is not
+             */
+            public static verify(message: { [k: string]: any }): (string|null);
+
+            /**
+             * Creates a MotionCaptureResponse message from a plain object. Also converts values to their respective internal types.
+             * @param object Plain object
+             * @returns MotionCaptureResponse
+             */
+            public static fromObject(object: { [k: string]: any }): bayesmech.vision.MotionCaptureResponse;
+
+            /**
+             * Creates a plain object from a MotionCaptureResponse message. Also converts values to other types if specified.
+             * @param message MotionCaptureResponse
+             * @param [options] Conversion options
+             * @returns Plain object
+             */
+            public static toObject(message: bayesmech.vision.MotionCaptureResponse, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+            /**
+             * Converts this MotionCaptureResponse to JSON.
+             * @returns JSON object
+             */
+            public toJSON(): { [k: string]: any };
+
+            /**
+             * Gets the default type url for MotionCaptureResponse
+             * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns The default type url
+             */
+            public static getTypeUrl(typeUrlPrefix?: string): string;
+        }
+
+        namespace MotionCaptureResponse {
+
+            /** Properties of a MotionHeatmap. */
+            interface IMotionHeatmap {
+
+                /** MotionHeatmap heatmapData */
+                heatmapData?: (Uint8Array|null);
+
+                /** MotionHeatmap maxMotionRaw */
+                maxMotionRaw?: (number|null);
+            }
+
+            /** Represents a MotionHeatmap. */
+            class MotionHeatmap implements IMotionHeatmap {
+
+                /**
+                 * Constructs a new MotionHeatmap.
+                 * @param [properties] Properties to set
+                 */
+                constructor(properties?: bayesmech.vision.MotionCaptureResponse.IMotionHeatmap);
+
+                /** MotionHeatmap heatmapData. */
+                public heatmapData: Uint8Array;
+
+                /** MotionHeatmap maxMotionRaw. */
+                public maxMotionRaw: number;
+
+                /**
+                 * Creates a new MotionHeatmap instance using the specified properties.
+                 * @param [properties] Properties to set
+                 * @returns MotionHeatmap instance
+                 */
+                public static create(properties?: bayesmech.vision.MotionCaptureResponse.IMotionHeatmap): bayesmech.vision.MotionCaptureResponse.MotionHeatmap;
+
+                /**
+                 * Encodes the specified MotionHeatmap message. Does not implicitly {@link bayesmech.vision.MotionCaptureResponse.MotionHeatmap.verify|verify} messages.
+                 * @param message MotionHeatmap message or plain object to encode
+                 * @param [writer] Writer to encode to
+                 * @returns Writer
+                 */
+                public static encode(message: bayesmech.vision.MotionCaptureResponse.IMotionHeatmap, writer?: $protobuf.Writer): $protobuf.Writer;
+
+                /**
+                 * Encodes the specified MotionHeatmap message, length delimited. Does not implicitly {@link bayesmech.vision.MotionCaptureResponse.MotionHeatmap.verify|verify} messages.
+                 * @param message MotionHeatmap message or plain object to encode
+                 * @param [writer] Writer to encode to
+                 * @returns Writer
+                 */
+                public static encodeDelimited(message: bayesmech.vision.MotionCaptureResponse.IMotionHeatmap, writer?: $protobuf.Writer): $protobuf.Writer;
+
+                /**
+                 * Decodes a MotionHeatmap message from the specified reader or buffer.
+                 * @param reader Reader or buffer to decode from
+                 * @param [length] Message length if known beforehand
+                 * @returns MotionHeatmap
+                 * @throws {Error} If the payload is not a reader or valid buffer
+                 * @throws {$protobuf.util.ProtocolError} If required fields are missing
+                 */
+                public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): bayesmech.vision.MotionCaptureResponse.MotionHeatmap;
+
+                /**
+                 * Decodes a MotionHeatmap message from the specified reader or buffer, length delimited.
+                 * @param reader Reader or buffer to decode from
+                 * @returns MotionHeatmap
+                 * @throws {Error} If the payload is not a reader or valid buffer
+                 * @throws {$protobuf.util.ProtocolError} If required fields are missing
+                 */
+                public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): bayesmech.vision.MotionCaptureResponse.MotionHeatmap;
+
+                /**
+                 * Verifies a MotionHeatmap message.
+                 * @param message Plain object to verify
+                 * @returns `null` if valid, otherwise the reason why it is not
+                 */
+                public static verify(message: { [k: string]: any }): (string|null);
+
+                /**
+                 * Creates a MotionHeatmap message from a plain object. Also converts values to their respective internal types.
+                 * @param object Plain object
+                 * @returns MotionHeatmap
+                 */
+                public static fromObject(object: { [k: string]: any }): bayesmech.vision.MotionCaptureResponse.MotionHeatmap;
+
+                /**
+                 * Creates a plain object from a MotionHeatmap message. Also converts values to other types if specified.
+                 * @param message MotionHeatmap
+                 * @param [options] Conversion options
+                 * @returns Plain object
+                 */
+                public static toObject(message: bayesmech.vision.MotionCaptureResponse.MotionHeatmap, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+                /**
+                 * Converts this MotionHeatmap to JSON.
+                 * @returns JSON object
+                 */
+                public toJSON(): { [k: string]: any };
+
+                /**
+                 * Gets the default type url for MotionHeatmap
+                 * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+                 * @returns The default type url
+                 */
+                public static getTypeUrl(typeUrlPrefix?: string): string;
+            }
+
+            /** StabilizationMethod enum. */
+            enum StabilizationMethod {
+                STABILIZATION_UNKNOWN = 0,
+                DEPTH_WARP = 1,
+                PLANE_HOMO = 2,
+                POINT_RANSAC = 3,
+                POSE_APPROX = 4,
+                OPTICAL_FLOW = 5
+            }
+        }
+
+        /** Properties of a MotionTrackPoint. */
+        interface IMotionTrackPoint {
+
+            /** MotionTrackPoint frameIdx */
+            frameIdx?: (number|null);
+
+            /** MotionTrackPoint cx */
+            cx?: (number|null);
+
+            /** MotionTrackPoint cy */
+            cy?: (number|null);
+
+            /** MotionTrackPoint area */
+            area?: (number|null);
+
+            /** MotionTrackPoint interpolated */
+            interpolated?: (boolean|null);
+        }
+
+        /** Represents a MotionTrackPoint. */
+        class MotionTrackPoint implements IMotionTrackPoint {
+
+            /**
+             * Constructs a new MotionTrackPoint.
+             * @param [properties] Properties to set
+             */
+            constructor(properties?: bayesmech.vision.IMotionTrackPoint);
+
+            /** MotionTrackPoint frameIdx. */
+            public frameIdx: number;
+
+            /** MotionTrackPoint cx. */
+            public cx: number;
+
+            /** MotionTrackPoint cy. */
+            public cy: number;
+
+            /** MotionTrackPoint area. */
+            public area: number;
+
+            /** MotionTrackPoint interpolated. */
+            public interpolated: boolean;
+
+            /**
+             * Creates a new MotionTrackPoint instance using the specified properties.
+             * @param [properties] Properties to set
+             * @returns MotionTrackPoint instance
+             */
+            public static create(properties?: bayesmech.vision.IMotionTrackPoint): bayesmech.vision.MotionTrackPoint;
+
+            /**
+             * Encodes the specified MotionTrackPoint message. Does not implicitly {@link bayesmech.vision.MotionTrackPoint.verify|verify} messages.
+             * @param message MotionTrackPoint message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encode(message: bayesmech.vision.IMotionTrackPoint, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Encodes the specified MotionTrackPoint message, length delimited. Does not implicitly {@link bayesmech.vision.MotionTrackPoint.verify|verify} messages.
+             * @param message MotionTrackPoint message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encodeDelimited(message: bayesmech.vision.IMotionTrackPoint, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Decodes a MotionTrackPoint message from the specified reader or buffer.
+             * @param reader Reader or buffer to decode from
+             * @param [length] Message length if known beforehand
+             * @returns MotionTrackPoint
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): bayesmech.vision.MotionTrackPoint;
+
+            /**
+             * Decodes a MotionTrackPoint message from the specified reader or buffer, length delimited.
+             * @param reader Reader or buffer to decode from
+             * @returns MotionTrackPoint
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): bayesmech.vision.MotionTrackPoint;
+
+            /**
+             * Verifies a MotionTrackPoint message.
+             * @param message Plain object to verify
+             * @returns `null` if valid, otherwise the reason why it is not
+             */
+            public static verify(message: { [k: string]: any }): (string|null);
+
+            /**
+             * Creates a MotionTrackPoint message from a plain object. Also converts values to their respective internal types.
+             * @param object Plain object
+             * @returns MotionTrackPoint
+             */
+            public static fromObject(object: { [k: string]: any }): bayesmech.vision.MotionTrackPoint;
+
+            /**
+             * Creates a plain object from a MotionTrackPoint message. Also converts values to other types if specified.
+             * @param message MotionTrackPoint
+             * @param [options] Conversion options
+             * @returns Plain object
+             */
+            public static toObject(message: bayesmech.vision.MotionTrackPoint, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+            /**
+             * Converts this MotionTrackPoint to JSON.
+             * @returns JSON object
+             */
+            public toJSON(): { [k: string]: any };
+
+            /**
+             * Gets the default type url for MotionTrackPoint
+             * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns The default type url
+             */
+            public static getTypeUrl(typeUrlPrefix?: string): string;
+        }
+
+        /** Properties of a MotionTrack. */
+        interface IMotionTrack {
+
+            /** MotionTrack trackId */
+            trackId?: (number|null);
+
+            /** MotionTrack detectedFrames */
+            detectedFrames?: (number|null);
+
+            /** MotionTrack totalPositions */
+            totalPositions?: (number|null);
+
+            /** MotionTrack presenceFraction */
+            presenceFraction?: (number|null);
+
+            /** MotionTrack positions */
+            positions?: (bayesmech.vision.IMotionTrackPoint[]|null);
+        }
+
+        /** Represents a MotionTrack. */
+        class MotionTrack implements IMotionTrack {
+
+            /**
+             * Constructs a new MotionTrack.
+             * @param [properties] Properties to set
+             */
+            constructor(properties?: bayesmech.vision.IMotionTrack);
+
+            /** MotionTrack trackId. */
+            public trackId: number;
+
+            /** MotionTrack detectedFrames. */
+            public detectedFrames: number;
+
+            /** MotionTrack totalPositions. */
+            public totalPositions: number;
+
+            /** MotionTrack presenceFraction. */
+            public presenceFraction: number;
+
+            /** MotionTrack positions. */
+            public positions: bayesmech.vision.IMotionTrackPoint[];
+
+            /**
+             * Creates a new MotionTrack instance using the specified properties.
+             * @param [properties] Properties to set
+             * @returns MotionTrack instance
+             */
+            public static create(properties?: bayesmech.vision.IMotionTrack): bayesmech.vision.MotionTrack;
+
+            /**
+             * Encodes the specified MotionTrack message. Does not implicitly {@link bayesmech.vision.MotionTrack.verify|verify} messages.
+             * @param message MotionTrack message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encode(message: bayesmech.vision.IMotionTrack, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Encodes the specified MotionTrack message, length delimited. Does not implicitly {@link bayesmech.vision.MotionTrack.verify|verify} messages.
+             * @param message MotionTrack message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encodeDelimited(message: bayesmech.vision.IMotionTrack, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Decodes a MotionTrack message from the specified reader or buffer.
+             * @param reader Reader or buffer to decode from
+             * @param [length] Message length if known beforehand
+             * @returns MotionTrack
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): bayesmech.vision.MotionTrack;
+
+            /**
+             * Decodes a MotionTrack message from the specified reader or buffer, length delimited.
+             * @param reader Reader or buffer to decode from
+             * @returns MotionTrack
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): bayesmech.vision.MotionTrack;
+
+            /**
+             * Verifies a MotionTrack message.
+             * @param message Plain object to verify
+             * @returns `null` if valid, otherwise the reason why it is not
+             */
+            public static verify(message: { [k: string]: any }): (string|null);
+
+            /**
+             * Creates a MotionTrack message from a plain object. Also converts values to their respective internal types.
+             * @param object Plain object
+             * @returns MotionTrack
+             */
+            public static fromObject(object: { [k: string]: any }): bayesmech.vision.MotionTrack;
+
+            /**
+             * Creates a plain object from a MotionTrack message. Also converts values to other types if specified.
+             * @param message MotionTrack
+             * @param [options] Conversion options
+             * @returns Plain object
+             */
+            public static toObject(message: bayesmech.vision.MotionTrack, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+            /**
+             * Converts this MotionTrack to JSON.
+             * @returns JSON object
+             */
+            public toJSON(): { [k: string]: any };
+
+            /**
+             * Gets the default type url for MotionTrack
+             * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns The default type url
+             */
+            public static getTypeUrl(typeUrlPrefix?: string): string;
+        }
+
+        /** Properties of an IdoSlamFramePose. */
+        interface IIdoSlamFramePose {
+
+            /** IdoSlamFramePose frameId */
+            frameId?: (bayesmech.vision.IPerceiverFrameIdentifier|null);
+
+            /** IdoSlamFramePose frameIndex */
+            frameIndex?: (number|null);
+
+            /** IdoSlamFramePose worldPose */
+            worldPose?: (bayesmech.vision.IPose|null);
+
+            /** IdoSlamFramePose eulerDegrees */
+            eulerDegrees?: (bayesmech.vision.IVector3|null);
+        }
+
+        /** Represents an IdoSlamFramePose. */
+        class IdoSlamFramePose implements IIdoSlamFramePose {
+
+            /**
+             * Constructs a new IdoSlamFramePose.
+             * @param [properties] Properties to set
+             */
+            constructor(properties?: bayesmech.vision.IIdoSlamFramePose);
+
+            /** IdoSlamFramePose frameId. */
+            public frameId?: (bayesmech.vision.IPerceiverFrameIdentifier|null);
+
+            /** IdoSlamFramePose frameIndex. */
+            public frameIndex: number;
+
+            /** IdoSlamFramePose worldPose. */
+            public worldPose?: (bayesmech.vision.IPose|null);
+
+            /** IdoSlamFramePose eulerDegrees. */
+            public eulerDegrees?: (bayesmech.vision.IVector3|null);
+
+            /**
+             * Creates a new IdoSlamFramePose instance using the specified properties.
+             * @param [properties] Properties to set
+             * @returns IdoSlamFramePose instance
+             */
+            public static create(properties?: bayesmech.vision.IIdoSlamFramePose): bayesmech.vision.IdoSlamFramePose;
+
+            /**
+             * Encodes the specified IdoSlamFramePose message. Does not implicitly {@link bayesmech.vision.IdoSlamFramePose.verify|verify} messages.
+             * @param message IdoSlamFramePose message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encode(message: bayesmech.vision.IIdoSlamFramePose, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Encodes the specified IdoSlamFramePose message, length delimited. Does not implicitly {@link bayesmech.vision.IdoSlamFramePose.verify|verify} messages.
+             * @param message IdoSlamFramePose message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encodeDelimited(message: bayesmech.vision.IIdoSlamFramePose, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Decodes an IdoSlamFramePose message from the specified reader or buffer.
+             * @param reader Reader or buffer to decode from
+             * @param [length] Message length if known beforehand
+             * @returns IdoSlamFramePose
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): bayesmech.vision.IdoSlamFramePose;
+
+            /**
+             * Decodes an IdoSlamFramePose message from the specified reader or buffer, length delimited.
+             * @param reader Reader or buffer to decode from
+             * @returns IdoSlamFramePose
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): bayesmech.vision.IdoSlamFramePose;
+
+            /**
+             * Verifies an IdoSlamFramePose message.
+             * @param message Plain object to verify
+             * @returns `null` if valid, otherwise the reason why it is not
+             */
+            public static verify(message: { [k: string]: any }): (string|null);
+
+            /**
+             * Creates an IdoSlamFramePose message from a plain object. Also converts values to their respective internal types.
+             * @param object Plain object
+             * @returns IdoSlamFramePose
+             */
+            public static fromObject(object: { [k: string]: any }): bayesmech.vision.IdoSlamFramePose;
+
+            /**
+             * Creates a plain object from an IdoSlamFramePose message. Also converts values to other types if specified.
+             * @param message IdoSlamFramePose
+             * @param [options] Conversion options
+             * @returns Plain object
+             */
+            public static toObject(message: bayesmech.vision.IdoSlamFramePose, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+            /**
+             * Converts this IdoSlamFramePose to JSON.
+             * @returns JSON object
+             */
+            public toJSON(): { [k: string]: any };
+
+            /**
+             * Gets the default type url for IdoSlamFramePose
+             * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns The default type url
+             */
+            public static getTypeUrl(typeUrlPrefix?: string): string;
+        }
+
+        /** Properties of an IdoSlamGroundPoint. */
+        interface IIdoSlamGroundPoint {
+
+            /** IdoSlamGroundPoint frameIndex */
+            frameIndex?: (number|null);
+
+            /** IdoSlamGroundPoint pairedFrameIndex */
+            pairedFrameIndex?: (number|null);
+
+            /** IdoSlamGroundPoint point */
+            point?: (bayesmech.vision.IVector3|null);
+
+            /** IdoSlamGroundPoint side */
+            side?: (string|null);
+        }
+
+        /** Represents an IdoSlamGroundPoint. */
+        class IdoSlamGroundPoint implements IIdoSlamGroundPoint {
+
+            /**
+             * Constructs a new IdoSlamGroundPoint.
+             * @param [properties] Properties to set
+             */
+            constructor(properties?: bayesmech.vision.IIdoSlamGroundPoint);
+
+            /** IdoSlamGroundPoint frameIndex. */
+            public frameIndex: number;
+
+            /** IdoSlamGroundPoint pairedFrameIndex. */
+            public pairedFrameIndex: number;
+
+            /** IdoSlamGroundPoint point. */
+            public point?: (bayesmech.vision.IVector3|null);
+
+            /** IdoSlamGroundPoint side. */
+            public side: string;
+
+            /**
+             * Creates a new IdoSlamGroundPoint instance using the specified properties.
+             * @param [properties] Properties to set
+             * @returns IdoSlamGroundPoint instance
+             */
+            public static create(properties?: bayesmech.vision.IIdoSlamGroundPoint): bayesmech.vision.IdoSlamGroundPoint;
+
+            /**
+             * Encodes the specified IdoSlamGroundPoint message. Does not implicitly {@link bayesmech.vision.IdoSlamGroundPoint.verify|verify} messages.
+             * @param message IdoSlamGroundPoint message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encode(message: bayesmech.vision.IIdoSlamGroundPoint, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Encodes the specified IdoSlamGroundPoint message, length delimited. Does not implicitly {@link bayesmech.vision.IdoSlamGroundPoint.verify|verify} messages.
+             * @param message IdoSlamGroundPoint message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encodeDelimited(message: bayesmech.vision.IIdoSlamGroundPoint, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Decodes an IdoSlamGroundPoint message from the specified reader or buffer.
+             * @param reader Reader or buffer to decode from
+             * @param [length] Message length if known beforehand
+             * @returns IdoSlamGroundPoint
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): bayesmech.vision.IdoSlamGroundPoint;
+
+            /**
+             * Decodes an IdoSlamGroundPoint message from the specified reader or buffer, length delimited.
+             * @param reader Reader or buffer to decode from
+             * @returns IdoSlamGroundPoint
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): bayesmech.vision.IdoSlamGroundPoint;
+
+            /**
+             * Verifies an IdoSlamGroundPoint message.
+             * @param message Plain object to verify
+             * @returns `null` if valid, otherwise the reason why it is not
+             */
+            public static verify(message: { [k: string]: any }): (string|null);
+
+            /**
+             * Creates an IdoSlamGroundPoint message from a plain object. Also converts values to their respective internal types.
+             * @param object Plain object
+             * @returns IdoSlamGroundPoint
+             */
+            public static fromObject(object: { [k: string]: any }): bayesmech.vision.IdoSlamGroundPoint;
+
+            /**
+             * Creates a plain object from an IdoSlamGroundPoint message. Also converts values to other types if specified.
+             * @param message IdoSlamGroundPoint
+             * @param [options] Conversion options
+             * @returns Plain object
+             */
+            public static toObject(message: bayesmech.vision.IdoSlamGroundPoint, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+            /**
+             * Converts this IdoSlamGroundPoint to JSON.
+             * @returns JSON object
+             */
+            public toJSON(): { [k: string]: any };
+
+            /**
+             * Gets the default type url for IdoSlamGroundPoint
+             * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns The default type url
+             */
+            public static getTypeUrl(typeUrlPrefix?: string): string;
+        }
+
+        /** Properties of an IdoSlamPointCorrespondence. */
+        interface IIdoSlamPointCorrespondence {
+
+            /** IdoSlamPointCorrespondence sourceX */
+            sourceX?: (number|null);
+
+            /** IdoSlamPointCorrespondence sourceY */
+            sourceY?: (number|null);
+
+            /** IdoSlamPointCorrespondence targetX */
+            targetX?: (number|null);
+
+            /** IdoSlamPointCorrespondence targetY */
+            targetY?: (number|null);
+
+            /** IdoSlamPointCorrespondence worldPoint */
+            worldPoint?: (bayesmech.vision.IVector3|null);
+
+            /** IdoSlamPointCorrespondence side */
+            side?: (string|null);
+
+            /** IdoSlamPointCorrespondence onRoad */
+            onRoad?: (boolean|null);
+
+            /** IdoSlamPointCorrespondence triangulated */
+            triangulated?: (boolean|null);
+
+            /** IdoSlamPointCorrespondence inlier */
+            inlier?: (boolean|null);
+        }
+
+        /** Represents an IdoSlamPointCorrespondence. */
+        class IdoSlamPointCorrespondence implements IIdoSlamPointCorrespondence {
+
+            /**
+             * Constructs a new IdoSlamPointCorrespondence.
+             * @param [properties] Properties to set
+             */
+            constructor(properties?: bayesmech.vision.IIdoSlamPointCorrespondence);
+
+            /** IdoSlamPointCorrespondence sourceX. */
+            public sourceX: number;
+
+            /** IdoSlamPointCorrespondence sourceY. */
+            public sourceY: number;
+
+            /** IdoSlamPointCorrespondence targetX. */
+            public targetX: number;
+
+            /** IdoSlamPointCorrespondence targetY. */
+            public targetY: number;
+
+            /** IdoSlamPointCorrespondence worldPoint. */
+            public worldPoint?: (bayesmech.vision.IVector3|null);
+
+            /** IdoSlamPointCorrespondence side. */
+            public side: string;
+
+            /** IdoSlamPointCorrespondence onRoad. */
+            public onRoad: boolean;
+
+            /** IdoSlamPointCorrespondence triangulated. */
+            public triangulated: boolean;
+
+            /** IdoSlamPointCorrespondence inlier. */
+            public inlier: boolean;
+
+            /**
+             * Creates a new IdoSlamPointCorrespondence instance using the specified properties.
+             * @param [properties] Properties to set
+             * @returns IdoSlamPointCorrespondence instance
+             */
+            public static create(properties?: bayesmech.vision.IIdoSlamPointCorrespondence): bayesmech.vision.IdoSlamPointCorrespondence;
+
+            /**
+             * Encodes the specified IdoSlamPointCorrespondence message. Does not implicitly {@link bayesmech.vision.IdoSlamPointCorrespondence.verify|verify} messages.
+             * @param message IdoSlamPointCorrespondence message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encode(message: bayesmech.vision.IIdoSlamPointCorrespondence, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Encodes the specified IdoSlamPointCorrespondence message, length delimited. Does not implicitly {@link bayesmech.vision.IdoSlamPointCorrespondence.verify|verify} messages.
+             * @param message IdoSlamPointCorrespondence message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encodeDelimited(message: bayesmech.vision.IIdoSlamPointCorrespondence, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Decodes an IdoSlamPointCorrespondence message from the specified reader or buffer.
+             * @param reader Reader or buffer to decode from
+             * @param [length] Message length if known beforehand
+             * @returns IdoSlamPointCorrespondence
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): bayesmech.vision.IdoSlamPointCorrespondence;
+
+            /**
+             * Decodes an IdoSlamPointCorrespondence message from the specified reader or buffer, length delimited.
+             * @param reader Reader or buffer to decode from
+             * @returns IdoSlamPointCorrespondence
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): bayesmech.vision.IdoSlamPointCorrespondence;
+
+            /**
+             * Verifies an IdoSlamPointCorrespondence message.
+             * @param message Plain object to verify
+             * @returns `null` if valid, otherwise the reason why it is not
+             */
+            public static verify(message: { [k: string]: any }): (string|null);
+
+            /**
+             * Creates an IdoSlamPointCorrespondence message from a plain object. Also converts values to their respective internal types.
+             * @param object Plain object
+             * @returns IdoSlamPointCorrespondence
+             */
+            public static fromObject(object: { [k: string]: any }): bayesmech.vision.IdoSlamPointCorrespondence;
+
+            /**
+             * Creates a plain object from an IdoSlamPointCorrespondence message. Also converts values to other types if specified.
+             * @param message IdoSlamPointCorrespondence
+             * @param [options] Conversion options
+             * @returns Plain object
+             */
+            public static toObject(message: bayesmech.vision.IdoSlamPointCorrespondence, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+            /**
+             * Converts this IdoSlamPointCorrespondence to JSON.
+             * @returns JSON object
+             */
+            public toJSON(): { [k: string]: any };
+
+            /**
+             * Gets the default type url for IdoSlamPointCorrespondence
+             * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns The default type url
+             */
+            public static getTypeUrl(typeUrlPrefix?: string): string;
+        }
+
+        /** Properties of an IdoSlamPairDebug. */
+        interface IIdoSlamPairDebug {
+
+            /** IdoSlamPairDebug frameIndex */
+            frameIndex?: (number|null);
+
+            /** IdoSlamPairDebug pairedFrameIndex */
+            pairedFrameIndex?: (number|null);
+
+            /** IdoSlamPairDebug status */
+            status?: (string|null);
+
+            /** IdoSlamPairDebug goodMatchCount */
+            goodMatchCount?: (number|null);
+
+            /** IdoSlamPairDebug inlierCount */
+            inlierCount?: (number|null);
+
+            /** IdoSlamPairDebug triangulatedLeft */
+            triangulatedLeft?: (number|null);
+
+            /** IdoSlamPairDebug triangulatedRight */
+            triangulatedRight?: (number|null);
+
+            /** IdoSlamPairDebug onRoadCount */
+            onRoadCount?: (number|null);
+
+            /** IdoSlamPairDebug correspondences */
+            correspondences?: (bayesmech.vision.IIdoSlamPointCorrespondence[]|null);
+        }
+
+        /** Represents an IdoSlamPairDebug. */
+        class IdoSlamPairDebug implements IIdoSlamPairDebug {
+
+            /**
+             * Constructs a new IdoSlamPairDebug.
+             * @param [properties] Properties to set
+             */
+            constructor(properties?: bayesmech.vision.IIdoSlamPairDebug);
+
+            /** IdoSlamPairDebug frameIndex. */
+            public frameIndex: number;
+
+            /** IdoSlamPairDebug pairedFrameIndex. */
+            public pairedFrameIndex: number;
+
+            /** IdoSlamPairDebug status. */
+            public status: string;
+
+            /** IdoSlamPairDebug goodMatchCount. */
+            public goodMatchCount: number;
+
+            /** IdoSlamPairDebug inlierCount. */
+            public inlierCount: number;
+
+            /** IdoSlamPairDebug triangulatedLeft. */
+            public triangulatedLeft: number;
+
+            /** IdoSlamPairDebug triangulatedRight. */
+            public triangulatedRight: number;
+
+            /** IdoSlamPairDebug onRoadCount. */
+            public onRoadCount: number;
+
+            /** IdoSlamPairDebug correspondences. */
+            public correspondences: bayesmech.vision.IIdoSlamPointCorrespondence[];
+
+            /**
+             * Creates a new IdoSlamPairDebug instance using the specified properties.
+             * @param [properties] Properties to set
+             * @returns IdoSlamPairDebug instance
+             */
+            public static create(properties?: bayesmech.vision.IIdoSlamPairDebug): bayesmech.vision.IdoSlamPairDebug;
+
+            /**
+             * Encodes the specified IdoSlamPairDebug message. Does not implicitly {@link bayesmech.vision.IdoSlamPairDebug.verify|verify} messages.
+             * @param message IdoSlamPairDebug message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encode(message: bayesmech.vision.IIdoSlamPairDebug, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Encodes the specified IdoSlamPairDebug message, length delimited. Does not implicitly {@link bayesmech.vision.IdoSlamPairDebug.verify|verify} messages.
+             * @param message IdoSlamPairDebug message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encodeDelimited(message: bayesmech.vision.IIdoSlamPairDebug, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Decodes an IdoSlamPairDebug message from the specified reader or buffer.
+             * @param reader Reader or buffer to decode from
+             * @param [length] Message length if known beforehand
+             * @returns IdoSlamPairDebug
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): bayesmech.vision.IdoSlamPairDebug;
+
+            /**
+             * Decodes an IdoSlamPairDebug message from the specified reader or buffer, length delimited.
+             * @param reader Reader or buffer to decode from
+             * @returns IdoSlamPairDebug
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): bayesmech.vision.IdoSlamPairDebug;
+
+            /**
+             * Verifies an IdoSlamPairDebug message.
+             * @param message Plain object to verify
+             * @returns `null` if valid, otherwise the reason why it is not
+             */
+            public static verify(message: { [k: string]: any }): (string|null);
+
+            /**
+             * Creates an IdoSlamPairDebug message from a plain object. Also converts values to their respective internal types.
+             * @param object Plain object
+             * @returns IdoSlamPairDebug
+             */
+            public static fromObject(object: { [k: string]: any }): bayesmech.vision.IdoSlamPairDebug;
+
+            /**
+             * Creates a plain object from an IdoSlamPairDebug message. Also converts values to other types if specified.
+             * @param message IdoSlamPairDebug
+             * @param [options] Conversion options
+             * @returns Plain object
+             */
+            public static toObject(message: bayesmech.vision.IdoSlamPairDebug, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+            /**
+             * Converts this IdoSlamPairDebug to JSON.
+             * @returns JSON object
+             */
+            public toJSON(): { [k: string]: any };
+
+            /**
+             * Gets the default type url for IdoSlamPairDebug
+             * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns The default type url
+             */
+            public static getTypeUrl(typeUrlPrefix?: string): string;
+        }
+
+        /** Properties of an IdoSlamPairwiseMotion. */
+        interface IIdoSlamPairwiseMotion {
+
+            /** IdoSlamPairwiseMotion prevFrameIndex */
+            prevFrameIndex?: (number|null);
+
+            /** IdoSlamPairwiseMotion frameIndex */
+            frameIndex?: (number|null);
+
+            /** IdoSlamPairwiseMotion prevTimestampNs */
+            prevTimestampNs?: (number|Long|null);
+
+            /** IdoSlamPairwiseMotion timestampNs */
+            timestampNs?: (number|Long|null);
+
+            /** IdoSlamPairwiseMotion status */
+            status?: (string|null);
+
+            /** IdoSlamPairwiseMotion keypointsPrev */
+            keypointsPrev?: (number|null);
+
+            /** IdoSlamPairwiseMotion keypoints */
+            keypoints?: (number|null);
+
+            /** IdoSlamPairwiseMotion goodMatchCount */
+            goodMatchCount?: (number|null);
+
+            /** IdoSlamPairwiseMotion essentialInlierCount */
+            essentialInlierCount?: (number|null);
+
+            /** IdoSlamPairwiseMotion essentialInlierRatio */
+            essentialInlierRatio?: (number|null);
+
+            /** IdoSlamPairwiseMotion translationMagnitude */
+            translationMagnitude?: (number|null);
+
+            /** IdoSlamPairwiseMotion rotationDeg */
+            rotationDeg?: (number|null);
+
+            /** IdoSlamPairwiseMotion dx */
+            dx?: (number|null);
+
+            /** IdoSlamPairwiseMotion dy */
+            dy?: (number|null);
+
+            /** IdoSlamPairwiseMotion dz */
+            dz?: (number|null);
+
+            /** IdoSlamPairwiseMotion qx */
+            qx?: (number|null);
+
+            /** IdoSlamPairwiseMotion qy */
+            qy?: (number|null);
+
+            /** IdoSlamPairwiseMotion qz */
+            qz?: (number|null);
+
+            /** IdoSlamPairwiseMotion qw */
+            qw?: (number|null);
+
+            /** IdoSlamPairwiseMotion maskPixelsPrev */
+            maskPixelsPrev?: (number|null);
+
+            /** IdoSlamPairwiseMotion maskPixels */
+            maskPixels?: (number|null);
+        }
+
+        /** Represents an IdoSlamPairwiseMotion. */
+        class IdoSlamPairwiseMotion implements IIdoSlamPairwiseMotion {
+
+            /**
+             * Constructs a new IdoSlamPairwiseMotion.
+             * @param [properties] Properties to set
+             */
+            constructor(properties?: bayesmech.vision.IIdoSlamPairwiseMotion);
+
+            /** IdoSlamPairwiseMotion prevFrameIndex. */
+            public prevFrameIndex: number;
+
+            /** IdoSlamPairwiseMotion frameIndex. */
+            public frameIndex: number;
+
+            /** IdoSlamPairwiseMotion prevTimestampNs. */
+            public prevTimestampNs: (number|Long);
+
+            /** IdoSlamPairwiseMotion timestampNs. */
+            public timestampNs: (number|Long);
+
+            /** IdoSlamPairwiseMotion status. */
+            public status: string;
+
+            /** IdoSlamPairwiseMotion keypointsPrev. */
+            public keypointsPrev: number;
+
+            /** IdoSlamPairwiseMotion keypoints. */
+            public keypoints: number;
+
+            /** IdoSlamPairwiseMotion goodMatchCount. */
+            public goodMatchCount: number;
+
+            /** IdoSlamPairwiseMotion essentialInlierCount. */
+            public essentialInlierCount: number;
+
+            /** IdoSlamPairwiseMotion essentialInlierRatio. */
+            public essentialInlierRatio: number;
+
+            /** IdoSlamPairwiseMotion translationMagnitude. */
+            public translationMagnitude: number;
+
+            /** IdoSlamPairwiseMotion rotationDeg. */
+            public rotationDeg: number;
+
+            /** IdoSlamPairwiseMotion dx. */
+            public dx: number;
+
+            /** IdoSlamPairwiseMotion dy. */
+            public dy: number;
+
+            /** IdoSlamPairwiseMotion dz. */
+            public dz: number;
+
+            /** IdoSlamPairwiseMotion qx. */
+            public qx: number;
+
+            /** IdoSlamPairwiseMotion qy. */
+            public qy: number;
+
+            /** IdoSlamPairwiseMotion qz. */
+            public qz: number;
+
+            /** IdoSlamPairwiseMotion qw. */
+            public qw: number;
+
+            /** IdoSlamPairwiseMotion maskPixelsPrev. */
+            public maskPixelsPrev: number;
+
+            /** IdoSlamPairwiseMotion maskPixels. */
+            public maskPixels: number;
+
+            /**
+             * Creates a new IdoSlamPairwiseMotion instance using the specified properties.
+             * @param [properties] Properties to set
+             * @returns IdoSlamPairwiseMotion instance
+             */
+            public static create(properties?: bayesmech.vision.IIdoSlamPairwiseMotion): bayesmech.vision.IdoSlamPairwiseMotion;
+
+            /**
+             * Encodes the specified IdoSlamPairwiseMotion message. Does not implicitly {@link bayesmech.vision.IdoSlamPairwiseMotion.verify|verify} messages.
+             * @param message IdoSlamPairwiseMotion message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encode(message: bayesmech.vision.IIdoSlamPairwiseMotion, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Encodes the specified IdoSlamPairwiseMotion message, length delimited. Does not implicitly {@link bayesmech.vision.IdoSlamPairwiseMotion.verify|verify} messages.
+             * @param message IdoSlamPairwiseMotion message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encodeDelimited(message: bayesmech.vision.IIdoSlamPairwiseMotion, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Decodes an IdoSlamPairwiseMotion message from the specified reader or buffer.
+             * @param reader Reader or buffer to decode from
+             * @param [length] Message length if known beforehand
+             * @returns IdoSlamPairwiseMotion
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): bayesmech.vision.IdoSlamPairwiseMotion;
+
+            /**
+             * Decodes an IdoSlamPairwiseMotion message from the specified reader or buffer, length delimited.
+             * @param reader Reader or buffer to decode from
+             * @returns IdoSlamPairwiseMotion
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): bayesmech.vision.IdoSlamPairwiseMotion;
+
+            /**
+             * Verifies an IdoSlamPairwiseMotion message.
+             * @param message Plain object to verify
+             * @returns `null` if valid, otherwise the reason why it is not
+             */
+            public static verify(message: { [k: string]: any }): (string|null);
+
+            /**
+             * Creates an IdoSlamPairwiseMotion message from a plain object. Also converts values to their respective internal types.
+             * @param object Plain object
+             * @returns IdoSlamPairwiseMotion
+             */
+            public static fromObject(object: { [k: string]: any }): bayesmech.vision.IdoSlamPairwiseMotion;
+
+            /**
+             * Creates a plain object from an IdoSlamPairwiseMotion message. Also converts values to other types if specified.
+             * @param message IdoSlamPairwiseMotion
+             * @param [options] Conversion options
+             * @returns Plain object
+             */
+            public static toObject(message: bayesmech.vision.IdoSlamPairwiseMotion, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+            /**
+             * Converts this IdoSlamPairwiseMotion to JSON.
+             * @returns JSON object
+             */
+            public toJSON(): { [k: string]: any };
+
+            /**
+             * Gets the default type url for IdoSlamPairwiseMotion
+             * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns The default type url
+             */
+            public static getTypeUrl(typeUrlPrefix?: string): string;
+        }
+
+        /** Properties of an IdoSlamTrackWidthEstimate. */
+        interface IIdoSlamTrackWidthEstimate {
+
+            /** IdoSlamTrackWidthEstimate frameIndex */
+            frameIndex?: (number|null);
+
+            /** IdoSlamTrackWidthEstimate frameNumber */
+            frameNumber?: (number|null);
+
+            /** IdoSlamTrackWidthEstimate timestampNs */
+            timestampNs?: (number|Long|null);
+
+            /** IdoSlamTrackWidthEstimate latitude */
+            latitude?: (number|null);
+
+            /** IdoSlamTrackWidthEstimate longitude */
+            longitude?: (number|null);
+
+            /** IdoSlamTrackWidthEstimate widthM */
+            widthM?: (number|null);
+
+            /** IdoSlamTrackWidthEstimate leftOffsetM */
+            leftOffsetM?: (number|null);
+
+            /** IdoSlamTrackWidthEstimate rightOffsetM */
+            rightOffsetM?: (number|null);
+
+            /** IdoSlamTrackWidthEstimate bikeFraction */
+            bikeFraction?: (number|null);
+
+            /** IdoSlamTrackWidthEstimate method */
+            method?: (string|null);
+        }
+
+        /** Represents an IdoSlamTrackWidthEstimate. */
+        class IdoSlamTrackWidthEstimate implements IIdoSlamTrackWidthEstimate {
+
+            /**
+             * Constructs a new IdoSlamTrackWidthEstimate.
+             * @param [properties] Properties to set
+             */
+            constructor(properties?: bayesmech.vision.IIdoSlamTrackWidthEstimate);
+
+            /** IdoSlamTrackWidthEstimate frameIndex. */
+            public frameIndex: number;
+
+            /** IdoSlamTrackWidthEstimate frameNumber. */
+            public frameNumber: number;
+
+            /** IdoSlamTrackWidthEstimate timestampNs. */
+            public timestampNs: (number|Long);
+
+            /** IdoSlamTrackWidthEstimate latitude. */
+            public latitude: number;
+
+            /** IdoSlamTrackWidthEstimate longitude. */
+            public longitude: number;
+
+            /** IdoSlamTrackWidthEstimate widthM. */
+            public widthM: number;
+
+            /** IdoSlamTrackWidthEstimate leftOffsetM. */
+            public leftOffsetM: number;
+
+            /** IdoSlamTrackWidthEstimate rightOffsetM. */
+            public rightOffsetM: number;
+
+            /** IdoSlamTrackWidthEstimate bikeFraction. */
+            public bikeFraction: number;
+
+            /** IdoSlamTrackWidthEstimate method. */
+            public method: string;
+
+            /**
+             * Creates a new IdoSlamTrackWidthEstimate instance using the specified properties.
+             * @param [properties] Properties to set
+             * @returns IdoSlamTrackWidthEstimate instance
+             */
+            public static create(properties?: bayesmech.vision.IIdoSlamTrackWidthEstimate): bayesmech.vision.IdoSlamTrackWidthEstimate;
+
+            /**
+             * Encodes the specified IdoSlamTrackWidthEstimate message. Does not implicitly {@link bayesmech.vision.IdoSlamTrackWidthEstimate.verify|verify} messages.
+             * @param message IdoSlamTrackWidthEstimate message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encode(message: bayesmech.vision.IIdoSlamTrackWidthEstimate, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Encodes the specified IdoSlamTrackWidthEstimate message, length delimited. Does not implicitly {@link bayesmech.vision.IdoSlamTrackWidthEstimate.verify|verify} messages.
+             * @param message IdoSlamTrackWidthEstimate message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encodeDelimited(message: bayesmech.vision.IIdoSlamTrackWidthEstimate, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Decodes an IdoSlamTrackWidthEstimate message from the specified reader or buffer.
+             * @param reader Reader or buffer to decode from
+             * @param [length] Message length if known beforehand
+             * @returns IdoSlamTrackWidthEstimate
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): bayesmech.vision.IdoSlamTrackWidthEstimate;
+
+            /**
+             * Decodes an IdoSlamTrackWidthEstimate message from the specified reader or buffer, length delimited.
+             * @param reader Reader or buffer to decode from
+             * @returns IdoSlamTrackWidthEstimate
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): bayesmech.vision.IdoSlamTrackWidthEstimate;
+
+            /**
+             * Verifies an IdoSlamTrackWidthEstimate message.
+             * @param message Plain object to verify
+             * @returns `null` if valid, otherwise the reason why it is not
+             */
+            public static verify(message: { [k: string]: any }): (string|null);
+
+            /**
+             * Creates an IdoSlamTrackWidthEstimate message from a plain object. Also converts values to their respective internal types.
+             * @param object Plain object
+             * @returns IdoSlamTrackWidthEstimate
+             */
+            public static fromObject(object: { [k: string]: any }): bayesmech.vision.IdoSlamTrackWidthEstimate;
+
+            /**
+             * Creates a plain object from an IdoSlamTrackWidthEstimate message. Also converts values to other types if specified.
+             * @param message IdoSlamTrackWidthEstimate
+             * @param [options] Conversion options
+             * @returns Plain object
+             */
+            public static toObject(message: bayesmech.vision.IdoSlamTrackWidthEstimate, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+            /**
+             * Converts this IdoSlamTrackWidthEstimate to JSON.
+             * @returns JSON object
+             */
+            public toJSON(): { [k: string]: any };
+
+            /**
+             * Gets the default type url for IdoSlamTrackWidthEstimate
+             * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns The default type url
+             */
+            public static getTypeUrl(typeUrlPrefix?: string): string;
+        }
+
+        /** Properties of an IdoSlamCanonicalCenterlinePoint. */
+        interface IIdoSlamCanonicalCenterlinePoint {
+
+            /** IdoSlamCanonicalCenterlinePoint binIndex */
+            binIndex?: (number|null);
+
+            /** IdoSlamCanonicalCenterlinePoint progressM */
+            progressM?: (number|null);
+
+            /** IdoSlamCanonicalCenterlinePoint centerX */
+            centerX?: (number|null);
+
+            /** IdoSlamCanonicalCenterlinePoint centerY */
+            centerY?: (number|null);
+
+            /** IdoSlamCanonicalCenterlinePoint widthM */
+            widthM?: (number|null);
+
+            /** IdoSlamCanonicalCenterlinePoint leftX */
+            leftX?: (number|null);
+
+            /** IdoSlamCanonicalCenterlinePoint leftY */
+            leftY?: (number|null);
+
+            /** IdoSlamCanonicalCenterlinePoint rightX */
+            rightX?: (number|null);
+
+            /** IdoSlamCanonicalCenterlinePoint rightY */
+            rightY?: (number|null);
+        }
+
+        /** Represents an IdoSlamCanonicalCenterlinePoint. */
+        class IdoSlamCanonicalCenterlinePoint implements IIdoSlamCanonicalCenterlinePoint {
+
+            /**
+             * Constructs a new IdoSlamCanonicalCenterlinePoint.
+             * @param [properties] Properties to set
+             */
+            constructor(properties?: bayesmech.vision.IIdoSlamCanonicalCenterlinePoint);
+
+            /** IdoSlamCanonicalCenterlinePoint binIndex. */
+            public binIndex: number;
+
+            /** IdoSlamCanonicalCenterlinePoint progressM. */
+            public progressM: number;
+
+            /** IdoSlamCanonicalCenterlinePoint centerX. */
+            public centerX: number;
+
+            /** IdoSlamCanonicalCenterlinePoint centerY. */
+            public centerY: number;
+
+            /** IdoSlamCanonicalCenterlinePoint widthM. */
+            public widthM: number;
+
+            /** IdoSlamCanonicalCenterlinePoint leftX. */
+            public leftX: number;
+
+            /** IdoSlamCanonicalCenterlinePoint leftY. */
+            public leftY: number;
+
+            /** IdoSlamCanonicalCenterlinePoint rightX. */
+            public rightX: number;
+
+            /** IdoSlamCanonicalCenterlinePoint rightY. */
+            public rightY: number;
+
+            /**
+             * Creates a new IdoSlamCanonicalCenterlinePoint instance using the specified properties.
+             * @param [properties] Properties to set
+             * @returns IdoSlamCanonicalCenterlinePoint instance
+             */
+            public static create(properties?: bayesmech.vision.IIdoSlamCanonicalCenterlinePoint): bayesmech.vision.IdoSlamCanonicalCenterlinePoint;
+
+            /**
+             * Encodes the specified IdoSlamCanonicalCenterlinePoint message. Does not implicitly {@link bayesmech.vision.IdoSlamCanonicalCenterlinePoint.verify|verify} messages.
+             * @param message IdoSlamCanonicalCenterlinePoint message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encode(message: bayesmech.vision.IIdoSlamCanonicalCenterlinePoint, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Encodes the specified IdoSlamCanonicalCenterlinePoint message, length delimited. Does not implicitly {@link bayesmech.vision.IdoSlamCanonicalCenterlinePoint.verify|verify} messages.
+             * @param message IdoSlamCanonicalCenterlinePoint message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encodeDelimited(message: bayesmech.vision.IIdoSlamCanonicalCenterlinePoint, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Decodes an IdoSlamCanonicalCenterlinePoint message from the specified reader or buffer.
+             * @param reader Reader or buffer to decode from
+             * @param [length] Message length if known beforehand
+             * @returns IdoSlamCanonicalCenterlinePoint
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): bayesmech.vision.IdoSlamCanonicalCenterlinePoint;
+
+            /**
+             * Decodes an IdoSlamCanonicalCenterlinePoint message from the specified reader or buffer, length delimited.
+             * @param reader Reader or buffer to decode from
+             * @returns IdoSlamCanonicalCenterlinePoint
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): bayesmech.vision.IdoSlamCanonicalCenterlinePoint;
+
+            /**
+             * Verifies an IdoSlamCanonicalCenterlinePoint message.
+             * @param message Plain object to verify
+             * @returns `null` if valid, otherwise the reason why it is not
+             */
+            public static verify(message: { [k: string]: any }): (string|null);
+
+            /**
+             * Creates an IdoSlamCanonicalCenterlinePoint message from a plain object. Also converts values to their respective internal types.
+             * @param object Plain object
+             * @returns IdoSlamCanonicalCenterlinePoint
+             */
+            public static fromObject(object: { [k: string]: any }): bayesmech.vision.IdoSlamCanonicalCenterlinePoint;
+
+            /**
+             * Creates a plain object from an IdoSlamCanonicalCenterlinePoint message. Also converts values to other types if specified.
+             * @param message IdoSlamCanonicalCenterlinePoint
+             * @param [options] Conversion options
+             * @returns Plain object
+             */
+            public static toObject(message: bayesmech.vision.IdoSlamCanonicalCenterlinePoint, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+            /**
+             * Converts this IdoSlamCanonicalCenterlinePoint to JSON.
+             * @returns JSON object
+             */
+            public toJSON(): { [k: string]: any };
+
+            /**
+             * Gets the default type url for IdoSlamCanonicalCenterlinePoint
+             * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns The default type url
+             */
+            public static getTypeUrl(typeUrlPrefix?: string): string;
+        }
+
+        /** Properties of an IdoSlamCanonicalFrameTrack. */
+        interface IIdoSlamCanonicalFrameTrack {
+
+            /** IdoSlamCanonicalFrameTrack frameIndex */
+            frameIndex?: (number|null);
+
+            /** IdoSlamCanonicalFrameTrack frameNumber */
+            frameNumber?: (number|null);
+
+            /** IdoSlamCanonicalFrameTrack timestampNs */
+            timestampNs?: (number|Long|null);
+
+            /** IdoSlamCanonicalFrameTrack lapId */
+            lapId?: (number|null);
+
+            /** IdoSlamCanonicalFrameTrack isPartialLap */
+            isPartialLap?: (boolean|null);
+
+            /** IdoSlamCanonicalFrameTrack progressM */
+            progressM?: (number|null);
+
+            /** IdoSlamCanonicalFrameTrack progressFraction */
+            progressFraction?: (number|null);
+
+            /** IdoSlamCanonicalFrameTrack gpsX */
+            gpsX?: (number|null);
+
+            /** IdoSlamCanonicalFrameTrack gpsY */
+            gpsY?: (number|null);
+
+            /** IdoSlamCanonicalFrameTrack canonicalX */
+            canonicalX?: (number|null);
+
+            /** IdoSlamCanonicalFrameTrack canonicalY */
+            canonicalY?: (number|null);
+
+            /** IdoSlamCanonicalFrameTrack lateralOffsetM */
+            lateralOffsetM?: (number|null);
+
+            /** IdoSlamCanonicalFrameTrack imageLateralM */
+            imageLateralM?: (number|null);
+
+            /** IdoSlamCanonicalFrameTrack hasImageLateralM */
+            hasImageLateralM?: (boolean|null);
+
+            /** IdoSlamCanonicalFrameTrack trajectoryLateralM */
+            trajectoryLateralM?: (number|null);
+
+            /** IdoSlamCanonicalFrameTrack trajectoryX */
+            trajectoryX?: (number|null);
+
+            /** IdoSlamCanonicalFrameTrack trajectoryY */
+            trajectoryY?: (number|null);
+
+            /** IdoSlamCanonicalFrameTrack widthM */
+            widthM?: (number|null);
+
+            /** IdoSlamCanonicalFrameTrack halfWidthM */
+            halfWidthM?: (number|null);
+        }
+
+        /** Represents an IdoSlamCanonicalFrameTrack. */
+        class IdoSlamCanonicalFrameTrack implements IIdoSlamCanonicalFrameTrack {
+
+            /**
+             * Constructs a new IdoSlamCanonicalFrameTrack.
+             * @param [properties] Properties to set
+             */
+            constructor(properties?: bayesmech.vision.IIdoSlamCanonicalFrameTrack);
+
+            /** IdoSlamCanonicalFrameTrack frameIndex. */
+            public frameIndex: number;
+
+            /** IdoSlamCanonicalFrameTrack frameNumber. */
+            public frameNumber: number;
+
+            /** IdoSlamCanonicalFrameTrack timestampNs. */
+            public timestampNs: (number|Long);
+
+            /** IdoSlamCanonicalFrameTrack lapId. */
+            public lapId: number;
+
+            /** IdoSlamCanonicalFrameTrack isPartialLap. */
+            public isPartialLap: boolean;
+
+            /** IdoSlamCanonicalFrameTrack progressM. */
+            public progressM: number;
+
+            /** IdoSlamCanonicalFrameTrack progressFraction. */
+            public progressFraction: number;
+
+            /** IdoSlamCanonicalFrameTrack gpsX. */
+            public gpsX: number;
+
+            /** IdoSlamCanonicalFrameTrack gpsY. */
+            public gpsY: number;
+
+            /** IdoSlamCanonicalFrameTrack canonicalX. */
+            public canonicalX: number;
+
+            /** IdoSlamCanonicalFrameTrack canonicalY. */
+            public canonicalY: number;
+
+            /** IdoSlamCanonicalFrameTrack lateralOffsetM. */
+            public lateralOffsetM: number;
+
+            /** IdoSlamCanonicalFrameTrack imageLateralM. */
+            public imageLateralM: number;
+
+            /** IdoSlamCanonicalFrameTrack hasImageLateralM. */
+            public hasImageLateralM: boolean;
+
+            /** IdoSlamCanonicalFrameTrack trajectoryLateralM. */
+            public trajectoryLateralM: number;
+
+            /** IdoSlamCanonicalFrameTrack trajectoryX. */
+            public trajectoryX: number;
+
+            /** IdoSlamCanonicalFrameTrack trajectoryY. */
+            public trajectoryY: number;
+
+            /** IdoSlamCanonicalFrameTrack widthM. */
+            public widthM: number;
+
+            /** IdoSlamCanonicalFrameTrack halfWidthM. */
+            public halfWidthM: number;
+
+            /**
+             * Creates a new IdoSlamCanonicalFrameTrack instance using the specified properties.
+             * @param [properties] Properties to set
+             * @returns IdoSlamCanonicalFrameTrack instance
+             */
+            public static create(properties?: bayesmech.vision.IIdoSlamCanonicalFrameTrack): bayesmech.vision.IdoSlamCanonicalFrameTrack;
+
+            /**
+             * Encodes the specified IdoSlamCanonicalFrameTrack message. Does not implicitly {@link bayesmech.vision.IdoSlamCanonicalFrameTrack.verify|verify} messages.
+             * @param message IdoSlamCanonicalFrameTrack message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encode(message: bayesmech.vision.IIdoSlamCanonicalFrameTrack, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Encodes the specified IdoSlamCanonicalFrameTrack message, length delimited. Does not implicitly {@link bayesmech.vision.IdoSlamCanonicalFrameTrack.verify|verify} messages.
+             * @param message IdoSlamCanonicalFrameTrack message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encodeDelimited(message: bayesmech.vision.IIdoSlamCanonicalFrameTrack, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Decodes an IdoSlamCanonicalFrameTrack message from the specified reader or buffer.
+             * @param reader Reader or buffer to decode from
+             * @param [length] Message length if known beforehand
+             * @returns IdoSlamCanonicalFrameTrack
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): bayesmech.vision.IdoSlamCanonicalFrameTrack;
+
+            /**
+             * Decodes an IdoSlamCanonicalFrameTrack message from the specified reader or buffer, length delimited.
+             * @param reader Reader or buffer to decode from
+             * @returns IdoSlamCanonicalFrameTrack
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): bayesmech.vision.IdoSlamCanonicalFrameTrack;
+
+            /**
+             * Verifies an IdoSlamCanonicalFrameTrack message.
+             * @param message Plain object to verify
+             * @returns `null` if valid, otherwise the reason why it is not
+             */
+            public static verify(message: { [k: string]: any }): (string|null);
+
+            /**
+             * Creates an IdoSlamCanonicalFrameTrack message from a plain object. Also converts values to their respective internal types.
+             * @param object Plain object
+             * @returns IdoSlamCanonicalFrameTrack
+             */
+            public static fromObject(object: { [k: string]: any }): bayesmech.vision.IdoSlamCanonicalFrameTrack;
+
+            /**
+             * Creates a plain object from an IdoSlamCanonicalFrameTrack message. Also converts values to other types if specified.
+             * @param message IdoSlamCanonicalFrameTrack
+             * @param [options] Conversion options
+             * @returns Plain object
+             */
+            public static toObject(message: bayesmech.vision.IdoSlamCanonicalFrameTrack, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+            /**
+             * Converts this IdoSlamCanonicalFrameTrack to JSON.
+             * @returns JSON object
+             */
+            public toJSON(): { [k: string]: any };
+
+            /**
+             * Gets the default type url for IdoSlamCanonicalFrameTrack
+             * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns The default type url
+             */
+            public static getTypeUrl(typeUrlPrefix?: string): string;
+        }
+
+        /** Properties of an IdoSlamResponse. */
+        interface IIdoSlamResponse {
+
+            /** IdoSlamResponse firstFrameId */
+            firstFrameId?: (bayesmech.vision.IPerceiverFrameIdentifier|null);
+
+            /** IdoSlamResponse recordingPath */
+            recordingPath?: (string|null);
+
+            /** IdoSlamResponse segmentationPath */
+            segmentationPath?: (string|null);
+
+            /** IdoSlamResponse workspacePath */
+            workspacePath?: (string|null);
+
+            /** IdoSlamResponse framePoses */
+            framePoses?: (bayesmech.vision.IIdoSlamFramePose[]|null);
+
+            /** IdoSlamResponse groundPoints */
+            groundPoints?: (bayesmech.vision.IIdoSlamGroundPoint[]|null);
+
+            /** IdoSlamResponse pairDebug */
+            pairDebug?: (bayesmech.vision.IIdoSlamPairDebug[]|null);
+
+            /** IdoSlamResponse refinedFramePoses */
+            refinedFramePoses?: (bayesmech.vision.IIdoSlamFramePose[]|null);
+
+            /** IdoSlamResponse pairwiseMotion */
+            pairwiseMotion?: (bayesmech.vision.IIdoSlamPairwiseMotion[]|null);
+
+            /** IdoSlamResponse planeWidthEstimates */
+            planeWidthEstimates?: (bayesmech.vision.IIdoSlamTrackWidthEstimate[]|null);
+
+            /** IdoSlamResponse planeWidthSummaryJson */
+            planeWidthSummaryJson?: (string|null);
+
+            /** IdoSlamResponse canonicalCenterline */
+            canonicalCenterline?: (bayesmech.vision.IIdoSlamCanonicalCenterlinePoint[]|null);
+
+            /** IdoSlamResponse canonicalFrameTracks */
+            canonicalFrameTracks?: (bayesmech.vision.IIdoSlamCanonicalFrameTrack[]|null);
+
+            /** IdoSlamResponse canonicalSummaryJson */
+            canonicalSummaryJson?: (string|null);
+
+            /** IdoSlamResponse triangulatedWidthEstimates */
+            triangulatedWidthEstimates?: (bayesmech.vision.IIdoSlamTrackWidthEstimate[]|null);
+
+            /** IdoSlamResponse triangulatedSummaryJson */
+            triangulatedSummaryJson?: (string|null);
+        }
+
+        /** Represents an IdoSlamResponse. */
+        class IdoSlamResponse implements IIdoSlamResponse {
+
+            /**
+             * Constructs a new IdoSlamResponse.
+             * @param [properties] Properties to set
+             */
+            constructor(properties?: bayesmech.vision.IIdoSlamResponse);
+
+            /** IdoSlamResponse firstFrameId. */
+            public firstFrameId?: (bayesmech.vision.IPerceiverFrameIdentifier|null);
+
+            /** IdoSlamResponse recordingPath. */
+            public recordingPath: string;
+
+            /** IdoSlamResponse segmentationPath. */
+            public segmentationPath: string;
+
+            /** IdoSlamResponse workspacePath. */
+            public workspacePath: string;
+
+            /** IdoSlamResponse framePoses. */
+            public framePoses: bayesmech.vision.IIdoSlamFramePose[];
+
+            /** IdoSlamResponse groundPoints. */
+            public groundPoints: bayesmech.vision.IIdoSlamGroundPoint[];
+
+            /** IdoSlamResponse pairDebug. */
+            public pairDebug: bayesmech.vision.IIdoSlamPairDebug[];
+
+            /** IdoSlamResponse refinedFramePoses. */
+            public refinedFramePoses: bayesmech.vision.IIdoSlamFramePose[];
+
+            /** IdoSlamResponse pairwiseMotion. */
+            public pairwiseMotion: bayesmech.vision.IIdoSlamPairwiseMotion[];
+
+            /** IdoSlamResponse planeWidthEstimates. */
+            public planeWidthEstimates: bayesmech.vision.IIdoSlamTrackWidthEstimate[];
+
+            /** IdoSlamResponse planeWidthSummaryJson. */
+            public planeWidthSummaryJson: string;
+
+            /** IdoSlamResponse canonicalCenterline. */
+            public canonicalCenterline: bayesmech.vision.IIdoSlamCanonicalCenterlinePoint[];
+
+            /** IdoSlamResponse canonicalFrameTracks. */
+            public canonicalFrameTracks: bayesmech.vision.IIdoSlamCanonicalFrameTrack[];
+
+            /** IdoSlamResponse canonicalSummaryJson. */
+            public canonicalSummaryJson: string;
+
+            /** IdoSlamResponse triangulatedWidthEstimates. */
+            public triangulatedWidthEstimates: bayesmech.vision.IIdoSlamTrackWidthEstimate[];
+
+            /** IdoSlamResponse triangulatedSummaryJson. */
+            public triangulatedSummaryJson: string;
+
+            /**
+             * Creates a new IdoSlamResponse instance using the specified properties.
+             * @param [properties] Properties to set
+             * @returns IdoSlamResponse instance
+             */
+            public static create(properties?: bayesmech.vision.IIdoSlamResponse): bayesmech.vision.IdoSlamResponse;
+
+            /**
+             * Encodes the specified IdoSlamResponse message. Does not implicitly {@link bayesmech.vision.IdoSlamResponse.verify|verify} messages.
+             * @param message IdoSlamResponse message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encode(message: bayesmech.vision.IIdoSlamResponse, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Encodes the specified IdoSlamResponse message, length delimited. Does not implicitly {@link bayesmech.vision.IdoSlamResponse.verify|verify} messages.
+             * @param message IdoSlamResponse message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encodeDelimited(message: bayesmech.vision.IIdoSlamResponse, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Decodes an IdoSlamResponse message from the specified reader or buffer.
+             * @param reader Reader or buffer to decode from
+             * @param [length] Message length if known beforehand
+             * @returns IdoSlamResponse
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): bayesmech.vision.IdoSlamResponse;
+
+            /**
+             * Decodes an IdoSlamResponse message from the specified reader or buffer, length delimited.
+             * @param reader Reader or buffer to decode from
+             * @returns IdoSlamResponse
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): bayesmech.vision.IdoSlamResponse;
+
+            /**
+             * Verifies an IdoSlamResponse message.
+             * @param message Plain object to verify
+             * @returns `null` if valid, otherwise the reason why it is not
+             */
+            public static verify(message: { [k: string]: any }): (string|null);
+
+            /**
+             * Creates an IdoSlamResponse message from a plain object. Also converts values to their respective internal types.
+             * @param object Plain object
+             * @returns IdoSlamResponse
+             */
+            public static fromObject(object: { [k: string]: any }): bayesmech.vision.IdoSlamResponse;
+
+            /**
+             * Creates a plain object from an IdoSlamResponse message. Also converts values to other types if specified.
+             * @param message IdoSlamResponse
+             * @param [options] Conversion options
+             * @returns Plain object
+             */
+            public static toObject(message: bayesmech.vision.IdoSlamResponse, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+            /**
+             * Converts this IdoSlamResponse to JSON.
+             * @returns JSON object
+             */
+            public toJSON(): { [k: string]: any };
+
+            /**
+             * Gets the default type url for IdoSlamResponse
              * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
              * @returns The default type url
              */

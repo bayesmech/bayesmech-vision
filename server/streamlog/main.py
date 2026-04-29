@@ -8,6 +8,7 @@ WS  /ws/dashboard            Dashboard <- binary protobuf stream + annotations
 GET /api/health              Server status
 GET /api/stream              FrameStore stats
 GET /api/recordings          List saved .pb recordings
+GET /api/idoslam             Return IdoSlamResponse for a recording
 GET /api/analysis/recordings/{name}   Discover generated analysis artifacts for a recording
 GET /api/analysis/playback            Discover generated analysis artifacts for the current playback
 POST /api/playback/start     Load a recording into the store
@@ -53,6 +54,7 @@ sys.path.append(str(_project_root / "proto"))
 sys.path.append(str(_server_root))
 from proto import perceiver_pb2
 from proto import insightgen_pb2
+from proto import idoslam_pb2
 from proto import motioncap_pb2
 from proto import reconstruction_pb2
 from proto import segmentation_pb2
@@ -90,6 +92,8 @@ RECORDINGS_DIR.mkdir(exist_ok=True)
 store = FrameStore()
 annotator = Annotator()
 bridge = DashboardBridge(store, annotator)
+_idoslam_io = ProtoIO(idoslam_pb2.IdoSlamResponse)
+_idoslam_io.FRAME_SIZE_LIMIT = 512 * 1024 * 1024
 
 # Load genspark config for chat follow-up
 _genspark_config_path = _server_root / "genspark" / "config.yaml"
@@ -337,6 +341,24 @@ def _recording_file(file_name: str, suffix: str) -> Path:
     return _recording_dir(file_name) / f"{file_name}.{suffix}"
 
 
+def _safe_recording_stem(file_name: str) -> str:
+    safe_name = Path(file_name).name
+    for suffix in (".vis.pb", ".idoslam.pb", ".seg.pb"):
+        safe_name = safe_name.removesuffix(suffix)
+    return safe_name
+
+
+def _idoslam_path_for_request(file_name: str | None) -> Path | None:
+    if file_name:
+        safe_name = _safe_recording_stem(file_name)
+        return _recording_file(safe_name, "idoslam.pb")
+    if store.current_file is None:
+        return None
+    current = store.current_file
+    stem = current.name.removesuffix(".vis.pb") if current.name.endswith(".vis.pb") else current.stem
+    return current.parent / f"{stem}.idoslam.pb"
+
+
 def _build_summary_markdown(summary: insightgen_pb2.GensparkSummary) -> str:
     parts: list[str] = []
     if summary.title.strip():
@@ -548,6 +570,24 @@ _ANALYSIS_SPECS: tuple[AnalysisSpec, ...] = (
                 query_parameters=("frame_index", "timestamp_ns"),
             ),
         ),
+    ),
+    AnalysisSpec(
+        name="idoslam",
+        title="Localization and Mapping",
+        artifacts=(
+            AnalysisArtifactSpec(
+                name="proto",
+                title="IdoSlam Response",
+                suffix="idoslam.pb",
+                media_type="application/x-protobuf",
+                kind="protobuf",
+                encoding="length-delimited-protobuf",
+                aliases=("pb", "slam"),
+                proto_message_type="bayesmech.vision.IdoSlamResponse",
+                proto_io=_idoslam_io,
+            ),
+        ),
+        aliases=("slam", "localization_mapping"),
     ),
     AnalysisSpec(
         name="genspark",
@@ -920,6 +960,7 @@ async def list_recordings():
             "size_mb": round(vis.stat().st_size / (1024 ** 2), 2),
             "recorded_at": _parse_recording_timestamp(d.name, d.stat().st_mtime),
             "has_segmentation": (d / f"{d.name}.seg.pb").exists(),
+            "has_idoslam": (d / f"{d.name}.idoslam.pb").exists(),
             "has_motioncap": (
                 (d / f"{d.name}.motion.pb").exists()
                 or (d / f"{d.name}.motion.mp4").exists()
@@ -928,6 +969,35 @@ async def list_recordings():
             "analysis_url": f"/api/analysis/recordings/{quote(d.name)}",
         })
     return {"recordings": recordings}
+
+
+@app.get("/api/idoslam")
+async def idoslam_data(file: str | None = None):
+    """
+    Return the latest IdoSlamResponse for a recording.
+
+    The on-disk checkpoint uses the repository's length-delimited protobuf
+    format; this endpoint unwraps the latest record and returns the raw message
+    bytes for direct browser-side protobuf decoding.
+    """
+    pb_path = _idoslam_path_for_request(file)
+    if pb_path is None or not pb_path.exists():
+        return Response(status_code=404)
+    try:
+        records = await asyncio.get_event_loop().run_in_executor(
+            None,
+            _idoslam_io.read_file,
+            pb_path,
+        )
+        if not records:
+            return Response(status_code=404)
+        return Response(
+            content=records[-1].SerializeToString(),
+            media_type="application/x-protobuf",
+        )
+    except Exception as exc:
+        logger.error("idoslam_data error for %s: %s", pb_path, exc, exc_info=True)
+        return Response(status_code=500)
 
 
 def _resolve_recording_analysis(
@@ -1006,31 +1076,45 @@ def _resolve_motioncap_frame_index(
     motion_path: Path,
     *,
     frame_index: int | None,
+    frame_number: int | None,
     timestamp_ns: int | None,
 ) -> int:
-    if frame_index is not None and timestamp_ns is not None:
+    provided = sum(
+        value is not None
+        for value in (frame_index, frame_number, timestamp_ns)
+    )
+    if provided > 1:
         raise HTTPException(
             status_code=400,
-            detail="Provide either frame_index or timestamp_ns, not both",
+            detail="Provide only one of frame_index, frame_number, or timestamp_ns",
         )
-    if frame_index is None and timestamp_ns is None:
+    if provided == 0:
         raise HTTPException(
             status_code=400,
-            detail="Provide either frame_index or timestamp_ns",
+            detail="Provide one of frame_index, frame_number, or timestamp_ns",
         )
     if frame_index is not None:
         if frame_index < 0:
             raise HTTPException(status_code=400, detail="frame_index must be >= 0")
         return frame_index
+    if frame_number is not None and frame_number < 0:
+        raise HTTPException(status_code=400, detail="frame_number must be >= 0")
 
     heatmap_index = 0
     for record in _motion_io.read_file(motion_path):
         if record.tracks:
             continue
-        if int(record.frame_identifier.timestamp_ns) == int(timestamp_ns):
+        if frame_number is not None and int(record.frame_identifier.frame_number) == int(frame_number):
+            return heatmap_index
+        if timestamp_ns is not None and int(record.frame_identifier.timestamp_ns) == int(timestamp_ns):
             return heatmap_index
         heatmap_index += 1
 
+    if frame_number is not None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No motion capture frame found for frame number {frame_number}",
+        )
     raise HTTPException(
         status_code=404,
         detail=f"No motion capture frame found for timestamp {timestamp_ns}",
@@ -1056,6 +1140,7 @@ async def _motioncap_heatmap_response(
     motion_path: Path | None,
     *,
     frame_index: int | None,
+    frame_number: int | None,
     timestamp_ns: int | None,
 ) -> Response:
     if motion_path is None:
@@ -1065,6 +1150,7 @@ async def _motioncap_heatmap_response(
         _resolve_motioncap_frame_index,
         motion_path,
         frame_index=frame_index,
+        frame_number=frame_number,
         timestamp_ns=timestamp_ns,
     )
     png_bytes = await asyncio.to_thread(_motioncap_layer().heatmap_png, motion_path, resolved_index)
@@ -1260,6 +1346,7 @@ async def analysis_playback_motioncap_tracks():
 async def analysis_recording_motioncap_heatmap(
     recording_name: str,
     frame_index: int | None = None,
+    frame_number: int | None = None,
     timestamp_ns: int | None = None,
 ):
     safe_name = _ensure_recording_exists(recording_name)
@@ -1267,6 +1354,7 @@ async def analysis_recording_motioncap_heatmap(
     return await _motioncap_heatmap_response(
         motion_path if motion_path.exists() else None,
         frame_index=frame_index,
+        frame_number=frame_number,
         timestamp_ns=timestamp_ns,
     )
 
@@ -1274,11 +1362,13 @@ async def analysis_recording_motioncap_heatmap(
 @app.get("/api/analysis/playback/analyses/motioncap/views/heatmap")
 async def analysis_playback_motioncap_heatmap(
     frame_index: int | None = None,
+    frame_number: int | None = None,
     timestamp_ns: int | None = None,
 ):
     return await _motioncap_heatmap_response(
         _current_motioncap_path(),
         frame_index=frame_index,
+        frame_number=frame_number,
         timestamp_ns=timestamp_ns,
     )
 
@@ -1579,6 +1669,7 @@ async def playback_motioncap_heatmap(index: int):
     return await _motioncap_heatmap_response(
         _current_motioncap_path(),
         frame_index=index,
+        frame_number=None,
         timestamp_ns=None,
     )
 

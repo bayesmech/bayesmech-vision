@@ -14,7 +14,7 @@ proto/*_pb2.py
 proto/*_pb2_grpc.py
 
 # Log and savedata files
+recordings
 recordings/
 server/segmentation/models/
 server/motioncap/models/
-

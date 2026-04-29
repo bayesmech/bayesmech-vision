@@ -9,6 +9,7 @@ import TrajectoryCanvas from './TrajectoryCanvas'
 import GpsMapViewer from './GpsMapViewer'
 import CoveragePanel from './CoveragePanel'
 import MotioncapPanel from './MotioncapPanel'
+import LocalizationMappingTab from './LocalizationMappingTab'
 import type { GpsLocation, ImuData, SegmentationLegendEntry, SensorFrameData } from '../types'
 
 const XYZ = ['X', 'Y', 'Z']
@@ -19,6 +20,7 @@ type DashboardTabId =
   | 'stable-entity-understanding'
   | 'sensors'
   | 'path-planning'
+  | 'localization-mapping'
 
 const DASHBOARD_TABS: {
   id: DashboardTabId
@@ -55,6 +57,12 @@ const DASHBOARD_TABS: {
     label: 'Path Planning',
     badge: 'NAV',
     description: 'Compare GPS motion with the SLAM-generated trajectory.',
+  },
+  {
+    id: 'localization-mapping',
+    label: 'Localization + Mapping',
+    badge: 'SLAM',
+    description: 'Inspect SLAM maps, SIFT road features, and projected road boundaries.',
   },
 ]
 
@@ -352,6 +360,10 @@ const DashboardPage = () => {
                 />
               </div>
             </>
+          )}
+
+          {activeTab === 'localization-mapping' && (
+            <LocalizationMappingTab />
           )}
         </div>
       </div>
