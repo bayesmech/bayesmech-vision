@@ -24,13 +24,15 @@ sys.path.insert(0, str(_server_root))
 
 from pongtown.iou_scorer import IoUScorer, summarise
 from pongtown.loader import iter_bundles
-from pongtown.pose import PoseResult, canonical_corners_mm, solve_table_pose
+from pongtown.pose import PoseResult, canonical_corners_mm, solve_net_pose, solve_table_pose
 from pongtown.quad_fit import (
     METHOD_QUAD_FAILED,
+    fit_net_quadrilateral,
     fit_table_quadrilateral,
 )
 from pongtown.render import (
     montage,
+    render_net_panel,
     render_pose_panel,
     render_stage1_panel,
 )
@@ -242,21 +244,33 @@ def main() -> None:
     ):
         qres = fit_table_quadrilateral(b.table_mask, b.net_mask, cfg=cfg)
         pres = PoseResult(None, None, None, 0.0, False)
-        if args.stop_after >= 2 and qres.method != METHOD_QUAD_FAILED:
-            pres = solve_table_pose(
-                qres.quad_img, qres.midline_img, b.intrinsics,
-                cfg=cfg,
-                table_mask=b.table_mask, net_mask=b.net_mask,
-                person_mask=b.person_mask,
-                image_shape=b.rgb.shape[:2],
-                T_camera_to_world=b.T_camera_to_world,
-                world_up_axis=1,
-                half_rectangle=False,
-            )
+        net_quad_img = fit_net_quadrilateral(b.net_mask)
+        nres = PoseResult(None, None, None, 0.0, False)
+        if args.stop_after >= 2:
+            if qres.method != METHOD_QUAD_FAILED:
+                pres = solve_table_pose(
+                    qres.quad_img, qres.midline_img, b.intrinsics,
+                    cfg=cfg,
+                    table_mask=b.table_mask, net_mask=b.net_mask,
+                    person_mask=b.person_mask,
+                    image_shape=b.rgb.shape[:2],
+                    T_camera_to_world=b.T_camera_to_world,
+                    world_up_axis=1,
+                    half_rectangle=False,
+                )
+            if net_quad_img is not None:
+                nres = solve_net_pose(
+                    net_quad_img, b.intrinsics,
+                    cfg=cfg,
+                    T_camera_to_world=b.T_camera_to_world,
+                    world_up_axis=1,
+                )
         results.append({
             "bundle": b,
             "qres": qres,
             "pres": pres,
+            "net_quad_img": net_quad_img,
+            "nres": nres,
         })
         if debug and odir is not None and (b.frame_idx % every) == 0:
             mask_overlay = {
@@ -277,6 +291,11 @@ def main() -> None:
                     pres.pnp_iou,
                     f"f{b.frame_idx} stage2",
                     mask_overlays=mask_overlay,
+                ))
+                panels.append(render_net_panel(
+                    b.rgb, b.net_mask, net_quad_img,
+                    nres.rvec, nres.tvec, b.intrinsics,
+                    f"f{b.frame_idx} net-pnp",
                 ))
             cv2.imwrite(str(odir / f"frame_{b.frame_idx:06d}.png"), montage(panels))
 
@@ -420,9 +439,14 @@ def main() -> None:
             f"f{b.frame_idx} stage2",
             mask_overlays=mask_overlay,
         )
+        net_panel = render_net_panel(
+            b.rgb, b.net_mask, r["net_quad_img"],
+            r["nres"].rvec, r["nres"].tvec, b.intrinsics,
+            f"f{b.frame_idx} net-pnp",
+        )
         cv2.imwrite(
             str(odir / f"frame_{b.frame_idx:06d}.png"),
-            montage([stage1, stage2, stage3]),
+            montage([stage1, stage2, stage3, net_panel]),
         )
 
     # ── Final stats ──────────────────────────────────────────────────────────

@@ -270,3 +270,101 @@ def solve_table_pose(
         iou = float(inter.sum()) / float(u) if u > 0 else 0.0
 
     return PoseResult(rvec, tvec, T, iou, True)
+
+
+def canonical_net_local_mm(W_net: float = 1830.0, h_net: float = 152.5) -> np.ndarray:
+    """4 net corners in net-local frame where z=0 (required by IPPE).
+
+    Net-local axes: x = net width direction, y = vertical (up along net),
+    z = normal to net plane (toward camera when table top faces up).
+    Origin at centre of the net's bottom edge.
+
+    This frame relates to table-local frame by:
+      net_x = table_y,  net_y = table_z,  net_z = table_x
+    """
+    return np.array(
+        [
+            [-W_net / 2, 0.0,   0.0],
+            [+W_net / 2, 0.0,   0.0],
+            [+W_net / 2, h_net, 0.0],
+            [-W_net / 2, h_net, 0.0],
+        ],
+        dtype=np.float64,
+    )
+
+
+def solve_net_pose(
+    net_quad_img: np.ndarray,
+    K: np.ndarray,
+    *,
+    cfg: dict,
+    T_camera_to_world: np.ndarray | None = None,
+    world_up_axis: int = 1,
+) -> PoseResult:
+    """Independently solve the net pose via IPPE on the 4 detected net corners.
+
+    Uses the net-local z=0 frame so IPPE is valid (the net is a vertical plane,
+    not the table plane).  Disambiguation: the net-local y-axis (vertical up
+    the net) must point up in world frame.
+
+    The returned rvec/tvec express T_net_to_camera in the net-local frame.
+    """
+    if net_quad_img is None or len(net_quad_img) != 4:
+        return PoseResult(None, None, None, 0.0, False)
+
+    t_cfg = cfg["table"]
+    W_net = t_cfg["height_mm"] + 2.0 * t_cfg["net_overhang_mm"]
+    h_net = t_cfg["net_height_mm"]
+    P_net = canonical_net_local_mm(W_net, h_net)
+
+    quad = np.ascontiguousarray(net_quad_img.astype(np.float64))
+
+    best_ok = False
+    best_rvecs: list | None = None
+    best_tvecs: list | None = None
+    best_err = float("inf")
+    best_P = P_net
+
+    for rot in range(4):
+        P = np.roll(P_net, -rot, axis=0)
+        try:
+            ok, rvecs, tvecs, _ = cv2.solvePnPGeneric(
+                P, quad, K, None, flags=cv2.SOLVEPNP_IPPE
+            )
+        except cv2.error:
+            continue
+        if not ok or len(rvecs) == 0:
+            continue
+        for rv, tv in zip(rvecs, tvecs):
+            re = _project_world_to_image(P, rv, tv, K)
+            err = float(np.linalg.norm(re - quad, axis=1).mean())
+            if err < best_err:
+                best_err = err
+                best_ok = True
+                best_rvecs = rvecs
+                best_tvecs = tvecs
+                best_P = P
+
+    if not best_ok:
+        return PoseResult(None, None, None, 0.0, False)
+
+    # Disambiguate: net-local y (vertical) must point up in world.
+    best_idx = 0
+    if T_camera_to_world is not None:
+        best_dot = -float("inf")
+        for i, (rv, tv) in enumerate(zip(best_rvecs, best_tvecs)):
+            R, _ = cv2.Rodrigues(rv)
+            T_nc = np.eye(4)
+            T_nc[:3, :3] = R
+            T_nc[:3, 3] = tv.reshape(3)
+            T_nw = T_camera_to_world @ T_nc
+            net_up_world = T_nw[:3, :3] @ np.array([0.0, 1.0, 0.0])
+            dot = float(net_up_world[world_up_axis])
+            if dot > best_dot:
+                best_dot = dot
+                best_idx = i
+
+    rvec = best_rvecs[best_idx].reshape(3).astype(np.float64)
+    tvec = best_tvecs[best_idx].reshape(3).astype(np.float64)
+    T = _make_T(rvec, tvec)
+    return PoseResult(rvec, tvec, T, 0.0, True)

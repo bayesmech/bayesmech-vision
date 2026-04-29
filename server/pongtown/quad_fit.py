@@ -608,3 +608,21 @@ def fit_table_quadrilateral(
     # the score to the near half.
     quality = _quad_fit_quality(quad, table_mask, net_mask)
     return QuadResult(method, quad, midline_pts, float(quality), half_quad)
+
+
+def fit_net_quadrilateral(
+    net_mask: np.ndarray | None,
+    min_area_px: int = 300,
+) -> np.ndarray | None:
+    """Detect the 4 corners of the net mask via convex-hull approxPolyDP.
+
+    Returns (4, 2) float64 corners in CCW-from-top-left order, or None if the
+    mask is absent, too small, or cannot be reduced to exactly 4 vertices.
+    Uses a smaller min_area_px than the table fit because the net mask is a
+    thin strip (~20 px tall in typical recordings).
+    """
+    if net_mask is None or not net_mask.any():
+        return None
+    if int(net_mask.sum()) < min_area_px:
+        return None
+    return _approx_quad_from_mask(net_mask)

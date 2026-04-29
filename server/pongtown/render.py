@@ -112,6 +112,39 @@ def render_pose_panel(
     return img
 
 
+COLOR_NET_REPROJ = (0, 255, 0)   # green — reprojected net from net-PnP
+
+
+def render_net_panel(
+    rgb_bgr: np.ndarray,
+    net_mask: np.ndarray | None,
+    net_quad_img: np.ndarray | None,
+    rvec: np.ndarray | None,
+    tvec: np.ndarray | None,
+    K: np.ndarray,
+    title: str,
+) -> np.ndarray:
+    """Show net mask, detected quad corners (white), and reprojected canonical
+    net from the independent net PnP (green)."""
+    img = rgb_bgr.copy()
+    if net_mask is not None and net_mask.any():
+        img = _alpha_blend(img, net_mask, COLOR_NET)
+    if net_quad_img is not None:
+        pts = np.round(net_quad_img).astype(np.int32).reshape(-1, 1, 2)
+        cv2.polylines(img, [pts], True, COLOR_QUAD, 2)
+    if rvec is not None and tvec is not None:
+        from pongtown.pose import canonical_net_local_mm
+        P_net = canonical_net_local_mm()
+        proj, _ = cv2.projectPoints(P_net, rvec, tvec, K, None)
+        cv2.polylines(
+            img, [np.round(proj).astype(np.int32).reshape(-1, 1, 2)], True,
+            COLOR_NET_REPROJ, 2,
+        )
+    status = "ok" if rvec is not None else "FAILED"
+    cv2.putText(img, f"{title} [{status}]", (10, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.6, COLOR_QUAD, 2)
+    return img
+
+
 def montage(panels: list[np.ndarray]) -> np.ndarray:
     """Concatenate panels horizontally, padding to a common height."""
     h = max(p.shape[0] for p in panels)
