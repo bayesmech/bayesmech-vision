@@ -1,7 +1,7 @@
 # Segmentation
 
 Offline video segmentation using SAM3 text prompts. Processes `.vis.pb` recordings and
-produces `.seg.pb` annotation files that the dashboard can display.
+produces `.segmentation.pb` annotation files that the dashboard can display.
 
 ## Setup
 
@@ -46,7 +46,7 @@ uv run python segmentation/main.py ../recordings/<name>.vis.pb \
     --text "table, person" --max-frames 100
 ```
 
-Output is written to `recordings/<name>.seg.pb` alongside the input file.
+Output is written to `recordings/<name>.segmentation.pb` alongside the input file.
 
 ## CLI Options
 
@@ -84,7 +84,7 @@ sampling:
 
 SAM3 **always processes every frame** to maintain temporal tracking consistency.
 The `sample_every_x_frames` parameter only controls which frames have annotations *saved* to
-the `.seg.pb` file. This reduces output file size and annotation density without affecting
+the `.segmentation.pb` file. This reduces output file size and annotation density without affecting
 tracking quality.
 
 ## How It Works
@@ -92,7 +92,7 @@ tracking quality.
 1. Loads all proto frames (JPEG bytes stay compressed)
 2. Initialises a `Sam3VideoModel` streaming session with the specified text concepts
 3. For each frame: decodes JPEG → runs SAM3 → tracker maintains object identity
-4. Saves results for every `--sample-every` frames (streaming append to `.seg.pb`)
+4. Saves results for every `--sample-every` frames (streaming append to `.segmentation.pb`)
 
 ## Mask Format
 

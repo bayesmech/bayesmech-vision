@@ -5,6 +5,8 @@ export type PerceiverDataFrame = bayesmech.vision.PerceiverDataFrame
 export type IPerceiverDataFrame = bayesmech.vision.IPerceiverDataFrame
 export type SegmentationResponse = bayesmech.vision.SegmentationResponse
 export type ISegmentationResponse = bayesmech.vision.ISegmentationResponse
+export type IdoSlamResponse = bayesmech.vision.IdoSlamResponse
+export type IIdoSlamResponse = bayesmech.vision.IIdoSlamResponse
 
 // === Legacy interfaces used by existing components ===
 
@@ -116,6 +118,7 @@ export interface RecordingInfo {
   size_mb: number
   recorded_at: number
   has_segmentation: boolean
+  has_idoslam?: boolean
   has_motioncap: boolean
 }
 
@@ -162,10 +165,19 @@ export interface SegmentationLegendEntry {
   color: [number, number, number]
 }
 
+export interface DecodedMask {
+  objectId: number
+  label: string
+  width: number
+  height: number
+  mask: Uint8Array
+}
+
 export interface DecodedAnnotation {
   frameNumber: number
   blobUrl: string
   legend: SegmentationLegendEntry[]
+  masks: DecodedMask[]
 }
 
 // === Precomputed sensor data for file-mode playback ===
@@ -186,6 +198,8 @@ export interface MotioncapTrackPosition {
   frame_idx: number
   cx: number
   cy: number
+  area?: number
+  interpolated?: boolean
 }
 
 export interface MotioncapTrackLegendItem {
@@ -195,4 +209,18 @@ export interface MotioncapTrackLegendItem {
   total_positions: number
   presence_fraction: number
   positions: MotioncapTrackPosition[]
+}
+
+export interface MotioncapFrameRecord {
+  heatmapIndex: number
+  frameNumber: number
+  timestampNs: number
+  heatmapData: Uint8Array
+}
+
+export interface MotioncapData {
+  frames: MotioncapFrameRecord[]
+  byFrameNumber: Map<number, MotioncapFrameRecord>
+  byHeatmapIndex: Map<number, MotioncapFrameRecord>
+  tracks: MotioncapTrackLegendItem[]
 }

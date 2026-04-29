@@ -8,6 +8,7 @@ WS  /ws/dashboard            Dashboard <- binary protobuf stream + annotations
 GET /api/health              Server status
 GET /api/stream              FrameStore stats
 GET /api/recordings          List saved .pb recordings
+GET /api/idoslam             Return IdoSlamResponse for a recording
 GET /api/analysis/recordings/{name}   Discover generated analysis artifacts for a recording
 GET /api/analysis/playback            Discover generated analysis artifacts for the current playback
 POST /api/playback/start     Load a recording into the store
@@ -53,6 +54,7 @@ sys.path.append(str(_project_root / "proto"))
 sys.path.append(str(_server_root))
 from proto import perceiver_pb2
 from proto import insightgen_pb2
+from proto import idoslam_pb2
 from proto import motioncap_pb2
 from proto import reconstruction_pb2
 from proto import segmentation_pb2
@@ -90,6 +92,8 @@ RECORDINGS_DIR.mkdir(exist_ok=True)
 store = FrameStore()
 annotator = Annotator()
 bridge = DashboardBridge(store, annotator)
+_idoslam_io = ProtoIO(idoslam_pb2.IdoSlamResponse)
+_idoslam_io.FRAME_SIZE_LIMIT = 512 * 1024 * 1024
 
 # Load genspark config for chat follow-up
 _genspark_config_path = _server_root / "genspark" / "config.yaml"
@@ -220,6 +224,12 @@ async def transcribe_audio(file: UploadFile = File(...)):
 
 
 _FILENAME_DATE_RE = re.compile(r"(\d{8}_\d{6})")
+_RECORDING_FOLDER_RE = re.compile(r"^(\d{8}_\d{6})(?:_|$)")
+_RECORDING_SUFFIX_ALIASES = {
+    "segmentation.pb": ("seg.pb",),
+    "motioncap.pb": ("motion.pb",),
+    "motioncap.mp4": ("motion.mp4",),
+}
 
 _RANDOM_ADJECTIVES = [
     "Anxious", "Juicy", "Velvet", "Broken", "Silent", "Crimson", "Hollow",
@@ -330,11 +340,64 @@ def _extract_genspark_metadata(genspark_path: Path) -> tuple[str | None, list[st
 
 
 def _recording_dir(file_name: str) -> Path:
-    return RECORDINGS_DIR / file_name
+    return RECORDINGS_DIR / Path(file_name).name
+
+
+def _recording_file_stem(file_name: str) -> str:
+    safe_name = Path(file_name).name
+    match = _RECORDING_FOLDER_RE.match(safe_name)
+    if match and match.group(1) != safe_name:
+        return match.group(1)
+    return safe_name
+
+
+def _recording_file_candidates(file_name: str, suffix: str) -> list[Path]:
+    safe_name = Path(file_name).name
+    folder = _recording_dir(safe_name)
+    stems = [safe_name]
+    timestamp_stem = _recording_file_stem(safe_name)
+    if timestamp_stem != safe_name:
+        stems.append(timestamp_stem)
+    suffixes = (suffix, *_RECORDING_SUFFIX_ALIASES.get(suffix, ()))
+    return [
+        folder / f"{stem}.{candidate_suffix}"
+        for candidate_suffix in suffixes
+        for stem in stems
+    ]
 
 
 def _recording_file(file_name: str, suffix: str) -> Path:
-    return _recording_dir(file_name) / f"{file_name}.{suffix}"
+    candidates = _recording_file_candidates(file_name, suffix)
+    for path in candidates:
+        if path.exists():
+            return path
+    safe_name = Path(file_name).name
+    return _recording_dir(safe_name) / f"{_recording_file_stem(safe_name)}.{suffix}"
+
+
+def _safe_recording_stem(file_name: str) -> str:
+    safe_name = Path(file_name).name
+    for suffix in (
+        ".vis.pb",
+        ".idoslam.pb",
+        ".segmentation.pb",
+        ".seg.pb",
+        ".motioncap.pb",
+        ".motion.pb",
+    ):
+        safe_name = safe_name.removesuffix(suffix)
+    return safe_name
+
+
+def _idoslam_path_for_request(file_name: str | None) -> Path | None:
+    if file_name:
+        safe_name = _safe_recording_stem(file_name)
+        return _recording_file(safe_name, "idoslam.pb")
+    if store.current_file is None:
+        return None
+    current = store.current_file
+    stem = current.name.removesuffix(".vis.pb") if current.name.endswith(".vis.pb") else current.stem
+    return current.parent / f"{stem}.idoslam.pb"
 
 
 def _build_summary_markdown(summary: insightgen_pb2.GensparkSummary) -> str:
@@ -465,7 +528,7 @@ class AnalysisArtifactSpec:
     summary_predicate: Callable[[Any], bool] | None = None
 
     def path_for(self, recording_name: str) -> Path:
-        return _recording_dir(recording_name) / f"{recording_name}.{self.suffix}"
+        return _recording_file(recording_name, self.suffix)
 
 
 @dataclass(frozen=True)
@@ -493,7 +556,7 @@ _ANALYSIS_SPECS: tuple[AnalysisSpec, ...] = (
             AnalysisArtifactSpec(
                 name="proto",
                 title="Segmentation Protobuf",
-                suffix="seg.pb",
+                suffix="segmentation.pb",
                 media_type="application/x-protobuf",
                 kind="protobuf",
                 encoding="length-delimited-protobuf",
@@ -513,7 +576,7 @@ _ANALYSIS_SPECS: tuple[AnalysisSpec, ...] = (
             AnalysisArtifactSpec(
                 name="proto",
                 title="Motion Capture Protobuf",
-                suffix="motion.pb",
+                suffix="motioncap.pb",
                 media_type="application/x-protobuf",
                 kind="protobuf",
                 encoding="length-delimited-protobuf",
@@ -528,7 +591,7 @@ _ANALYSIS_SPECS: tuple[AnalysisSpec, ...] = (
             AnalysisArtifactSpec(
                 name="video",
                 title="Motion Capture Video",
-                suffix="motion.mp4",
+                suffix="motioncap.mp4",
                 media_type="video/mp4",
                 kind="video",
                 encoding="binary",
@@ -548,6 +611,24 @@ _ANALYSIS_SPECS: tuple[AnalysisSpec, ...] = (
                 query_parameters=("frame_index", "timestamp_ns"),
             ),
         ),
+    ),
+    AnalysisSpec(
+        name="idoslam",
+        title="Localization and Mapping",
+        artifacts=(
+            AnalysisArtifactSpec(
+                name="proto",
+                title="IdoSlam Response",
+                suffix="idoslam.pb",
+                media_type="application/x-protobuf",
+                kind="protobuf",
+                encoding="length-delimited-protobuf",
+                aliases=("pb", "slam"),
+                proto_message_type="bayesmech.vision.IdoSlamResponse",
+                proto_io=_idoslam_io,
+            ),
+        ),
+        aliases=("slam", "localization_mapping"),
     ),
     AnalysisSpec(
         name="genspark",
@@ -695,6 +776,11 @@ def _current_recording_name() -> str | None:
     current_file = store.current_file
     if current_file is None or store.source != "file":
         return None
+    try:
+        if current_file.parent.parent == RECORDINGS_DIR:
+            return current_file.parent.name
+    except Exception:
+        pass
     return current_file.name.removesuffix(".vis.pb")
 
 
@@ -903,7 +989,7 @@ async def list_recordings():
     )
     recordings = []
     for d in dirs:
-        vis = d / f"{d.name}.vis.pb"
+        vis = _recording_file(d.name, "vis.pb")
         if not vis.exists():
             continue
         available_analyses = [
@@ -919,15 +1005,45 @@ async def list_recordings():
             "title": _parse_title(d.name),
             "size_mb": round(vis.stat().st_size / (1024 ** 2), 2),
             "recorded_at": _parse_recording_timestamp(d.name, d.stat().st_mtime),
-            "has_segmentation": (d / f"{d.name}.seg.pb").exists(),
+            "has_segmentation": _recording_file(d.name, "segmentation.pb").exists(),
+            "has_idoslam": _recording_file(d.name, "idoslam.pb").exists(),
             "has_motioncap": (
-                (d / f"{d.name}.motion.pb").exists()
-                or (d / f"{d.name}.motion.mp4").exists()
+                _recording_file(d.name, "motioncap.pb").exists()
+                or _recording_file(d.name, "motioncap.mp4").exists()
             ),
             "available_analyses": available_analyses,
             "analysis_url": f"/api/analysis/recordings/{quote(d.name)}",
         })
     return {"recordings": recordings}
+
+
+@app.get("/api/idoslam")
+async def idoslam_data(file: str | None = None):
+    """
+    Return the latest IdoSlamResponse for a recording.
+
+    The on-disk checkpoint uses the repository's length-delimited protobuf
+    format; this endpoint unwraps the latest record and returns the raw message
+    bytes for direct browser-side protobuf decoding.
+    """
+    pb_path = _idoslam_path_for_request(file)
+    if pb_path is None or not pb_path.exists():
+        return Response(status_code=404)
+    try:
+        records = await asyncio.get_event_loop().run_in_executor(
+            None,
+            _idoslam_io.read_file,
+            pb_path,
+        )
+        if not records:
+            return Response(status_code=404)
+        return Response(
+            content=records[-1].SerializeToString(),
+            media_type="application/x-protobuf",
+        )
+    except Exception as exc:
+        logger.error("idoslam_data error for %s: %s", pb_path, exc, exc_info=True)
+        return Response(status_code=500)
 
 
 def _resolve_recording_analysis(
@@ -1006,31 +1122,45 @@ def _resolve_motioncap_frame_index(
     motion_path: Path,
     *,
     frame_index: int | None,
+    frame_number: int | None,
     timestamp_ns: int | None,
 ) -> int:
-    if frame_index is not None and timestamp_ns is not None:
+    provided = sum(
+        value is not None
+        for value in (frame_index, frame_number, timestamp_ns)
+    )
+    if provided > 1:
         raise HTTPException(
             status_code=400,
-            detail="Provide either frame_index or timestamp_ns, not both",
+            detail="Provide only one of frame_index, frame_number, or timestamp_ns",
         )
-    if frame_index is None and timestamp_ns is None:
+    if provided == 0:
         raise HTTPException(
             status_code=400,
-            detail="Provide either frame_index or timestamp_ns",
+            detail="Provide one of frame_index, frame_number, or timestamp_ns",
         )
     if frame_index is not None:
         if frame_index < 0:
             raise HTTPException(status_code=400, detail="frame_index must be >= 0")
         return frame_index
+    if frame_number is not None and frame_number < 0:
+        raise HTTPException(status_code=400, detail="frame_number must be >= 0")
 
     heatmap_index = 0
     for record in _motion_io.read_file(motion_path):
         if record.tracks:
             continue
-        if int(record.frame_identifier.timestamp_ns) == int(timestamp_ns):
+        if frame_number is not None and int(record.frame_identifier.frame_number) == int(frame_number):
+            return heatmap_index
+        if timestamp_ns is not None and int(record.frame_identifier.timestamp_ns) == int(timestamp_ns):
             return heatmap_index
         heatmap_index += 1
 
+    if frame_number is not None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No motion capture frame found for frame number {frame_number}",
+        )
     raise HTTPException(
         status_code=404,
         detail=f"No motion capture frame found for timestamp {timestamp_ns}",
@@ -1056,6 +1186,7 @@ async def _motioncap_heatmap_response(
     motion_path: Path | None,
     *,
     frame_index: int | None,
+    frame_number: int | None,
     timestamp_ns: int | None,
 ) -> Response:
     if motion_path is None:
@@ -1065,6 +1196,7 @@ async def _motioncap_heatmap_response(
         _resolve_motioncap_frame_index,
         motion_path,
         frame_index=frame_index,
+        frame_number=frame_number,
         timestamp_ns=timestamp_ns,
     )
     png_bytes = await asyncio.to_thread(_motioncap_layer().heatmap_png, motion_path, resolved_index)
@@ -1260,6 +1392,7 @@ async def analysis_playback_motioncap_tracks():
 async def analysis_recording_motioncap_heatmap(
     recording_name: str,
     frame_index: int | None = None,
+    frame_number: int | None = None,
     timestamp_ns: int | None = None,
 ):
     safe_name = _ensure_recording_exists(recording_name)
@@ -1267,6 +1400,7 @@ async def analysis_recording_motioncap_heatmap(
     return await _motioncap_heatmap_response(
         motion_path if motion_path.exists() else None,
         frame_index=frame_index,
+        frame_number=frame_number,
         timestamp_ns=timestamp_ns,
     )
 
@@ -1274,11 +1408,13 @@ async def analysis_recording_motioncap_heatmap(
 @app.get("/api/analysis/playback/analyses/motioncap/views/heatmap")
 async def analysis_playback_motioncap_heatmap(
     frame_index: int | None = None,
+    frame_number: int | None = None,
     timestamp_ns: int | None = None,
 ):
     return await _motioncap_heatmap_response(
         _current_motioncap_path(),
         frame_index=frame_index,
+        frame_number=frame_number,
         timestamp_ns=timestamp_ns,
     )
 
@@ -1299,13 +1435,13 @@ async def insightgen_list_recordings(request: Request):
     for d in RECORDINGS_DIR.iterdir():
         if not d.is_dir():
             continue
-        vis = d / f"{d.name}.vis.pb"
+        vis = _recording_file(d.name, "vis.pb")
         if not vis.exists():
             continue
         base_name = d.name
         thumb = _extract_thumbnail(vis)
-        genspark_path = d / f"{base_name}.genspark.pb"
-        chat_path = d / f"{base_name}.chat.pb"
+        genspark_path = _recording_file(base_name, "genspark.pb")
+        chat_path = _recording_file(base_name, "chat.pb")
         genspark_title, genspark_tags, preview_text = _extract_genspark_metadata(genspark_path)
         parsed = _parse_title(base_name)
         title = genspark_title or (parsed if parsed != base_name else _generate_random_name(base_name))
@@ -1318,11 +1454,11 @@ async def insightgen_list_recordings(request: Request):
                 pass
         dl = insightgen_pb2.DataList(
             file_name=base_name,
-            is_segmentation_available=(d / f"{base_name}.seg.pb").exists(),
+            is_segmentation_available=_recording_file(base_name, "segmentation.pb").exists(),
             is_genspark_available=genspark_path.exists(),
             is_motioncap_available=(
-                (d / f"{base_name}.motion.pb").exists()
-                or (d / f"{base_name}.motion.mp4").exists()
+                _recording_file(base_name, "motioncap.pb").exists()
+                or _recording_file(base_name, "motioncap.mp4").exists()
             ),
             title=title,
             chat_message_count=chat_count,
@@ -1345,7 +1481,7 @@ async def insightgen_insight(file: str):
     """Return the GensparkSummary for a specific recording (file=YYYYMMDD_HHMMSS)."""
     # Sanitise: only allow the base filename, no path traversal
     safe_name = Path(file).name
-    pb_path = RECORDINGS_DIR / safe_name / f"{safe_name}.genspark.pb"
+    pb_path = _recording_file(safe_name, "genspark.pb")
     if not pb_path.exists():
         return Response(status_code=404)
     try:
@@ -1382,7 +1518,7 @@ async def insightgen_video(file: str, layer: str = "raw"):
     import asyncio
 
     safe_name = Path(file).name
-    vis_path = RECORDINGS_DIR / safe_name / f"{safe_name}.vis.pb"
+    vis_path = _recording_file(safe_name, "vis.pb")
     if not vis_path.exists():
         return Response(status_code=404)
 
@@ -1416,7 +1552,7 @@ async def insightgen_video(file: str, layer: str = "raw"):
                 fps = round((len(timestamps_ns) - 1) / total_s, 2)
 
         # Highlight clipping
-        genspark_path = RECORDINGS_DIR / safe_name / f"{safe_name}.genspark.pb"
+        genspark_path = _recording_file(safe_name, "genspark.pb")
         highlights = extract_highlights(genspark_path)
         if highlights_only:
             frame_indices = clip_frame_indices(timestamps_ns, highlights)
@@ -1480,14 +1616,20 @@ async def insightgen_chat(request: Request):
         raise HTTPException(status_code=400, detail="Missing file or message")
 
     safe_name = Path(file_name).name
-    genspark_path = RECORDINGS_DIR / safe_name / f"{safe_name}.genspark.pb"
+    genspark_path = _recording_file(safe_name, "genspark.pb")
     if not genspark_path.exists():
         raise HTTPException(status_code=404, detail="No analysis found for this recording")
 
     try:
         response_text, session_id, user_turn, model_turn = await asyncio.get_event_loop().run_in_executor(
             None,
-            lambda: chat_manager.handle_message(genspark_path, safe_name, message, session_id),
+            lambda: chat_manager.handle_message(
+                genspark_path,
+                safe_name,
+                message,
+                session_id,
+                chat_path=_recording_file(safe_name, "chat.pb"),
+            ),
         )
         return {
             "response": response_text,
@@ -1506,7 +1648,7 @@ async def start_playback(request: dict):
     if not name:
         raise HTTPException(status_code=400, detail="Missing name")
     safe_name = Path(name).name  # prevent path traversal
-    path = RECORDINGS_DIR / safe_name / f"{safe_name}.vis.pb"
+    path = _recording_file(safe_name, "vis.pb")
     if not path.exists():
         raise HTTPException(status_code=404, detail=f"Recording not found: {safe_name}")
 
@@ -1579,6 +1721,7 @@ async def playback_motioncap_heatmap(index: int):
     return await _motioncap_heatmap_response(
         _current_motioncap_path(),
         frame_index=index,
+        frame_number=None,
         timestamp_ns=None,
     )
 

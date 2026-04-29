@@ -37,6 +37,9 @@ uv run python reconstruct/main.py ../recordings/<name>/<name>.vis.pb --no-splat 
 uv run python reconstruct/main.py ../recordings/<name>/<name>.vis.pb --max-frames 100 --sample-every 10  # quick test
 uv run python reconstruct/main.py ../recordings/<name>/<name>.vis.pb --dense-mvs   # + dense MVS (requires colmap binary)
 
+# IDOSLAM: unified trajectory + road-ground triangulation + canonical dashboard data
+uv run python idoslam/main.py ../recordings/<name>/<name>.vis.pb
+
 # Homography analysis (interactive, from server/)
 uv run python ../analysis/homography/main.py ../recordings/<name>/<name>.vis.pb
 ```
@@ -57,10 +60,11 @@ huggingface-cli login
 | Directory | Purpose |
 |-----------|---------|
 | `streamlog/` | FastAPI server — live streaming, playback, dashboard WebSocket |
-| `segmentation/` | Offline SAM3 annotator → writes `.seg.pb` |
-| `motioncap/` | Offline RAFT optical-flow motion heatmap → writes `.motion.pb` |
+| `segmentation/` | Offline SAM3 annotator → writes `.segmentation.pb` |
+| `motioncap/` | Offline RAFT optical-flow motion heatmap → writes `.motioncap.pb` |
 | `genspark/` | Offline AI video analysis (Gemini/Claude/OpenAI) |
 | `reconstruct/` | Offline COLMAP SfM + Gaussian Splatting → writes `.recon/`, `.splat.ply`, `.recon.pb` |
+| `idoslam/` | Offline SLAM pipeline → writes `.idoslam.pb` and workspace CSV/JSON artifacts consumed by the dashboard |
 
 ## Motion Capture (`motioncap/`)
 
@@ -74,13 +78,13 @@ Unified pipeline via `motioncap/main.py` — two sequential steps, one output fi
 - **Step 2 — Tracker** (`tracker.py`): temporal consistency filter + blob detection + nearest-neighbour tracking with velocity prediction. Merges fragmented tracks and interpolates gaps.
 
 - **Pipeline flags** (`motioncap/config.yaml` → `pipeline` section):
-  - `pipeline.regenerate_raft: false` — skip RAFT, load heatmaps from existing `.motion.pb`
-  - `pipeline.regenerate_tracking: false` — skip tracker, load tracks from existing `.motion.pb`
+  - `pipeline.regenerate_raft: false` — skip RAFT, load heatmaps from existing `.motioncap.pb`
+  - `pipeline.regenerate_tracking: false` — skip tracker, load tracks from existing `.motioncap.pb`
   - Use `regenerate_raft: false` to quickly re-tune tracking parameters without re-running slow RAFT
 
-Output: `recordings/<name>/<name>.motion.pb` — per-frame heatmap records followed by a single tracks-summary record (`MotionCaptureResponse` with `tracks` field populated, detected via `len(resp.tracks) > 0`)
+Output: `recordings/<name>/<name>.motioncap.pb` — per-frame heatmap records followed by a single tracks-summary record (`MotionCaptureResponse` with `tracks` field populated, detected via `len(resp.tracks) > 0`)
 
-Optional: `recordings/<name>/<name>.motion.mp4` — heatmap overlay on RGB with coloured trajectory tails
+Optional: `recordings/<name>/<name>.motioncap.mp4` — heatmap overlay on RGB with coloured trajectory tails
 
 Also available: **SIFT** (`sift_motion.py`): feature-based, no GPU required.
 
@@ -90,7 +94,7 @@ Also available: **SIFT** (`sift_motion.py`): feature-based, no GPU required.
 - SAM3 processes every frame for tracker continuity; only emits every `--sample-every` frames.
 - Config: `segmentation/config.yaml` — `sam3.dtype`, `sam3.inference_height`, `sam3.max_num_objects`, `sam3.session_reset_frames`, `sampling.sample_every_x_frames`
 
-Output: `recordings/<name>/<name>.seg.pb` (length-delimited `SegmentationResponse` protos)
+Output: `recordings/<name>/<name>.segmentation.pb` (length-delimited `SegmentationResponse` protos)
 
 ## AI Analysis (`genspark/`)
 

@@ -226,29 +226,28 @@ const LoadButton: React.FC = () => {
                       {rec.size_mb} MB &middot; {formatDate(rec.recorded_at)}
                     </div>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexShrink: 0 }}>
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'flex-end',
+                    gap: '0.35rem',
+                    flexWrap: 'wrap',
+                    flexShrink: 0,
+                    maxWidth: '55%',
+                  }}>
                     {rec.has_motioncap && (
-                      <span style={{
-                        fontSize: '0.6rem',
-                        fontWeight: 600,
-                        padding: '0.15rem 0.4rem',
-                        border: '1px solid #ffaa00',
-                        color: '#ffaa00',
-                        letterSpacing: '0.08em',
-                      }}>
-                        MOTION
+                      <span style={analysisBadgeStyle('#ffaa00')}>
+                        MOTIONCAP
                       </span>
                     )}
                     {rec.has_segmentation && (
-                      <span style={{
-                        fontSize: '0.6rem',
-                        fontWeight: 600,
-                        padding: '0.15rem 0.4rem',
-                        border: '1px solid #00ff88',
-                        color: '#00ff88',
-                        letterSpacing: '0.08em',
-                      }}>
-                        SEG
+                      <span style={analysisBadgeStyle('#00ff88')}>
+                        SEGMENTATION
+                      </span>
+                    )}
+                    {rec.has_idoslam && (
+                      <span style={analysisBadgeStyle('#69a8ff', '#2f88ff')}>
+                        IDOSLAM
                       </span>
                     )}
                   </div>
@@ -281,5 +280,15 @@ const msgStyle: React.CSSProperties = {
   fontSize: '0.8rem',
   color: '#707070',
 }
+
+const analysisBadgeStyle = (color: string, borderColor = color): React.CSSProperties => ({
+  fontSize: '0.58rem',
+  fontWeight: 600,
+  padding: '0.15rem 0.4rem',
+  border: `1px solid ${borderColor}`,
+  color,
+  letterSpacing: '0.04em',
+  whiteSpace: 'nowrap',
+})
 
 export default LoadButton

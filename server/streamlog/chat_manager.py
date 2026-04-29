@@ -303,6 +303,7 @@ class ChatManager:
         file_name: str,
         message: str,
         session_id: str | None = None,
+        chat_path: Path | None = None,
     ) -> tuple[str, str, insightgen_pb2.ChatTurn, insightgen_pb2.ChatTurn]:
         """
         Process a user message. Returns (response_text, session_id).
@@ -315,8 +316,10 @@ class ChatManager:
             session = self._sessions[session_id]
         else:
             session_id = str(uuid.uuid4())
-            chat_path = self._recordings_dir / file_name / f"{file_name}.chat.pb"
-            session = ChatSession(genspark_path, chat_path, file_name, self._gemini_config)
+            resolved_chat_path = (
+                chat_path or self._recordings_dir / file_name / f"{file_name}.chat.pb"
+            )
+            session = ChatSession(genspark_path, resolved_chat_path, file_name, self._gemini_config)
             self._sessions[session_id] = session
 
         response_text, user_turn, model_turn = session.send_message(message)

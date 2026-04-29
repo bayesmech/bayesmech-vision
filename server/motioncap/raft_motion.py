@@ -85,6 +85,49 @@ def _to_tensor(img: np.ndarray,
     return t.unsqueeze(0).to(device), h, w
 
 
+def _resize_for_inference(
+    img_ref: np.ndarray,
+    img_curr: np.ndarray,
+    inference_height: int | None,
+) -> tuple[np.ndarray, np.ndarray, float, float]:
+    """Resize a frame pair for RAFT, returning original/inference scale factors."""
+    h, w = img_ref.shape[:2]
+    if (
+        inference_height is None
+        or inference_height <= 0
+        or h <= inference_height
+    ):
+        return img_ref, img_curr, 1.0, 1.0
+
+    infer_h = int(inference_height)
+    infer_w = max(8, int(round(w * infer_h / h)))
+    ref_small = cv2.resize(img_ref, (infer_w, infer_h), interpolation=cv2.INTER_AREA)
+    curr_small = cv2.resize(img_curr, (infer_w, infer_h), interpolation=cv2.INTER_AREA)
+    return ref_small, curr_small, w / infer_w, h / infer_h
+
+
+def _flow_at_recording_resolution(
+    img_ref: np.ndarray,
+    img_curr: np.ndarray,
+    model: torch.nn.Module,
+    device: torch.device,
+    cfg: dict,
+    iters: int,
+) -> np.ndarray:
+    """Run RAFT at configured inference height and upscale flow to source size."""
+    h, w = img_ref.shape[:2]
+    inference_height = cfg.get("raft", {}).get("inference_height")
+    ref_in, curr_in, scale_x, scale_y = _resize_for_inference(
+        img_ref, img_curr, inference_height
+    )
+    flow = compute_flow(ref_in, curr_in, model, device, iters=iters)
+    if scale_x != 1.0 or scale_y != 1.0:
+        flow_u = cv2.resize(flow[..., 0], (w, h), interpolation=cv2.INTER_LINEAR)
+        flow_v = cv2.resize(flow[..., 1], (w, h), interpolation=cv2.INTER_LINEAR)
+        flow = np.stack([flow_u * scale_x, flow_v * scale_y], axis=-1)
+    return flow.astype(np.float32, copy=False)
+
+
 # ── Dense optical flow ────────────────────────────────────────────────────────
 
 @torch.no_grad()
@@ -101,13 +144,19 @@ def compute_flow(img_ref: np.ndarray,
 
     Returns flow  (H, W, 2)  float32.
     """
-    t_ref,  orig_h, orig_w = _to_tensor(img_ref,  device)
-    t_curr, _,      _      = _to_tensor(img_curr, device)
+    t_ref = t_curr = flow_preds = flow = None
+    try:
+        t_ref,  orig_h, orig_w = _to_tensor(img_ref,  device)
+        t_curr, _,      _      = _to_tensor(img_curr, device)
 
-    flow_preds = model(t_ref, t_curr, num_flow_updates=iters)
-    flow = flow_preds[-1]                      # finest resolution: (1, 2, H_pad, W_pad)
-    flow = flow[:, :, :orig_h, :orig_w]       # strip padding
-    return flow.squeeze(0).permute(1, 2, 0).cpu().numpy()   # (H, W, 2)
+        flow_preds = model(t_ref, t_curr, num_flow_updates=iters)
+        flow = flow_preds[-1]                  # finest resolution: (1, 2, H_pad, W_pad)
+        flow = flow[:, :, :orig_h, :orig_w]    # strip padding
+        return flow.squeeze(0).permute(1, 2, 0).cpu().numpy()   # (H, W, 2)
+    finally:
+        del t_ref, t_curr, flow_preds, flow
+        if device.type == "cuda":
+            torch.cuda.empty_cache()
 
 
 # ── Pose-based background flow prediction ─────────────────────────────────────
@@ -236,7 +285,8 @@ def compute_residual(img_ref: np.ndarray,
     """
     iters = cfg.get("raft", {}).get("iters", 20)
     h, w  = img_ref.shape[:2]
-    flow  = compute_flow(img_ref, img_curr, model, device, iters=iters)
+    flow  = _flow_at_recording_resolution(
+        img_ref, img_curr, model, device, cfg, iters=iters)
     residual = _subtract_background(
         flow, h, w, cfg, K, R_ref, t_ref, R_curr, t_curr, depth, subtraction_mode)
     return residual, float(residual.max())
@@ -268,7 +318,8 @@ def compute_residual_and_flow_small(
     """
     iters = cfg.get("raft", {}).get("iters", 20)
     h, w  = img_ref.shape[:2]
-    flow  = compute_flow(img_ref, img_curr, model, device, iters=iters)
+    flow  = _flow_at_recording_resolution(
+        img_ref, img_curr, model, device, cfg, iters=iters)
 
     # Downsample raw flow to feature-map resolution
     fh, fw = h // 8, w // 8

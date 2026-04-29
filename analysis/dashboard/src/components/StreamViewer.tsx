@@ -2,7 +2,6 @@ import React, { useRef, useEffect, useState } from 'react'
 
 interface StreamViewerProps {
   title: string
-  badge: string
   blobUrl?: string
   placeholderIcon: string
   placeholderText: string
@@ -13,50 +12,74 @@ interface StreamViewerProps {
 
 const StreamViewer: React.FC<StreamViewerProps> = ({
   title,
-  badge,
   blobUrl,
   placeholderIcon,
   placeholderText,
   headerExtra,
-  holdLastMs = 0,
+  holdLastMs = 250,
 }) => {
-  const lastValidUrl = useRef<string | undefined>(undefined)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
   const lastValidTime = useRef(0)
-  const [showPlaceholder, setShowPlaceholder] = useState(!blobUrl)
+  const hasFrameRef = useRef(false)
+  const [hasFrame, setHasFrame] = useState(false)
+  const [showPlaceholder, setShowPlaceholder] = useState(true)
 
-  // Track the last valid URL
-  if (blobUrl) {
-    lastValidUrl.current = blobUrl
-    lastValidTime.current = Date.now()
-  }
-
-  const displayUrl = blobUrl ?? (holdLastMs > 0 ? lastValidUrl.current : undefined)
-
-  // When blobUrl goes falsy and we have a holdLastMs, start a timer
   useEffect(() => {
     if (blobUrl) {
-      setShowPlaceholder(false)
-      return
+      let cancelled = false
+      const image = new Image()
+      image.onload = () => {
+        if (cancelled) return
+        const canvas = canvasRef.current
+        const ctx = canvas?.getContext('2d')
+        if (!canvas || !ctx) return
+        canvas.width = image.naturalWidth || 1
+        canvas.height = image.naturalHeight || 1
+        ctx.clearRect(0, 0, canvas.width, canvas.height)
+        ctx.drawImage(image, 0, 0, canvas.width, canvas.height)
+        lastValidTime.current = Date.now()
+        hasFrameRef.current = true
+        setHasFrame(true)
+        setShowPlaceholder(false)
+      }
+      image.onerror = () => {
+        if (cancelled) return
+        if (!hasFrameRef.current) {
+          setShowPlaceholder(true)
+        }
+      }
+      image.src = blobUrl
+      return () => {
+        cancelled = true
+      }
     }
-    if (holdLastMs <= 0 || !lastValidUrl.current) {
+    if (holdLastMs <= 0 || !hasFrameRef.current) {
+      const canvas = canvasRef.current
+      const ctx = canvas?.getContext('2d')
+      if (canvas && ctx) ctx.clearRect(0, 0, canvas.width, canvas.height)
+      hasFrameRef.current = false
+      setHasFrame(false)
       setShowPlaceholder(true)
       return
     }
-    // Hold the last image; only show placeholder after the hold period
     setShowPlaceholder(false)
     const elapsed = Date.now() - lastValidTime.current
     const remaining = Math.max(0, holdLastMs - elapsed)
-    const timer = setTimeout(() => setShowPlaceholder(true), remaining)
+    const timer = setTimeout(() => {
+      const canvas = canvasRef.current
+      const ctx = canvas?.getContext('2d')
+      if (canvas && ctx) ctx.clearRect(0, 0, canvas.width, canvas.height)
+      hasFrameRef.current = false
+      setHasFrame(false)
+      setShowPlaceholder(true)
+    }, remaining)
     return () => clearTimeout(timer)
   }, [blobUrl, holdLastMs])
-
-  const showImage = displayUrl && !showPlaceholder
 
   return (
     <div className="stream-card">
       <div className="stream-header">
         <span className="stream-title">{title}</span>
-        <span className="stream-badge">{badge}</span>
         {headerExtra && <div className="stream-header-extra">{headerExtra}</div>}
       </div>
       <div
@@ -72,13 +95,18 @@ const StreamViewer: React.FC<StreamViewerProps> = ({
           position: 'relative',
         }}
       >
-        {showImage ? (
-          <img
-            src={displayUrl}
-            alt={title}
-            style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-          />
-        ) : (
+        <canvas
+          ref={canvasRef}
+          aria-label={title}
+          role="img"
+          style={{
+            width: '100%',
+            height: '100%',
+            objectFit: 'contain',
+            display: hasFrame ? 'block' : 'none',
+          }}
+        />
+        {showPlaceholder && (
           <div className="no-stream" style={{ textAlign: 'center', opacity: 0.5 }}>
             <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>{placeholderIcon}</div>
             <div>{placeholderText}</div>

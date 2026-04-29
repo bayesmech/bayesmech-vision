@@ -3,11 +3,11 @@
 # ── Pipeline control ──────────────────────────────────────────────────────────
 pipeline:
   # regenerate_raft: true  → always run RAFT (slow, GPU)
-  #                  false → load heatmaps from an existing .motion.pb instead
+  #                  false → load heatmaps from an existing .motioncap.pb instead
   regenerate_raft: true
 
   # regenerate_tracking: true  → always re-run the tracker on the heatmaps
-  #                      false → reuse tracks already stored in the .motion.pb
+  #                      false → reuse tracks already stored in the .motioncap.pb
   regenerate_tracking: true
 
 # Used by analysis/homography/main.py (pixel_map / _compute_H in geometry.py)
@@ -29,6 +29,8 @@ reference:
 raft:
   variant: "large"          # "large" (21 MB) or "small" (5 MB)
   iters: 20                 # recurrent update iterations (more = slower, more accurate)
+  inference_height: 360     # resize RAFT inputs to this height, then upscale outputs
+                            # Set to null or 0 to use the original frame resolution.
   assumed_depth_m: 1.5      # fallback scene depth when ARCore depth frame is absent
   residual_threshold_px: 2.0  # residual magnitude (px) below this is treated as noise
 

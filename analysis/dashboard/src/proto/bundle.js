@@ -798,7 +798,6 @@ export const bayesmech = $root.bayesmech = (() => {
              * @memberof bayesmech.vision
              * @interface IPerceiverDataFrame
              * @property {bayesmech.vision.IPerceiverFrameIdentifier|null} [frameIdentifier] PerceiverDataFrame frameIdentifier
-             * @property {number|Long|null} [deviceTimestampNs] PerceiverDataFrame deviceTimestampNs
              * @property {bayesmech.vision.IPose|null} [cameraPose] PerceiverDataFrame cameraPose
              * @property {bayesmech.vision.IImageFrame|null} [rgbFrame] PerceiverDataFrame rgbFrame
              * @property {bayesmech.vision.IDepthFrame|null} [depthFrame] PerceiverDataFrame depthFrame
@@ -831,14 +830,6 @@ export const bayesmech = $root.bayesmech = (() => {
              * @instance
              */
             PerceiverDataFrame.prototype.frameIdentifier = null;
-
-            /**
-             * PerceiverDataFrame deviceTimestampNs.
-             * @member {number|Long} deviceTimestampNs
-             * @memberof bayesmech.vision.PerceiverDataFrame
-             * @instance
-             */
-            PerceiverDataFrame.prototype.deviceTimestampNs = $util.Long ? $util.Long.fromBits(0,0,false) : 0;
 
             /**
              * PerceiverDataFrame cameraPose.
@@ -946,8 +937,6 @@ export const bayesmech = $root.bayesmech = (() => {
                     $root.bayesmech.vision.GpsLocation.encode(message.gpsLocation, writer.uint32(/* id 8, wireType 2 =*/66).fork()).ldelim();
                 if (message.userTextInput != null && Object.hasOwnProperty.call(message, "userTextInput"))
                     writer.uint32(/* id 9, wireType 2 =*/74).string(message.userTextInput);
-                if (message.deviceTimestampNs != null && Object.hasOwnProperty.call(message, "deviceTimestampNs"))
-                    writer.uint32(/* id 10, wireType 0 =*/80).int64(message.deviceTimestampNs);
                 return writer;
             };
 
@@ -986,10 +975,6 @@ export const bayesmech = $root.bayesmech = (() => {
                     switch (tag >>> 3) {
                     case 1: {
                             message.frameIdentifier = $root.bayesmech.vision.PerceiverFrameIdentifier.decode(reader, reader.uint32());
-                            break;
-                        }
-                    case 10: {
-                            message.deviceTimestampNs = reader.int64();
                             break;
                         }
                     case 2: {
@@ -1064,9 +1049,6 @@ export const bayesmech = $root.bayesmech = (() => {
                     if (error)
                         return "frameIdentifier." + error;
                 }
-                if (message.deviceTimestampNs != null && message.hasOwnProperty("deviceTimestampNs"))
-                    if (!$util.isInteger(message.deviceTimestampNs) && !(message.deviceTimestampNs && $util.isInteger(message.deviceTimestampNs.low) && $util.isInteger(message.deviceTimestampNs.high)))
-                        return "deviceTimestampNs: integer|Long expected";
                 if (message.cameraPose != null && message.hasOwnProperty("cameraPose")) {
                     let error = $root.bayesmech.vision.Pose.verify(message.cameraPose);
                     if (error)
@@ -1125,15 +1107,6 @@ export const bayesmech = $root.bayesmech = (() => {
                         throw TypeError(".bayesmech.vision.PerceiverDataFrame.frameIdentifier: object expected");
                     message.frameIdentifier = $root.bayesmech.vision.PerceiverFrameIdentifier.fromObject(object.frameIdentifier);
                 }
-                if (object.deviceTimestampNs != null)
-                    if ($util.Long)
-                        (message.deviceTimestampNs = $util.Long.fromValue(object.deviceTimestampNs)).unsigned = false;
-                    else if (typeof object.deviceTimestampNs === "string")
-                        message.deviceTimestampNs = parseInt(object.deviceTimestampNs, 10);
-                    else if (typeof object.deviceTimestampNs === "number")
-                        message.deviceTimestampNs = object.deviceTimestampNs;
-                    else if (typeof object.deviceTimestampNs === "object")
-                        message.deviceTimestampNs = new $util.LongBits(object.deviceTimestampNs.low >>> 0, object.deviceTimestampNs.high >>> 0).toNumber();
                 if (object.cameraPose != null) {
                     if (typeof object.cameraPose !== "object")
                         throw TypeError(".bayesmech.vision.PerceiverDataFrame.cameraPose: object expected");
@@ -1197,11 +1170,6 @@ export const bayesmech = $root.bayesmech = (() => {
                     object.inferredGeometry = null;
                     object.gpsLocation = null;
                     object.userTextInput = "";
-                    if ($util.Long) {
-                        let long = new $util.Long(0, 0, false);
-                        object.deviceTimestampNs = options.longs === String ? long.toString() : options.longs === Number ? long.toNumber() : long;
-                    } else
-                        object.deviceTimestampNs = options.longs === String ? "0" : 0;
                 }
                 if (message.frameIdentifier != null && message.hasOwnProperty("frameIdentifier"))
                     object.frameIdentifier = $root.bayesmech.vision.PerceiverFrameIdentifier.toObject(message.frameIdentifier, options);
@@ -1221,11 +1189,6 @@ export const bayesmech = $root.bayesmech = (() => {
                     object.gpsLocation = $root.bayesmech.vision.GpsLocation.toObject(message.gpsLocation, options);
                 if (message.userTextInput != null && message.hasOwnProperty("userTextInput"))
                     object.userTextInput = message.userTextInput;
-                if (message.deviceTimestampNs != null && message.hasOwnProperty("deviceTimestampNs"))
-                    if (typeof message.deviceTimestampNs === "number")
-                        object.deviceTimestampNs = options.longs === String ? String(message.deviceTimestampNs) : message.deviceTimestampNs;
-                    else
-                        object.deviceTimestampNs = options.longs === String ? $util.Long.prototype.toString.call(message.deviceTimestampNs) : options.longs === Number ? new $util.LongBits(message.deviceTimestampNs.low >>> 0, message.deviceTimestampNs.high >>> 0).toNumber() : message.deviceTimestampNs;
                 return object;
             };
 
@@ -5054,6 +5017,5812 @@ export const bayesmech = $root.bayesmech = (() => {
             };
 
             return SegmentationRequest;
+        })();
+
+        vision.MotionCaptureRequest = (function() {
+
+            /**
+             * Properties of a MotionCaptureRequest.
+             * @memberof bayesmech.vision
+             * @interface IMotionCaptureRequest
+             * @property {bayesmech.vision.IPerceiverFrameIdentifier|null} [frameIdentifier] MotionCaptureRequest frameIdentifier
+             * @property {bayesmech.vision.IImageFrame|null} [currentFrame] MotionCaptureRequest currentFrame
+             * @property {bayesmech.vision.IImageFrame|null} [referenceFrame] MotionCaptureRequest referenceFrame
+             */
+
+            /**
+             * Constructs a new MotionCaptureRequest.
+             * @memberof bayesmech.vision
+             * @classdesc Represents a MotionCaptureRequest.
+             * @implements IMotionCaptureRequest
+             * @constructor
+             * @param {bayesmech.vision.IMotionCaptureRequest=} [properties] Properties to set
+             */
+            function MotionCaptureRequest(properties) {
+                if (properties)
+                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null)
+                            this[keys[i]] = properties[keys[i]];
+            }
+
+            /**
+             * MotionCaptureRequest frameIdentifier.
+             * @member {bayesmech.vision.IPerceiverFrameIdentifier|null|undefined} frameIdentifier
+             * @memberof bayesmech.vision.MotionCaptureRequest
+             * @instance
+             */
+            MotionCaptureRequest.prototype.frameIdentifier = null;
+
+            /**
+             * MotionCaptureRequest currentFrame.
+             * @member {bayesmech.vision.IImageFrame|null|undefined} currentFrame
+             * @memberof bayesmech.vision.MotionCaptureRequest
+             * @instance
+             */
+            MotionCaptureRequest.prototype.currentFrame = null;
+
+            /**
+             * MotionCaptureRequest referenceFrame.
+             * @member {bayesmech.vision.IImageFrame|null|undefined} referenceFrame
+             * @memberof bayesmech.vision.MotionCaptureRequest
+             * @instance
+             */
+            MotionCaptureRequest.prototype.referenceFrame = null;
+
+            /**
+             * Creates a new MotionCaptureRequest instance using the specified properties.
+             * @function create
+             * @memberof bayesmech.vision.MotionCaptureRequest
+             * @static
+             * @param {bayesmech.vision.IMotionCaptureRequest=} [properties] Properties to set
+             * @returns {bayesmech.vision.MotionCaptureRequest} MotionCaptureRequest instance
+             */
+            MotionCaptureRequest.create = function create(properties) {
+                return new MotionCaptureRequest(properties);
+            };
+
+            /**
+             * Encodes the specified MotionCaptureRequest message. Does not implicitly {@link bayesmech.vision.MotionCaptureRequest.verify|verify} messages.
+             * @function encode
+             * @memberof bayesmech.vision.MotionCaptureRequest
+             * @static
+             * @param {bayesmech.vision.IMotionCaptureRequest} message MotionCaptureRequest message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            MotionCaptureRequest.encode = function encode(message, writer) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (message.frameIdentifier != null && Object.hasOwnProperty.call(message, "frameIdentifier"))
+                    $root.bayesmech.vision.PerceiverFrameIdentifier.encode(message.frameIdentifier, writer.uint32(/* id 1, wireType 2 =*/10).fork()).ldelim();
+                if (message.currentFrame != null && Object.hasOwnProperty.call(message, "currentFrame"))
+                    $root.bayesmech.vision.ImageFrame.encode(message.currentFrame, writer.uint32(/* id 2, wireType 2 =*/18).fork()).ldelim();
+                if (message.referenceFrame != null && Object.hasOwnProperty.call(message, "referenceFrame"))
+                    $root.bayesmech.vision.ImageFrame.encode(message.referenceFrame, writer.uint32(/* id 3, wireType 2 =*/26).fork()).ldelim();
+                return writer;
+            };
+
+            /**
+             * Encodes the specified MotionCaptureRequest message, length delimited. Does not implicitly {@link bayesmech.vision.MotionCaptureRequest.verify|verify} messages.
+             * @function encodeDelimited
+             * @memberof bayesmech.vision.MotionCaptureRequest
+             * @static
+             * @param {bayesmech.vision.IMotionCaptureRequest} message MotionCaptureRequest message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            MotionCaptureRequest.encodeDelimited = function encodeDelimited(message, writer) {
+                return this.encode(message, writer).ldelim();
+            };
+
+            /**
+             * Decodes a MotionCaptureRequest message from the specified reader or buffer.
+             * @function decode
+             * @memberof bayesmech.vision.MotionCaptureRequest
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {bayesmech.vision.MotionCaptureRequest} MotionCaptureRequest
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            MotionCaptureRequest.decode = function decode(reader, length, error) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.MotionCaptureRequest();
+                while (reader.pos < end) {
+                    let tag = reader.uint32();
+                    if (tag === error)
+                        break;
+                    switch (tag >>> 3) {
+                    case 1: {
+                            message.frameIdentifier = $root.bayesmech.vision.PerceiverFrameIdentifier.decode(reader, reader.uint32());
+                            break;
+                        }
+                    case 2: {
+                            message.currentFrame = $root.bayesmech.vision.ImageFrame.decode(reader, reader.uint32());
+                            break;
+                        }
+                    case 3: {
+                            message.referenceFrame = $root.bayesmech.vision.ImageFrame.decode(reader, reader.uint32());
+                            break;
+                        }
+                    default:
+                        reader.skipType(tag & 7);
+                        break;
+                    }
+                }
+                return message;
+            };
+
+            /**
+             * Decodes a MotionCaptureRequest message from the specified reader or buffer, length delimited.
+             * @function decodeDelimited
+             * @memberof bayesmech.vision.MotionCaptureRequest
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @returns {bayesmech.vision.MotionCaptureRequest} MotionCaptureRequest
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            MotionCaptureRequest.decodeDelimited = function decodeDelimited(reader) {
+                if (!(reader instanceof $Reader))
+                    reader = new $Reader(reader);
+                return this.decode(reader, reader.uint32());
+            };
+
+            /**
+             * Verifies a MotionCaptureRequest message.
+             * @function verify
+             * @memberof bayesmech.vision.MotionCaptureRequest
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            MotionCaptureRequest.verify = function verify(message) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (message.frameIdentifier != null && message.hasOwnProperty("frameIdentifier")) {
+                    let error = $root.bayesmech.vision.PerceiverFrameIdentifier.verify(message.frameIdentifier);
+                    if (error)
+                        return "frameIdentifier." + error;
+                }
+                if (message.currentFrame != null && message.hasOwnProperty("currentFrame")) {
+                    let error = $root.bayesmech.vision.ImageFrame.verify(message.currentFrame);
+                    if (error)
+                        return "currentFrame." + error;
+                }
+                if (message.referenceFrame != null && message.hasOwnProperty("referenceFrame")) {
+                    let error = $root.bayesmech.vision.ImageFrame.verify(message.referenceFrame);
+                    if (error)
+                        return "referenceFrame." + error;
+                }
+                return null;
+            };
+
+            /**
+             * Creates a MotionCaptureRequest message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof bayesmech.vision.MotionCaptureRequest
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {bayesmech.vision.MotionCaptureRequest} MotionCaptureRequest
+             */
+            MotionCaptureRequest.fromObject = function fromObject(object) {
+                if (object instanceof $root.bayesmech.vision.MotionCaptureRequest)
+                    return object;
+                let message = new $root.bayesmech.vision.MotionCaptureRequest();
+                if (object.frameIdentifier != null) {
+                    if (typeof object.frameIdentifier !== "object")
+                        throw TypeError(".bayesmech.vision.MotionCaptureRequest.frameIdentifier: object expected");
+                    message.frameIdentifier = $root.bayesmech.vision.PerceiverFrameIdentifier.fromObject(object.frameIdentifier);
+                }
+                if (object.currentFrame != null) {
+                    if (typeof object.currentFrame !== "object")
+                        throw TypeError(".bayesmech.vision.MotionCaptureRequest.currentFrame: object expected");
+                    message.currentFrame = $root.bayesmech.vision.ImageFrame.fromObject(object.currentFrame);
+                }
+                if (object.referenceFrame != null) {
+                    if (typeof object.referenceFrame !== "object")
+                        throw TypeError(".bayesmech.vision.MotionCaptureRequest.referenceFrame: object expected");
+                    message.referenceFrame = $root.bayesmech.vision.ImageFrame.fromObject(object.referenceFrame);
+                }
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a MotionCaptureRequest message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof bayesmech.vision.MotionCaptureRequest
+             * @static
+             * @param {bayesmech.vision.MotionCaptureRequest} message MotionCaptureRequest
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            MotionCaptureRequest.toObject = function toObject(message, options) {
+                if (!options)
+                    options = {};
+                let object = {};
+                if (options.defaults) {
+                    object.frameIdentifier = null;
+                    object.currentFrame = null;
+                    object.referenceFrame = null;
+                }
+                if (message.frameIdentifier != null && message.hasOwnProperty("frameIdentifier"))
+                    object.frameIdentifier = $root.bayesmech.vision.PerceiverFrameIdentifier.toObject(message.frameIdentifier, options);
+                if (message.currentFrame != null && message.hasOwnProperty("currentFrame"))
+                    object.currentFrame = $root.bayesmech.vision.ImageFrame.toObject(message.currentFrame, options);
+                if (message.referenceFrame != null && message.hasOwnProperty("referenceFrame"))
+                    object.referenceFrame = $root.bayesmech.vision.ImageFrame.toObject(message.referenceFrame, options);
+                return object;
+            };
+
+            /**
+             * Converts this MotionCaptureRequest to JSON.
+             * @function toJSON
+             * @memberof bayesmech.vision.MotionCaptureRequest
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            MotionCaptureRequest.prototype.toJSON = function toJSON() {
+                return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the default type url for MotionCaptureRequest
+             * @function getTypeUrl
+             * @memberof bayesmech.vision.MotionCaptureRequest
+             * @static
+             * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns {string} The default type url
+             */
+            MotionCaptureRequest.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+                if (typeUrlPrefix === undefined) {
+                    typeUrlPrefix = "type.googleapis.com";
+                }
+                return typeUrlPrefix + "/bayesmech.vision.MotionCaptureRequest";
+            };
+
+            return MotionCaptureRequest;
+        })();
+
+        vision.MotionCaptureResponse = (function() {
+
+            /**
+             * Properties of a MotionCaptureResponse.
+             * @memberof bayesmech.vision
+             * @interface IMotionCaptureResponse
+             * @property {bayesmech.vision.IPerceiverFrameIdentifier|null} [frameIdentifier] MotionCaptureResponse frameIdentifier
+             * @property {bayesmech.vision.MotionCaptureResponse.IMotionHeatmap|null} [heatmap] MotionCaptureResponse heatmap
+             * @property {bayesmech.vision.MotionCaptureResponse.StabilizationMethod|null} [methodUsed] MotionCaptureResponse methodUsed
+             * @property {number|null} [stabilizationConfidence] MotionCaptureResponse stabilizationConfidence
+             * @property {Array.<bayesmech.vision.IMotionTrack>|null} [tracks] MotionCaptureResponse tracks
+             * @property {number|null} [totalFrames] MotionCaptureResponse totalFrames
+             */
+
+            /**
+             * Constructs a new MotionCaptureResponse.
+             * @memberof bayesmech.vision
+             * @classdesc Represents a MotionCaptureResponse.
+             * @implements IMotionCaptureResponse
+             * @constructor
+             * @param {bayesmech.vision.IMotionCaptureResponse=} [properties] Properties to set
+             */
+            function MotionCaptureResponse(properties) {
+                this.tracks = [];
+                if (properties)
+                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null)
+                            this[keys[i]] = properties[keys[i]];
+            }
+
+            /**
+             * MotionCaptureResponse frameIdentifier.
+             * @member {bayesmech.vision.IPerceiverFrameIdentifier|null|undefined} frameIdentifier
+             * @memberof bayesmech.vision.MotionCaptureResponse
+             * @instance
+             */
+            MotionCaptureResponse.prototype.frameIdentifier = null;
+
+            /**
+             * MotionCaptureResponse heatmap.
+             * @member {bayesmech.vision.MotionCaptureResponse.IMotionHeatmap|null|undefined} heatmap
+             * @memberof bayesmech.vision.MotionCaptureResponse
+             * @instance
+             */
+            MotionCaptureResponse.prototype.heatmap = null;
+
+            /**
+             * MotionCaptureResponse methodUsed.
+             * @member {bayesmech.vision.MotionCaptureResponse.StabilizationMethod} methodUsed
+             * @memberof bayesmech.vision.MotionCaptureResponse
+             * @instance
+             */
+            MotionCaptureResponse.prototype.methodUsed = 0;
+
+            /**
+             * MotionCaptureResponse stabilizationConfidence.
+             * @member {number} stabilizationConfidence
+             * @memberof bayesmech.vision.MotionCaptureResponse
+             * @instance
+             */
+            MotionCaptureResponse.prototype.stabilizationConfidence = 0;
+
+            /**
+             * MotionCaptureResponse tracks.
+             * @member {Array.<bayesmech.vision.IMotionTrack>} tracks
+             * @memberof bayesmech.vision.MotionCaptureResponse
+             * @instance
+             */
+            MotionCaptureResponse.prototype.tracks = $util.emptyArray;
+
+            /**
+             * MotionCaptureResponse totalFrames.
+             * @member {number} totalFrames
+             * @memberof bayesmech.vision.MotionCaptureResponse
+             * @instance
+             */
+            MotionCaptureResponse.prototype.totalFrames = 0;
+
+            /**
+             * Creates a new MotionCaptureResponse instance using the specified properties.
+             * @function create
+             * @memberof bayesmech.vision.MotionCaptureResponse
+             * @static
+             * @param {bayesmech.vision.IMotionCaptureResponse=} [properties] Properties to set
+             * @returns {bayesmech.vision.MotionCaptureResponse} MotionCaptureResponse instance
+             */
+            MotionCaptureResponse.create = function create(properties) {
+                return new MotionCaptureResponse(properties);
+            };
+
+            /**
+             * Encodes the specified MotionCaptureResponse message. Does not implicitly {@link bayesmech.vision.MotionCaptureResponse.verify|verify} messages.
+             * @function encode
+             * @memberof bayesmech.vision.MotionCaptureResponse
+             * @static
+             * @param {bayesmech.vision.IMotionCaptureResponse} message MotionCaptureResponse message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            MotionCaptureResponse.encode = function encode(message, writer) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (message.frameIdentifier != null && Object.hasOwnProperty.call(message, "frameIdentifier"))
+                    $root.bayesmech.vision.PerceiverFrameIdentifier.encode(message.frameIdentifier, writer.uint32(/* id 1, wireType 2 =*/10).fork()).ldelim();
+                if (message.heatmap != null && Object.hasOwnProperty.call(message, "heatmap"))
+                    $root.bayesmech.vision.MotionCaptureResponse.MotionHeatmap.encode(message.heatmap, writer.uint32(/* id 2, wireType 2 =*/18).fork()).ldelim();
+                if (message.methodUsed != null && Object.hasOwnProperty.call(message, "methodUsed"))
+                    writer.uint32(/* id 3, wireType 0 =*/24).int32(message.methodUsed);
+                if (message.stabilizationConfidence != null && Object.hasOwnProperty.call(message, "stabilizationConfidence"))
+                    writer.uint32(/* id 4, wireType 5 =*/37).float(message.stabilizationConfidence);
+                if (message.tracks != null && message.tracks.length)
+                    for (let i = 0; i < message.tracks.length; ++i)
+                        $root.bayesmech.vision.MotionTrack.encode(message.tracks[i], writer.uint32(/* id 5, wireType 2 =*/42).fork()).ldelim();
+                if (message.totalFrames != null && Object.hasOwnProperty.call(message, "totalFrames"))
+                    writer.uint32(/* id 6, wireType 0 =*/48).uint32(message.totalFrames);
+                return writer;
+            };
+
+            /**
+             * Encodes the specified MotionCaptureResponse message, length delimited. Does not implicitly {@link bayesmech.vision.MotionCaptureResponse.verify|verify} messages.
+             * @function encodeDelimited
+             * @memberof bayesmech.vision.MotionCaptureResponse
+             * @static
+             * @param {bayesmech.vision.IMotionCaptureResponse} message MotionCaptureResponse message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            MotionCaptureResponse.encodeDelimited = function encodeDelimited(message, writer) {
+                return this.encode(message, writer).ldelim();
+            };
+
+            /**
+             * Decodes a MotionCaptureResponse message from the specified reader or buffer.
+             * @function decode
+             * @memberof bayesmech.vision.MotionCaptureResponse
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {bayesmech.vision.MotionCaptureResponse} MotionCaptureResponse
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            MotionCaptureResponse.decode = function decode(reader, length, error) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.MotionCaptureResponse();
+                while (reader.pos < end) {
+                    let tag = reader.uint32();
+                    if (tag === error)
+                        break;
+                    switch (tag >>> 3) {
+                    case 1: {
+                            message.frameIdentifier = $root.bayesmech.vision.PerceiverFrameIdentifier.decode(reader, reader.uint32());
+                            break;
+                        }
+                    case 2: {
+                            message.heatmap = $root.bayesmech.vision.MotionCaptureResponse.MotionHeatmap.decode(reader, reader.uint32());
+                            break;
+                        }
+                    case 3: {
+                            message.methodUsed = reader.int32();
+                            break;
+                        }
+                    case 4: {
+                            message.stabilizationConfidence = reader.float();
+                            break;
+                        }
+                    case 5: {
+                            if (!(message.tracks && message.tracks.length))
+                                message.tracks = [];
+                            message.tracks.push($root.bayesmech.vision.MotionTrack.decode(reader, reader.uint32()));
+                            break;
+                        }
+                    case 6: {
+                            message.totalFrames = reader.uint32();
+                            break;
+                        }
+                    default:
+                        reader.skipType(tag & 7);
+                        break;
+                    }
+                }
+                return message;
+            };
+
+            /**
+             * Decodes a MotionCaptureResponse message from the specified reader or buffer, length delimited.
+             * @function decodeDelimited
+             * @memberof bayesmech.vision.MotionCaptureResponse
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @returns {bayesmech.vision.MotionCaptureResponse} MotionCaptureResponse
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            MotionCaptureResponse.decodeDelimited = function decodeDelimited(reader) {
+                if (!(reader instanceof $Reader))
+                    reader = new $Reader(reader);
+                return this.decode(reader, reader.uint32());
+            };
+
+            /**
+             * Verifies a MotionCaptureResponse message.
+             * @function verify
+             * @memberof bayesmech.vision.MotionCaptureResponse
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            MotionCaptureResponse.verify = function verify(message) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (message.frameIdentifier != null && message.hasOwnProperty("frameIdentifier")) {
+                    let error = $root.bayesmech.vision.PerceiverFrameIdentifier.verify(message.frameIdentifier);
+                    if (error)
+                        return "frameIdentifier." + error;
+                }
+                if (message.heatmap != null && message.hasOwnProperty("heatmap")) {
+                    let error = $root.bayesmech.vision.MotionCaptureResponse.MotionHeatmap.verify(message.heatmap);
+                    if (error)
+                        return "heatmap." + error;
+                }
+                if (message.methodUsed != null && message.hasOwnProperty("methodUsed"))
+                    switch (message.methodUsed) {
+                    default:
+                        return "methodUsed: enum value expected";
+                    case 0:
+                    case 1:
+                    case 2:
+                    case 3:
+                    case 4:
+                    case 5:
+                        break;
+                    }
+                if (message.stabilizationConfidence != null && message.hasOwnProperty("stabilizationConfidence"))
+                    if (typeof message.stabilizationConfidence !== "number")
+                        return "stabilizationConfidence: number expected";
+                if (message.tracks != null && message.hasOwnProperty("tracks")) {
+                    if (!Array.isArray(message.tracks))
+                        return "tracks: array expected";
+                    for (let i = 0; i < message.tracks.length; ++i) {
+                        let error = $root.bayesmech.vision.MotionTrack.verify(message.tracks[i]);
+                        if (error)
+                            return "tracks." + error;
+                    }
+                }
+                if (message.totalFrames != null && message.hasOwnProperty("totalFrames"))
+                    if (!$util.isInteger(message.totalFrames))
+                        return "totalFrames: integer expected";
+                return null;
+            };
+
+            /**
+             * Creates a MotionCaptureResponse message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof bayesmech.vision.MotionCaptureResponse
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {bayesmech.vision.MotionCaptureResponse} MotionCaptureResponse
+             */
+            MotionCaptureResponse.fromObject = function fromObject(object) {
+                if (object instanceof $root.bayesmech.vision.MotionCaptureResponse)
+                    return object;
+                let message = new $root.bayesmech.vision.MotionCaptureResponse();
+                if (object.frameIdentifier != null) {
+                    if (typeof object.frameIdentifier !== "object")
+                        throw TypeError(".bayesmech.vision.MotionCaptureResponse.frameIdentifier: object expected");
+                    message.frameIdentifier = $root.bayesmech.vision.PerceiverFrameIdentifier.fromObject(object.frameIdentifier);
+                }
+                if (object.heatmap != null) {
+                    if (typeof object.heatmap !== "object")
+                        throw TypeError(".bayesmech.vision.MotionCaptureResponse.heatmap: object expected");
+                    message.heatmap = $root.bayesmech.vision.MotionCaptureResponse.MotionHeatmap.fromObject(object.heatmap);
+                }
+                switch (object.methodUsed) {
+                default:
+                    if (typeof object.methodUsed === "number") {
+                        message.methodUsed = object.methodUsed;
+                        break;
+                    }
+                    break;
+                case "STABILIZATION_UNKNOWN":
+                case 0:
+                    message.methodUsed = 0;
+                    break;
+                case "DEPTH_WARP":
+                case 1:
+                    message.methodUsed = 1;
+                    break;
+                case "PLANE_HOMO":
+                case 2:
+                    message.methodUsed = 2;
+                    break;
+                case "POINT_RANSAC":
+                case 3:
+                    message.methodUsed = 3;
+                    break;
+                case "POSE_APPROX":
+                case 4:
+                    message.methodUsed = 4;
+                    break;
+                case "OPTICAL_FLOW":
+                case 5:
+                    message.methodUsed = 5;
+                    break;
+                }
+                if (object.stabilizationConfidence != null)
+                    message.stabilizationConfidence = Number(object.stabilizationConfidence);
+                if (object.tracks) {
+                    if (!Array.isArray(object.tracks))
+                        throw TypeError(".bayesmech.vision.MotionCaptureResponse.tracks: array expected");
+                    message.tracks = [];
+                    for (let i = 0; i < object.tracks.length; ++i) {
+                        if (typeof object.tracks[i] !== "object")
+                            throw TypeError(".bayesmech.vision.MotionCaptureResponse.tracks: object expected");
+                        message.tracks[i] = $root.bayesmech.vision.MotionTrack.fromObject(object.tracks[i]);
+                    }
+                }
+                if (object.totalFrames != null)
+                    message.totalFrames = object.totalFrames >>> 0;
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a MotionCaptureResponse message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof bayesmech.vision.MotionCaptureResponse
+             * @static
+             * @param {bayesmech.vision.MotionCaptureResponse} message MotionCaptureResponse
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            MotionCaptureResponse.toObject = function toObject(message, options) {
+                if (!options)
+                    options = {};
+                let object = {};
+                if (options.arrays || options.defaults)
+                    object.tracks = [];
+                if (options.defaults) {
+                    object.frameIdentifier = null;
+                    object.heatmap = null;
+                    object.methodUsed = options.enums === String ? "STABILIZATION_UNKNOWN" : 0;
+                    object.stabilizationConfidence = 0;
+                    object.totalFrames = 0;
+                }
+                if (message.frameIdentifier != null && message.hasOwnProperty("frameIdentifier"))
+                    object.frameIdentifier = $root.bayesmech.vision.PerceiverFrameIdentifier.toObject(message.frameIdentifier, options);
+                if (message.heatmap != null && message.hasOwnProperty("heatmap"))
+                    object.heatmap = $root.bayesmech.vision.MotionCaptureResponse.MotionHeatmap.toObject(message.heatmap, options);
+                if (message.methodUsed != null && message.hasOwnProperty("methodUsed"))
+                    object.methodUsed = options.enums === String ? $root.bayesmech.vision.MotionCaptureResponse.StabilizationMethod[message.methodUsed] === undefined ? message.methodUsed : $root.bayesmech.vision.MotionCaptureResponse.StabilizationMethod[message.methodUsed] : message.methodUsed;
+                if (message.stabilizationConfidence != null && message.hasOwnProperty("stabilizationConfidence"))
+                    object.stabilizationConfidence = options.json && !isFinite(message.stabilizationConfidence) ? String(message.stabilizationConfidence) : message.stabilizationConfidence;
+                if (message.tracks && message.tracks.length) {
+                    object.tracks = [];
+                    for (let j = 0; j < message.tracks.length; ++j)
+                        object.tracks[j] = $root.bayesmech.vision.MotionTrack.toObject(message.tracks[j], options);
+                }
+                if (message.totalFrames != null && message.hasOwnProperty("totalFrames"))
+                    object.totalFrames = message.totalFrames;
+                return object;
+            };
+
+            /**
+             * Converts this MotionCaptureResponse to JSON.
+             * @function toJSON
+             * @memberof bayesmech.vision.MotionCaptureResponse
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            MotionCaptureResponse.prototype.toJSON = function toJSON() {
+                return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the default type url for MotionCaptureResponse
+             * @function getTypeUrl
+             * @memberof bayesmech.vision.MotionCaptureResponse
+             * @static
+             * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns {string} The default type url
+             */
+            MotionCaptureResponse.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+                if (typeUrlPrefix === undefined) {
+                    typeUrlPrefix = "type.googleapis.com";
+                }
+                return typeUrlPrefix + "/bayesmech.vision.MotionCaptureResponse";
+            };
+
+            MotionCaptureResponse.MotionHeatmap = (function() {
+
+                /**
+                 * Properties of a MotionHeatmap.
+                 * @memberof bayesmech.vision.MotionCaptureResponse
+                 * @interface IMotionHeatmap
+                 * @property {Uint8Array|null} [heatmapData] MotionHeatmap heatmapData
+                 * @property {number|null} [maxMotionRaw] MotionHeatmap maxMotionRaw
+                 */
+
+                /**
+                 * Constructs a new MotionHeatmap.
+                 * @memberof bayesmech.vision.MotionCaptureResponse
+                 * @classdesc Represents a MotionHeatmap.
+                 * @implements IMotionHeatmap
+                 * @constructor
+                 * @param {bayesmech.vision.MotionCaptureResponse.IMotionHeatmap=} [properties] Properties to set
+                 */
+                function MotionHeatmap(properties) {
+                    if (properties)
+                        for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                            if (properties[keys[i]] != null)
+                                this[keys[i]] = properties[keys[i]];
+                }
+
+                /**
+                 * MotionHeatmap heatmapData.
+                 * @member {Uint8Array} heatmapData
+                 * @memberof bayesmech.vision.MotionCaptureResponse.MotionHeatmap
+                 * @instance
+                 */
+                MotionHeatmap.prototype.heatmapData = $util.newBuffer([]);
+
+                /**
+                 * MotionHeatmap maxMotionRaw.
+                 * @member {number} maxMotionRaw
+                 * @memberof bayesmech.vision.MotionCaptureResponse.MotionHeatmap
+                 * @instance
+                 */
+                MotionHeatmap.prototype.maxMotionRaw = 0;
+
+                /**
+                 * Creates a new MotionHeatmap instance using the specified properties.
+                 * @function create
+                 * @memberof bayesmech.vision.MotionCaptureResponse.MotionHeatmap
+                 * @static
+                 * @param {bayesmech.vision.MotionCaptureResponse.IMotionHeatmap=} [properties] Properties to set
+                 * @returns {bayesmech.vision.MotionCaptureResponse.MotionHeatmap} MotionHeatmap instance
+                 */
+                MotionHeatmap.create = function create(properties) {
+                    return new MotionHeatmap(properties);
+                };
+
+                /**
+                 * Encodes the specified MotionHeatmap message. Does not implicitly {@link bayesmech.vision.MotionCaptureResponse.MotionHeatmap.verify|verify} messages.
+                 * @function encode
+                 * @memberof bayesmech.vision.MotionCaptureResponse.MotionHeatmap
+                 * @static
+                 * @param {bayesmech.vision.MotionCaptureResponse.IMotionHeatmap} message MotionHeatmap message or plain object to encode
+                 * @param {$protobuf.Writer} [writer] Writer to encode to
+                 * @returns {$protobuf.Writer} Writer
+                 */
+                MotionHeatmap.encode = function encode(message, writer) {
+                    if (!writer)
+                        writer = $Writer.create();
+                    if (message.heatmapData != null && Object.hasOwnProperty.call(message, "heatmapData"))
+                        writer.uint32(/* id 1, wireType 2 =*/10).bytes(message.heatmapData);
+                    if (message.maxMotionRaw != null && Object.hasOwnProperty.call(message, "maxMotionRaw"))
+                        writer.uint32(/* id 2, wireType 5 =*/21).float(message.maxMotionRaw);
+                    return writer;
+                };
+
+                /**
+                 * Encodes the specified MotionHeatmap message, length delimited. Does not implicitly {@link bayesmech.vision.MotionCaptureResponse.MotionHeatmap.verify|verify} messages.
+                 * @function encodeDelimited
+                 * @memberof bayesmech.vision.MotionCaptureResponse.MotionHeatmap
+                 * @static
+                 * @param {bayesmech.vision.MotionCaptureResponse.IMotionHeatmap} message MotionHeatmap message or plain object to encode
+                 * @param {$protobuf.Writer} [writer] Writer to encode to
+                 * @returns {$protobuf.Writer} Writer
+                 */
+                MotionHeatmap.encodeDelimited = function encodeDelimited(message, writer) {
+                    return this.encode(message, writer).ldelim();
+                };
+
+                /**
+                 * Decodes a MotionHeatmap message from the specified reader or buffer.
+                 * @function decode
+                 * @memberof bayesmech.vision.MotionCaptureResponse.MotionHeatmap
+                 * @static
+                 * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+                 * @param {number} [length] Message length if known beforehand
+                 * @returns {bayesmech.vision.MotionCaptureResponse.MotionHeatmap} MotionHeatmap
+                 * @throws {Error} If the payload is not a reader or valid buffer
+                 * @throws {$protobuf.util.ProtocolError} If required fields are missing
+                 */
+                MotionHeatmap.decode = function decode(reader, length, error) {
+                    if (!(reader instanceof $Reader))
+                        reader = $Reader.create(reader);
+                    let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.MotionCaptureResponse.MotionHeatmap();
+                    while (reader.pos < end) {
+                        let tag = reader.uint32();
+                        if (tag === error)
+                            break;
+                        switch (tag >>> 3) {
+                        case 1: {
+                                message.heatmapData = reader.bytes();
+                                break;
+                            }
+                        case 2: {
+                                message.maxMotionRaw = reader.float();
+                                break;
+                            }
+                        default:
+                            reader.skipType(tag & 7);
+                            break;
+                        }
+                    }
+                    return message;
+                };
+
+                /**
+                 * Decodes a MotionHeatmap message from the specified reader or buffer, length delimited.
+                 * @function decodeDelimited
+                 * @memberof bayesmech.vision.MotionCaptureResponse.MotionHeatmap
+                 * @static
+                 * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+                 * @returns {bayesmech.vision.MotionCaptureResponse.MotionHeatmap} MotionHeatmap
+                 * @throws {Error} If the payload is not a reader or valid buffer
+                 * @throws {$protobuf.util.ProtocolError} If required fields are missing
+                 */
+                MotionHeatmap.decodeDelimited = function decodeDelimited(reader) {
+                    if (!(reader instanceof $Reader))
+                        reader = new $Reader(reader);
+                    return this.decode(reader, reader.uint32());
+                };
+
+                /**
+                 * Verifies a MotionHeatmap message.
+                 * @function verify
+                 * @memberof bayesmech.vision.MotionCaptureResponse.MotionHeatmap
+                 * @static
+                 * @param {Object.<string,*>} message Plain object to verify
+                 * @returns {string|null} `null` if valid, otherwise the reason why it is not
+                 */
+                MotionHeatmap.verify = function verify(message) {
+                    if (typeof message !== "object" || message === null)
+                        return "object expected";
+                    if (message.heatmapData != null && message.hasOwnProperty("heatmapData"))
+                        if (!(message.heatmapData && typeof message.heatmapData.length === "number" || $util.isString(message.heatmapData)))
+                            return "heatmapData: buffer expected";
+                    if (message.maxMotionRaw != null && message.hasOwnProperty("maxMotionRaw"))
+                        if (typeof message.maxMotionRaw !== "number")
+                            return "maxMotionRaw: number expected";
+                    return null;
+                };
+
+                /**
+                 * Creates a MotionHeatmap message from a plain object. Also converts values to their respective internal types.
+                 * @function fromObject
+                 * @memberof bayesmech.vision.MotionCaptureResponse.MotionHeatmap
+                 * @static
+                 * @param {Object.<string,*>} object Plain object
+                 * @returns {bayesmech.vision.MotionCaptureResponse.MotionHeatmap} MotionHeatmap
+                 */
+                MotionHeatmap.fromObject = function fromObject(object) {
+                    if (object instanceof $root.bayesmech.vision.MotionCaptureResponse.MotionHeatmap)
+                        return object;
+                    let message = new $root.bayesmech.vision.MotionCaptureResponse.MotionHeatmap();
+                    if (object.heatmapData != null)
+                        if (typeof object.heatmapData === "string")
+                            $util.base64.decode(object.heatmapData, message.heatmapData = $util.newBuffer($util.base64.length(object.heatmapData)), 0);
+                        else if (object.heatmapData.length >= 0)
+                            message.heatmapData = object.heatmapData;
+                    if (object.maxMotionRaw != null)
+                        message.maxMotionRaw = Number(object.maxMotionRaw);
+                    return message;
+                };
+
+                /**
+                 * Creates a plain object from a MotionHeatmap message. Also converts values to other types if specified.
+                 * @function toObject
+                 * @memberof bayesmech.vision.MotionCaptureResponse.MotionHeatmap
+                 * @static
+                 * @param {bayesmech.vision.MotionCaptureResponse.MotionHeatmap} message MotionHeatmap
+                 * @param {$protobuf.IConversionOptions} [options] Conversion options
+                 * @returns {Object.<string,*>} Plain object
+                 */
+                MotionHeatmap.toObject = function toObject(message, options) {
+                    if (!options)
+                        options = {};
+                    let object = {};
+                    if (options.defaults) {
+                        if (options.bytes === String)
+                            object.heatmapData = "";
+                        else {
+                            object.heatmapData = [];
+                            if (options.bytes !== Array)
+                                object.heatmapData = $util.newBuffer(object.heatmapData);
+                        }
+                        object.maxMotionRaw = 0;
+                    }
+                    if (message.heatmapData != null && message.hasOwnProperty("heatmapData"))
+                        object.heatmapData = options.bytes === String ? $util.base64.encode(message.heatmapData, 0, message.heatmapData.length) : options.bytes === Array ? Array.prototype.slice.call(message.heatmapData) : message.heatmapData;
+                    if (message.maxMotionRaw != null && message.hasOwnProperty("maxMotionRaw"))
+                        object.maxMotionRaw = options.json && !isFinite(message.maxMotionRaw) ? String(message.maxMotionRaw) : message.maxMotionRaw;
+                    return object;
+                };
+
+                /**
+                 * Converts this MotionHeatmap to JSON.
+                 * @function toJSON
+                 * @memberof bayesmech.vision.MotionCaptureResponse.MotionHeatmap
+                 * @instance
+                 * @returns {Object.<string,*>} JSON object
+                 */
+                MotionHeatmap.prototype.toJSON = function toJSON() {
+                    return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+                };
+
+                /**
+                 * Gets the default type url for MotionHeatmap
+                 * @function getTypeUrl
+                 * @memberof bayesmech.vision.MotionCaptureResponse.MotionHeatmap
+                 * @static
+                 * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+                 * @returns {string} The default type url
+                 */
+                MotionHeatmap.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+                    if (typeUrlPrefix === undefined) {
+                        typeUrlPrefix = "type.googleapis.com";
+                    }
+                    return typeUrlPrefix + "/bayesmech.vision.MotionCaptureResponse.MotionHeatmap";
+                };
+
+                return MotionHeatmap;
+            })();
+
+            /**
+             * StabilizationMethod enum.
+             * @name bayesmech.vision.MotionCaptureResponse.StabilizationMethod
+             * @enum {number}
+             * @property {number} STABILIZATION_UNKNOWN=0 STABILIZATION_UNKNOWN value
+             * @property {number} DEPTH_WARP=1 DEPTH_WARP value
+             * @property {number} PLANE_HOMO=2 PLANE_HOMO value
+             * @property {number} POINT_RANSAC=3 POINT_RANSAC value
+             * @property {number} POSE_APPROX=4 POSE_APPROX value
+             * @property {number} OPTICAL_FLOW=5 OPTICAL_FLOW value
+             */
+            MotionCaptureResponse.StabilizationMethod = (function() {
+                const valuesById = {}, values = Object.create(valuesById);
+                values[valuesById[0] = "STABILIZATION_UNKNOWN"] = 0;
+                values[valuesById[1] = "DEPTH_WARP"] = 1;
+                values[valuesById[2] = "PLANE_HOMO"] = 2;
+                values[valuesById[3] = "POINT_RANSAC"] = 3;
+                values[valuesById[4] = "POSE_APPROX"] = 4;
+                values[valuesById[5] = "OPTICAL_FLOW"] = 5;
+                return values;
+            })();
+
+            return MotionCaptureResponse;
+        })();
+
+        vision.MotionTrackPoint = (function() {
+
+            /**
+             * Properties of a MotionTrackPoint.
+             * @memberof bayesmech.vision
+             * @interface IMotionTrackPoint
+             * @property {number|null} [frameIdx] MotionTrackPoint frameIdx
+             * @property {number|null} [cx] MotionTrackPoint cx
+             * @property {number|null} [cy] MotionTrackPoint cy
+             * @property {number|null} [area] MotionTrackPoint area
+             * @property {boolean|null} [interpolated] MotionTrackPoint interpolated
+             */
+
+            /**
+             * Constructs a new MotionTrackPoint.
+             * @memberof bayesmech.vision
+             * @classdesc Represents a MotionTrackPoint.
+             * @implements IMotionTrackPoint
+             * @constructor
+             * @param {bayesmech.vision.IMotionTrackPoint=} [properties] Properties to set
+             */
+            function MotionTrackPoint(properties) {
+                if (properties)
+                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null)
+                            this[keys[i]] = properties[keys[i]];
+            }
+
+            /**
+             * MotionTrackPoint frameIdx.
+             * @member {number} frameIdx
+             * @memberof bayesmech.vision.MotionTrackPoint
+             * @instance
+             */
+            MotionTrackPoint.prototype.frameIdx = 0;
+
+            /**
+             * MotionTrackPoint cx.
+             * @member {number} cx
+             * @memberof bayesmech.vision.MotionTrackPoint
+             * @instance
+             */
+            MotionTrackPoint.prototype.cx = 0;
+
+            /**
+             * MotionTrackPoint cy.
+             * @member {number} cy
+             * @memberof bayesmech.vision.MotionTrackPoint
+             * @instance
+             */
+            MotionTrackPoint.prototype.cy = 0;
+
+            /**
+             * MotionTrackPoint area.
+             * @member {number} area
+             * @memberof bayesmech.vision.MotionTrackPoint
+             * @instance
+             */
+            MotionTrackPoint.prototype.area = 0;
+
+            /**
+             * MotionTrackPoint interpolated.
+             * @member {boolean} interpolated
+             * @memberof bayesmech.vision.MotionTrackPoint
+             * @instance
+             */
+            MotionTrackPoint.prototype.interpolated = false;
+
+            /**
+             * Creates a new MotionTrackPoint instance using the specified properties.
+             * @function create
+             * @memberof bayesmech.vision.MotionTrackPoint
+             * @static
+             * @param {bayesmech.vision.IMotionTrackPoint=} [properties] Properties to set
+             * @returns {bayesmech.vision.MotionTrackPoint} MotionTrackPoint instance
+             */
+            MotionTrackPoint.create = function create(properties) {
+                return new MotionTrackPoint(properties);
+            };
+
+            /**
+             * Encodes the specified MotionTrackPoint message. Does not implicitly {@link bayesmech.vision.MotionTrackPoint.verify|verify} messages.
+             * @function encode
+             * @memberof bayesmech.vision.MotionTrackPoint
+             * @static
+             * @param {bayesmech.vision.IMotionTrackPoint} message MotionTrackPoint message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            MotionTrackPoint.encode = function encode(message, writer) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (message.frameIdx != null && Object.hasOwnProperty.call(message, "frameIdx"))
+                    writer.uint32(/* id 1, wireType 0 =*/8).uint32(message.frameIdx);
+                if (message.cx != null && Object.hasOwnProperty.call(message, "cx"))
+                    writer.uint32(/* id 2, wireType 5 =*/21).float(message.cx);
+                if (message.cy != null && Object.hasOwnProperty.call(message, "cy"))
+                    writer.uint32(/* id 3, wireType 5 =*/29).float(message.cy);
+                if (message.area != null && Object.hasOwnProperty.call(message, "area"))
+                    writer.uint32(/* id 4, wireType 0 =*/32).uint32(message.area);
+                if (message.interpolated != null && Object.hasOwnProperty.call(message, "interpolated"))
+                    writer.uint32(/* id 5, wireType 0 =*/40).bool(message.interpolated);
+                return writer;
+            };
+
+            /**
+             * Encodes the specified MotionTrackPoint message, length delimited. Does not implicitly {@link bayesmech.vision.MotionTrackPoint.verify|verify} messages.
+             * @function encodeDelimited
+             * @memberof bayesmech.vision.MotionTrackPoint
+             * @static
+             * @param {bayesmech.vision.IMotionTrackPoint} message MotionTrackPoint message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            MotionTrackPoint.encodeDelimited = function encodeDelimited(message, writer) {
+                return this.encode(message, writer).ldelim();
+            };
+
+            /**
+             * Decodes a MotionTrackPoint message from the specified reader or buffer.
+             * @function decode
+             * @memberof bayesmech.vision.MotionTrackPoint
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {bayesmech.vision.MotionTrackPoint} MotionTrackPoint
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            MotionTrackPoint.decode = function decode(reader, length, error) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.MotionTrackPoint();
+                while (reader.pos < end) {
+                    let tag = reader.uint32();
+                    if (tag === error)
+                        break;
+                    switch (tag >>> 3) {
+                    case 1: {
+                            message.frameIdx = reader.uint32();
+                            break;
+                        }
+                    case 2: {
+                            message.cx = reader.float();
+                            break;
+                        }
+                    case 3: {
+                            message.cy = reader.float();
+                            break;
+                        }
+                    case 4: {
+                            message.area = reader.uint32();
+                            break;
+                        }
+                    case 5: {
+                            message.interpolated = reader.bool();
+                            break;
+                        }
+                    default:
+                        reader.skipType(tag & 7);
+                        break;
+                    }
+                }
+                return message;
+            };
+
+            /**
+             * Decodes a MotionTrackPoint message from the specified reader or buffer, length delimited.
+             * @function decodeDelimited
+             * @memberof bayesmech.vision.MotionTrackPoint
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @returns {bayesmech.vision.MotionTrackPoint} MotionTrackPoint
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            MotionTrackPoint.decodeDelimited = function decodeDelimited(reader) {
+                if (!(reader instanceof $Reader))
+                    reader = new $Reader(reader);
+                return this.decode(reader, reader.uint32());
+            };
+
+            /**
+             * Verifies a MotionTrackPoint message.
+             * @function verify
+             * @memberof bayesmech.vision.MotionTrackPoint
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            MotionTrackPoint.verify = function verify(message) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (message.frameIdx != null && message.hasOwnProperty("frameIdx"))
+                    if (!$util.isInteger(message.frameIdx))
+                        return "frameIdx: integer expected";
+                if (message.cx != null && message.hasOwnProperty("cx"))
+                    if (typeof message.cx !== "number")
+                        return "cx: number expected";
+                if (message.cy != null && message.hasOwnProperty("cy"))
+                    if (typeof message.cy !== "number")
+                        return "cy: number expected";
+                if (message.area != null && message.hasOwnProperty("area"))
+                    if (!$util.isInteger(message.area))
+                        return "area: integer expected";
+                if (message.interpolated != null && message.hasOwnProperty("interpolated"))
+                    if (typeof message.interpolated !== "boolean")
+                        return "interpolated: boolean expected";
+                return null;
+            };
+
+            /**
+             * Creates a MotionTrackPoint message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof bayesmech.vision.MotionTrackPoint
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {bayesmech.vision.MotionTrackPoint} MotionTrackPoint
+             */
+            MotionTrackPoint.fromObject = function fromObject(object) {
+                if (object instanceof $root.bayesmech.vision.MotionTrackPoint)
+                    return object;
+                let message = new $root.bayesmech.vision.MotionTrackPoint();
+                if (object.frameIdx != null)
+                    message.frameIdx = object.frameIdx >>> 0;
+                if (object.cx != null)
+                    message.cx = Number(object.cx);
+                if (object.cy != null)
+                    message.cy = Number(object.cy);
+                if (object.area != null)
+                    message.area = object.area >>> 0;
+                if (object.interpolated != null)
+                    message.interpolated = Boolean(object.interpolated);
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a MotionTrackPoint message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof bayesmech.vision.MotionTrackPoint
+             * @static
+             * @param {bayesmech.vision.MotionTrackPoint} message MotionTrackPoint
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            MotionTrackPoint.toObject = function toObject(message, options) {
+                if (!options)
+                    options = {};
+                let object = {};
+                if (options.defaults) {
+                    object.frameIdx = 0;
+                    object.cx = 0;
+                    object.cy = 0;
+                    object.area = 0;
+                    object.interpolated = false;
+                }
+                if (message.frameIdx != null && message.hasOwnProperty("frameIdx"))
+                    object.frameIdx = message.frameIdx;
+                if (message.cx != null && message.hasOwnProperty("cx"))
+                    object.cx = options.json && !isFinite(message.cx) ? String(message.cx) : message.cx;
+                if (message.cy != null && message.hasOwnProperty("cy"))
+                    object.cy = options.json && !isFinite(message.cy) ? String(message.cy) : message.cy;
+                if (message.area != null && message.hasOwnProperty("area"))
+                    object.area = message.area;
+                if (message.interpolated != null && message.hasOwnProperty("interpolated"))
+                    object.interpolated = message.interpolated;
+                return object;
+            };
+
+            /**
+             * Converts this MotionTrackPoint to JSON.
+             * @function toJSON
+             * @memberof bayesmech.vision.MotionTrackPoint
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            MotionTrackPoint.prototype.toJSON = function toJSON() {
+                return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the default type url for MotionTrackPoint
+             * @function getTypeUrl
+             * @memberof bayesmech.vision.MotionTrackPoint
+             * @static
+             * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns {string} The default type url
+             */
+            MotionTrackPoint.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+                if (typeUrlPrefix === undefined) {
+                    typeUrlPrefix = "type.googleapis.com";
+                }
+                return typeUrlPrefix + "/bayesmech.vision.MotionTrackPoint";
+            };
+
+            return MotionTrackPoint;
+        })();
+
+        vision.MotionTrack = (function() {
+
+            /**
+             * Properties of a MotionTrack.
+             * @memberof bayesmech.vision
+             * @interface IMotionTrack
+             * @property {number|null} [trackId] MotionTrack trackId
+             * @property {number|null} [detectedFrames] MotionTrack detectedFrames
+             * @property {number|null} [totalPositions] MotionTrack totalPositions
+             * @property {number|null} [presenceFraction] MotionTrack presenceFraction
+             * @property {Array.<bayesmech.vision.IMotionTrackPoint>|null} [positions] MotionTrack positions
+             */
+
+            /**
+             * Constructs a new MotionTrack.
+             * @memberof bayesmech.vision
+             * @classdesc Represents a MotionTrack.
+             * @implements IMotionTrack
+             * @constructor
+             * @param {bayesmech.vision.IMotionTrack=} [properties] Properties to set
+             */
+            function MotionTrack(properties) {
+                this.positions = [];
+                if (properties)
+                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null)
+                            this[keys[i]] = properties[keys[i]];
+            }
+
+            /**
+             * MotionTrack trackId.
+             * @member {number} trackId
+             * @memberof bayesmech.vision.MotionTrack
+             * @instance
+             */
+            MotionTrack.prototype.trackId = 0;
+
+            /**
+             * MotionTrack detectedFrames.
+             * @member {number} detectedFrames
+             * @memberof bayesmech.vision.MotionTrack
+             * @instance
+             */
+            MotionTrack.prototype.detectedFrames = 0;
+
+            /**
+             * MotionTrack totalPositions.
+             * @member {number} totalPositions
+             * @memberof bayesmech.vision.MotionTrack
+             * @instance
+             */
+            MotionTrack.prototype.totalPositions = 0;
+
+            /**
+             * MotionTrack presenceFraction.
+             * @member {number} presenceFraction
+             * @memberof bayesmech.vision.MotionTrack
+             * @instance
+             */
+            MotionTrack.prototype.presenceFraction = 0;
+
+            /**
+             * MotionTrack positions.
+             * @member {Array.<bayesmech.vision.IMotionTrackPoint>} positions
+             * @memberof bayesmech.vision.MotionTrack
+             * @instance
+             */
+            MotionTrack.prototype.positions = $util.emptyArray;
+
+            /**
+             * Creates a new MotionTrack instance using the specified properties.
+             * @function create
+             * @memberof bayesmech.vision.MotionTrack
+             * @static
+             * @param {bayesmech.vision.IMotionTrack=} [properties] Properties to set
+             * @returns {bayesmech.vision.MotionTrack} MotionTrack instance
+             */
+            MotionTrack.create = function create(properties) {
+                return new MotionTrack(properties);
+            };
+
+            /**
+             * Encodes the specified MotionTrack message. Does not implicitly {@link bayesmech.vision.MotionTrack.verify|verify} messages.
+             * @function encode
+             * @memberof bayesmech.vision.MotionTrack
+             * @static
+             * @param {bayesmech.vision.IMotionTrack} message MotionTrack message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            MotionTrack.encode = function encode(message, writer) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (message.trackId != null && Object.hasOwnProperty.call(message, "trackId"))
+                    writer.uint32(/* id 1, wireType 0 =*/8).uint32(message.trackId);
+                if (message.detectedFrames != null && Object.hasOwnProperty.call(message, "detectedFrames"))
+                    writer.uint32(/* id 2, wireType 0 =*/16).uint32(message.detectedFrames);
+                if (message.totalPositions != null && Object.hasOwnProperty.call(message, "totalPositions"))
+                    writer.uint32(/* id 3, wireType 0 =*/24).uint32(message.totalPositions);
+                if (message.presenceFraction != null && Object.hasOwnProperty.call(message, "presenceFraction"))
+                    writer.uint32(/* id 4, wireType 5 =*/37).float(message.presenceFraction);
+                if (message.positions != null && message.positions.length)
+                    for (let i = 0; i < message.positions.length; ++i)
+                        $root.bayesmech.vision.MotionTrackPoint.encode(message.positions[i], writer.uint32(/* id 5, wireType 2 =*/42).fork()).ldelim();
+                return writer;
+            };
+
+            /**
+             * Encodes the specified MotionTrack message, length delimited. Does not implicitly {@link bayesmech.vision.MotionTrack.verify|verify} messages.
+             * @function encodeDelimited
+             * @memberof bayesmech.vision.MotionTrack
+             * @static
+             * @param {bayesmech.vision.IMotionTrack} message MotionTrack message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            MotionTrack.encodeDelimited = function encodeDelimited(message, writer) {
+                return this.encode(message, writer).ldelim();
+            };
+
+            /**
+             * Decodes a MotionTrack message from the specified reader or buffer.
+             * @function decode
+             * @memberof bayesmech.vision.MotionTrack
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {bayesmech.vision.MotionTrack} MotionTrack
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            MotionTrack.decode = function decode(reader, length, error) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.MotionTrack();
+                while (reader.pos < end) {
+                    let tag = reader.uint32();
+                    if (tag === error)
+                        break;
+                    switch (tag >>> 3) {
+                    case 1: {
+                            message.trackId = reader.uint32();
+                            break;
+                        }
+                    case 2: {
+                            message.detectedFrames = reader.uint32();
+                            break;
+                        }
+                    case 3: {
+                            message.totalPositions = reader.uint32();
+                            break;
+                        }
+                    case 4: {
+                            message.presenceFraction = reader.float();
+                            break;
+                        }
+                    case 5: {
+                            if (!(message.positions && message.positions.length))
+                                message.positions = [];
+                            message.positions.push($root.bayesmech.vision.MotionTrackPoint.decode(reader, reader.uint32()));
+                            break;
+                        }
+                    default:
+                        reader.skipType(tag & 7);
+                        break;
+                    }
+                }
+                return message;
+            };
+
+            /**
+             * Decodes a MotionTrack message from the specified reader or buffer, length delimited.
+             * @function decodeDelimited
+             * @memberof bayesmech.vision.MotionTrack
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @returns {bayesmech.vision.MotionTrack} MotionTrack
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            MotionTrack.decodeDelimited = function decodeDelimited(reader) {
+                if (!(reader instanceof $Reader))
+                    reader = new $Reader(reader);
+                return this.decode(reader, reader.uint32());
+            };
+
+            /**
+             * Verifies a MotionTrack message.
+             * @function verify
+             * @memberof bayesmech.vision.MotionTrack
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            MotionTrack.verify = function verify(message) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (message.trackId != null && message.hasOwnProperty("trackId"))
+                    if (!$util.isInteger(message.trackId))
+                        return "trackId: integer expected";
+                if (message.detectedFrames != null && message.hasOwnProperty("detectedFrames"))
+                    if (!$util.isInteger(message.detectedFrames))
+                        return "detectedFrames: integer expected";
+                if (message.totalPositions != null && message.hasOwnProperty("totalPositions"))
+                    if (!$util.isInteger(message.totalPositions))
+                        return "totalPositions: integer expected";
+                if (message.presenceFraction != null && message.hasOwnProperty("presenceFraction"))
+                    if (typeof message.presenceFraction !== "number")
+                        return "presenceFraction: number expected";
+                if (message.positions != null && message.hasOwnProperty("positions")) {
+                    if (!Array.isArray(message.positions))
+                        return "positions: array expected";
+                    for (let i = 0; i < message.positions.length; ++i) {
+                        let error = $root.bayesmech.vision.MotionTrackPoint.verify(message.positions[i]);
+                        if (error)
+                            return "positions." + error;
+                    }
+                }
+                return null;
+            };
+
+            /**
+             * Creates a MotionTrack message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof bayesmech.vision.MotionTrack
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {bayesmech.vision.MotionTrack} MotionTrack
+             */
+            MotionTrack.fromObject = function fromObject(object) {
+                if (object instanceof $root.bayesmech.vision.MotionTrack)
+                    return object;
+                let message = new $root.bayesmech.vision.MotionTrack();
+                if (object.trackId != null)
+                    message.trackId = object.trackId >>> 0;
+                if (object.detectedFrames != null)
+                    message.detectedFrames = object.detectedFrames >>> 0;
+                if (object.totalPositions != null)
+                    message.totalPositions = object.totalPositions >>> 0;
+                if (object.presenceFraction != null)
+                    message.presenceFraction = Number(object.presenceFraction);
+                if (object.positions) {
+                    if (!Array.isArray(object.positions))
+                        throw TypeError(".bayesmech.vision.MotionTrack.positions: array expected");
+                    message.positions = [];
+                    for (let i = 0; i < object.positions.length; ++i) {
+                        if (typeof object.positions[i] !== "object")
+                            throw TypeError(".bayesmech.vision.MotionTrack.positions: object expected");
+                        message.positions[i] = $root.bayesmech.vision.MotionTrackPoint.fromObject(object.positions[i]);
+                    }
+                }
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a MotionTrack message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof bayesmech.vision.MotionTrack
+             * @static
+             * @param {bayesmech.vision.MotionTrack} message MotionTrack
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            MotionTrack.toObject = function toObject(message, options) {
+                if (!options)
+                    options = {};
+                let object = {};
+                if (options.arrays || options.defaults)
+                    object.positions = [];
+                if (options.defaults) {
+                    object.trackId = 0;
+                    object.detectedFrames = 0;
+                    object.totalPositions = 0;
+                    object.presenceFraction = 0;
+                }
+                if (message.trackId != null && message.hasOwnProperty("trackId"))
+                    object.trackId = message.trackId;
+                if (message.detectedFrames != null && message.hasOwnProperty("detectedFrames"))
+                    object.detectedFrames = message.detectedFrames;
+                if (message.totalPositions != null && message.hasOwnProperty("totalPositions"))
+                    object.totalPositions = message.totalPositions;
+                if (message.presenceFraction != null && message.hasOwnProperty("presenceFraction"))
+                    object.presenceFraction = options.json && !isFinite(message.presenceFraction) ? String(message.presenceFraction) : message.presenceFraction;
+                if (message.positions && message.positions.length) {
+                    object.positions = [];
+                    for (let j = 0; j < message.positions.length; ++j)
+                        object.positions[j] = $root.bayesmech.vision.MotionTrackPoint.toObject(message.positions[j], options);
+                }
+                return object;
+            };
+
+            /**
+             * Converts this MotionTrack to JSON.
+             * @function toJSON
+             * @memberof bayesmech.vision.MotionTrack
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            MotionTrack.prototype.toJSON = function toJSON() {
+                return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the default type url for MotionTrack
+             * @function getTypeUrl
+             * @memberof bayesmech.vision.MotionTrack
+             * @static
+             * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns {string} The default type url
+             */
+            MotionTrack.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+                if (typeUrlPrefix === undefined) {
+                    typeUrlPrefix = "type.googleapis.com";
+                }
+                return typeUrlPrefix + "/bayesmech.vision.MotionTrack";
+            };
+
+            return MotionTrack;
+        })();
+
+        vision.IdoSlamFramePose = (function() {
+
+            /**
+             * Properties of an IdoSlamFramePose.
+             * @memberof bayesmech.vision
+             * @interface IIdoSlamFramePose
+             * @property {bayesmech.vision.IPerceiverFrameIdentifier|null} [frameId] IdoSlamFramePose frameId
+             * @property {number|null} [frameIndex] IdoSlamFramePose frameIndex
+             * @property {bayesmech.vision.IPose|null} [worldPose] IdoSlamFramePose worldPose
+             * @property {bayesmech.vision.IVector3|null} [eulerDegrees] IdoSlamFramePose eulerDegrees
+             */
+
+            /**
+             * Constructs a new IdoSlamFramePose.
+             * @memberof bayesmech.vision
+             * @classdesc Represents an IdoSlamFramePose.
+             * @implements IIdoSlamFramePose
+             * @constructor
+             * @param {bayesmech.vision.IIdoSlamFramePose=} [properties] Properties to set
+             */
+            function IdoSlamFramePose(properties) {
+                if (properties)
+                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null)
+                            this[keys[i]] = properties[keys[i]];
+            }
+
+            /**
+             * IdoSlamFramePose frameId.
+             * @member {bayesmech.vision.IPerceiverFrameIdentifier|null|undefined} frameId
+             * @memberof bayesmech.vision.IdoSlamFramePose
+             * @instance
+             */
+            IdoSlamFramePose.prototype.frameId = null;
+
+            /**
+             * IdoSlamFramePose frameIndex.
+             * @member {number} frameIndex
+             * @memberof bayesmech.vision.IdoSlamFramePose
+             * @instance
+             */
+            IdoSlamFramePose.prototype.frameIndex = 0;
+
+            /**
+             * IdoSlamFramePose worldPose.
+             * @member {bayesmech.vision.IPose|null|undefined} worldPose
+             * @memberof bayesmech.vision.IdoSlamFramePose
+             * @instance
+             */
+            IdoSlamFramePose.prototype.worldPose = null;
+
+            /**
+             * IdoSlamFramePose eulerDegrees.
+             * @member {bayesmech.vision.IVector3|null|undefined} eulerDegrees
+             * @memberof bayesmech.vision.IdoSlamFramePose
+             * @instance
+             */
+            IdoSlamFramePose.prototype.eulerDegrees = null;
+
+            /**
+             * Creates a new IdoSlamFramePose instance using the specified properties.
+             * @function create
+             * @memberof bayesmech.vision.IdoSlamFramePose
+             * @static
+             * @param {bayesmech.vision.IIdoSlamFramePose=} [properties] Properties to set
+             * @returns {bayesmech.vision.IdoSlamFramePose} IdoSlamFramePose instance
+             */
+            IdoSlamFramePose.create = function create(properties) {
+                return new IdoSlamFramePose(properties);
+            };
+
+            /**
+             * Encodes the specified IdoSlamFramePose message. Does not implicitly {@link bayesmech.vision.IdoSlamFramePose.verify|verify} messages.
+             * @function encode
+             * @memberof bayesmech.vision.IdoSlamFramePose
+             * @static
+             * @param {bayesmech.vision.IIdoSlamFramePose} message IdoSlamFramePose message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            IdoSlamFramePose.encode = function encode(message, writer) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (message.frameId != null && Object.hasOwnProperty.call(message, "frameId"))
+                    $root.bayesmech.vision.PerceiverFrameIdentifier.encode(message.frameId, writer.uint32(/* id 1, wireType 2 =*/10).fork()).ldelim();
+                if (message.frameIndex != null && Object.hasOwnProperty.call(message, "frameIndex"))
+                    writer.uint32(/* id 2, wireType 0 =*/16).uint32(message.frameIndex);
+                if (message.worldPose != null && Object.hasOwnProperty.call(message, "worldPose"))
+                    $root.bayesmech.vision.Pose.encode(message.worldPose, writer.uint32(/* id 3, wireType 2 =*/26).fork()).ldelim();
+                if (message.eulerDegrees != null && Object.hasOwnProperty.call(message, "eulerDegrees"))
+                    $root.bayesmech.vision.Vector3.encode(message.eulerDegrees, writer.uint32(/* id 4, wireType 2 =*/34).fork()).ldelim();
+                return writer;
+            };
+
+            /**
+             * Encodes the specified IdoSlamFramePose message, length delimited. Does not implicitly {@link bayesmech.vision.IdoSlamFramePose.verify|verify} messages.
+             * @function encodeDelimited
+             * @memberof bayesmech.vision.IdoSlamFramePose
+             * @static
+             * @param {bayesmech.vision.IIdoSlamFramePose} message IdoSlamFramePose message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            IdoSlamFramePose.encodeDelimited = function encodeDelimited(message, writer) {
+                return this.encode(message, writer).ldelim();
+            };
+
+            /**
+             * Decodes an IdoSlamFramePose message from the specified reader or buffer.
+             * @function decode
+             * @memberof bayesmech.vision.IdoSlamFramePose
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {bayesmech.vision.IdoSlamFramePose} IdoSlamFramePose
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            IdoSlamFramePose.decode = function decode(reader, length, error) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.IdoSlamFramePose();
+                while (reader.pos < end) {
+                    let tag = reader.uint32();
+                    if (tag === error)
+                        break;
+                    switch (tag >>> 3) {
+                    case 1: {
+                            message.frameId = $root.bayesmech.vision.PerceiverFrameIdentifier.decode(reader, reader.uint32());
+                            break;
+                        }
+                    case 2: {
+                            message.frameIndex = reader.uint32();
+                            break;
+                        }
+                    case 3: {
+                            message.worldPose = $root.bayesmech.vision.Pose.decode(reader, reader.uint32());
+                            break;
+                        }
+                    case 4: {
+                            message.eulerDegrees = $root.bayesmech.vision.Vector3.decode(reader, reader.uint32());
+                            break;
+                        }
+                    default:
+                        reader.skipType(tag & 7);
+                        break;
+                    }
+                }
+                return message;
+            };
+
+            /**
+             * Decodes an IdoSlamFramePose message from the specified reader or buffer, length delimited.
+             * @function decodeDelimited
+             * @memberof bayesmech.vision.IdoSlamFramePose
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @returns {bayesmech.vision.IdoSlamFramePose} IdoSlamFramePose
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            IdoSlamFramePose.decodeDelimited = function decodeDelimited(reader) {
+                if (!(reader instanceof $Reader))
+                    reader = new $Reader(reader);
+                return this.decode(reader, reader.uint32());
+            };
+
+            /**
+             * Verifies an IdoSlamFramePose message.
+             * @function verify
+             * @memberof bayesmech.vision.IdoSlamFramePose
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            IdoSlamFramePose.verify = function verify(message) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (message.frameId != null && message.hasOwnProperty("frameId")) {
+                    let error = $root.bayesmech.vision.PerceiverFrameIdentifier.verify(message.frameId);
+                    if (error)
+                        return "frameId." + error;
+                }
+                if (message.frameIndex != null && message.hasOwnProperty("frameIndex"))
+                    if (!$util.isInteger(message.frameIndex))
+                        return "frameIndex: integer expected";
+                if (message.worldPose != null && message.hasOwnProperty("worldPose")) {
+                    let error = $root.bayesmech.vision.Pose.verify(message.worldPose);
+                    if (error)
+                        return "worldPose." + error;
+                }
+                if (message.eulerDegrees != null && message.hasOwnProperty("eulerDegrees")) {
+                    let error = $root.bayesmech.vision.Vector3.verify(message.eulerDegrees);
+                    if (error)
+                        return "eulerDegrees." + error;
+                }
+                return null;
+            };
+
+            /**
+             * Creates an IdoSlamFramePose message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof bayesmech.vision.IdoSlamFramePose
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {bayesmech.vision.IdoSlamFramePose} IdoSlamFramePose
+             */
+            IdoSlamFramePose.fromObject = function fromObject(object) {
+                if (object instanceof $root.bayesmech.vision.IdoSlamFramePose)
+                    return object;
+                let message = new $root.bayesmech.vision.IdoSlamFramePose();
+                if (object.frameId != null) {
+                    if (typeof object.frameId !== "object")
+                        throw TypeError(".bayesmech.vision.IdoSlamFramePose.frameId: object expected");
+                    message.frameId = $root.bayesmech.vision.PerceiverFrameIdentifier.fromObject(object.frameId);
+                }
+                if (object.frameIndex != null)
+                    message.frameIndex = object.frameIndex >>> 0;
+                if (object.worldPose != null) {
+                    if (typeof object.worldPose !== "object")
+                        throw TypeError(".bayesmech.vision.IdoSlamFramePose.worldPose: object expected");
+                    message.worldPose = $root.bayesmech.vision.Pose.fromObject(object.worldPose);
+                }
+                if (object.eulerDegrees != null) {
+                    if (typeof object.eulerDegrees !== "object")
+                        throw TypeError(".bayesmech.vision.IdoSlamFramePose.eulerDegrees: object expected");
+                    message.eulerDegrees = $root.bayesmech.vision.Vector3.fromObject(object.eulerDegrees);
+                }
+                return message;
+            };
+
+            /**
+             * Creates a plain object from an IdoSlamFramePose message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof bayesmech.vision.IdoSlamFramePose
+             * @static
+             * @param {bayesmech.vision.IdoSlamFramePose} message IdoSlamFramePose
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            IdoSlamFramePose.toObject = function toObject(message, options) {
+                if (!options)
+                    options = {};
+                let object = {};
+                if (options.defaults) {
+                    object.frameId = null;
+                    object.frameIndex = 0;
+                    object.worldPose = null;
+                    object.eulerDegrees = null;
+                }
+                if (message.frameId != null && message.hasOwnProperty("frameId"))
+                    object.frameId = $root.bayesmech.vision.PerceiverFrameIdentifier.toObject(message.frameId, options);
+                if (message.frameIndex != null && message.hasOwnProperty("frameIndex"))
+                    object.frameIndex = message.frameIndex;
+                if (message.worldPose != null && message.hasOwnProperty("worldPose"))
+                    object.worldPose = $root.bayesmech.vision.Pose.toObject(message.worldPose, options);
+                if (message.eulerDegrees != null && message.hasOwnProperty("eulerDegrees"))
+                    object.eulerDegrees = $root.bayesmech.vision.Vector3.toObject(message.eulerDegrees, options);
+                return object;
+            };
+
+            /**
+             * Converts this IdoSlamFramePose to JSON.
+             * @function toJSON
+             * @memberof bayesmech.vision.IdoSlamFramePose
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            IdoSlamFramePose.prototype.toJSON = function toJSON() {
+                return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the default type url for IdoSlamFramePose
+             * @function getTypeUrl
+             * @memberof bayesmech.vision.IdoSlamFramePose
+             * @static
+             * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns {string} The default type url
+             */
+            IdoSlamFramePose.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+                if (typeUrlPrefix === undefined) {
+                    typeUrlPrefix = "type.googleapis.com";
+                }
+                return typeUrlPrefix + "/bayesmech.vision.IdoSlamFramePose";
+            };
+
+            return IdoSlamFramePose;
+        })();
+
+        vision.IdoSlamGroundPoint = (function() {
+
+            /**
+             * Properties of an IdoSlamGroundPoint.
+             * @memberof bayesmech.vision
+             * @interface IIdoSlamGroundPoint
+             * @property {number|null} [frameIndex] IdoSlamGroundPoint frameIndex
+             * @property {number|null} [pairedFrameIndex] IdoSlamGroundPoint pairedFrameIndex
+             * @property {bayesmech.vision.IVector3|null} [point] IdoSlamGroundPoint point
+             * @property {string|null} [side] IdoSlamGroundPoint side
+             */
+
+            /**
+             * Constructs a new IdoSlamGroundPoint.
+             * @memberof bayesmech.vision
+             * @classdesc Represents an IdoSlamGroundPoint.
+             * @implements IIdoSlamGroundPoint
+             * @constructor
+             * @param {bayesmech.vision.IIdoSlamGroundPoint=} [properties] Properties to set
+             */
+            function IdoSlamGroundPoint(properties) {
+                if (properties)
+                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null)
+                            this[keys[i]] = properties[keys[i]];
+            }
+
+            /**
+             * IdoSlamGroundPoint frameIndex.
+             * @member {number} frameIndex
+             * @memberof bayesmech.vision.IdoSlamGroundPoint
+             * @instance
+             */
+            IdoSlamGroundPoint.prototype.frameIndex = 0;
+
+            /**
+             * IdoSlamGroundPoint pairedFrameIndex.
+             * @member {number} pairedFrameIndex
+             * @memberof bayesmech.vision.IdoSlamGroundPoint
+             * @instance
+             */
+            IdoSlamGroundPoint.prototype.pairedFrameIndex = 0;
+
+            /**
+             * IdoSlamGroundPoint point.
+             * @member {bayesmech.vision.IVector3|null|undefined} point
+             * @memberof bayesmech.vision.IdoSlamGroundPoint
+             * @instance
+             */
+            IdoSlamGroundPoint.prototype.point = null;
+
+            /**
+             * IdoSlamGroundPoint side.
+             * @member {string} side
+             * @memberof bayesmech.vision.IdoSlamGroundPoint
+             * @instance
+             */
+            IdoSlamGroundPoint.prototype.side = "";
+
+            /**
+             * Creates a new IdoSlamGroundPoint instance using the specified properties.
+             * @function create
+             * @memberof bayesmech.vision.IdoSlamGroundPoint
+             * @static
+             * @param {bayesmech.vision.IIdoSlamGroundPoint=} [properties] Properties to set
+             * @returns {bayesmech.vision.IdoSlamGroundPoint} IdoSlamGroundPoint instance
+             */
+            IdoSlamGroundPoint.create = function create(properties) {
+                return new IdoSlamGroundPoint(properties);
+            };
+
+            /**
+             * Encodes the specified IdoSlamGroundPoint message. Does not implicitly {@link bayesmech.vision.IdoSlamGroundPoint.verify|verify} messages.
+             * @function encode
+             * @memberof bayesmech.vision.IdoSlamGroundPoint
+             * @static
+             * @param {bayesmech.vision.IIdoSlamGroundPoint} message IdoSlamGroundPoint message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            IdoSlamGroundPoint.encode = function encode(message, writer) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (message.frameIndex != null && Object.hasOwnProperty.call(message, "frameIndex"))
+                    writer.uint32(/* id 1, wireType 0 =*/8).uint32(message.frameIndex);
+                if (message.pairedFrameIndex != null && Object.hasOwnProperty.call(message, "pairedFrameIndex"))
+                    writer.uint32(/* id 2, wireType 0 =*/16).uint32(message.pairedFrameIndex);
+                if (message.point != null && Object.hasOwnProperty.call(message, "point"))
+                    $root.bayesmech.vision.Vector3.encode(message.point, writer.uint32(/* id 3, wireType 2 =*/26).fork()).ldelim();
+                if (message.side != null && Object.hasOwnProperty.call(message, "side"))
+                    writer.uint32(/* id 4, wireType 2 =*/34).string(message.side);
+                return writer;
+            };
+
+            /**
+             * Encodes the specified IdoSlamGroundPoint message, length delimited. Does not implicitly {@link bayesmech.vision.IdoSlamGroundPoint.verify|verify} messages.
+             * @function encodeDelimited
+             * @memberof bayesmech.vision.IdoSlamGroundPoint
+             * @static
+             * @param {bayesmech.vision.IIdoSlamGroundPoint} message IdoSlamGroundPoint message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            IdoSlamGroundPoint.encodeDelimited = function encodeDelimited(message, writer) {
+                return this.encode(message, writer).ldelim();
+            };
+
+            /**
+             * Decodes an IdoSlamGroundPoint message from the specified reader or buffer.
+             * @function decode
+             * @memberof bayesmech.vision.IdoSlamGroundPoint
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {bayesmech.vision.IdoSlamGroundPoint} IdoSlamGroundPoint
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            IdoSlamGroundPoint.decode = function decode(reader, length, error) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.IdoSlamGroundPoint();
+                while (reader.pos < end) {
+                    let tag = reader.uint32();
+                    if (tag === error)
+                        break;
+                    switch (tag >>> 3) {
+                    case 1: {
+                            message.frameIndex = reader.uint32();
+                            break;
+                        }
+                    case 2: {
+                            message.pairedFrameIndex = reader.uint32();
+                            break;
+                        }
+                    case 3: {
+                            message.point = $root.bayesmech.vision.Vector3.decode(reader, reader.uint32());
+                            break;
+                        }
+                    case 4: {
+                            message.side = reader.string();
+                            break;
+                        }
+                    default:
+                        reader.skipType(tag & 7);
+                        break;
+                    }
+                }
+                return message;
+            };
+
+            /**
+             * Decodes an IdoSlamGroundPoint message from the specified reader or buffer, length delimited.
+             * @function decodeDelimited
+             * @memberof bayesmech.vision.IdoSlamGroundPoint
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @returns {bayesmech.vision.IdoSlamGroundPoint} IdoSlamGroundPoint
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            IdoSlamGroundPoint.decodeDelimited = function decodeDelimited(reader) {
+                if (!(reader instanceof $Reader))
+                    reader = new $Reader(reader);
+                return this.decode(reader, reader.uint32());
+            };
+
+            /**
+             * Verifies an IdoSlamGroundPoint message.
+             * @function verify
+             * @memberof bayesmech.vision.IdoSlamGroundPoint
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            IdoSlamGroundPoint.verify = function verify(message) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (message.frameIndex != null && message.hasOwnProperty("frameIndex"))
+                    if (!$util.isInteger(message.frameIndex))
+                        return "frameIndex: integer expected";
+                if (message.pairedFrameIndex != null && message.hasOwnProperty("pairedFrameIndex"))
+                    if (!$util.isInteger(message.pairedFrameIndex))
+                        return "pairedFrameIndex: integer expected";
+                if (message.point != null && message.hasOwnProperty("point")) {
+                    let error = $root.bayesmech.vision.Vector3.verify(message.point);
+                    if (error)
+                        return "point." + error;
+                }
+                if (message.side != null && message.hasOwnProperty("side"))
+                    if (!$util.isString(message.side))
+                        return "side: string expected";
+                return null;
+            };
+
+            /**
+             * Creates an IdoSlamGroundPoint message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof bayesmech.vision.IdoSlamGroundPoint
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {bayesmech.vision.IdoSlamGroundPoint} IdoSlamGroundPoint
+             */
+            IdoSlamGroundPoint.fromObject = function fromObject(object) {
+                if (object instanceof $root.bayesmech.vision.IdoSlamGroundPoint)
+                    return object;
+                let message = new $root.bayesmech.vision.IdoSlamGroundPoint();
+                if (object.frameIndex != null)
+                    message.frameIndex = object.frameIndex >>> 0;
+                if (object.pairedFrameIndex != null)
+                    message.pairedFrameIndex = object.pairedFrameIndex >>> 0;
+                if (object.point != null) {
+                    if (typeof object.point !== "object")
+                        throw TypeError(".bayesmech.vision.IdoSlamGroundPoint.point: object expected");
+                    message.point = $root.bayesmech.vision.Vector3.fromObject(object.point);
+                }
+                if (object.side != null)
+                    message.side = String(object.side);
+                return message;
+            };
+
+            /**
+             * Creates a plain object from an IdoSlamGroundPoint message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof bayesmech.vision.IdoSlamGroundPoint
+             * @static
+             * @param {bayesmech.vision.IdoSlamGroundPoint} message IdoSlamGroundPoint
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            IdoSlamGroundPoint.toObject = function toObject(message, options) {
+                if (!options)
+                    options = {};
+                let object = {};
+                if (options.defaults) {
+                    object.frameIndex = 0;
+                    object.pairedFrameIndex = 0;
+                    object.point = null;
+                    object.side = "";
+                }
+                if (message.frameIndex != null && message.hasOwnProperty("frameIndex"))
+                    object.frameIndex = message.frameIndex;
+                if (message.pairedFrameIndex != null && message.hasOwnProperty("pairedFrameIndex"))
+                    object.pairedFrameIndex = message.pairedFrameIndex;
+                if (message.point != null && message.hasOwnProperty("point"))
+                    object.point = $root.bayesmech.vision.Vector3.toObject(message.point, options);
+                if (message.side != null && message.hasOwnProperty("side"))
+                    object.side = message.side;
+                return object;
+            };
+
+            /**
+             * Converts this IdoSlamGroundPoint to JSON.
+             * @function toJSON
+             * @memberof bayesmech.vision.IdoSlamGroundPoint
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            IdoSlamGroundPoint.prototype.toJSON = function toJSON() {
+                return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the default type url for IdoSlamGroundPoint
+             * @function getTypeUrl
+             * @memberof bayesmech.vision.IdoSlamGroundPoint
+             * @static
+             * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns {string} The default type url
+             */
+            IdoSlamGroundPoint.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+                if (typeUrlPrefix === undefined) {
+                    typeUrlPrefix = "type.googleapis.com";
+                }
+                return typeUrlPrefix + "/bayesmech.vision.IdoSlamGroundPoint";
+            };
+
+            return IdoSlamGroundPoint;
+        })();
+
+        vision.IdoSlamPointCorrespondence = (function() {
+
+            /**
+             * Properties of an IdoSlamPointCorrespondence.
+             * @memberof bayesmech.vision
+             * @interface IIdoSlamPointCorrespondence
+             * @property {number|null} [sourceX] IdoSlamPointCorrespondence sourceX
+             * @property {number|null} [sourceY] IdoSlamPointCorrespondence sourceY
+             * @property {number|null} [targetX] IdoSlamPointCorrespondence targetX
+             * @property {number|null} [targetY] IdoSlamPointCorrespondence targetY
+             * @property {bayesmech.vision.IVector3|null} [worldPoint] IdoSlamPointCorrespondence worldPoint
+             * @property {string|null} [side] IdoSlamPointCorrespondence side
+             * @property {boolean|null} [onRoad] IdoSlamPointCorrespondence onRoad
+             * @property {boolean|null} [triangulated] IdoSlamPointCorrespondence triangulated
+             * @property {boolean|null} [inlier] IdoSlamPointCorrespondence inlier
+             */
+
+            /**
+             * Constructs a new IdoSlamPointCorrespondence.
+             * @memberof bayesmech.vision
+             * @classdesc Represents an IdoSlamPointCorrespondence.
+             * @implements IIdoSlamPointCorrespondence
+             * @constructor
+             * @param {bayesmech.vision.IIdoSlamPointCorrespondence=} [properties] Properties to set
+             */
+            function IdoSlamPointCorrespondence(properties) {
+                if (properties)
+                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null)
+                            this[keys[i]] = properties[keys[i]];
+            }
+
+            /**
+             * IdoSlamPointCorrespondence sourceX.
+             * @member {number} sourceX
+             * @memberof bayesmech.vision.IdoSlamPointCorrespondence
+             * @instance
+             */
+            IdoSlamPointCorrespondence.prototype.sourceX = 0;
+
+            /**
+             * IdoSlamPointCorrespondence sourceY.
+             * @member {number} sourceY
+             * @memberof bayesmech.vision.IdoSlamPointCorrespondence
+             * @instance
+             */
+            IdoSlamPointCorrespondence.prototype.sourceY = 0;
+
+            /**
+             * IdoSlamPointCorrespondence targetX.
+             * @member {number} targetX
+             * @memberof bayesmech.vision.IdoSlamPointCorrespondence
+             * @instance
+             */
+            IdoSlamPointCorrespondence.prototype.targetX = 0;
+
+            /**
+             * IdoSlamPointCorrespondence targetY.
+             * @member {number} targetY
+             * @memberof bayesmech.vision.IdoSlamPointCorrespondence
+             * @instance
+             */
+            IdoSlamPointCorrespondence.prototype.targetY = 0;
+
+            /**
+             * IdoSlamPointCorrespondence worldPoint.
+             * @member {bayesmech.vision.IVector3|null|undefined} worldPoint
+             * @memberof bayesmech.vision.IdoSlamPointCorrespondence
+             * @instance
+             */
+            IdoSlamPointCorrespondence.prototype.worldPoint = null;
+
+            /**
+             * IdoSlamPointCorrespondence side.
+             * @member {string} side
+             * @memberof bayesmech.vision.IdoSlamPointCorrespondence
+             * @instance
+             */
+            IdoSlamPointCorrespondence.prototype.side = "";
+
+            /**
+             * IdoSlamPointCorrespondence onRoad.
+             * @member {boolean} onRoad
+             * @memberof bayesmech.vision.IdoSlamPointCorrespondence
+             * @instance
+             */
+            IdoSlamPointCorrespondence.prototype.onRoad = false;
+
+            /**
+             * IdoSlamPointCorrespondence triangulated.
+             * @member {boolean} triangulated
+             * @memberof bayesmech.vision.IdoSlamPointCorrespondence
+             * @instance
+             */
+            IdoSlamPointCorrespondence.prototype.triangulated = false;
+
+            /**
+             * IdoSlamPointCorrespondence inlier.
+             * @member {boolean} inlier
+             * @memberof bayesmech.vision.IdoSlamPointCorrespondence
+             * @instance
+             */
+            IdoSlamPointCorrespondence.prototype.inlier = false;
+
+            /**
+             * Creates a new IdoSlamPointCorrespondence instance using the specified properties.
+             * @function create
+             * @memberof bayesmech.vision.IdoSlamPointCorrespondence
+             * @static
+             * @param {bayesmech.vision.IIdoSlamPointCorrespondence=} [properties] Properties to set
+             * @returns {bayesmech.vision.IdoSlamPointCorrespondence} IdoSlamPointCorrespondence instance
+             */
+            IdoSlamPointCorrespondence.create = function create(properties) {
+                return new IdoSlamPointCorrespondence(properties);
+            };
+
+            /**
+             * Encodes the specified IdoSlamPointCorrespondence message. Does not implicitly {@link bayesmech.vision.IdoSlamPointCorrespondence.verify|verify} messages.
+             * @function encode
+             * @memberof bayesmech.vision.IdoSlamPointCorrespondence
+             * @static
+             * @param {bayesmech.vision.IIdoSlamPointCorrespondence} message IdoSlamPointCorrespondence message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            IdoSlamPointCorrespondence.encode = function encode(message, writer) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (message.sourceX != null && Object.hasOwnProperty.call(message, "sourceX"))
+                    writer.uint32(/* id 1, wireType 5 =*/13).float(message.sourceX);
+                if (message.sourceY != null && Object.hasOwnProperty.call(message, "sourceY"))
+                    writer.uint32(/* id 2, wireType 5 =*/21).float(message.sourceY);
+                if (message.targetX != null && Object.hasOwnProperty.call(message, "targetX"))
+                    writer.uint32(/* id 3, wireType 5 =*/29).float(message.targetX);
+                if (message.targetY != null && Object.hasOwnProperty.call(message, "targetY"))
+                    writer.uint32(/* id 4, wireType 5 =*/37).float(message.targetY);
+                if (message.worldPoint != null && Object.hasOwnProperty.call(message, "worldPoint"))
+                    $root.bayesmech.vision.Vector3.encode(message.worldPoint, writer.uint32(/* id 5, wireType 2 =*/42).fork()).ldelim();
+                if (message.side != null && Object.hasOwnProperty.call(message, "side"))
+                    writer.uint32(/* id 6, wireType 2 =*/50).string(message.side);
+                if (message.onRoad != null && Object.hasOwnProperty.call(message, "onRoad"))
+                    writer.uint32(/* id 7, wireType 0 =*/56).bool(message.onRoad);
+                if (message.triangulated != null && Object.hasOwnProperty.call(message, "triangulated"))
+                    writer.uint32(/* id 8, wireType 0 =*/64).bool(message.triangulated);
+                if (message.inlier != null && Object.hasOwnProperty.call(message, "inlier"))
+                    writer.uint32(/* id 9, wireType 0 =*/72).bool(message.inlier);
+                return writer;
+            };
+
+            /**
+             * Encodes the specified IdoSlamPointCorrespondence message, length delimited. Does not implicitly {@link bayesmech.vision.IdoSlamPointCorrespondence.verify|verify} messages.
+             * @function encodeDelimited
+             * @memberof bayesmech.vision.IdoSlamPointCorrespondence
+             * @static
+             * @param {bayesmech.vision.IIdoSlamPointCorrespondence} message IdoSlamPointCorrespondence message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            IdoSlamPointCorrespondence.encodeDelimited = function encodeDelimited(message, writer) {
+                return this.encode(message, writer).ldelim();
+            };
+
+            /**
+             * Decodes an IdoSlamPointCorrespondence message from the specified reader or buffer.
+             * @function decode
+             * @memberof bayesmech.vision.IdoSlamPointCorrespondence
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {bayesmech.vision.IdoSlamPointCorrespondence} IdoSlamPointCorrespondence
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            IdoSlamPointCorrespondence.decode = function decode(reader, length, error) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.IdoSlamPointCorrespondence();
+                while (reader.pos < end) {
+                    let tag = reader.uint32();
+                    if (tag === error)
+                        break;
+                    switch (tag >>> 3) {
+                    case 1: {
+                            message.sourceX = reader.float();
+                            break;
+                        }
+                    case 2: {
+                            message.sourceY = reader.float();
+                            break;
+                        }
+                    case 3: {
+                            message.targetX = reader.float();
+                            break;
+                        }
+                    case 4: {
+                            message.targetY = reader.float();
+                            break;
+                        }
+                    case 5: {
+                            message.worldPoint = $root.bayesmech.vision.Vector3.decode(reader, reader.uint32());
+                            break;
+                        }
+                    case 6: {
+                            message.side = reader.string();
+                            break;
+                        }
+                    case 7: {
+                            message.onRoad = reader.bool();
+                            break;
+                        }
+                    case 8: {
+                            message.triangulated = reader.bool();
+                            break;
+                        }
+                    case 9: {
+                            message.inlier = reader.bool();
+                            break;
+                        }
+                    default:
+                        reader.skipType(tag & 7);
+                        break;
+                    }
+                }
+                return message;
+            };
+
+            /**
+             * Decodes an IdoSlamPointCorrespondence message from the specified reader or buffer, length delimited.
+             * @function decodeDelimited
+             * @memberof bayesmech.vision.IdoSlamPointCorrespondence
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @returns {bayesmech.vision.IdoSlamPointCorrespondence} IdoSlamPointCorrespondence
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            IdoSlamPointCorrespondence.decodeDelimited = function decodeDelimited(reader) {
+                if (!(reader instanceof $Reader))
+                    reader = new $Reader(reader);
+                return this.decode(reader, reader.uint32());
+            };
+
+            /**
+             * Verifies an IdoSlamPointCorrespondence message.
+             * @function verify
+             * @memberof bayesmech.vision.IdoSlamPointCorrespondence
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            IdoSlamPointCorrespondence.verify = function verify(message) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (message.sourceX != null && message.hasOwnProperty("sourceX"))
+                    if (typeof message.sourceX !== "number")
+                        return "sourceX: number expected";
+                if (message.sourceY != null && message.hasOwnProperty("sourceY"))
+                    if (typeof message.sourceY !== "number")
+                        return "sourceY: number expected";
+                if (message.targetX != null && message.hasOwnProperty("targetX"))
+                    if (typeof message.targetX !== "number")
+                        return "targetX: number expected";
+                if (message.targetY != null && message.hasOwnProperty("targetY"))
+                    if (typeof message.targetY !== "number")
+                        return "targetY: number expected";
+                if (message.worldPoint != null && message.hasOwnProperty("worldPoint")) {
+                    let error = $root.bayesmech.vision.Vector3.verify(message.worldPoint);
+                    if (error)
+                        return "worldPoint." + error;
+                }
+                if (message.side != null && message.hasOwnProperty("side"))
+                    if (!$util.isString(message.side))
+                        return "side: string expected";
+                if (message.onRoad != null && message.hasOwnProperty("onRoad"))
+                    if (typeof message.onRoad !== "boolean")
+                        return "onRoad: boolean expected";
+                if (message.triangulated != null && message.hasOwnProperty("triangulated"))
+                    if (typeof message.triangulated !== "boolean")
+                        return "triangulated: boolean expected";
+                if (message.inlier != null && message.hasOwnProperty("inlier"))
+                    if (typeof message.inlier !== "boolean")
+                        return "inlier: boolean expected";
+                return null;
+            };
+
+            /**
+             * Creates an IdoSlamPointCorrespondence message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof bayesmech.vision.IdoSlamPointCorrespondence
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {bayesmech.vision.IdoSlamPointCorrespondence} IdoSlamPointCorrespondence
+             */
+            IdoSlamPointCorrespondence.fromObject = function fromObject(object) {
+                if (object instanceof $root.bayesmech.vision.IdoSlamPointCorrespondence)
+                    return object;
+                let message = new $root.bayesmech.vision.IdoSlamPointCorrespondence();
+                if (object.sourceX != null)
+                    message.sourceX = Number(object.sourceX);
+                if (object.sourceY != null)
+                    message.sourceY = Number(object.sourceY);
+                if (object.targetX != null)
+                    message.targetX = Number(object.targetX);
+                if (object.targetY != null)
+                    message.targetY = Number(object.targetY);
+                if (object.worldPoint != null) {
+                    if (typeof object.worldPoint !== "object")
+                        throw TypeError(".bayesmech.vision.IdoSlamPointCorrespondence.worldPoint: object expected");
+                    message.worldPoint = $root.bayesmech.vision.Vector3.fromObject(object.worldPoint);
+                }
+                if (object.side != null)
+                    message.side = String(object.side);
+                if (object.onRoad != null)
+                    message.onRoad = Boolean(object.onRoad);
+                if (object.triangulated != null)
+                    message.triangulated = Boolean(object.triangulated);
+                if (object.inlier != null)
+                    message.inlier = Boolean(object.inlier);
+                return message;
+            };
+
+            /**
+             * Creates a plain object from an IdoSlamPointCorrespondence message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof bayesmech.vision.IdoSlamPointCorrespondence
+             * @static
+             * @param {bayesmech.vision.IdoSlamPointCorrespondence} message IdoSlamPointCorrespondence
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            IdoSlamPointCorrespondence.toObject = function toObject(message, options) {
+                if (!options)
+                    options = {};
+                let object = {};
+                if (options.defaults) {
+                    object.sourceX = 0;
+                    object.sourceY = 0;
+                    object.targetX = 0;
+                    object.targetY = 0;
+                    object.worldPoint = null;
+                    object.side = "";
+                    object.onRoad = false;
+                    object.triangulated = false;
+                    object.inlier = false;
+                }
+                if (message.sourceX != null && message.hasOwnProperty("sourceX"))
+                    object.sourceX = options.json && !isFinite(message.sourceX) ? String(message.sourceX) : message.sourceX;
+                if (message.sourceY != null && message.hasOwnProperty("sourceY"))
+                    object.sourceY = options.json && !isFinite(message.sourceY) ? String(message.sourceY) : message.sourceY;
+                if (message.targetX != null && message.hasOwnProperty("targetX"))
+                    object.targetX = options.json && !isFinite(message.targetX) ? String(message.targetX) : message.targetX;
+                if (message.targetY != null && message.hasOwnProperty("targetY"))
+                    object.targetY = options.json && !isFinite(message.targetY) ? String(message.targetY) : message.targetY;
+                if (message.worldPoint != null && message.hasOwnProperty("worldPoint"))
+                    object.worldPoint = $root.bayesmech.vision.Vector3.toObject(message.worldPoint, options);
+                if (message.side != null && message.hasOwnProperty("side"))
+                    object.side = message.side;
+                if (message.onRoad != null && message.hasOwnProperty("onRoad"))
+                    object.onRoad = message.onRoad;
+                if (message.triangulated != null && message.hasOwnProperty("triangulated"))
+                    object.triangulated = message.triangulated;
+                if (message.inlier != null && message.hasOwnProperty("inlier"))
+                    object.inlier = message.inlier;
+                return object;
+            };
+
+            /**
+             * Converts this IdoSlamPointCorrespondence to JSON.
+             * @function toJSON
+             * @memberof bayesmech.vision.IdoSlamPointCorrespondence
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            IdoSlamPointCorrespondence.prototype.toJSON = function toJSON() {
+                return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the default type url for IdoSlamPointCorrespondence
+             * @function getTypeUrl
+             * @memberof bayesmech.vision.IdoSlamPointCorrespondence
+             * @static
+             * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns {string} The default type url
+             */
+            IdoSlamPointCorrespondence.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+                if (typeUrlPrefix === undefined) {
+                    typeUrlPrefix = "type.googleapis.com";
+                }
+                return typeUrlPrefix + "/bayesmech.vision.IdoSlamPointCorrespondence";
+            };
+
+            return IdoSlamPointCorrespondence;
+        })();
+
+        vision.IdoSlamPairDebug = (function() {
+
+            /**
+             * Properties of an IdoSlamPairDebug.
+             * @memberof bayesmech.vision
+             * @interface IIdoSlamPairDebug
+             * @property {number|null} [frameIndex] IdoSlamPairDebug frameIndex
+             * @property {number|null} [pairedFrameIndex] IdoSlamPairDebug pairedFrameIndex
+             * @property {string|null} [status] IdoSlamPairDebug status
+             * @property {number|null} [goodMatchCount] IdoSlamPairDebug goodMatchCount
+             * @property {number|null} [inlierCount] IdoSlamPairDebug inlierCount
+             * @property {number|null} [triangulatedLeft] IdoSlamPairDebug triangulatedLeft
+             * @property {number|null} [triangulatedRight] IdoSlamPairDebug triangulatedRight
+             * @property {number|null} [onRoadCount] IdoSlamPairDebug onRoadCount
+             * @property {Array.<bayesmech.vision.IIdoSlamPointCorrespondence>|null} [correspondences] IdoSlamPairDebug correspondences
+             */
+
+            /**
+             * Constructs a new IdoSlamPairDebug.
+             * @memberof bayesmech.vision
+             * @classdesc Represents an IdoSlamPairDebug.
+             * @implements IIdoSlamPairDebug
+             * @constructor
+             * @param {bayesmech.vision.IIdoSlamPairDebug=} [properties] Properties to set
+             */
+            function IdoSlamPairDebug(properties) {
+                this.correspondences = [];
+                if (properties)
+                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null)
+                            this[keys[i]] = properties[keys[i]];
+            }
+
+            /**
+             * IdoSlamPairDebug frameIndex.
+             * @member {number} frameIndex
+             * @memberof bayesmech.vision.IdoSlamPairDebug
+             * @instance
+             */
+            IdoSlamPairDebug.prototype.frameIndex = 0;
+
+            /**
+             * IdoSlamPairDebug pairedFrameIndex.
+             * @member {number} pairedFrameIndex
+             * @memberof bayesmech.vision.IdoSlamPairDebug
+             * @instance
+             */
+            IdoSlamPairDebug.prototype.pairedFrameIndex = 0;
+
+            /**
+             * IdoSlamPairDebug status.
+             * @member {string} status
+             * @memberof bayesmech.vision.IdoSlamPairDebug
+             * @instance
+             */
+            IdoSlamPairDebug.prototype.status = "";
+
+            /**
+             * IdoSlamPairDebug goodMatchCount.
+             * @member {number} goodMatchCount
+             * @memberof bayesmech.vision.IdoSlamPairDebug
+             * @instance
+             */
+            IdoSlamPairDebug.prototype.goodMatchCount = 0;
+
+            /**
+             * IdoSlamPairDebug inlierCount.
+             * @member {number} inlierCount
+             * @memberof bayesmech.vision.IdoSlamPairDebug
+             * @instance
+             */
+            IdoSlamPairDebug.prototype.inlierCount = 0;
+
+            /**
+             * IdoSlamPairDebug triangulatedLeft.
+             * @member {number} triangulatedLeft
+             * @memberof bayesmech.vision.IdoSlamPairDebug
+             * @instance
+             */
+            IdoSlamPairDebug.prototype.triangulatedLeft = 0;
+
+            /**
+             * IdoSlamPairDebug triangulatedRight.
+             * @member {number} triangulatedRight
+             * @memberof bayesmech.vision.IdoSlamPairDebug
+             * @instance
+             */
+            IdoSlamPairDebug.prototype.triangulatedRight = 0;
+
+            /**
+             * IdoSlamPairDebug onRoadCount.
+             * @member {number} onRoadCount
+             * @memberof bayesmech.vision.IdoSlamPairDebug
+             * @instance
+             */
+            IdoSlamPairDebug.prototype.onRoadCount = 0;
+
+            /**
+             * IdoSlamPairDebug correspondences.
+             * @member {Array.<bayesmech.vision.IIdoSlamPointCorrespondence>} correspondences
+             * @memberof bayesmech.vision.IdoSlamPairDebug
+             * @instance
+             */
+            IdoSlamPairDebug.prototype.correspondences = $util.emptyArray;
+
+            /**
+             * Creates a new IdoSlamPairDebug instance using the specified properties.
+             * @function create
+             * @memberof bayesmech.vision.IdoSlamPairDebug
+             * @static
+             * @param {bayesmech.vision.IIdoSlamPairDebug=} [properties] Properties to set
+             * @returns {bayesmech.vision.IdoSlamPairDebug} IdoSlamPairDebug instance
+             */
+            IdoSlamPairDebug.create = function create(properties) {
+                return new IdoSlamPairDebug(properties);
+            };
+
+            /**
+             * Encodes the specified IdoSlamPairDebug message. Does not implicitly {@link bayesmech.vision.IdoSlamPairDebug.verify|verify} messages.
+             * @function encode
+             * @memberof bayesmech.vision.IdoSlamPairDebug
+             * @static
+             * @param {bayesmech.vision.IIdoSlamPairDebug} message IdoSlamPairDebug message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            IdoSlamPairDebug.encode = function encode(message, writer) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (message.frameIndex != null && Object.hasOwnProperty.call(message, "frameIndex"))
+                    writer.uint32(/* id 1, wireType 0 =*/8).uint32(message.frameIndex);
+                if (message.pairedFrameIndex != null && Object.hasOwnProperty.call(message, "pairedFrameIndex"))
+                    writer.uint32(/* id 2, wireType 0 =*/16).uint32(message.pairedFrameIndex);
+                if (message.status != null && Object.hasOwnProperty.call(message, "status"))
+                    writer.uint32(/* id 3, wireType 2 =*/26).string(message.status);
+                if (message.goodMatchCount != null && Object.hasOwnProperty.call(message, "goodMatchCount"))
+                    writer.uint32(/* id 4, wireType 0 =*/32).uint32(message.goodMatchCount);
+                if (message.inlierCount != null && Object.hasOwnProperty.call(message, "inlierCount"))
+                    writer.uint32(/* id 5, wireType 0 =*/40).uint32(message.inlierCount);
+                if (message.triangulatedLeft != null && Object.hasOwnProperty.call(message, "triangulatedLeft"))
+                    writer.uint32(/* id 6, wireType 0 =*/48).uint32(message.triangulatedLeft);
+                if (message.triangulatedRight != null && Object.hasOwnProperty.call(message, "triangulatedRight"))
+                    writer.uint32(/* id 7, wireType 0 =*/56).uint32(message.triangulatedRight);
+                if (message.onRoadCount != null && Object.hasOwnProperty.call(message, "onRoadCount"))
+                    writer.uint32(/* id 8, wireType 0 =*/64).uint32(message.onRoadCount);
+                if (message.correspondences != null && message.correspondences.length)
+                    for (let i = 0; i < message.correspondences.length; ++i)
+                        $root.bayesmech.vision.IdoSlamPointCorrespondence.encode(message.correspondences[i], writer.uint32(/* id 9, wireType 2 =*/74).fork()).ldelim();
+                return writer;
+            };
+
+            /**
+             * Encodes the specified IdoSlamPairDebug message, length delimited. Does not implicitly {@link bayesmech.vision.IdoSlamPairDebug.verify|verify} messages.
+             * @function encodeDelimited
+             * @memberof bayesmech.vision.IdoSlamPairDebug
+             * @static
+             * @param {bayesmech.vision.IIdoSlamPairDebug} message IdoSlamPairDebug message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            IdoSlamPairDebug.encodeDelimited = function encodeDelimited(message, writer) {
+                return this.encode(message, writer).ldelim();
+            };
+
+            /**
+             * Decodes an IdoSlamPairDebug message from the specified reader or buffer.
+             * @function decode
+             * @memberof bayesmech.vision.IdoSlamPairDebug
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {bayesmech.vision.IdoSlamPairDebug} IdoSlamPairDebug
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            IdoSlamPairDebug.decode = function decode(reader, length, error) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.IdoSlamPairDebug();
+                while (reader.pos < end) {
+                    let tag = reader.uint32();
+                    if (tag === error)
+                        break;
+                    switch (tag >>> 3) {
+                    case 1: {
+                            message.frameIndex = reader.uint32();
+                            break;
+                        }
+                    case 2: {
+                            message.pairedFrameIndex = reader.uint32();
+                            break;
+                        }
+                    case 3: {
+                            message.status = reader.string();
+                            break;
+                        }
+                    case 4: {
+                            message.goodMatchCount = reader.uint32();
+                            break;
+                        }
+                    case 5: {
+                            message.inlierCount = reader.uint32();
+                            break;
+                        }
+                    case 6: {
+                            message.triangulatedLeft = reader.uint32();
+                            break;
+                        }
+                    case 7: {
+                            message.triangulatedRight = reader.uint32();
+                            break;
+                        }
+                    case 8: {
+                            message.onRoadCount = reader.uint32();
+                            break;
+                        }
+                    case 9: {
+                            if (!(message.correspondences && message.correspondences.length))
+                                message.correspondences = [];
+                            message.correspondences.push($root.bayesmech.vision.IdoSlamPointCorrespondence.decode(reader, reader.uint32()));
+                            break;
+                        }
+                    default:
+                        reader.skipType(tag & 7);
+                        break;
+                    }
+                }
+                return message;
+            };
+
+            /**
+             * Decodes an IdoSlamPairDebug message from the specified reader or buffer, length delimited.
+             * @function decodeDelimited
+             * @memberof bayesmech.vision.IdoSlamPairDebug
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @returns {bayesmech.vision.IdoSlamPairDebug} IdoSlamPairDebug
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            IdoSlamPairDebug.decodeDelimited = function decodeDelimited(reader) {
+                if (!(reader instanceof $Reader))
+                    reader = new $Reader(reader);
+                return this.decode(reader, reader.uint32());
+            };
+
+            /**
+             * Verifies an IdoSlamPairDebug message.
+             * @function verify
+             * @memberof bayesmech.vision.IdoSlamPairDebug
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            IdoSlamPairDebug.verify = function verify(message) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (message.frameIndex != null && message.hasOwnProperty("frameIndex"))
+                    if (!$util.isInteger(message.frameIndex))
+                        return "frameIndex: integer expected";
+                if (message.pairedFrameIndex != null && message.hasOwnProperty("pairedFrameIndex"))
+                    if (!$util.isInteger(message.pairedFrameIndex))
+                        return "pairedFrameIndex: integer expected";
+                if (message.status != null && message.hasOwnProperty("status"))
+                    if (!$util.isString(message.status))
+                        return "status: string expected";
+                if (message.goodMatchCount != null && message.hasOwnProperty("goodMatchCount"))
+                    if (!$util.isInteger(message.goodMatchCount))
+                        return "goodMatchCount: integer expected";
+                if (message.inlierCount != null && message.hasOwnProperty("inlierCount"))
+                    if (!$util.isInteger(message.inlierCount))
+                        return "inlierCount: integer expected";
+                if (message.triangulatedLeft != null && message.hasOwnProperty("triangulatedLeft"))
+                    if (!$util.isInteger(message.triangulatedLeft))
+                        return "triangulatedLeft: integer expected";
+                if (message.triangulatedRight != null && message.hasOwnProperty("triangulatedRight"))
+                    if (!$util.isInteger(message.triangulatedRight))
+                        return "triangulatedRight: integer expected";
+                if (message.onRoadCount != null && message.hasOwnProperty("onRoadCount"))
+                    if (!$util.isInteger(message.onRoadCount))
+                        return "onRoadCount: integer expected";
+                if (message.correspondences != null && message.hasOwnProperty("correspondences")) {
+                    if (!Array.isArray(message.correspondences))
+                        return "correspondences: array expected";
+                    for (let i = 0; i < message.correspondences.length; ++i) {
+                        let error = $root.bayesmech.vision.IdoSlamPointCorrespondence.verify(message.correspondences[i]);
+                        if (error)
+                            return "correspondences." + error;
+                    }
+                }
+                return null;
+            };
+
+            /**
+             * Creates an IdoSlamPairDebug message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof bayesmech.vision.IdoSlamPairDebug
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {bayesmech.vision.IdoSlamPairDebug} IdoSlamPairDebug
+             */
+            IdoSlamPairDebug.fromObject = function fromObject(object) {
+                if (object instanceof $root.bayesmech.vision.IdoSlamPairDebug)
+                    return object;
+                let message = new $root.bayesmech.vision.IdoSlamPairDebug();
+                if (object.frameIndex != null)
+                    message.frameIndex = object.frameIndex >>> 0;
+                if (object.pairedFrameIndex != null)
+                    message.pairedFrameIndex = object.pairedFrameIndex >>> 0;
+                if (object.status != null)
+                    message.status = String(object.status);
+                if (object.goodMatchCount != null)
+                    message.goodMatchCount = object.goodMatchCount >>> 0;
+                if (object.inlierCount != null)
+                    message.inlierCount = object.inlierCount >>> 0;
+                if (object.triangulatedLeft != null)
+                    message.triangulatedLeft = object.triangulatedLeft >>> 0;
+                if (object.triangulatedRight != null)
+                    message.triangulatedRight = object.triangulatedRight >>> 0;
+                if (object.onRoadCount != null)
+                    message.onRoadCount = object.onRoadCount >>> 0;
+                if (object.correspondences) {
+                    if (!Array.isArray(object.correspondences))
+                        throw TypeError(".bayesmech.vision.IdoSlamPairDebug.correspondences: array expected");
+                    message.correspondences = [];
+                    for (let i = 0; i < object.correspondences.length; ++i) {
+                        if (typeof object.correspondences[i] !== "object")
+                            throw TypeError(".bayesmech.vision.IdoSlamPairDebug.correspondences: object expected");
+                        message.correspondences[i] = $root.bayesmech.vision.IdoSlamPointCorrespondence.fromObject(object.correspondences[i]);
+                    }
+                }
+                return message;
+            };
+
+            /**
+             * Creates a plain object from an IdoSlamPairDebug message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof bayesmech.vision.IdoSlamPairDebug
+             * @static
+             * @param {bayesmech.vision.IdoSlamPairDebug} message IdoSlamPairDebug
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            IdoSlamPairDebug.toObject = function toObject(message, options) {
+                if (!options)
+                    options = {};
+                let object = {};
+                if (options.arrays || options.defaults)
+                    object.correspondences = [];
+                if (options.defaults) {
+                    object.frameIndex = 0;
+                    object.pairedFrameIndex = 0;
+                    object.status = "";
+                    object.goodMatchCount = 0;
+                    object.inlierCount = 0;
+                    object.triangulatedLeft = 0;
+                    object.triangulatedRight = 0;
+                    object.onRoadCount = 0;
+                }
+                if (message.frameIndex != null && message.hasOwnProperty("frameIndex"))
+                    object.frameIndex = message.frameIndex;
+                if (message.pairedFrameIndex != null && message.hasOwnProperty("pairedFrameIndex"))
+                    object.pairedFrameIndex = message.pairedFrameIndex;
+                if (message.status != null && message.hasOwnProperty("status"))
+                    object.status = message.status;
+                if (message.goodMatchCount != null && message.hasOwnProperty("goodMatchCount"))
+                    object.goodMatchCount = message.goodMatchCount;
+                if (message.inlierCount != null && message.hasOwnProperty("inlierCount"))
+                    object.inlierCount = message.inlierCount;
+                if (message.triangulatedLeft != null && message.hasOwnProperty("triangulatedLeft"))
+                    object.triangulatedLeft = message.triangulatedLeft;
+                if (message.triangulatedRight != null && message.hasOwnProperty("triangulatedRight"))
+                    object.triangulatedRight = message.triangulatedRight;
+                if (message.onRoadCount != null && message.hasOwnProperty("onRoadCount"))
+                    object.onRoadCount = message.onRoadCount;
+                if (message.correspondences && message.correspondences.length) {
+                    object.correspondences = [];
+                    for (let j = 0; j < message.correspondences.length; ++j)
+                        object.correspondences[j] = $root.bayesmech.vision.IdoSlamPointCorrespondence.toObject(message.correspondences[j], options);
+                }
+                return object;
+            };
+
+            /**
+             * Converts this IdoSlamPairDebug to JSON.
+             * @function toJSON
+             * @memberof bayesmech.vision.IdoSlamPairDebug
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            IdoSlamPairDebug.prototype.toJSON = function toJSON() {
+                return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the default type url for IdoSlamPairDebug
+             * @function getTypeUrl
+             * @memberof bayesmech.vision.IdoSlamPairDebug
+             * @static
+             * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns {string} The default type url
+             */
+            IdoSlamPairDebug.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+                if (typeUrlPrefix === undefined) {
+                    typeUrlPrefix = "type.googleapis.com";
+                }
+                return typeUrlPrefix + "/bayesmech.vision.IdoSlamPairDebug";
+            };
+
+            return IdoSlamPairDebug;
+        })();
+
+        vision.IdoSlamPairwiseMotion = (function() {
+
+            /**
+             * Properties of an IdoSlamPairwiseMotion.
+             * @memberof bayesmech.vision
+             * @interface IIdoSlamPairwiseMotion
+             * @property {number|null} [prevFrameIndex] IdoSlamPairwiseMotion prevFrameIndex
+             * @property {number|null} [frameIndex] IdoSlamPairwiseMotion frameIndex
+             * @property {number|Long|null} [prevTimestampNs] IdoSlamPairwiseMotion prevTimestampNs
+             * @property {number|Long|null} [timestampNs] IdoSlamPairwiseMotion timestampNs
+             * @property {string|null} [status] IdoSlamPairwiseMotion status
+             * @property {number|null} [keypointsPrev] IdoSlamPairwiseMotion keypointsPrev
+             * @property {number|null} [keypoints] IdoSlamPairwiseMotion keypoints
+             * @property {number|null} [goodMatchCount] IdoSlamPairwiseMotion goodMatchCount
+             * @property {number|null} [essentialInlierCount] IdoSlamPairwiseMotion essentialInlierCount
+             * @property {number|null} [essentialInlierRatio] IdoSlamPairwiseMotion essentialInlierRatio
+             * @property {number|null} [translationMagnitude] IdoSlamPairwiseMotion translationMagnitude
+             * @property {number|null} [rotationDeg] IdoSlamPairwiseMotion rotationDeg
+             * @property {number|null} [dx] IdoSlamPairwiseMotion dx
+             * @property {number|null} [dy] IdoSlamPairwiseMotion dy
+             * @property {number|null} [dz] IdoSlamPairwiseMotion dz
+             * @property {number|null} [qx] IdoSlamPairwiseMotion qx
+             * @property {number|null} [qy] IdoSlamPairwiseMotion qy
+             * @property {number|null} [qz] IdoSlamPairwiseMotion qz
+             * @property {number|null} [qw] IdoSlamPairwiseMotion qw
+             * @property {number|null} [maskPixelsPrev] IdoSlamPairwiseMotion maskPixelsPrev
+             * @property {number|null} [maskPixels] IdoSlamPairwiseMotion maskPixels
+             */
+
+            /**
+             * Constructs a new IdoSlamPairwiseMotion.
+             * @memberof bayesmech.vision
+             * @classdesc Represents an IdoSlamPairwiseMotion.
+             * @implements IIdoSlamPairwiseMotion
+             * @constructor
+             * @param {bayesmech.vision.IIdoSlamPairwiseMotion=} [properties] Properties to set
+             */
+            function IdoSlamPairwiseMotion(properties) {
+                if (properties)
+                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null)
+                            this[keys[i]] = properties[keys[i]];
+            }
+
+            /**
+             * IdoSlamPairwiseMotion prevFrameIndex.
+             * @member {number} prevFrameIndex
+             * @memberof bayesmech.vision.IdoSlamPairwiseMotion
+             * @instance
+             */
+            IdoSlamPairwiseMotion.prototype.prevFrameIndex = 0;
+
+            /**
+             * IdoSlamPairwiseMotion frameIndex.
+             * @member {number} frameIndex
+             * @memberof bayesmech.vision.IdoSlamPairwiseMotion
+             * @instance
+             */
+            IdoSlamPairwiseMotion.prototype.frameIndex = 0;
+
+            /**
+             * IdoSlamPairwiseMotion prevTimestampNs.
+             * @member {number|Long} prevTimestampNs
+             * @memberof bayesmech.vision.IdoSlamPairwiseMotion
+             * @instance
+             */
+            IdoSlamPairwiseMotion.prototype.prevTimestampNs = $util.Long ? $util.Long.fromBits(0,0,true) : 0;
+
+            /**
+             * IdoSlamPairwiseMotion timestampNs.
+             * @member {number|Long} timestampNs
+             * @memberof bayesmech.vision.IdoSlamPairwiseMotion
+             * @instance
+             */
+            IdoSlamPairwiseMotion.prototype.timestampNs = $util.Long ? $util.Long.fromBits(0,0,true) : 0;
+
+            /**
+             * IdoSlamPairwiseMotion status.
+             * @member {string} status
+             * @memberof bayesmech.vision.IdoSlamPairwiseMotion
+             * @instance
+             */
+            IdoSlamPairwiseMotion.prototype.status = "";
+
+            /**
+             * IdoSlamPairwiseMotion keypointsPrev.
+             * @member {number} keypointsPrev
+             * @memberof bayesmech.vision.IdoSlamPairwiseMotion
+             * @instance
+             */
+            IdoSlamPairwiseMotion.prototype.keypointsPrev = 0;
+
+            /**
+             * IdoSlamPairwiseMotion keypoints.
+             * @member {number} keypoints
+             * @memberof bayesmech.vision.IdoSlamPairwiseMotion
+             * @instance
+             */
+            IdoSlamPairwiseMotion.prototype.keypoints = 0;
+
+            /**
+             * IdoSlamPairwiseMotion goodMatchCount.
+             * @member {number} goodMatchCount
+             * @memberof bayesmech.vision.IdoSlamPairwiseMotion
+             * @instance
+             */
+            IdoSlamPairwiseMotion.prototype.goodMatchCount = 0;
+
+            /**
+             * IdoSlamPairwiseMotion essentialInlierCount.
+             * @member {number} essentialInlierCount
+             * @memberof bayesmech.vision.IdoSlamPairwiseMotion
+             * @instance
+             */
+            IdoSlamPairwiseMotion.prototype.essentialInlierCount = 0;
+
+            /**
+             * IdoSlamPairwiseMotion essentialInlierRatio.
+             * @member {number} essentialInlierRatio
+             * @memberof bayesmech.vision.IdoSlamPairwiseMotion
+             * @instance
+             */
+            IdoSlamPairwiseMotion.prototype.essentialInlierRatio = 0;
+
+            /**
+             * IdoSlamPairwiseMotion translationMagnitude.
+             * @member {number} translationMagnitude
+             * @memberof bayesmech.vision.IdoSlamPairwiseMotion
+             * @instance
+             */
+            IdoSlamPairwiseMotion.prototype.translationMagnitude = 0;
+
+            /**
+             * IdoSlamPairwiseMotion rotationDeg.
+             * @member {number} rotationDeg
+             * @memberof bayesmech.vision.IdoSlamPairwiseMotion
+             * @instance
+             */
+            IdoSlamPairwiseMotion.prototype.rotationDeg = 0;
+
+            /**
+             * IdoSlamPairwiseMotion dx.
+             * @member {number} dx
+             * @memberof bayesmech.vision.IdoSlamPairwiseMotion
+             * @instance
+             */
+            IdoSlamPairwiseMotion.prototype.dx = 0;
+
+            /**
+             * IdoSlamPairwiseMotion dy.
+             * @member {number} dy
+             * @memberof bayesmech.vision.IdoSlamPairwiseMotion
+             * @instance
+             */
+            IdoSlamPairwiseMotion.prototype.dy = 0;
+
+            /**
+             * IdoSlamPairwiseMotion dz.
+             * @member {number} dz
+             * @memberof bayesmech.vision.IdoSlamPairwiseMotion
+             * @instance
+             */
+            IdoSlamPairwiseMotion.prototype.dz = 0;
+
+            /**
+             * IdoSlamPairwiseMotion qx.
+             * @member {number} qx
+             * @memberof bayesmech.vision.IdoSlamPairwiseMotion
+             * @instance
+             */
+            IdoSlamPairwiseMotion.prototype.qx = 0;
+
+            /**
+             * IdoSlamPairwiseMotion qy.
+             * @member {number} qy
+             * @memberof bayesmech.vision.IdoSlamPairwiseMotion
+             * @instance
+             */
+            IdoSlamPairwiseMotion.prototype.qy = 0;
+
+            /**
+             * IdoSlamPairwiseMotion qz.
+             * @member {number} qz
+             * @memberof bayesmech.vision.IdoSlamPairwiseMotion
+             * @instance
+             */
+            IdoSlamPairwiseMotion.prototype.qz = 0;
+
+            /**
+             * IdoSlamPairwiseMotion qw.
+             * @member {number} qw
+             * @memberof bayesmech.vision.IdoSlamPairwiseMotion
+             * @instance
+             */
+            IdoSlamPairwiseMotion.prototype.qw = 0;
+
+            /**
+             * IdoSlamPairwiseMotion maskPixelsPrev.
+             * @member {number} maskPixelsPrev
+             * @memberof bayesmech.vision.IdoSlamPairwiseMotion
+             * @instance
+             */
+            IdoSlamPairwiseMotion.prototype.maskPixelsPrev = 0;
+
+            /**
+             * IdoSlamPairwiseMotion maskPixels.
+             * @member {number} maskPixels
+             * @memberof bayesmech.vision.IdoSlamPairwiseMotion
+             * @instance
+             */
+            IdoSlamPairwiseMotion.prototype.maskPixels = 0;
+
+            /**
+             * Creates a new IdoSlamPairwiseMotion instance using the specified properties.
+             * @function create
+             * @memberof bayesmech.vision.IdoSlamPairwiseMotion
+             * @static
+             * @param {bayesmech.vision.IIdoSlamPairwiseMotion=} [properties] Properties to set
+             * @returns {bayesmech.vision.IdoSlamPairwiseMotion} IdoSlamPairwiseMotion instance
+             */
+            IdoSlamPairwiseMotion.create = function create(properties) {
+                return new IdoSlamPairwiseMotion(properties);
+            };
+
+            /**
+             * Encodes the specified IdoSlamPairwiseMotion message. Does not implicitly {@link bayesmech.vision.IdoSlamPairwiseMotion.verify|verify} messages.
+             * @function encode
+             * @memberof bayesmech.vision.IdoSlamPairwiseMotion
+             * @static
+             * @param {bayesmech.vision.IIdoSlamPairwiseMotion} message IdoSlamPairwiseMotion message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            IdoSlamPairwiseMotion.encode = function encode(message, writer) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (message.prevFrameIndex != null && Object.hasOwnProperty.call(message, "prevFrameIndex"))
+                    writer.uint32(/* id 1, wireType 0 =*/8).uint32(message.prevFrameIndex);
+                if (message.frameIndex != null && Object.hasOwnProperty.call(message, "frameIndex"))
+                    writer.uint32(/* id 2, wireType 0 =*/16).uint32(message.frameIndex);
+                if (message.prevTimestampNs != null && Object.hasOwnProperty.call(message, "prevTimestampNs"))
+                    writer.uint32(/* id 3, wireType 0 =*/24).uint64(message.prevTimestampNs);
+                if (message.timestampNs != null && Object.hasOwnProperty.call(message, "timestampNs"))
+                    writer.uint32(/* id 4, wireType 0 =*/32).uint64(message.timestampNs);
+                if (message.status != null && Object.hasOwnProperty.call(message, "status"))
+                    writer.uint32(/* id 5, wireType 2 =*/42).string(message.status);
+                if (message.keypointsPrev != null && Object.hasOwnProperty.call(message, "keypointsPrev"))
+                    writer.uint32(/* id 6, wireType 0 =*/48).uint32(message.keypointsPrev);
+                if (message.keypoints != null && Object.hasOwnProperty.call(message, "keypoints"))
+                    writer.uint32(/* id 7, wireType 0 =*/56).uint32(message.keypoints);
+                if (message.goodMatchCount != null && Object.hasOwnProperty.call(message, "goodMatchCount"))
+                    writer.uint32(/* id 8, wireType 0 =*/64).uint32(message.goodMatchCount);
+                if (message.essentialInlierCount != null && Object.hasOwnProperty.call(message, "essentialInlierCount"))
+                    writer.uint32(/* id 9, wireType 0 =*/72).uint32(message.essentialInlierCount);
+                if (message.essentialInlierRatio != null && Object.hasOwnProperty.call(message, "essentialInlierRatio"))
+                    writer.uint32(/* id 10, wireType 5 =*/85).float(message.essentialInlierRatio);
+                if (message.translationMagnitude != null && Object.hasOwnProperty.call(message, "translationMagnitude"))
+                    writer.uint32(/* id 11, wireType 5 =*/93).float(message.translationMagnitude);
+                if (message.rotationDeg != null && Object.hasOwnProperty.call(message, "rotationDeg"))
+                    writer.uint32(/* id 12, wireType 5 =*/101).float(message.rotationDeg);
+                if (message.dx != null && Object.hasOwnProperty.call(message, "dx"))
+                    writer.uint32(/* id 13, wireType 5 =*/109).float(message.dx);
+                if (message.dy != null && Object.hasOwnProperty.call(message, "dy"))
+                    writer.uint32(/* id 14, wireType 5 =*/117).float(message.dy);
+                if (message.dz != null && Object.hasOwnProperty.call(message, "dz"))
+                    writer.uint32(/* id 15, wireType 5 =*/125).float(message.dz);
+                if (message.qx != null && Object.hasOwnProperty.call(message, "qx"))
+                    writer.uint32(/* id 16, wireType 5 =*/133).float(message.qx);
+                if (message.qy != null && Object.hasOwnProperty.call(message, "qy"))
+                    writer.uint32(/* id 17, wireType 5 =*/141).float(message.qy);
+                if (message.qz != null && Object.hasOwnProperty.call(message, "qz"))
+                    writer.uint32(/* id 18, wireType 5 =*/149).float(message.qz);
+                if (message.qw != null && Object.hasOwnProperty.call(message, "qw"))
+                    writer.uint32(/* id 19, wireType 5 =*/157).float(message.qw);
+                if (message.maskPixelsPrev != null && Object.hasOwnProperty.call(message, "maskPixelsPrev"))
+                    writer.uint32(/* id 20, wireType 0 =*/160).uint32(message.maskPixelsPrev);
+                if (message.maskPixels != null && Object.hasOwnProperty.call(message, "maskPixels"))
+                    writer.uint32(/* id 21, wireType 0 =*/168).uint32(message.maskPixels);
+                return writer;
+            };
+
+            /**
+             * Encodes the specified IdoSlamPairwiseMotion message, length delimited. Does not implicitly {@link bayesmech.vision.IdoSlamPairwiseMotion.verify|verify} messages.
+             * @function encodeDelimited
+             * @memberof bayesmech.vision.IdoSlamPairwiseMotion
+             * @static
+             * @param {bayesmech.vision.IIdoSlamPairwiseMotion} message IdoSlamPairwiseMotion message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            IdoSlamPairwiseMotion.encodeDelimited = function encodeDelimited(message, writer) {
+                return this.encode(message, writer).ldelim();
+            };
+
+            /**
+             * Decodes an IdoSlamPairwiseMotion message from the specified reader or buffer.
+             * @function decode
+             * @memberof bayesmech.vision.IdoSlamPairwiseMotion
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {bayesmech.vision.IdoSlamPairwiseMotion} IdoSlamPairwiseMotion
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            IdoSlamPairwiseMotion.decode = function decode(reader, length, error) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.IdoSlamPairwiseMotion();
+                while (reader.pos < end) {
+                    let tag = reader.uint32();
+                    if (tag === error)
+                        break;
+                    switch (tag >>> 3) {
+                    case 1: {
+                            message.prevFrameIndex = reader.uint32();
+                            break;
+                        }
+                    case 2: {
+                            message.frameIndex = reader.uint32();
+                            break;
+                        }
+                    case 3: {
+                            message.prevTimestampNs = reader.uint64();
+                            break;
+                        }
+                    case 4: {
+                            message.timestampNs = reader.uint64();
+                            break;
+                        }
+                    case 5: {
+                            message.status = reader.string();
+                            break;
+                        }
+                    case 6: {
+                            message.keypointsPrev = reader.uint32();
+                            break;
+                        }
+                    case 7: {
+                            message.keypoints = reader.uint32();
+                            break;
+                        }
+                    case 8: {
+                            message.goodMatchCount = reader.uint32();
+                            break;
+                        }
+                    case 9: {
+                            message.essentialInlierCount = reader.uint32();
+                            break;
+                        }
+                    case 10: {
+                            message.essentialInlierRatio = reader.float();
+                            break;
+                        }
+                    case 11: {
+                            message.translationMagnitude = reader.float();
+                            break;
+                        }
+                    case 12: {
+                            message.rotationDeg = reader.float();
+                            break;
+                        }
+                    case 13: {
+                            message.dx = reader.float();
+                            break;
+                        }
+                    case 14: {
+                            message.dy = reader.float();
+                            break;
+                        }
+                    case 15: {
+                            message.dz = reader.float();
+                            break;
+                        }
+                    case 16: {
+                            message.qx = reader.float();
+                            break;
+                        }
+                    case 17: {
+                            message.qy = reader.float();
+                            break;
+                        }
+                    case 18: {
+                            message.qz = reader.float();
+                            break;
+                        }
+                    case 19: {
+                            message.qw = reader.float();
+                            break;
+                        }
+                    case 20: {
+                            message.maskPixelsPrev = reader.uint32();
+                            break;
+                        }
+                    case 21: {
+                            message.maskPixels = reader.uint32();
+                            break;
+                        }
+                    default:
+                        reader.skipType(tag & 7);
+                        break;
+                    }
+                }
+                return message;
+            };
+
+            /**
+             * Decodes an IdoSlamPairwiseMotion message from the specified reader or buffer, length delimited.
+             * @function decodeDelimited
+             * @memberof bayesmech.vision.IdoSlamPairwiseMotion
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @returns {bayesmech.vision.IdoSlamPairwiseMotion} IdoSlamPairwiseMotion
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            IdoSlamPairwiseMotion.decodeDelimited = function decodeDelimited(reader) {
+                if (!(reader instanceof $Reader))
+                    reader = new $Reader(reader);
+                return this.decode(reader, reader.uint32());
+            };
+
+            /**
+             * Verifies an IdoSlamPairwiseMotion message.
+             * @function verify
+             * @memberof bayesmech.vision.IdoSlamPairwiseMotion
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            IdoSlamPairwiseMotion.verify = function verify(message) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (message.prevFrameIndex != null && message.hasOwnProperty("prevFrameIndex"))
+                    if (!$util.isInteger(message.prevFrameIndex))
+                        return "prevFrameIndex: integer expected";
+                if (message.frameIndex != null && message.hasOwnProperty("frameIndex"))
+                    if (!$util.isInteger(message.frameIndex))
+                        return "frameIndex: integer expected";
+                if (message.prevTimestampNs != null && message.hasOwnProperty("prevTimestampNs"))
+                    if (!$util.isInteger(message.prevTimestampNs) && !(message.prevTimestampNs && $util.isInteger(message.prevTimestampNs.low) && $util.isInteger(message.prevTimestampNs.high)))
+                        return "prevTimestampNs: integer|Long expected";
+                if (message.timestampNs != null && message.hasOwnProperty("timestampNs"))
+                    if (!$util.isInteger(message.timestampNs) && !(message.timestampNs && $util.isInteger(message.timestampNs.low) && $util.isInteger(message.timestampNs.high)))
+                        return "timestampNs: integer|Long expected";
+                if (message.status != null && message.hasOwnProperty("status"))
+                    if (!$util.isString(message.status))
+                        return "status: string expected";
+                if (message.keypointsPrev != null && message.hasOwnProperty("keypointsPrev"))
+                    if (!$util.isInteger(message.keypointsPrev))
+                        return "keypointsPrev: integer expected";
+                if (message.keypoints != null && message.hasOwnProperty("keypoints"))
+                    if (!$util.isInteger(message.keypoints))
+                        return "keypoints: integer expected";
+                if (message.goodMatchCount != null && message.hasOwnProperty("goodMatchCount"))
+                    if (!$util.isInteger(message.goodMatchCount))
+                        return "goodMatchCount: integer expected";
+                if (message.essentialInlierCount != null && message.hasOwnProperty("essentialInlierCount"))
+                    if (!$util.isInteger(message.essentialInlierCount))
+                        return "essentialInlierCount: integer expected";
+                if (message.essentialInlierRatio != null && message.hasOwnProperty("essentialInlierRatio"))
+                    if (typeof message.essentialInlierRatio !== "number")
+                        return "essentialInlierRatio: number expected";
+                if (message.translationMagnitude != null && message.hasOwnProperty("translationMagnitude"))
+                    if (typeof message.translationMagnitude !== "number")
+                        return "translationMagnitude: number expected";
+                if (message.rotationDeg != null && message.hasOwnProperty("rotationDeg"))
+                    if (typeof message.rotationDeg !== "number")
+                        return "rotationDeg: number expected";
+                if (message.dx != null && message.hasOwnProperty("dx"))
+                    if (typeof message.dx !== "number")
+                        return "dx: number expected";
+                if (message.dy != null && message.hasOwnProperty("dy"))
+                    if (typeof message.dy !== "number")
+                        return "dy: number expected";
+                if (message.dz != null && message.hasOwnProperty("dz"))
+                    if (typeof message.dz !== "number")
+                        return "dz: number expected";
+                if (message.qx != null && message.hasOwnProperty("qx"))
+                    if (typeof message.qx !== "number")
+                        return "qx: number expected";
+                if (message.qy != null && message.hasOwnProperty("qy"))
+                    if (typeof message.qy !== "number")
+                        return "qy: number expected";
+                if (message.qz != null && message.hasOwnProperty("qz"))
+                    if (typeof message.qz !== "number")
+                        return "qz: number expected";
+                if (message.qw != null && message.hasOwnProperty("qw"))
+                    if (typeof message.qw !== "number")
+                        return "qw: number expected";
+                if (message.maskPixelsPrev != null && message.hasOwnProperty("maskPixelsPrev"))
+                    if (!$util.isInteger(message.maskPixelsPrev))
+                        return "maskPixelsPrev: integer expected";
+                if (message.maskPixels != null && message.hasOwnProperty("maskPixels"))
+                    if (!$util.isInteger(message.maskPixels))
+                        return "maskPixels: integer expected";
+                return null;
+            };
+
+            /**
+             * Creates an IdoSlamPairwiseMotion message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof bayesmech.vision.IdoSlamPairwiseMotion
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {bayesmech.vision.IdoSlamPairwiseMotion} IdoSlamPairwiseMotion
+             */
+            IdoSlamPairwiseMotion.fromObject = function fromObject(object) {
+                if (object instanceof $root.bayesmech.vision.IdoSlamPairwiseMotion)
+                    return object;
+                let message = new $root.bayesmech.vision.IdoSlamPairwiseMotion();
+                if (object.prevFrameIndex != null)
+                    message.prevFrameIndex = object.prevFrameIndex >>> 0;
+                if (object.frameIndex != null)
+                    message.frameIndex = object.frameIndex >>> 0;
+                if (object.prevTimestampNs != null)
+                    if ($util.Long)
+                        (message.prevTimestampNs = $util.Long.fromValue(object.prevTimestampNs)).unsigned = true;
+                    else if (typeof object.prevTimestampNs === "string")
+                        message.prevTimestampNs = parseInt(object.prevTimestampNs, 10);
+                    else if (typeof object.prevTimestampNs === "number")
+                        message.prevTimestampNs = object.prevTimestampNs;
+                    else if (typeof object.prevTimestampNs === "object")
+                        message.prevTimestampNs = new $util.LongBits(object.prevTimestampNs.low >>> 0, object.prevTimestampNs.high >>> 0).toNumber(true);
+                if (object.timestampNs != null)
+                    if ($util.Long)
+                        (message.timestampNs = $util.Long.fromValue(object.timestampNs)).unsigned = true;
+                    else if (typeof object.timestampNs === "string")
+                        message.timestampNs = parseInt(object.timestampNs, 10);
+                    else if (typeof object.timestampNs === "number")
+                        message.timestampNs = object.timestampNs;
+                    else if (typeof object.timestampNs === "object")
+                        message.timestampNs = new $util.LongBits(object.timestampNs.low >>> 0, object.timestampNs.high >>> 0).toNumber(true);
+                if (object.status != null)
+                    message.status = String(object.status);
+                if (object.keypointsPrev != null)
+                    message.keypointsPrev = object.keypointsPrev >>> 0;
+                if (object.keypoints != null)
+                    message.keypoints = object.keypoints >>> 0;
+                if (object.goodMatchCount != null)
+                    message.goodMatchCount = object.goodMatchCount >>> 0;
+                if (object.essentialInlierCount != null)
+                    message.essentialInlierCount = object.essentialInlierCount >>> 0;
+                if (object.essentialInlierRatio != null)
+                    message.essentialInlierRatio = Number(object.essentialInlierRatio);
+                if (object.translationMagnitude != null)
+                    message.translationMagnitude = Number(object.translationMagnitude);
+                if (object.rotationDeg != null)
+                    message.rotationDeg = Number(object.rotationDeg);
+                if (object.dx != null)
+                    message.dx = Number(object.dx);
+                if (object.dy != null)
+                    message.dy = Number(object.dy);
+                if (object.dz != null)
+                    message.dz = Number(object.dz);
+                if (object.qx != null)
+                    message.qx = Number(object.qx);
+                if (object.qy != null)
+                    message.qy = Number(object.qy);
+                if (object.qz != null)
+                    message.qz = Number(object.qz);
+                if (object.qw != null)
+                    message.qw = Number(object.qw);
+                if (object.maskPixelsPrev != null)
+                    message.maskPixelsPrev = object.maskPixelsPrev >>> 0;
+                if (object.maskPixels != null)
+                    message.maskPixels = object.maskPixels >>> 0;
+                return message;
+            };
+
+            /**
+             * Creates a plain object from an IdoSlamPairwiseMotion message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof bayesmech.vision.IdoSlamPairwiseMotion
+             * @static
+             * @param {bayesmech.vision.IdoSlamPairwiseMotion} message IdoSlamPairwiseMotion
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            IdoSlamPairwiseMotion.toObject = function toObject(message, options) {
+                if (!options)
+                    options = {};
+                let object = {};
+                if (options.defaults) {
+                    object.prevFrameIndex = 0;
+                    object.frameIndex = 0;
+                    if ($util.Long) {
+                        let long = new $util.Long(0, 0, true);
+                        object.prevTimestampNs = options.longs === String ? long.toString() : options.longs === Number ? long.toNumber() : long;
+                    } else
+                        object.prevTimestampNs = options.longs === String ? "0" : 0;
+                    if ($util.Long) {
+                        let long = new $util.Long(0, 0, true);
+                        object.timestampNs = options.longs === String ? long.toString() : options.longs === Number ? long.toNumber() : long;
+                    } else
+                        object.timestampNs = options.longs === String ? "0" : 0;
+                    object.status = "";
+                    object.keypointsPrev = 0;
+                    object.keypoints = 0;
+                    object.goodMatchCount = 0;
+                    object.essentialInlierCount = 0;
+                    object.essentialInlierRatio = 0;
+                    object.translationMagnitude = 0;
+                    object.rotationDeg = 0;
+                    object.dx = 0;
+                    object.dy = 0;
+                    object.dz = 0;
+                    object.qx = 0;
+                    object.qy = 0;
+                    object.qz = 0;
+                    object.qw = 0;
+                    object.maskPixelsPrev = 0;
+                    object.maskPixels = 0;
+                }
+                if (message.prevFrameIndex != null && message.hasOwnProperty("prevFrameIndex"))
+                    object.prevFrameIndex = message.prevFrameIndex;
+                if (message.frameIndex != null && message.hasOwnProperty("frameIndex"))
+                    object.frameIndex = message.frameIndex;
+                if (message.prevTimestampNs != null && message.hasOwnProperty("prevTimestampNs"))
+                    if (typeof message.prevTimestampNs === "number")
+                        object.prevTimestampNs = options.longs === String ? String(message.prevTimestampNs) : message.prevTimestampNs;
+                    else
+                        object.prevTimestampNs = options.longs === String ? $util.Long.prototype.toString.call(message.prevTimestampNs) : options.longs === Number ? new $util.LongBits(message.prevTimestampNs.low >>> 0, message.prevTimestampNs.high >>> 0).toNumber(true) : message.prevTimestampNs;
+                if (message.timestampNs != null && message.hasOwnProperty("timestampNs"))
+                    if (typeof message.timestampNs === "number")
+                        object.timestampNs = options.longs === String ? String(message.timestampNs) : message.timestampNs;
+                    else
+                        object.timestampNs = options.longs === String ? $util.Long.prototype.toString.call(message.timestampNs) : options.longs === Number ? new $util.LongBits(message.timestampNs.low >>> 0, message.timestampNs.high >>> 0).toNumber(true) : message.timestampNs;
+                if (message.status != null && message.hasOwnProperty("status"))
+                    object.status = message.status;
+                if (message.keypointsPrev != null && message.hasOwnProperty("keypointsPrev"))
+                    object.keypointsPrev = message.keypointsPrev;
+                if (message.keypoints != null && message.hasOwnProperty("keypoints"))
+                    object.keypoints = message.keypoints;
+                if (message.goodMatchCount != null && message.hasOwnProperty("goodMatchCount"))
+                    object.goodMatchCount = message.goodMatchCount;
+                if (message.essentialInlierCount != null && message.hasOwnProperty("essentialInlierCount"))
+                    object.essentialInlierCount = message.essentialInlierCount;
+                if (message.essentialInlierRatio != null && message.hasOwnProperty("essentialInlierRatio"))
+                    object.essentialInlierRatio = options.json && !isFinite(message.essentialInlierRatio) ? String(message.essentialInlierRatio) : message.essentialInlierRatio;
+                if (message.translationMagnitude != null && message.hasOwnProperty("translationMagnitude"))
+                    object.translationMagnitude = options.json && !isFinite(message.translationMagnitude) ? String(message.translationMagnitude) : message.translationMagnitude;
+                if (message.rotationDeg != null && message.hasOwnProperty("rotationDeg"))
+                    object.rotationDeg = options.json && !isFinite(message.rotationDeg) ? String(message.rotationDeg) : message.rotationDeg;
+                if (message.dx != null && message.hasOwnProperty("dx"))
+                    object.dx = options.json && !isFinite(message.dx) ? String(message.dx) : message.dx;
+                if (message.dy != null && message.hasOwnProperty("dy"))
+                    object.dy = options.json && !isFinite(message.dy) ? String(message.dy) : message.dy;
+                if (message.dz != null && message.hasOwnProperty("dz"))
+                    object.dz = options.json && !isFinite(message.dz) ? String(message.dz) : message.dz;
+                if (message.qx != null && message.hasOwnProperty("qx"))
+                    object.qx = options.json && !isFinite(message.qx) ? String(message.qx) : message.qx;
+                if (message.qy != null && message.hasOwnProperty("qy"))
+                    object.qy = options.json && !isFinite(message.qy) ? String(message.qy) : message.qy;
+                if (message.qz != null && message.hasOwnProperty("qz"))
+                    object.qz = options.json && !isFinite(message.qz) ? String(message.qz) : message.qz;
+                if (message.qw != null && message.hasOwnProperty("qw"))
+                    object.qw = options.json && !isFinite(message.qw) ? String(message.qw) : message.qw;
+                if (message.maskPixelsPrev != null && message.hasOwnProperty("maskPixelsPrev"))
+                    object.maskPixelsPrev = message.maskPixelsPrev;
+                if (message.maskPixels != null && message.hasOwnProperty("maskPixels"))
+                    object.maskPixels = message.maskPixels;
+                return object;
+            };
+
+            /**
+             * Converts this IdoSlamPairwiseMotion to JSON.
+             * @function toJSON
+             * @memberof bayesmech.vision.IdoSlamPairwiseMotion
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            IdoSlamPairwiseMotion.prototype.toJSON = function toJSON() {
+                return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the default type url for IdoSlamPairwiseMotion
+             * @function getTypeUrl
+             * @memberof bayesmech.vision.IdoSlamPairwiseMotion
+             * @static
+             * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns {string} The default type url
+             */
+            IdoSlamPairwiseMotion.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+                if (typeUrlPrefix === undefined) {
+                    typeUrlPrefix = "type.googleapis.com";
+                }
+                return typeUrlPrefix + "/bayesmech.vision.IdoSlamPairwiseMotion";
+            };
+
+            return IdoSlamPairwiseMotion;
+        })();
+
+        vision.IdoSlamTrackWidthEstimate = (function() {
+
+            /**
+             * Properties of an IdoSlamTrackWidthEstimate.
+             * @memberof bayesmech.vision
+             * @interface IIdoSlamTrackWidthEstimate
+             * @property {number|null} [frameIndex] IdoSlamTrackWidthEstimate frameIndex
+             * @property {number|null} [frameNumber] IdoSlamTrackWidthEstimate frameNumber
+             * @property {number|Long|null} [timestampNs] IdoSlamTrackWidthEstimate timestampNs
+             * @property {number|null} [latitude] IdoSlamTrackWidthEstimate latitude
+             * @property {number|null} [longitude] IdoSlamTrackWidthEstimate longitude
+             * @property {number|null} [widthM] IdoSlamTrackWidthEstimate widthM
+             * @property {number|null} [leftOffsetM] IdoSlamTrackWidthEstimate leftOffsetM
+             * @property {number|null} [rightOffsetM] IdoSlamTrackWidthEstimate rightOffsetM
+             * @property {number|null} [bikeFraction] IdoSlamTrackWidthEstimate bikeFraction
+             * @property {string|null} [method] IdoSlamTrackWidthEstimate method
+             */
+
+            /**
+             * Constructs a new IdoSlamTrackWidthEstimate.
+             * @memberof bayesmech.vision
+             * @classdesc Represents an IdoSlamTrackWidthEstimate.
+             * @implements IIdoSlamTrackWidthEstimate
+             * @constructor
+             * @param {bayesmech.vision.IIdoSlamTrackWidthEstimate=} [properties] Properties to set
+             */
+            function IdoSlamTrackWidthEstimate(properties) {
+                if (properties)
+                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null)
+                            this[keys[i]] = properties[keys[i]];
+            }
+
+            /**
+             * IdoSlamTrackWidthEstimate frameIndex.
+             * @member {number} frameIndex
+             * @memberof bayesmech.vision.IdoSlamTrackWidthEstimate
+             * @instance
+             */
+            IdoSlamTrackWidthEstimate.prototype.frameIndex = 0;
+
+            /**
+             * IdoSlamTrackWidthEstimate frameNumber.
+             * @member {number} frameNumber
+             * @memberof bayesmech.vision.IdoSlamTrackWidthEstimate
+             * @instance
+             */
+            IdoSlamTrackWidthEstimate.prototype.frameNumber = 0;
+
+            /**
+             * IdoSlamTrackWidthEstimate timestampNs.
+             * @member {number|Long} timestampNs
+             * @memberof bayesmech.vision.IdoSlamTrackWidthEstimate
+             * @instance
+             */
+            IdoSlamTrackWidthEstimate.prototype.timestampNs = $util.Long ? $util.Long.fromBits(0,0,true) : 0;
+
+            /**
+             * IdoSlamTrackWidthEstimate latitude.
+             * @member {number} latitude
+             * @memberof bayesmech.vision.IdoSlamTrackWidthEstimate
+             * @instance
+             */
+            IdoSlamTrackWidthEstimate.prototype.latitude = 0;
+
+            /**
+             * IdoSlamTrackWidthEstimate longitude.
+             * @member {number} longitude
+             * @memberof bayesmech.vision.IdoSlamTrackWidthEstimate
+             * @instance
+             */
+            IdoSlamTrackWidthEstimate.prototype.longitude = 0;
+
+            /**
+             * IdoSlamTrackWidthEstimate widthM.
+             * @member {number} widthM
+             * @memberof bayesmech.vision.IdoSlamTrackWidthEstimate
+             * @instance
+             */
+            IdoSlamTrackWidthEstimate.prototype.widthM = 0;
+
+            /**
+             * IdoSlamTrackWidthEstimate leftOffsetM.
+             * @member {number} leftOffsetM
+             * @memberof bayesmech.vision.IdoSlamTrackWidthEstimate
+             * @instance
+             */
+            IdoSlamTrackWidthEstimate.prototype.leftOffsetM = 0;
+
+            /**
+             * IdoSlamTrackWidthEstimate rightOffsetM.
+             * @member {number} rightOffsetM
+             * @memberof bayesmech.vision.IdoSlamTrackWidthEstimate
+             * @instance
+             */
+            IdoSlamTrackWidthEstimate.prototype.rightOffsetM = 0;
+
+            /**
+             * IdoSlamTrackWidthEstimate bikeFraction.
+             * @member {number} bikeFraction
+             * @memberof bayesmech.vision.IdoSlamTrackWidthEstimate
+             * @instance
+             */
+            IdoSlamTrackWidthEstimate.prototype.bikeFraction = 0;
+
+            /**
+             * IdoSlamTrackWidthEstimate method.
+             * @member {string} method
+             * @memberof bayesmech.vision.IdoSlamTrackWidthEstimate
+             * @instance
+             */
+            IdoSlamTrackWidthEstimate.prototype.method = "";
+
+            /**
+             * Creates a new IdoSlamTrackWidthEstimate instance using the specified properties.
+             * @function create
+             * @memberof bayesmech.vision.IdoSlamTrackWidthEstimate
+             * @static
+             * @param {bayesmech.vision.IIdoSlamTrackWidthEstimate=} [properties] Properties to set
+             * @returns {bayesmech.vision.IdoSlamTrackWidthEstimate} IdoSlamTrackWidthEstimate instance
+             */
+            IdoSlamTrackWidthEstimate.create = function create(properties) {
+                return new IdoSlamTrackWidthEstimate(properties);
+            };
+
+            /**
+             * Encodes the specified IdoSlamTrackWidthEstimate message. Does not implicitly {@link bayesmech.vision.IdoSlamTrackWidthEstimate.verify|verify} messages.
+             * @function encode
+             * @memberof bayesmech.vision.IdoSlamTrackWidthEstimate
+             * @static
+             * @param {bayesmech.vision.IIdoSlamTrackWidthEstimate} message IdoSlamTrackWidthEstimate message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            IdoSlamTrackWidthEstimate.encode = function encode(message, writer) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (message.frameIndex != null && Object.hasOwnProperty.call(message, "frameIndex"))
+                    writer.uint32(/* id 1, wireType 0 =*/8).uint32(message.frameIndex);
+                if (message.frameNumber != null && Object.hasOwnProperty.call(message, "frameNumber"))
+                    writer.uint32(/* id 2, wireType 0 =*/16).uint32(message.frameNumber);
+                if (message.timestampNs != null && Object.hasOwnProperty.call(message, "timestampNs"))
+                    writer.uint32(/* id 3, wireType 0 =*/24).uint64(message.timestampNs);
+                if (message.latitude != null && Object.hasOwnProperty.call(message, "latitude"))
+                    writer.uint32(/* id 4, wireType 1 =*/33).double(message.latitude);
+                if (message.longitude != null && Object.hasOwnProperty.call(message, "longitude"))
+                    writer.uint32(/* id 5, wireType 1 =*/41).double(message.longitude);
+                if (message.widthM != null && Object.hasOwnProperty.call(message, "widthM"))
+                    writer.uint32(/* id 6, wireType 1 =*/49).double(message.widthM);
+                if (message.leftOffsetM != null && Object.hasOwnProperty.call(message, "leftOffsetM"))
+                    writer.uint32(/* id 7, wireType 1 =*/57).double(message.leftOffsetM);
+                if (message.rightOffsetM != null && Object.hasOwnProperty.call(message, "rightOffsetM"))
+                    writer.uint32(/* id 8, wireType 1 =*/65).double(message.rightOffsetM);
+                if (message.bikeFraction != null && Object.hasOwnProperty.call(message, "bikeFraction"))
+                    writer.uint32(/* id 9, wireType 1 =*/73).double(message.bikeFraction);
+                if (message.method != null && Object.hasOwnProperty.call(message, "method"))
+                    writer.uint32(/* id 10, wireType 2 =*/82).string(message.method);
+                return writer;
+            };
+
+            /**
+             * Encodes the specified IdoSlamTrackWidthEstimate message, length delimited. Does not implicitly {@link bayesmech.vision.IdoSlamTrackWidthEstimate.verify|verify} messages.
+             * @function encodeDelimited
+             * @memberof bayesmech.vision.IdoSlamTrackWidthEstimate
+             * @static
+             * @param {bayesmech.vision.IIdoSlamTrackWidthEstimate} message IdoSlamTrackWidthEstimate message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            IdoSlamTrackWidthEstimate.encodeDelimited = function encodeDelimited(message, writer) {
+                return this.encode(message, writer).ldelim();
+            };
+
+            /**
+             * Decodes an IdoSlamTrackWidthEstimate message from the specified reader or buffer.
+             * @function decode
+             * @memberof bayesmech.vision.IdoSlamTrackWidthEstimate
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {bayesmech.vision.IdoSlamTrackWidthEstimate} IdoSlamTrackWidthEstimate
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            IdoSlamTrackWidthEstimate.decode = function decode(reader, length, error) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.IdoSlamTrackWidthEstimate();
+                while (reader.pos < end) {
+                    let tag = reader.uint32();
+                    if (tag === error)
+                        break;
+                    switch (tag >>> 3) {
+                    case 1: {
+                            message.frameIndex = reader.uint32();
+                            break;
+                        }
+                    case 2: {
+                            message.frameNumber = reader.uint32();
+                            break;
+                        }
+                    case 3: {
+                            message.timestampNs = reader.uint64();
+                            break;
+                        }
+                    case 4: {
+                            message.latitude = reader.double();
+                            break;
+                        }
+                    case 5: {
+                            message.longitude = reader.double();
+                            break;
+                        }
+                    case 6: {
+                            message.widthM = reader.double();
+                            break;
+                        }
+                    case 7: {
+                            message.leftOffsetM = reader.double();
+                            break;
+                        }
+                    case 8: {
+                            message.rightOffsetM = reader.double();
+                            break;
+                        }
+                    case 9: {
+                            message.bikeFraction = reader.double();
+                            break;
+                        }
+                    case 10: {
+                            message.method = reader.string();
+                            break;
+                        }
+                    default:
+                        reader.skipType(tag & 7);
+                        break;
+                    }
+                }
+                return message;
+            };
+
+            /**
+             * Decodes an IdoSlamTrackWidthEstimate message from the specified reader or buffer, length delimited.
+             * @function decodeDelimited
+             * @memberof bayesmech.vision.IdoSlamTrackWidthEstimate
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @returns {bayesmech.vision.IdoSlamTrackWidthEstimate} IdoSlamTrackWidthEstimate
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            IdoSlamTrackWidthEstimate.decodeDelimited = function decodeDelimited(reader) {
+                if (!(reader instanceof $Reader))
+                    reader = new $Reader(reader);
+                return this.decode(reader, reader.uint32());
+            };
+
+            /**
+             * Verifies an IdoSlamTrackWidthEstimate message.
+             * @function verify
+             * @memberof bayesmech.vision.IdoSlamTrackWidthEstimate
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            IdoSlamTrackWidthEstimate.verify = function verify(message) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (message.frameIndex != null && message.hasOwnProperty("frameIndex"))
+                    if (!$util.isInteger(message.frameIndex))
+                        return "frameIndex: integer expected";
+                if (message.frameNumber != null && message.hasOwnProperty("frameNumber"))
+                    if (!$util.isInteger(message.frameNumber))
+                        return "frameNumber: integer expected";
+                if (message.timestampNs != null && message.hasOwnProperty("timestampNs"))
+                    if (!$util.isInteger(message.timestampNs) && !(message.timestampNs && $util.isInteger(message.timestampNs.low) && $util.isInteger(message.timestampNs.high)))
+                        return "timestampNs: integer|Long expected";
+                if (message.latitude != null && message.hasOwnProperty("latitude"))
+                    if (typeof message.latitude !== "number")
+                        return "latitude: number expected";
+                if (message.longitude != null && message.hasOwnProperty("longitude"))
+                    if (typeof message.longitude !== "number")
+                        return "longitude: number expected";
+                if (message.widthM != null && message.hasOwnProperty("widthM"))
+                    if (typeof message.widthM !== "number")
+                        return "widthM: number expected";
+                if (message.leftOffsetM != null && message.hasOwnProperty("leftOffsetM"))
+                    if (typeof message.leftOffsetM !== "number")
+                        return "leftOffsetM: number expected";
+                if (message.rightOffsetM != null && message.hasOwnProperty("rightOffsetM"))
+                    if (typeof message.rightOffsetM !== "number")
+                        return "rightOffsetM: number expected";
+                if (message.bikeFraction != null && message.hasOwnProperty("bikeFraction"))
+                    if (typeof message.bikeFraction !== "number")
+                        return "bikeFraction: number expected";
+                if (message.method != null && message.hasOwnProperty("method"))
+                    if (!$util.isString(message.method))
+                        return "method: string expected";
+                return null;
+            };
+
+            /**
+             * Creates an IdoSlamTrackWidthEstimate message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof bayesmech.vision.IdoSlamTrackWidthEstimate
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {bayesmech.vision.IdoSlamTrackWidthEstimate} IdoSlamTrackWidthEstimate
+             */
+            IdoSlamTrackWidthEstimate.fromObject = function fromObject(object) {
+                if (object instanceof $root.bayesmech.vision.IdoSlamTrackWidthEstimate)
+                    return object;
+                let message = new $root.bayesmech.vision.IdoSlamTrackWidthEstimate();
+                if (object.frameIndex != null)
+                    message.frameIndex = object.frameIndex >>> 0;
+                if (object.frameNumber != null)
+                    message.frameNumber = object.frameNumber >>> 0;
+                if (object.timestampNs != null)
+                    if ($util.Long)
+                        (message.timestampNs = $util.Long.fromValue(object.timestampNs)).unsigned = true;
+                    else if (typeof object.timestampNs === "string")
+                        message.timestampNs = parseInt(object.timestampNs, 10);
+                    else if (typeof object.timestampNs === "number")
+                        message.timestampNs = object.timestampNs;
+                    else if (typeof object.timestampNs === "object")
+                        message.timestampNs = new $util.LongBits(object.timestampNs.low >>> 0, object.timestampNs.high >>> 0).toNumber(true);
+                if (object.latitude != null)
+                    message.latitude = Number(object.latitude);
+                if (object.longitude != null)
+                    message.longitude = Number(object.longitude);
+                if (object.widthM != null)
+                    message.widthM = Number(object.widthM);
+                if (object.leftOffsetM != null)
+                    message.leftOffsetM = Number(object.leftOffsetM);
+                if (object.rightOffsetM != null)
+                    message.rightOffsetM = Number(object.rightOffsetM);
+                if (object.bikeFraction != null)
+                    message.bikeFraction = Number(object.bikeFraction);
+                if (object.method != null)
+                    message.method = String(object.method);
+                return message;
+            };
+
+            /**
+             * Creates a plain object from an IdoSlamTrackWidthEstimate message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof bayesmech.vision.IdoSlamTrackWidthEstimate
+             * @static
+             * @param {bayesmech.vision.IdoSlamTrackWidthEstimate} message IdoSlamTrackWidthEstimate
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            IdoSlamTrackWidthEstimate.toObject = function toObject(message, options) {
+                if (!options)
+                    options = {};
+                let object = {};
+                if (options.defaults) {
+                    object.frameIndex = 0;
+                    object.frameNumber = 0;
+                    if ($util.Long) {
+                        let long = new $util.Long(0, 0, true);
+                        object.timestampNs = options.longs === String ? long.toString() : options.longs === Number ? long.toNumber() : long;
+                    } else
+                        object.timestampNs = options.longs === String ? "0" : 0;
+                    object.latitude = 0;
+                    object.longitude = 0;
+                    object.widthM = 0;
+                    object.leftOffsetM = 0;
+                    object.rightOffsetM = 0;
+                    object.bikeFraction = 0;
+                    object.method = "";
+                }
+                if (message.frameIndex != null && message.hasOwnProperty("frameIndex"))
+                    object.frameIndex = message.frameIndex;
+                if (message.frameNumber != null && message.hasOwnProperty("frameNumber"))
+                    object.frameNumber = message.frameNumber;
+                if (message.timestampNs != null && message.hasOwnProperty("timestampNs"))
+                    if (typeof message.timestampNs === "number")
+                        object.timestampNs = options.longs === String ? String(message.timestampNs) : message.timestampNs;
+                    else
+                        object.timestampNs = options.longs === String ? $util.Long.prototype.toString.call(message.timestampNs) : options.longs === Number ? new $util.LongBits(message.timestampNs.low >>> 0, message.timestampNs.high >>> 0).toNumber(true) : message.timestampNs;
+                if (message.latitude != null && message.hasOwnProperty("latitude"))
+                    object.latitude = options.json && !isFinite(message.latitude) ? String(message.latitude) : message.latitude;
+                if (message.longitude != null && message.hasOwnProperty("longitude"))
+                    object.longitude = options.json && !isFinite(message.longitude) ? String(message.longitude) : message.longitude;
+                if (message.widthM != null && message.hasOwnProperty("widthM"))
+                    object.widthM = options.json && !isFinite(message.widthM) ? String(message.widthM) : message.widthM;
+                if (message.leftOffsetM != null && message.hasOwnProperty("leftOffsetM"))
+                    object.leftOffsetM = options.json && !isFinite(message.leftOffsetM) ? String(message.leftOffsetM) : message.leftOffsetM;
+                if (message.rightOffsetM != null && message.hasOwnProperty("rightOffsetM"))
+                    object.rightOffsetM = options.json && !isFinite(message.rightOffsetM) ? String(message.rightOffsetM) : message.rightOffsetM;
+                if (message.bikeFraction != null && message.hasOwnProperty("bikeFraction"))
+                    object.bikeFraction = options.json && !isFinite(message.bikeFraction) ? String(message.bikeFraction) : message.bikeFraction;
+                if (message.method != null && message.hasOwnProperty("method"))
+                    object.method = message.method;
+                return object;
+            };
+
+            /**
+             * Converts this IdoSlamTrackWidthEstimate to JSON.
+             * @function toJSON
+             * @memberof bayesmech.vision.IdoSlamTrackWidthEstimate
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            IdoSlamTrackWidthEstimate.prototype.toJSON = function toJSON() {
+                return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the default type url for IdoSlamTrackWidthEstimate
+             * @function getTypeUrl
+             * @memberof bayesmech.vision.IdoSlamTrackWidthEstimate
+             * @static
+             * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns {string} The default type url
+             */
+            IdoSlamTrackWidthEstimate.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+                if (typeUrlPrefix === undefined) {
+                    typeUrlPrefix = "type.googleapis.com";
+                }
+                return typeUrlPrefix + "/bayesmech.vision.IdoSlamTrackWidthEstimate";
+            };
+
+            return IdoSlamTrackWidthEstimate;
+        })();
+
+        vision.IdoSlamCanonicalCenterlinePoint = (function() {
+
+            /**
+             * Properties of an IdoSlamCanonicalCenterlinePoint.
+             * @memberof bayesmech.vision
+             * @interface IIdoSlamCanonicalCenterlinePoint
+             * @property {number|null} [binIndex] IdoSlamCanonicalCenterlinePoint binIndex
+             * @property {number|null} [progressM] IdoSlamCanonicalCenterlinePoint progressM
+             * @property {number|null} [centerX] IdoSlamCanonicalCenterlinePoint centerX
+             * @property {number|null} [centerY] IdoSlamCanonicalCenterlinePoint centerY
+             * @property {number|null} [widthM] IdoSlamCanonicalCenterlinePoint widthM
+             * @property {number|null} [leftX] IdoSlamCanonicalCenterlinePoint leftX
+             * @property {number|null} [leftY] IdoSlamCanonicalCenterlinePoint leftY
+             * @property {number|null} [rightX] IdoSlamCanonicalCenterlinePoint rightX
+             * @property {number|null} [rightY] IdoSlamCanonicalCenterlinePoint rightY
+             */
+
+            /**
+             * Constructs a new IdoSlamCanonicalCenterlinePoint.
+             * @memberof bayesmech.vision
+             * @classdesc Represents an IdoSlamCanonicalCenterlinePoint.
+             * @implements IIdoSlamCanonicalCenterlinePoint
+             * @constructor
+             * @param {bayesmech.vision.IIdoSlamCanonicalCenterlinePoint=} [properties] Properties to set
+             */
+            function IdoSlamCanonicalCenterlinePoint(properties) {
+                if (properties)
+                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null)
+                            this[keys[i]] = properties[keys[i]];
+            }
+
+            /**
+             * IdoSlamCanonicalCenterlinePoint binIndex.
+             * @member {number} binIndex
+             * @memberof bayesmech.vision.IdoSlamCanonicalCenterlinePoint
+             * @instance
+             */
+            IdoSlamCanonicalCenterlinePoint.prototype.binIndex = 0;
+
+            /**
+             * IdoSlamCanonicalCenterlinePoint progressM.
+             * @member {number} progressM
+             * @memberof bayesmech.vision.IdoSlamCanonicalCenterlinePoint
+             * @instance
+             */
+            IdoSlamCanonicalCenterlinePoint.prototype.progressM = 0;
+
+            /**
+             * IdoSlamCanonicalCenterlinePoint centerX.
+             * @member {number} centerX
+             * @memberof bayesmech.vision.IdoSlamCanonicalCenterlinePoint
+             * @instance
+             */
+            IdoSlamCanonicalCenterlinePoint.prototype.centerX = 0;
+
+            /**
+             * IdoSlamCanonicalCenterlinePoint centerY.
+             * @member {number} centerY
+             * @memberof bayesmech.vision.IdoSlamCanonicalCenterlinePoint
+             * @instance
+             */
+            IdoSlamCanonicalCenterlinePoint.prototype.centerY = 0;
+
+            /**
+             * IdoSlamCanonicalCenterlinePoint widthM.
+             * @member {number} widthM
+             * @memberof bayesmech.vision.IdoSlamCanonicalCenterlinePoint
+             * @instance
+             */
+            IdoSlamCanonicalCenterlinePoint.prototype.widthM = 0;
+
+            /**
+             * IdoSlamCanonicalCenterlinePoint leftX.
+             * @member {number} leftX
+             * @memberof bayesmech.vision.IdoSlamCanonicalCenterlinePoint
+             * @instance
+             */
+            IdoSlamCanonicalCenterlinePoint.prototype.leftX = 0;
+
+            /**
+             * IdoSlamCanonicalCenterlinePoint leftY.
+             * @member {number} leftY
+             * @memberof bayesmech.vision.IdoSlamCanonicalCenterlinePoint
+             * @instance
+             */
+            IdoSlamCanonicalCenterlinePoint.prototype.leftY = 0;
+
+            /**
+             * IdoSlamCanonicalCenterlinePoint rightX.
+             * @member {number} rightX
+             * @memberof bayesmech.vision.IdoSlamCanonicalCenterlinePoint
+             * @instance
+             */
+            IdoSlamCanonicalCenterlinePoint.prototype.rightX = 0;
+
+            /**
+             * IdoSlamCanonicalCenterlinePoint rightY.
+             * @member {number} rightY
+             * @memberof bayesmech.vision.IdoSlamCanonicalCenterlinePoint
+             * @instance
+             */
+            IdoSlamCanonicalCenterlinePoint.prototype.rightY = 0;
+
+            /**
+             * Creates a new IdoSlamCanonicalCenterlinePoint instance using the specified properties.
+             * @function create
+             * @memberof bayesmech.vision.IdoSlamCanonicalCenterlinePoint
+             * @static
+             * @param {bayesmech.vision.IIdoSlamCanonicalCenterlinePoint=} [properties] Properties to set
+             * @returns {bayesmech.vision.IdoSlamCanonicalCenterlinePoint} IdoSlamCanonicalCenterlinePoint instance
+             */
+            IdoSlamCanonicalCenterlinePoint.create = function create(properties) {
+                return new IdoSlamCanonicalCenterlinePoint(properties);
+            };
+
+            /**
+             * Encodes the specified IdoSlamCanonicalCenterlinePoint message. Does not implicitly {@link bayesmech.vision.IdoSlamCanonicalCenterlinePoint.verify|verify} messages.
+             * @function encode
+             * @memberof bayesmech.vision.IdoSlamCanonicalCenterlinePoint
+             * @static
+             * @param {bayesmech.vision.IIdoSlamCanonicalCenterlinePoint} message IdoSlamCanonicalCenterlinePoint message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            IdoSlamCanonicalCenterlinePoint.encode = function encode(message, writer) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (message.binIndex != null && Object.hasOwnProperty.call(message, "binIndex"))
+                    writer.uint32(/* id 1, wireType 0 =*/8).uint32(message.binIndex);
+                if (message.progressM != null && Object.hasOwnProperty.call(message, "progressM"))
+                    writer.uint32(/* id 2, wireType 1 =*/17).double(message.progressM);
+                if (message.centerX != null && Object.hasOwnProperty.call(message, "centerX"))
+                    writer.uint32(/* id 3, wireType 1 =*/25).double(message.centerX);
+                if (message.centerY != null && Object.hasOwnProperty.call(message, "centerY"))
+                    writer.uint32(/* id 4, wireType 1 =*/33).double(message.centerY);
+                if (message.widthM != null && Object.hasOwnProperty.call(message, "widthM"))
+                    writer.uint32(/* id 5, wireType 1 =*/41).double(message.widthM);
+                if (message.leftX != null && Object.hasOwnProperty.call(message, "leftX"))
+                    writer.uint32(/* id 6, wireType 1 =*/49).double(message.leftX);
+                if (message.leftY != null && Object.hasOwnProperty.call(message, "leftY"))
+                    writer.uint32(/* id 7, wireType 1 =*/57).double(message.leftY);
+                if (message.rightX != null && Object.hasOwnProperty.call(message, "rightX"))
+                    writer.uint32(/* id 8, wireType 1 =*/65).double(message.rightX);
+                if (message.rightY != null && Object.hasOwnProperty.call(message, "rightY"))
+                    writer.uint32(/* id 9, wireType 1 =*/73).double(message.rightY);
+                return writer;
+            };
+
+            /**
+             * Encodes the specified IdoSlamCanonicalCenterlinePoint message, length delimited. Does not implicitly {@link bayesmech.vision.IdoSlamCanonicalCenterlinePoint.verify|verify} messages.
+             * @function encodeDelimited
+             * @memberof bayesmech.vision.IdoSlamCanonicalCenterlinePoint
+             * @static
+             * @param {bayesmech.vision.IIdoSlamCanonicalCenterlinePoint} message IdoSlamCanonicalCenterlinePoint message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            IdoSlamCanonicalCenterlinePoint.encodeDelimited = function encodeDelimited(message, writer) {
+                return this.encode(message, writer).ldelim();
+            };
+
+            /**
+             * Decodes an IdoSlamCanonicalCenterlinePoint message from the specified reader or buffer.
+             * @function decode
+             * @memberof bayesmech.vision.IdoSlamCanonicalCenterlinePoint
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {bayesmech.vision.IdoSlamCanonicalCenterlinePoint} IdoSlamCanonicalCenterlinePoint
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            IdoSlamCanonicalCenterlinePoint.decode = function decode(reader, length, error) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.IdoSlamCanonicalCenterlinePoint();
+                while (reader.pos < end) {
+                    let tag = reader.uint32();
+                    if (tag === error)
+                        break;
+                    switch (tag >>> 3) {
+                    case 1: {
+                            message.binIndex = reader.uint32();
+                            break;
+                        }
+                    case 2: {
+                            message.progressM = reader.double();
+                            break;
+                        }
+                    case 3: {
+                            message.centerX = reader.double();
+                            break;
+                        }
+                    case 4: {
+                            message.centerY = reader.double();
+                            break;
+                        }
+                    case 5: {
+                            message.widthM = reader.double();
+                            break;
+                        }
+                    case 6: {
+                            message.leftX = reader.double();
+                            break;
+                        }
+                    case 7: {
+                            message.leftY = reader.double();
+                            break;
+                        }
+                    case 8: {
+                            message.rightX = reader.double();
+                            break;
+                        }
+                    case 9: {
+                            message.rightY = reader.double();
+                            break;
+                        }
+                    default:
+                        reader.skipType(tag & 7);
+                        break;
+                    }
+                }
+                return message;
+            };
+
+            /**
+             * Decodes an IdoSlamCanonicalCenterlinePoint message from the specified reader or buffer, length delimited.
+             * @function decodeDelimited
+             * @memberof bayesmech.vision.IdoSlamCanonicalCenterlinePoint
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @returns {bayesmech.vision.IdoSlamCanonicalCenterlinePoint} IdoSlamCanonicalCenterlinePoint
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            IdoSlamCanonicalCenterlinePoint.decodeDelimited = function decodeDelimited(reader) {
+                if (!(reader instanceof $Reader))
+                    reader = new $Reader(reader);
+                return this.decode(reader, reader.uint32());
+            };
+
+            /**
+             * Verifies an IdoSlamCanonicalCenterlinePoint message.
+             * @function verify
+             * @memberof bayesmech.vision.IdoSlamCanonicalCenterlinePoint
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            IdoSlamCanonicalCenterlinePoint.verify = function verify(message) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (message.binIndex != null && message.hasOwnProperty("binIndex"))
+                    if (!$util.isInteger(message.binIndex))
+                        return "binIndex: integer expected";
+                if (message.progressM != null && message.hasOwnProperty("progressM"))
+                    if (typeof message.progressM !== "number")
+                        return "progressM: number expected";
+                if (message.centerX != null && message.hasOwnProperty("centerX"))
+                    if (typeof message.centerX !== "number")
+                        return "centerX: number expected";
+                if (message.centerY != null && message.hasOwnProperty("centerY"))
+                    if (typeof message.centerY !== "number")
+                        return "centerY: number expected";
+                if (message.widthM != null && message.hasOwnProperty("widthM"))
+                    if (typeof message.widthM !== "number")
+                        return "widthM: number expected";
+                if (message.leftX != null && message.hasOwnProperty("leftX"))
+                    if (typeof message.leftX !== "number")
+                        return "leftX: number expected";
+                if (message.leftY != null && message.hasOwnProperty("leftY"))
+                    if (typeof message.leftY !== "number")
+                        return "leftY: number expected";
+                if (message.rightX != null && message.hasOwnProperty("rightX"))
+                    if (typeof message.rightX !== "number")
+                        return "rightX: number expected";
+                if (message.rightY != null && message.hasOwnProperty("rightY"))
+                    if (typeof message.rightY !== "number")
+                        return "rightY: number expected";
+                return null;
+            };
+
+            /**
+             * Creates an IdoSlamCanonicalCenterlinePoint message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof bayesmech.vision.IdoSlamCanonicalCenterlinePoint
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {bayesmech.vision.IdoSlamCanonicalCenterlinePoint} IdoSlamCanonicalCenterlinePoint
+             */
+            IdoSlamCanonicalCenterlinePoint.fromObject = function fromObject(object) {
+                if (object instanceof $root.bayesmech.vision.IdoSlamCanonicalCenterlinePoint)
+                    return object;
+                let message = new $root.bayesmech.vision.IdoSlamCanonicalCenterlinePoint();
+                if (object.binIndex != null)
+                    message.binIndex = object.binIndex >>> 0;
+                if (object.progressM != null)
+                    message.progressM = Number(object.progressM);
+                if (object.centerX != null)
+                    message.centerX = Number(object.centerX);
+                if (object.centerY != null)
+                    message.centerY = Number(object.centerY);
+                if (object.widthM != null)
+                    message.widthM = Number(object.widthM);
+                if (object.leftX != null)
+                    message.leftX = Number(object.leftX);
+                if (object.leftY != null)
+                    message.leftY = Number(object.leftY);
+                if (object.rightX != null)
+                    message.rightX = Number(object.rightX);
+                if (object.rightY != null)
+                    message.rightY = Number(object.rightY);
+                return message;
+            };
+
+            /**
+             * Creates a plain object from an IdoSlamCanonicalCenterlinePoint message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof bayesmech.vision.IdoSlamCanonicalCenterlinePoint
+             * @static
+             * @param {bayesmech.vision.IdoSlamCanonicalCenterlinePoint} message IdoSlamCanonicalCenterlinePoint
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            IdoSlamCanonicalCenterlinePoint.toObject = function toObject(message, options) {
+                if (!options)
+                    options = {};
+                let object = {};
+                if (options.defaults) {
+                    object.binIndex = 0;
+                    object.progressM = 0;
+                    object.centerX = 0;
+                    object.centerY = 0;
+                    object.widthM = 0;
+                    object.leftX = 0;
+                    object.leftY = 0;
+                    object.rightX = 0;
+                    object.rightY = 0;
+                }
+                if (message.binIndex != null && message.hasOwnProperty("binIndex"))
+                    object.binIndex = message.binIndex;
+                if (message.progressM != null && message.hasOwnProperty("progressM"))
+                    object.progressM = options.json && !isFinite(message.progressM) ? String(message.progressM) : message.progressM;
+                if (message.centerX != null && message.hasOwnProperty("centerX"))
+                    object.centerX = options.json && !isFinite(message.centerX) ? String(message.centerX) : message.centerX;
+                if (message.centerY != null && message.hasOwnProperty("centerY"))
+                    object.centerY = options.json && !isFinite(message.centerY) ? String(message.centerY) : message.centerY;
+                if (message.widthM != null && message.hasOwnProperty("widthM"))
+                    object.widthM = options.json && !isFinite(message.widthM) ? String(message.widthM) : message.widthM;
+                if (message.leftX != null && message.hasOwnProperty("leftX"))
+                    object.leftX = options.json && !isFinite(message.leftX) ? String(message.leftX) : message.leftX;
+                if (message.leftY != null && message.hasOwnProperty("leftY"))
+                    object.leftY = options.json && !isFinite(message.leftY) ? String(message.leftY) : message.leftY;
+                if (message.rightX != null && message.hasOwnProperty("rightX"))
+                    object.rightX = options.json && !isFinite(message.rightX) ? String(message.rightX) : message.rightX;
+                if (message.rightY != null && message.hasOwnProperty("rightY"))
+                    object.rightY = options.json && !isFinite(message.rightY) ? String(message.rightY) : message.rightY;
+                return object;
+            };
+
+            /**
+             * Converts this IdoSlamCanonicalCenterlinePoint to JSON.
+             * @function toJSON
+             * @memberof bayesmech.vision.IdoSlamCanonicalCenterlinePoint
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            IdoSlamCanonicalCenterlinePoint.prototype.toJSON = function toJSON() {
+                return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the default type url for IdoSlamCanonicalCenterlinePoint
+             * @function getTypeUrl
+             * @memberof bayesmech.vision.IdoSlamCanonicalCenterlinePoint
+             * @static
+             * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns {string} The default type url
+             */
+            IdoSlamCanonicalCenterlinePoint.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+                if (typeUrlPrefix === undefined) {
+                    typeUrlPrefix = "type.googleapis.com";
+                }
+                return typeUrlPrefix + "/bayesmech.vision.IdoSlamCanonicalCenterlinePoint";
+            };
+
+            return IdoSlamCanonicalCenterlinePoint;
+        })();
+
+        vision.IdoSlamCanonicalFrameTrack = (function() {
+
+            /**
+             * Properties of an IdoSlamCanonicalFrameTrack.
+             * @memberof bayesmech.vision
+             * @interface IIdoSlamCanonicalFrameTrack
+             * @property {number|null} [frameIndex] IdoSlamCanonicalFrameTrack frameIndex
+             * @property {number|null} [frameNumber] IdoSlamCanonicalFrameTrack frameNumber
+             * @property {number|Long|null} [timestampNs] IdoSlamCanonicalFrameTrack timestampNs
+             * @property {number|null} [lapId] IdoSlamCanonicalFrameTrack lapId
+             * @property {boolean|null} [isPartialLap] IdoSlamCanonicalFrameTrack isPartialLap
+             * @property {number|null} [progressM] IdoSlamCanonicalFrameTrack progressM
+             * @property {number|null} [progressFraction] IdoSlamCanonicalFrameTrack progressFraction
+             * @property {number|null} [gpsX] IdoSlamCanonicalFrameTrack gpsX
+             * @property {number|null} [gpsY] IdoSlamCanonicalFrameTrack gpsY
+             * @property {number|null} [canonicalX] IdoSlamCanonicalFrameTrack canonicalX
+             * @property {number|null} [canonicalY] IdoSlamCanonicalFrameTrack canonicalY
+             * @property {number|null} [lateralOffsetM] IdoSlamCanonicalFrameTrack lateralOffsetM
+             * @property {number|null} [imageLateralM] IdoSlamCanonicalFrameTrack imageLateralM
+             * @property {boolean|null} [hasImageLateralM] IdoSlamCanonicalFrameTrack hasImageLateralM
+             * @property {number|null} [trajectoryLateralM] IdoSlamCanonicalFrameTrack trajectoryLateralM
+             * @property {number|null} [trajectoryX] IdoSlamCanonicalFrameTrack trajectoryX
+             * @property {number|null} [trajectoryY] IdoSlamCanonicalFrameTrack trajectoryY
+             * @property {number|null} [widthM] IdoSlamCanonicalFrameTrack widthM
+             * @property {number|null} [halfWidthM] IdoSlamCanonicalFrameTrack halfWidthM
+             */
+
+            /**
+             * Constructs a new IdoSlamCanonicalFrameTrack.
+             * @memberof bayesmech.vision
+             * @classdesc Represents an IdoSlamCanonicalFrameTrack.
+             * @implements IIdoSlamCanonicalFrameTrack
+             * @constructor
+             * @param {bayesmech.vision.IIdoSlamCanonicalFrameTrack=} [properties] Properties to set
+             */
+            function IdoSlamCanonicalFrameTrack(properties) {
+                if (properties)
+                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null)
+                            this[keys[i]] = properties[keys[i]];
+            }
+
+            /**
+             * IdoSlamCanonicalFrameTrack frameIndex.
+             * @member {number} frameIndex
+             * @memberof bayesmech.vision.IdoSlamCanonicalFrameTrack
+             * @instance
+             */
+            IdoSlamCanonicalFrameTrack.prototype.frameIndex = 0;
+
+            /**
+             * IdoSlamCanonicalFrameTrack frameNumber.
+             * @member {number} frameNumber
+             * @memberof bayesmech.vision.IdoSlamCanonicalFrameTrack
+             * @instance
+             */
+            IdoSlamCanonicalFrameTrack.prototype.frameNumber = 0;
+
+            /**
+             * IdoSlamCanonicalFrameTrack timestampNs.
+             * @member {number|Long} timestampNs
+             * @memberof bayesmech.vision.IdoSlamCanonicalFrameTrack
+             * @instance
+             */
+            IdoSlamCanonicalFrameTrack.prototype.timestampNs = $util.Long ? $util.Long.fromBits(0,0,true) : 0;
+
+            /**
+             * IdoSlamCanonicalFrameTrack lapId.
+             * @member {number} lapId
+             * @memberof bayesmech.vision.IdoSlamCanonicalFrameTrack
+             * @instance
+             */
+            IdoSlamCanonicalFrameTrack.prototype.lapId = 0;
+
+            /**
+             * IdoSlamCanonicalFrameTrack isPartialLap.
+             * @member {boolean} isPartialLap
+             * @memberof bayesmech.vision.IdoSlamCanonicalFrameTrack
+             * @instance
+             */
+            IdoSlamCanonicalFrameTrack.prototype.isPartialLap = false;
+
+            /**
+             * IdoSlamCanonicalFrameTrack progressM.
+             * @member {number} progressM
+             * @memberof bayesmech.vision.IdoSlamCanonicalFrameTrack
+             * @instance
+             */
+            IdoSlamCanonicalFrameTrack.prototype.progressM = 0;
+
+            /**
+             * IdoSlamCanonicalFrameTrack progressFraction.
+             * @member {number} progressFraction
+             * @memberof bayesmech.vision.IdoSlamCanonicalFrameTrack
+             * @instance
+             */
+            IdoSlamCanonicalFrameTrack.prototype.progressFraction = 0;
+
+            /**
+             * IdoSlamCanonicalFrameTrack gpsX.
+             * @member {number} gpsX
+             * @memberof bayesmech.vision.IdoSlamCanonicalFrameTrack
+             * @instance
+             */
+            IdoSlamCanonicalFrameTrack.prototype.gpsX = 0;
+
+            /**
+             * IdoSlamCanonicalFrameTrack gpsY.
+             * @member {number} gpsY
+             * @memberof bayesmech.vision.IdoSlamCanonicalFrameTrack
+             * @instance
+             */
+            IdoSlamCanonicalFrameTrack.prototype.gpsY = 0;
+
+            /**
+             * IdoSlamCanonicalFrameTrack canonicalX.
+             * @member {number} canonicalX
+             * @memberof bayesmech.vision.IdoSlamCanonicalFrameTrack
+             * @instance
+             */
+            IdoSlamCanonicalFrameTrack.prototype.canonicalX = 0;
+
+            /**
+             * IdoSlamCanonicalFrameTrack canonicalY.
+             * @member {number} canonicalY
+             * @memberof bayesmech.vision.IdoSlamCanonicalFrameTrack
+             * @instance
+             */
+            IdoSlamCanonicalFrameTrack.prototype.canonicalY = 0;
+
+            /**
+             * IdoSlamCanonicalFrameTrack lateralOffsetM.
+             * @member {number} lateralOffsetM
+             * @memberof bayesmech.vision.IdoSlamCanonicalFrameTrack
+             * @instance
+             */
+            IdoSlamCanonicalFrameTrack.prototype.lateralOffsetM = 0;
+
+            /**
+             * IdoSlamCanonicalFrameTrack imageLateralM.
+             * @member {number} imageLateralM
+             * @memberof bayesmech.vision.IdoSlamCanonicalFrameTrack
+             * @instance
+             */
+            IdoSlamCanonicalFrameTrack.prototype.imageLateralM = 0;
+
+            /**
+             * IdoSlamCanonicalFrameTrack hasImageLateralM.
+             * @member {boolean} hasImageLateralM
+             * @memberof bayesmech.vision.IdoSlamCanonicalFrameTrack
+             * @instance
+             */
+            IdoSlamCanonicalFrameTrack.prototype.hasImageLateralM = false;
+
+            /**
+             * IdoSlamCanonicalFrameTrack trajectoryLateralM.
+             * @member {number} trajectoryLateralM
+             * @memberof bayesmech.vision.IdoSlamCanonicalFrameTrack
+             * @instance
+             */
+            IdoSlamCanonicalFrameTrack.prototype.trajectoryLateralM = 0;
+
+            /**
+             * IdoSlamCanonicalFrameTrack trajectoryX.
+             * @member {number} trajectoryX
+             * @memberof bayesmech.vision.IdoSlamCanonicalFrameTrack
+             * @instance
+             */
+            IdoSlamCanonicalFrameTrack.prototype.trajectoryX = 0;
+
+            /**
+             * IdoSlamCanonicalFrameTrack trajectoryY.
+             * @member {number} trajectoryY
+             * @memberof bayesmech.vision.IdoSlamCanonicalFrameTrack
+             * @instance
+             */
+            IdoSlamCanonicalFrameTrack.prototype.trajectoryY = 0;
+
+            /**
+             * IdoSlamCanonicalFrameTrack widthM.
+             * @member {number} widthM
+             * @memberof bayesmech.vision.IdoSlamCanonicalFrameTrack
+             * @instance
+             */
+            IdoSlamCanonicalFrameTrack.prototype.widthM = 0;
+
+            /**
+             * IdoSlamCanonicalFrameTrack halfWidthM.
+             * @member {number} halfWidthM
+             * @memberof bayesmech.vision.IdoSlamCanonicalFrameTrack
+             * @instance
+             */
+            IdoSlamCanonicalFrameTrack.prototype.halfWidthM = 0;
+
+            /**
+             * Creates a new IdoSlamCanonicalFrameTrack instance using the specified properties.
+             * @function create
+             * @memberof bayesmech.vision.IdoSlamCanonicalFrameTrack
+             * @static
+             * @param {bayesmech.vision.IIdoSlamCanonicalFrameTrack=} [properties] Properties to set
+             * @returns {bayesmech.vision.IdoSlamCanonicalFrameTrack} IdoSlamCanonicalFrameTrack instance
+             */
+            IdoSlamCanonicalFrameTrack.create = function create(properties) {
+                return new IdoSlamCanonicalFrameTrack(properties);
+            };
+
+            /**
+             * Encodes the specified IdoSlamCanonicalFrameTrack message. Does not implicitly {@link bayesmech.vision.IdoSlamCanonicalFrameTrack.verify|verify} messages.
+             * @function encode
+             * @memberof bayesmech.vision.IdoSlamCanonicalFrameTrack
+             * @static
+             * @param {bayesmech.vision.IIdoSlamCanonicalFrameTrack} message IdoSlamCanonicalFrameTrack message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            IdoSlamCanonicalFrameTrack.encode = function encode(message, writer) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (message.frameIndex != null && Object.hasOwnProperty.call(message, "frameIndex"))
+                    writer.uint32(/* id 1, wireType 0 =*/8).uint32(message.frameIndex);
+                if (message.frameNumber != null && Object.hasOwnProperty.call(message, "frameNumber"))
+                    writer.uint32(/* id 2, wireType 0 =*/16).uint32(message.frameNumber);
+                if (message.timestampNs != null && Object.hasOwnProperty.call(message, "timestampNs"))
+                    writer.uint32(/* id 3, wireType 0 =*/24).uint64(message.timestampNs);
+                if (message.lapId != null && Object.hasOwnProperty.call(message, "lapId"))
+                    writer.uint32(/* id 4, wireType 0 =*/32).int32(message.lapId);
+                if (message.isPartialLap != null && Object.hasOwnProperty.call(message, "isPartialLap"))
+                    writer.uint32(/* id 5, wireType 0 =*/40).bool(message.isPartialLap);
+                if (message.progressM != null && Object.hasOwnProperty.call(message, "progressM"))
+                    writer.uint32(/* id 6, wireType 1 =*/49).double(message.progressM);
+                if (message.progressFraction != null && Object.hasOwnProperty.call(message, "progressFraction"))
+                    writer.uint32(/* id 7, wireType 1 =*/57).double(message.progressFraction);
+                if (message.gpsX != null && Object.hasOwnProperty.call(message, "gpsX"))
+                    writer.uint32(/* id 8, wireType 1 =*/65).double(message.gpsX);
+                if (message.gpsY != null && Object.hasOwnProperty.call(message, "gpsY"))
+                    writer.uint32(/* id 9, wireType 1 =*/73).double(message.gpsY);
+                if (message.canonicalX != null && Object.hasOwnProperty.call(message, "canonicalX"))
+                    writer.uint32(/* id 10, wireType 1 =*/81).double(message.canonicalX);
+                if (message.canonicalY != null && Object.hasOwnProperty.call(message, "canonicalY"))
+                    writer.uint32(/* id 11, wireType 1 =*/89).double(message.canonicalY);
+                if (message.lateralOffsetM != null && Object.hasOwnProperty.call(message, "lateralOffsetM"))
+                    writer.uint32(/* id 12, wireType 1 =*/97).double(message.lateralOffsetM);
+                if (message.imageLateralM != null && Object.hasOwnProperty.call(message, "imageLateralM"))
+                    writer.uint32(/* id 13, wireType 1 =*/105).double(message.imageLateralM);
+                if (message.hasImageLateralM != null && Object.hasOwnProperty.call(message, "hasImageLateralM"))
+                    writer.uint32(/* id 14, wireType 0 =*/112).bool(message.hasImageLateralM);
+                if (message.trajectoryLateralM != null && Object.hasOwnProperty.call(message, "trajectoryLateralM"))
+                    writer.uint32(/* id 15, wireType 1 =*/121).double(message.trajectoryLateralM);
+                if (message.trajectoryX != null && Object.hasOwnProperty.call(message, "trajectoryX"))
+                    writer.uint32(/* id 16, wireType 1 =*/129).double(message.trajectoryX);
+                if (message.trajectoryY != null && Object.hasOwnProperty.call(message, "trajectoryY"))
+                    writer.uint32(/* id 17, wireType 1 =*/137).double(message.trajectoryY);
+                if (message.widthM != null && Object.hasOwnProperty.call(message, "widthM"))
+                    writer.uint32(/* id 18, wireType 1 =*/145).double(message.widthM);
+                if (message.halfWidthM != null && Object.hasOwnProperty.call(message, "halfWidthM"))
+                    writer.uint32(/* id 19, wireType 1 =*/153).double(message.halfWidthM);
+                return writer;
+            };
+
+            /**
+             * Encodes the specified IdoSlamCanonicalFrameTrack message, length delimited. Does not implicitly {@link bayesmech.vision.IdoSlamCanonicalFrameTrack.verify|verify} messages.
+             * @function encodeDelimited
+             * @memberof bayesmech.vision.IdoSlamCanonicalFrameTrack
+             * @static
+             * @param {bayesmech.vision.IIdoSlamCanonicalFrameTrack} message IdoSlamCanonicalFrameTrack message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            IdoSlamCanonicalFrameTrack.encodeDelimited = function encodeDelimited(message, writer) {
+                return this.encode(message, writer).ldelim();
+            };
+
+            /**
+             * Decodes an IdoSlamCanonicalFrameTrack message from the specified reader or buffer.
+             * @function decode
+             * @memberof bayesmech.vision.IdoSlamCanonicalFrameTrack
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {bayesmech.vision.IdoSlamCanonicalFrameTrack} IdoSlamCanonicalFrameTrack
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            IdoSlamCanonicalFrameTrack.decode = function decode(reader, length, error) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.IdoSlamCanonicalFrameTrack();
+                while (reader.pos < end) {
+                    let tag = reader.uint32();
+                    if (tag === error)
+                        break;
+                    switch (tag >>> 3) {
+                    case 1: {
+                            message.frameIndex = reader.uint32();
+                            break;
+                        }
+                    case 2: {
+                            message.frameNumber = reader.uint32();
+                            break;
+                        }
+                    case 3: {
+                            message.timestampNs = reader.uint64();
+                            break;
+                        }
+                    case 4: {
+                            message.lapId = reader.int32();
+                            break;
+                        }
+                    case 5: {
+                            message.isPartialLap = reader.bool();
+                            break;
+                        }
+                    case 6: {
+                            message.progressM = reader.double();
+                            break;
+                        }
+                    case 7: {
+                            message.progressFraction = reader.double();
+                            break;
+                        }
+                    case 8: {
+                            message.gpsX = reader.double();
+                            break;
+                        }
+                    case 9: {
+                            message.gpsY = reader.double();
+                            break;
+                        }
+                    case 10: {
+                            message.canonicalX = reader.double();
+                            break;
+                        }
+                    case 11: {
+                            message.canonicalY = reader.double();
+                            break;
+                        }
+                    case 12: {
+                            message.lateralOffsetM = reader.double();
+                            break;
+                        }
+                    case 13: {
+                            message.imageLateralM = reader.double();
+                            break;
+                        }
+                    case 14: {
+                            message.hasImageLateralM = reader.bool();
+                            break;
+                        }
+                    case 15: {
+                            message.trajectoryLateralM = reader.double();
+                            break;
+                        }
+                    case 16: {
+                            message.trajectoryX = reader.double();
+                            break;
+                        }
+                    case 17: {
+                            message.trajectoryY = reader.double();
+                            break;
+                        }
+                    case 18: {
+                            message.widthM = reader.double();
+                            break;
+                        }
+                    case 19: {
+                            message.halfWidthM = reader.double();
+                            break;
+                        }
+                    default:
+                        reader.skipType(tag & 7);
+                        break;
+                    }
+                }
+                return message;
+            };
+
+            /**
+             * Decodes an IdoSlamCanonicalFrameTrack message from the specified reader or buffer, length delimited.
+             * @function decodeDelimited
+             * @memberof bayesmech.vision.IdoSlamCanonicalFrameTrack
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @returns {bayesmech.vision.IdoSlamCanonicalFrameTrack} IdoSlamCanonicalFrameTrack
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            IdoSlamCanonicalFrameTrack.decodeDelimited = function decodeDelimited(reader) {
+                if (!(reader instanceof $Reader))
+                    reader = new $Reader(reader);
+                return this.decode(reader, reader.uint32());
+            };
+
+            /**
+             * Verifies an IdoSlamCanonicalFrameTrack message.
+             * @function verify
+             * @memberof bayesmech.vision.IdoSlamCanonicalFrameTrack
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            IdoSlamCanonicalFrameTrack.verify = function verify(message) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (message.frameIndex != null && message.hasOwnProperty("frameIndex"))
+                    if (!$util.isInteger(message.frameIndex))
+                        return "frameIndex: integer expected";
+                if (message.frameNumber != null && message.hasOwnProperty("frameNumber"))
+                    if (!$util.isInteger(message.frameNumber))
+                        return "frameNumber: integer expected";
+                if (message.timestampNs != null && message.hasOwnProperty("timestampNs"))
+                    if (!$util.isInteger(message.timestampNs) && !(message.timestampNs && $util.isInteger(message.timestampNs.low) && $util.isInteger(message.timestampNs.high)))
+                        return "timestampNs: integer|Long expected";
+                if (message.lapId != null && message.hasOwnProperty("lapId"))
+                    if (!$util.isInteger(message.lapId))
+                        return "lapId: integer expected";
+                if (message.isPartialLap != null && message.hasOwnProperty("isPartialLap"))
+                    if (typeof message.isPartialLap !== "boolean")
+                        return "isPartialLap: boolean expected";
+                if (message.progressM != null && message.hasOwnProperty("progressM"))
+                    if (typeof message.progressM !== "number")
+                        return "progressM: number expected";
+                if (message.progressFraction != null && message.hasOwnProperty("progressFraction"))
+                    if (typeof message.progressFraction !== "number")
+                        return "progressFraction: number expected";
+                if (message.gpsX != null && message.hasOwnProperty("gpsX"))
+                    if (typeof message.gpsX !== "number")
+                        return "gpsX: number expected";
+                if (message.gpsY != null && message.hasOwnProperty("gpsY"))
+                    if (typeof message.gpsY !== "number")
+                        return "gpsY: number expected";
+                if (message.canonicalX != null && message.hasOwnProperty("canonicalX"))
+                    if (typeof message.canonicalX !== "number")
+                        return "canonicalX: number expected";
+                if (message.canonicalY != null && message.hasOwnProperty("canonicalY"))
+                    if (typeof message.canonicalY !== "number")
+                        return "canonicalY: number expected";
+                if (message.lateralOffsetM != null && message.hasOwnProperty("lateralOffsetM"))
+                    if (typeof message.lateralOffsetM !== "number")
+                        return "lateralOffsetM: number expected";
+                if (message.imageLateralM != null && message.hasOwnProperty("imageLateralM"))
+                    if (typeof message.imageLateralM !== "number")
+                        return "imageLateralM: number expected";
+                if (message.hasImageLateralM != null && message.hasOwnProperty("hasImageLateralM"))
+                    if (typeof message.hasImageLateralM !== "boolean")
+                        return "hasImageLateralM: boolean expected";
+                if (message.trajectoryLateralM != null && message.hasOwnProperty("trajectoryLateralM"))
+                    if (typeof message.trajectoryLateralM !== "number")
+                        return "trajectoryLateralM: number expected";
+                if (message.trajectoryX != null && message.hasOwnProperty("trajectoryX"))
+                    if (typeof message.trajectoryX !== "number")
+                        return "trajectoryX: number expected";
+                if (message.trajectoryY != null && message.hasOwnProperty("trajectoryY"))
+                    if (typeof message.trajectoryY !== "number")
+                        return "trajectoryY: number expected";
+                if (message.widthM != null && message.hasOwnProperty("widthM"))
+                    if (typeof message.widthM !== "number")
+                        return "widthM: number expected";
+                if (message.halfWidthM != null && message.hasOwnProperty("halfWidthM"))
+                    if (typeof message.halfWidthM !== "number")
+                        return "halfWidthM: number expected";
+                return null;
+            };
+
+            /**
+             * Creates an IdoSlamCanonicalFrameTrack message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof bayesmech.vision.IdoSlamCanonicalFrameTrack
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {bayesmech.vision.IdoSlamCanonicalFrameTrack} IdoSlamCanonicalFrameTrack
+             */
+            IdoSlamCanonicalFrameTrack.fromObject = function fromObject(object) {
+                if (object instanceof $root.bayesmech.vision.IdoSlamCanonicalFrameTrack)
+                    return object;
+                let message = new $root.bayesmech.vision.IdoSlamCanonicalFrameTrack();
+                if (object.frameIndex != null)
+                    message.frameIndex = object.frameIndex >>> 0;
+                if (object.frameNumber != null)
+                    message.frameNumber = object.frameNumber >>> 0;
+                if (object.timestampNs != null)
+                    if ($util.Long)
+                        (message.timestampNs = $util.Long.fromValue(object.timestampNs)).unsigned = true;
+                    else if (typeof object.timestampNs === "string")
+                        message.timestampNs = parseInt(object.timestampNs, 10);
+                    else if (typeof object.timestampNs === "number")
+                        message.timestampNs = object.timestampNs;
+                    else if (typeof object.timestampNs === "object")
+                        message.timestampNs = new $util.LongBits(object.timestampNs.low >>> 0, object.timestampNs.high >>> 0).toNumber(true);
+                if (object.lapId != null)
+                    message.lapId = object.lapId | 0;
+                if (object.isPartialLap != null)
+                    message.isPartialLap = Boolean(object.isPartialLap);
+                if (object.progressM != null)
+                    message.progressM = Number(object.progressM);
+                if (object.progressFraction != null)
+                    message.progressFraction = Number(object.progressFraction);
+                if (object.gpsX != null)
+                    message.gpsX = Number(object.gpsX);
+                if (object.gpsY != null)
+                    message.gpsY = Number(object.gpsY);
+                if (object.canonicalX != null)
+                    message.canonicalX = Number(object.canonicalX);
+                if (object.canonicalY != null)
+                    message.canonicalY = Number(object.canonicalY);
+                if (object.lateralOffsetM != null)
+                    message.lateralOffsetM = Number(object.lateralOffsetM);
+                if (object.imageLateralM != null)
+                    message.imageLateralM = Number(object.imageLateralM);
+                if (object.hasImageLateralM != null)
+                    message.hasImageLateralM = Boolean(object.hasImageLateralM);
+                if (object.trajectoryLateralM != null)
+                    message.trajectoryLateralM = Number(object.trajectoryLateralM);
+                if (object.trajectoryX != null)
+                    message.trajectoryX = Number(object.trajectoryX);
+                if (object.trajectoryY != null)
+                    message.trajectoryY = Number(object.trajectoryY);
+                if (object.widthM != null)
+                    message.widthM = Number(object.widthM);
+                if (object.halfWidthM != null)
+                    message.halfWidthM = Number(object.halfWidthM);
+                return message;
+            };
+
+            /**
+             * Creates a plain object from an IdoSlamCanonicalFrameTrack message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof bayesmech.vision.IdoSlamCanonicalFrameTrack
+             * @static
+             * @param {bayesmech.vision.IdoSlamCanonicalFrameTrack} message IdoSlamCanonicalFrameTrack
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            IdoSlamCanonicalFrameTrack.toObject = function toObject(message, options) {
+                if (!options)
+                    options = {};
+                let object = {};
+                if (options.defaults) {
+                    object.frameIndex = 0;
+                    object.frameNumber = 0;
+                    if ($util.Long) {
+                        let long = new $util.Long(0, 0, true);
+                        object.timestampNs = options.longs === String ? long.toString() : options.longs === Number ? long.toNumber() : long;
+                    } else
+                        object.timestampNs = options.longs === String ? "0" : 0;
+                    object.lapId = 0;
+                    object.isPartialLap = false;
+                    object.progressM = 0;
+                    object.progressFraction = 0;
+                    object.gpsX = 0;
+                    object.gpsY = 0;
+                    object.canonicalX = 0;
+                    object.canonicalY = 0;
+                    object.lateralOffsetM = 0;
+                    object.imageLateralM = 0;
+                    object.hasImageLateralM = false;
+                    object.trajectoryLateralM = 0;
+                    object.trajectoryX = 0;
+                    object.trajectoryY = 0;
+                    object.widthM = 0;
+                    object.halfWidthM = 0;
+                }
+                if (message.frameIndex != null && message.hasOwnProperty("frameIndex"))
+                    object.frameIndex = message.frameIndex;
+                if (message.frameNumber != null && message.hasOwnProperty("frameNumber"))
+                    object.frameNumber = message.frameNumber;
+                if (message.timestampNs != null && message.hasOwnProperty("timestampNs"))
+                    if (typeof message.timestampNs === "number")
+                        object.timestampNs = options.longs === String ? String(message.timestampNs) : message.timestampNs;
+                    else
+                        object.timestampNs = options.longs === String ? $util.Long.prototype.toString.call(message.timestampNs) : options.longs === Number ? new $util.LongBits(message.timestampNs.low >>> 0, message.timestampNs.high >>> 0).toNumber(true) : message.timestampNs;
+                if (message.lapId != null && message.hasOwnProperty("lapId"))
+                    object.lapId = message.lapId;
+                if (message.isPartialLap != null && message.hasOwnProperty("isPartialLap"))
+                    object.isPartialLap = message.isPartialLap;
+                if (message.progressM != null && message.hasOwnProperty("progressM"))
+                    object.progressM = options.json && !isFinite(message.progressM) ? String(message.progressM) : message.progressM;
+                if (message.progressFraction != null && message.hasOwnProperty("progressFraction"))
+                    object.progressFraction = options.json && !isFinite(message.progressFraction) ? String(message.progressFraction) : message.progressFraction;
+                if (message.gpsX != null && message.hasOwnProperty("gpsX"))
+                    object.gpsX = options.json && !isFinite(message.gpsX) ? String(message.gpsX) : message.gpsX;
+                if (message.gpsY != null && message.hasOwnProperty("gpsY"))
+                    object.gpsY = options.json && !isFinite(message.gpsY) ? String(message.gpsY) : message.gpsY;
+                if (message.canonicalX != null && message.hasOwnProperty("canonicalX"))
+                    object.canonicalX = options.json && !isFinite(message.canonicalX) ? String(message.canonicalX) : message.canonicalX;
+                if (message.canonicalY != null && message.hasOwnProperty("canonicalY"))
+                    object.canonicalY = options.json && !isFinite(message.canonicalY) ? String(message.canonicalY) : message.canonicalY;
+                if (message.lateralOffsetM != null && message.hasOwnProperty("lateralOffsetM"))
+                    object.lateralOffsetM = options.json && !isFinite(message.lateralOffsetM) ? String(message.lateralOffsetM) : message.lateralOffsetM;
+                if (message.imageLateralM != null && message.hasOwnProperty("imageLateralM"))
+                    object.imageLateralM = options.json && !isFinite(message.imageLateralM) ? String(message.imageLateralM) : message.imageLateralM;
+                if (message.hasImageLateralM != null && message.hasOwnProperty("hasImageLateralM"))
+                    object.hasImageLateralM = message.hasImageLateralM;
+                if (message.trajectoryLateralM != null && message.hasOwnProperty("trajectoryLateralM"))
+                    object.trajectoryLateralM = options.json && !isFinite(message.trajectoryLateralM) ? String(message.trajectoryLateralM) : message.trajectoryLateralM;
+                if (message.trajectoryX != null && message.hasOwnProperty("trajectoryX"))
+                    object.trajectoryX = options.json && !isFinite(message.trajectoryX) ? String(message.trajectoryX) : message.trajectoryX;
+                if (message.trajectoryY != null && message.hasOwnProperty("trajectoryY"))
+                    object.trajectoryY = options.json && !isFinite(message.trajectoryY) ? String(message.trajectoryY) : message.trajectoryY;
+                if (message.widthM != null && message.hasOwnProperty("widthM"))
+                    object.widthM = options.json && !isFinite(message.widthM) ? String(message.widthM) : message.widthM;
+                if (message.halfWidthM != null && message.hasOwnProperty("halfWidthM"))
+                    object.halfWidthM = options.json && !isFinite(message.halfWidthM) ? String(message.halfWidthM) : message.halfWidthM;
+                return object;
+            };
+
+            /**
+             * Converts this IdoSlamCanonicalFrameTrack to JSON.
+             * @function toJSON
+             * @memberof bayesmech.vision.IdoSlamCanonicalFrameTrack
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            IdoSlamCanonicalFrameTrack.prototype.toJSON = function toJSON() {
+                return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the default type url for IdoSlamCanonicalFrameTrack
+             * @function getTypeUrl
+             * @memberof bayesmech.vision.IdoSlamCanonicalFrameTrack
+             * @static
+             * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns {string} The default type url
+             */
+            IdoSlamCanonicalFrameTrack.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+                if (typeUrlPrefix === undefined) {
+                    typeUrlPrefix = "type.googleapis.com";
+                }
+                return typeUrlPrefix + "/bayesmech.vision.IdoSlamCanonicalFrameTrack";
+            };
+
+            return IdoSlamCanonicalFrameTrack;
+        })();
+
+        vision.IdoSlamResponse = (function() {
+
+            /**
+             * Properties of an IdoSlamResponse.
+             * @memberof bayesmech.vision
+             * @interface IIdoSlamResponse
+             * @property {bayesmech.vision.IPerceiverFrameIdentifier|null} [firstFrameId] IdoSlamResponse firstFrameId
+             * @property {string|null} [recordingPath] IdoSlamResponse recordingPath
+             * @property {string|null} [segmentationPath] IdoSlamResponse segmentationPath
+             * @property {string|null} [workspacePath] IdoSlamResponse workspacePath
+             * @property {Array.<bayesmech.vision.IIdoSlamFramePose>|null} [framePoses] IdoSlamResponse framePoses
+             * @property {Array.<bayesmech.vision.IIdoSlamGroundPoint>|null} [groundPoints] IdoSlamResponse groundPoints
+             * @property {Array.<bayesmech.vision.IIdoSlamPairDebug>|null} [pairDebug] IdoSlamResponse pairDebug
+             * @property {Array.<bayesmech.vision.IIdoSlamFramePose>|null} [refinedFramePoses] IdoSlamResponse refinedFramePoses
+             * @property {Array.<bayesmech.vision.IIdoSlamPairwiseMotion>|null} [pairwiseMotion] IdoSlamResponse pairwiseMotion
+             * @property {Array.<bayesmech.vision.IIdoSlamTrackWidthEstimate>|null} [planeWidthEstimates] IdoSlamResponse planeWidthEstimates
+             * @property {string|null} [planeWidthSummaryJson] IdoSlamResponse planeWidthSummaryJson
+             * @property {Array.<bayesmech.vision.IIdoSlamCanonicalCenterlinePoint>|null} [canonicalCenterline] IdoSlamResponse canonicalCenterline
+             * @property {Array.<bayesmech.vision.IIdoSlamCanonicalFrameTrack>|null} [canonicalFrameTracks] IdoSlamResponse canonicalFrameTracks
+             * @property {string|null} [canonicalSummaryJson] IdoSlamResponse canonicalSummaryJson
+             * @property {Array.<bayesmech.vision.IIdoSlamTrackWidthEstimate>|null} [triangulatedWidthEstimates] IdoSlamResponse triangulatedWidthEstimates
+             * @property {string|null} [triangulatedSummaryJson] IdoSlamResponse triangulatedSummaryJson
+             */
+
+            /**
+             * Constructs a new IdoSlamResponse.
+             * @memberof bayesmech.vision
+             * @classdesc Represents an IdoSlamResponse.
+             * @implements IIdoSlamResponse
+             * @constructor
+             * @param {bayesmech.vision.IIdoSlamResponse=} [properties] Properties to set
+             */
+            function IdoSlamResponse(properties) {
+                this.framePoses = [];
+                this.groundPoints = [];
+                this.pairDebug = [];
+                this.refinedFramePoses = [];
+                this.pairwiseMotion = [];
+                this.planeWidthEstimates = [];
+                this.canonicalCenterline = [];
+                this.canonicalFrameTracks = [];
+                this.triangulatedWidthEstimates = [];
+                if (properties)
+                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null)
+                            this[keys[i]] = properties[keys[i]];
+            }
+
+            /**
+             * IdoSlamResponse firstFrameId.
+             * @member {bayesmech.vision.IPerceiverFrameIdentifier|null|undefined} firstFrameId
+             * @memberof bayesmech.vision.IdoSlamResponse
+             * @instance
+             */
+            IdoSlamResponse.prototype.firstFrameId = null;
+
+            /**
+             * IdoSlamResponse recordingPath.
+             * @member {string} recordingPath
+             * @memberof bayesmech.vision.IdoSlamResponse
+             * @instance
+             */
+            IdoSlamResponse.prototype.recordingPath = "";
+
+            /**
+             * IdoSlamResponse segmentationPath.
+             * @member {string} segmentationPath
+             * @memberof bayesmech.vision.IdoSlamResponse
+             * @instance
+             */
+            IdoSlamResponse.prototype.segmentationPath = "";
+
+            /**
+             * IdoSlamResponse workspacePath.
+             * @member {string} workspacePath
+             * @memberof bayesmech.vision.IdoSlamResponse
+             * @instance
+             */
+            IdoSlamResponse.prototype.workspacePath = "";
+
+            /**
+             * IdoSlamResponse framePoses.
+             * @member {Array.<bayesmech.vision.IIdoSlamFramePose>} framePoses
+             * @memberof bayesmech.vision.IdoSlamResponse
+             * @instance
+             */
+            IdoSlamResponse.prototype.framePoses = $util.emptyArray;
+
+            /**
+             * IdoSlamResponse groundPoints.
+             * @member {Array.<bayesmech.vision.IIdoSlamGroundPoint>} groundPoints
+             * @memberof bayesmech.vision.IdoSlamResponse
+             * @instance
+             */
+            IdoSlamResponse.prototype.groundPoints = $util.emptyArray;
+
+            /**
+             * IdoSlamResponse pairDebug.
+             * @member {Array.<bayesmech.vision.IIdoSlamPairDebug>} pairDebug
+             * @memberof bayesmech.vision.IdoSlamResponse
+             * @instance
+             */
+            IdoSlamResponse.prototype.pairDebug = $util.emptyArray;
+
+            /**
+             * IdoSlamResponse refinedFramePoses.
+             * @member {Array.<bayesmech.vision.IIdoSlamFramePose>} refinedFramePoses
+             * @memberof bayesmech.vision.IdoSlamResponse
+             * @instance
+             */
+            IdoSlamResponse.prototype.refinedFramePoses = $util.emptyArray;
+
+            /**
+             * IdoSlamResponse pairwiseMotion.
+             * @member {Array.<bayesmech.vision.IIdoSlamPairwiseMotion>} pairwiseMotion
+             * @memberof bayesmech.vision.IdoSlamResponse
+             * @instance
+             */
+            IdoSlamResponse.prototype.pairwiseMotion = $util.emptyArray;
+
+            /**
+             * IdoSlamResponse planeWidthEstimates.
+             * @member {Array.<bayesmech.vision.IIdoSlamTrackWidthEstimate>} planeWidthEstimates
+             * @memberof bayesmech.vision.IdoSlamResponse
+             * @instance
+             */
+            IdoSlamResponse.prototype.planeWidthEstimates = $util.emptyArray;
+
+            /**
+             * IdoSlamResponse planeWidthSummaryJson.
+             * @member {string} planeWidthSummaryJson
+             * @memberof bayesmech.vision.IdoSlamResponse
+             * @instance
+             */
+            IdoSlamResponse.prototype.planeWidthSummaryJson = "";
+
+            /**
+             * IdoSlamResponse canonicalCenterline.
+             * @member {Array.<bayesmech.vision.IIdoSlamCanonicalCenterlinePoint>} canonicalCenterline
+             * @memberof bayesmech.vision.IdoSlamResponse
+             * @instance
+             */
+            IdoSlamResponse.prototype.canonicalCenterline = $util.emptyArray;
+
+            /**
+             * IdoSlamResponse canonicalFrameTracks.
+             * @member {Array.<bayesmech.vision.IIdoSlamCanonicalFrameTrack>} canonicalFrameTracks
+             * @memberof bayesmech.vision.IdoSlamResponse
+             * @instance
+             */
+            IdoSlamResponse.prototype.canonicalFrameTracks = $util.emptyArray;
+
+            /**
+             * IdoSlamResponse canonicalSummaryJson.
+             * @member {string} canonicalSummaryJson
+             * @memberof bayesmech.vision.IdoSlamResponse
+             * @instance
+             */
+            IdoSlamResponse.prototype.canonicalSummaryJson = "";
+
+            /**
+             * IdoSlamResponse triangulatedWidthEstimates.
+             * @member {Array.<bayesmech.vision.IIdoSlamTrackWidthEstimate>} triangulatedWidthEstimates
+             * @memberof bayesmech.vision.IdoSlamResponse
+             * @instance
+             */
+            IdoSlamResponse.prototype.triangulatedWidthEstimates = $util.emptyArray;
+
+            /**
+             * IdoSlamResponse triangulatedSummaryJson.
+             * @member {string} triangulatedSummaryJson
+             * @memberof bayesmech.vision.IdoSlamResponse
+             * @instance
+             */
+            IdoSlamResponse.prototype.triangulatedSummaryJson = "";
+
+            /**
+             * Creates a new IdoSlamResponse instance using the specified properties.
+             * @function create
+             * @memberof bayesmech.vision.IdoSlamResponse
+             * @static
+             * @param {bayesmech.vision.IIdoSlamResponse=} [properties] Properties to set
+             * @returns {bayesmech.vision.IdoSlamResponse} IdoSlamResponse instance
+             */
+            IdoSlamResponse.create = function create(properties) {
+                return new IdoSlamResponse(properties);
+            };
+
+            /**
+             * Encodes the specified IdoSlamResponse message. Does not implicitly {@link bayesmech.vision.IdoSlamResponse.verify|verify} messages.
+             * @function encode
+             * @memberof bayesmech.vision.IdoSlamResponse
+             * @static
+             * @param {bayesmech.vision.IIdoSlamResponse} message IdoSlamResponse message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            IdoSlamResponse.encode = function encode(message, writer) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (message.firstFrameId != null && Object.hasOwnProperty.call(message, "firstFrameId"))
+                    $root.bayesmech.vision.PerceiverFrameIdentifier.encode(message.firstFrameId, writer.uint32(/* id 1, wireType 2 =*/10).fork()).ldelim();
+                if (message.recordingPath != null && Object.hasOwnProperty.call(message, "recordingPath"))
+                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.recordingPath);
+                if (message.segmentationPath != null && Object.hasOwnProperty.call(message, "segmentationPath"))
+                    writer.uint32(/* id 3, wireType 2 =*/26).string(message.segmentationPath);
+                if (message.workspacePath != null && Object.hasOwnProperty.call(message, "workspacePath"))
+                    writer.uint32(/* id 4, wireType 2 =*/34).string(message.workspacePath);
+                if (message.framePoses != null && message.framePoses.length)
+                    for (let i = 0; i < message.framePoses.length; ++i)
+                        $root.bayesmech.vision.IdoSlamFramePose.encode(message.framePoses[i], writer.uint32(/* id 5, wireType 2 =*/42).fork()).ldelim();
+                if (message.groundPoints != null && message.groundPoints.length)
+                    for (let i = 0; i < message.groundPoints.length; ++i)
+                        $root.bayesmech.vision.IdoSlamGroundPoint.encode(message.groundPoints[i], writer.uint32(/* id 6, wireType 2 =*/50).fork()).ldelim();
+                if (message.pairDebug != null && message.pairDebug.length)
+                    for (let i = 0; i < message.pairDebug.length; ++i)
+                        $root.bayesmech.vision.IdoSlamPairDebug.encode(message.pairDebug[i], writer.uint32(/* id 7, wireType 2 =*/58).fork()).ldelim();
+                if (message.refinedFramePoses != null && message.refinedFramePoses.length)
+                    for (let i = 0; i < message.refinedFramePoses.length; ++i)
+                        $root.bayesmech.vision.IdoSlamFramePose.encode(message.refinedFramePoses[i], writer.uint32(/* id 8, wireType 2 =*/66).fork()).ldelim();
+                if (message.pairwiseMotion != null && message.pairwiseMotion.length)
+                    for (let i = 0; i < message.pairwiseMotion.length; ++i)
+                        $root.bayesmech.vision.IdoSlamPairwiseMotion.encode(message.pairwiseMotion[i], writer.uint32(/* id 9, wireType 2 =*/74).fork()).ldelim();
+                if (message.planeWidthEstimates != null && message.planeWidthEstimates.length)
+                    for (let i = 0; i < message.planeWidthEstimates.length; ++i)
+                        $root.bayesmech.vision.IdoSlamTrackWidthEstimate.encode(message.planeWidthEstimates[i], writer.uint32(/* id 10, wireType 2 =*/82).fork()).ldelim();
+                if (message.planeWidthSummaryJson != null && Object.hasOwnProperty.call(message, "planeWidthSummaryJson"))
+                    writer.uint32(/* id 11, wireType 2 =*/90).string(message.planeWidthSummaryJson);
+                if (message.canonicalCenterline != null && message.canonicalCenterline.length)
+                    for (let i = 0; i < message.canonicalCenterline.length; ++i)
+                        $root.bayesmech.vision.IdoSlamCanonicalCenterlinePoint.encode(message.canonicalCenterline[i], writer.uint32(/* id 12, wireType 2 =*/98).fork()).ldelim();
+                if (message.canonicalFrameTracks != null && message.canonicalFrameTracks.length)
+                    for (let i = 0; i < message.canonicalFrameTracks.length; ++i)
+                        $root.bayesmech.vision.IdoSlamCanonicalFrameTrack.encode(message.canonicalFrameTracks[i], writer.uint32(/* id 13, wireType 2 =*/106).fork()).ldelim();
+                if (message.canonicalSummaryJson != null && Object.hasOwnProperty.call(message, "canonicalSummaryJson"))
+                    writer.uint32(/* id 14, wireType 2 =*/114).string(message.canonicalSummaryJson);
+                if (message.triangulatedWidthEstimates != null && message.triangulatedWidthEstimates.length)
+                    for (let i = 0; i < message.triangulatedWidthEstimates.length; ++i)
+                        $root.bayesmech.vision.IdoSlamTrackWidthEstimate.encode(message.triangulatedWidthEstimates[i], writer.uint32(/* id 15, wireType 2 =*/122).fork()).ldelim();
+                if (message.triangulatedSummaryJson != null && Object.hasOwnProperty.call(message, "triangulatedSummaryJson"))
+                    writer.uint32(/* id 16, wireType 2 =*/130).string(message.triangulatedSummaryJson);
+                return writer;
+            };
+
+            /**
+             * Encodes the specified IdoSlamResponse message, length delimited. Does not implicitly {@link bayesmech.vision.IdoSlamResponse.verify|verify} messages.
+             * @function encodeDelimited
+             * @memberof bayesmech.vision.IdoSlamResponse
+             * @static
+             * @param {bayesmech.vision.IIdoSlamResponse} message IdoSlamResponse message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            IdoSlamResponse.encodeDelimited = function encodeDelimited(message, writer) {
+                return this.encode(message, writer).ldelim();
+            };
+
+            /**
+             * Decodes an IdoSlamResponse message from the specified reader or buffer.
+             * @function decode
+             * @memberof bayesmech.vision.IdoSlamResponse
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {bayesmech.vision.IdoSlamResponse} IdoSlamResponse
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            IdoSlamResponse.decode = function decode(reader, length, error) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.IdoSlamResponse();
+                while (reader.pos < end) {
+                    let tag = reader.uint32();
+                    if (tag === error)
+                        break;
+                    switch (tag >>> 3) {
+                    case 1: {
+                            message.firstFrameId = $root.bayesmech.vision.PerceiverFrameIdentifier.decode(reader, reader.uint32());
+                            break;
+                        }
+                    case 2: {
+                            message.recordingPath = reader.string();
+                            break;
+                        }
+                    case 3: {
+                            message.segmentationPath = reader.string();
+                            break;
+                        }
+                    case 4: {
+                            message.workspacePath = reader.string();
+                            break;
+                        }
+                    case 5: {
+                            if (!(message.framePoses && message.framePoses.length))
+                                message.framePoses = [];
+                            message.framePoses.push($root.bayesmech.vision.IdoSlamFramePose.decode(reader, reader.uint32()));
+                            break;
+                        }
+                    case 6: {
+                            if (!(message.groundPoints && message.groundPoints.length))
+                                message.groundPoints = [];
+                            message.groundPoints.push($root.bayesmech.vision.IdoSlamGroundPoint.decode(reader, reader.uint32()));
+                            break;
+                        }
+                    case 7: {
+                            if (!(message.pairDebug && message.pairDebug.length))
+                                message.pairDebug = [];
+                            message.pairDebug.push($root.bayesmech.vision.IdoSlamPairDebug.decode(reader, reader.uint32()));
+                            break;
+                        }
+                    case 8: {
+                            if (!(message.refinedFramePoses && message.refinedFramePoses.length))
+                                message.refinedFramePoses = [];
+                            message.refinedFramePoses.push($root.bayesmech.vision.IdoSlamFramePose.decode(reader, reader.uint32()));
+                            break;
+                        }
+                    case 9: {
+                            if (!(message.pairwiseMotion && message.pairwiseMotion.length))
+                                message.pairwiseMotion = [];
+                            message.pairwiseMotion.push($root.bayesmech.vision.IdoSlamPairwiseMotion.decode(reader, reader.uint32()));
+                            break;
+                        }
+                    case 10: {
+                            if (!(message.planeWidthEstimates && message.planeWidthEstimates.length))
+                                message.planeWidthEstimates = [];
+                            message.planeWidthEstimates.push($root.bayesmech.vision.IdoSlamTrackWidthEstimate.decode(reader, reader.uint32()));
+                            break;
+                        }
+                    case 11: {
+                            message.planeWidthSummaryJson = reader.string();
+                            break;
+                        }
+                    case 12: {
+                            if (!(message.canonicalCenterline && message.canonicalCenterline.length))
+                                message.canonicalCenterline = [];
+                            message.canonicalCenterline.push($root.bayesmech.vision.IdoSlamCanonicalCenterlinePoint.decode(reader, reader.uint32()));
+                            break;
+                        }
+                    case 13: {
+                            if (!(message.canonicalFrameTracks && message.canonicalFrameTracks.length))
+                                message.canonicalFrameTracks = [];
+                            message.canonicalFrameTracks.push($root.bayesmech.vision.IdoSlamCanonicalFrameTrack.decode(reader, reader.uint32()));
+                            break;
+                        }
+                    case 14: {
+                            message.canonicalSummaryJson = reader.string();
+                            break;
+                        }
+                    case 15: {
+                            if (!(message.triangulatedWidthEstimates && message.triangulatedWidthEstimates.length))
+                                message.triangulatedWidthEstimates = [];
+                            message.triangulatedWidthEstimates.push($root.bayesmech.vision.IdoSlamTrackWidthEstimate.decode(reader, reader.uint32()));
+                            break;
+                        }
+                    case 16: {
+                            message.triangulatedSummaryJson = reader.string();
+                            break;
+                        }
+                    default:
+                        reader.skipType(tag & 7);
+                        break;
+                    }
+                }
+                return message;
+            };
+
+            /**
+             * Decodes an IdoSlamResponse message from the specified reader or buffer, length delimited.
+             * @function decodeDelimited
+             * @memberof bayesmech.vision.IdoSlamResponse
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @returns {bayesmech.vision.IdoSlamResponse} IdoSlamResponse
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            IdoSlamResponse.decodeDelimited = function decodeDelimited(reader) {
+                if (!(reader instanceof $Reader))
+                    reader = new $Reader(reader);
+                return this.decode(reader, reader.uint32());
+            };
+
+            /**
+             * Verifies an IdoSlamResponse message.
+             * @function verify
+             * @memberof bayesmech.vision.IdoSlamResponse
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            IdoSlamResponse.verify = function verify(message) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (message.firstFrameId != null && message.hasOwnProperty("firstFrameId")) {
+                    let error = $root.bayesmech.vision.PerceiverFrameIdentifier.verify(message.firstFrameId);
+                    if (error)
+                        return "firstFrameId." + error;
+                }
+                if (message.recordingPath != null && message.hasOwnProperty("recordingPath"))
+                    if (!$util.isString(message.recordingPath))
+                        return "recordingPath: string expected";
+                if (message.segmentationPath != null && message.hasOwnProperty("segmentationPath"))
+                    if (!$util.isString(message.segmentationPath))
+                        return "segmentationPath: string expected";
+                if (message.workspacePath != null && message.hasOwnProperty("workspacePath"))
+                    if (!$util.isString(message.workspacePath))
+                        return "workspacePath: string expected";
+                if (message.framePoses != null && message.hasOwnProperty("framePoses")) {
+                    if (!Array.isArray(message.framePoses))
+                        return "framePoses: array expected";
+                    for (let i = 0; i < message.framePoses.length; ++i) {
+                        let error = $root.bayesmech.vision.IdoSlamFramePose.verify(message.framePoses[i]);
+                        if (error)
+                            return "framePoses." + error;
+                    }
+                }
+                if (message.groundPoints != null && message.hasOwnProperty("groundPoints")) {
+                    if (!Array.isArray(message.groundPoints))
+                        return "groundPoints: array expected";
+                    for (let i = 0; i < message.groundPoints.length; ++i) {
+                        let error = $root.bayesmech.vision.IdoSlamGroundPoint.verify(message.groundPoints[i]);
+                        if (error)
+                            return "groundPoints." + error;
+                    }
+                }
+                if (message.pairDebug != null && message.hasOwnProperty("pairDebug")) {
+                    if (!Array.isArray(message.pairDebug))
+                        return "pairDebug: array expected";
+                    for (let i = 0; i < message.pairDebug.length; ++i) {
+                        let error = $root.bayesmech.vision.IdoSlamPairDebug.verify(message.pairDebug[i]);
+                        if (error)
+                            return "pairDebug." + error;
+                    }
+                }
+                if (message.refinedFramePoses != null && message.hasOwnProperty("refinedFramePoses")) {
+                    if (!Array.isArray(message.refinedFramePoses))
+                        return "refinedFramePoses: array expected";
+                    for (let i = 0; i < message.refinedFramePoses.length; ++i) {
+                        let error = $root.bayesmech.vision.IdoSlamFramePose.verify(message.refinedFramePoses[i]);
+                        if (error)
+                            return "refinedFramePoses." + error;
+                    }
+                }
+                if (message.pairwiseMotion != null && message.hasOwnProperty("pairwiseMotion")) {
+                    if (!Array.isArray(message.pairwiseMotion))
+                        return "pairwiseMotion: array expected";
+                    for (let i = 0; i < message.pairwiseMotion.length; ++i) {
+                        let error = $root.bayesmech.vision.IdoSlamPairwiseMotion.verify(message.pairwiseMotion[i]);
+                        if (error)
+                            return "pairwiseMotion." + error;
+                    }
+                }
+                if (message.planeWidthEstimates != null && message.hasOwnProperty("planeWidthEstimates")) {
+                    if (!Array.isArray(message.planeWidthEstimates))
+                        return "planeWidthEstimates: array expected";
+                    for (let i = 0; i < message.planeWidthEstimates.length; ++i) {
+                        let error = $root.bayesmech.vision.IdoSlamTrackWidthEstimate.verify(message.planeWidthEstimates[i]);
+                        if (error)
+                            return "planeWidthEstimates." + error;
+                    }
+                }
+                if (message.planeWidthSummaryJson != null && message.hasOwnProperty("planeWidthSummaryJson"))
+                    if (!$util.isString(message.planeWidthSummaryJson))
+                        return "planeWidthSummaryJson: string expected";
+                if (message.canonicalCenterline != null && message.hasOwnProperty("canonicalCenterline")) {
+                    if (!Array.isArray(message.canonicalCenterline))
+                        return "canonicalCenterline: array expected";
+                    for (let i = 0; i < message.canonicalCenterline.length; ++i) {
+                        let error = $root.bayesmech.vision.IdoSlamCanonicalCenterlinePoint.verify(message.canonicalCenterline[i]);
+                        if (error)
+                            return "canonicalCenterline." + error;
+                    }
+                }
+                if (message.canonicalFrameTracks != null && message.hasOwnProperty("canonicalFrameTracks")) {
+                    if (!Array.isArray(message.canonicalFrameTracks))
+                        return "canonicalFrameTracks: array expected";
+                    for (let i = 0; i < message.canonicalFrameTracks.length; ++i) {
+                        let error = $root.bayesmech.vision.IdoSlamCanonicalFrameTrack.verify(message.canonicalFrameTracks[i]);
+                        if (error)
+                            return "canonicalFrameTracks." + error;
+                    }
+                }
+                if (message.canonicalSummaryJson != null && message.hasOwnProperty("canonicalSummaryJson"))
+                    if (!$util.isString(message.canonicalSummaryJson))
+                        return "canonicalSummaryJson: string expected";
+                if (message.triangulatedWidthEstimates != null && message.hasOwnProperty("triangulatedWidthEstimates")) {
+                    if (!Array.isArray(message.triangulatedWidthEstimates))
+                        return "triangulatedWidthEstimates: array expected";
+                    for (let i = 0; i < message.triangulatedWidthEstimates.length; ++i) {
+                        let error = $root.bayesmech.vision.IdoSlamTrackWidthEstimate.verify(message.triangulatedWidthEstimates[i]);
+                        if (error)
+                            return "triangulatedWidthEstimates." + error;
+                    }
+                }
+                if (message.triangulatedSummaryJson != null && message.hasOwnProperty("triangulatedSummaryJson"))
+                    if (!$util.isString(message.triangulatedSummaryJson))
+                        return "triangulatedSummaryJson: string expected";
+                return null;
+            };
+
+            /**
+             * Creates an IdoSlamResponse message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof bayesmech.vision.IdoSlamResponse
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {bayesmech.vision.IdoSlamResponse} IdoSlamResponse
+             */
+            IdoSlamResponse.fromObject = function fromObject(object) {
+                if (object instanceof $root.bayesmech.vision.IdoSlamResponse)
+                    return object;
+                let message = new $root.bayesmech.vision.IdoSlamResponse();
+                if (object.firstFrameId != null) {
+                    if (typeof object.firstFrameId !== "object")
+                        throw TypeError(".bayesmech.vision.IdoSlamResponse.firstFrameId: object expected");
+                    message.firstFrameId = $root.bayesmech.vision.PerceiverFrameIdentifier.fromObject(object.firstFrameId);
+                }
+                if (object.recordingPath != null)
+                    message.recordingPath = String(object.recordingPath);
+                if (object.segmentationPath != null)
+                    message.segmentationPath = String(object.segmentationPath);
+                if (object.workspacePath != null)
+                    message.workspacePath = String(object.workspacePath);
+                if (object.framePoses) {
+                    if (!Array.isArray(object.framePoses))
+                        throw TypeError(".bayesmech.vision.IdoSlamResponse.framePoses: array expected");
+                    message.framePoses = [];
+                    for (let i = 0; i < object.framePoses.length; ++i) {
+                        if (typeof object.framePoses[i] !== "object")
+                            throw TypeError(".bayesmech.vision.IdoSlamResponse.framePoses: object expected");
+                        message.framePoses[i] = $root.bayesmech.vision.IdoSlamFramePose.fromObject(object.framePoses[i]);
+                    }
+                }
+                if (object.groundPoints) {
+                    if (!Array.isArray(object.groundPoints))
+                        throw TypeError(".bayesmech.vision.IdoSlamResponse.groundPoints: array expected");
+                    message.groundPoints = [];
+                    for (let i = 0; i < object.groundPoints.length; ++i) {
+                        if (typeof object.groundPoints[i] !== "object")
+                            throw TypeError(".bayesmech.vision.IdoSlamResponse.groundPoints: object expected");
+                        message.groundPoints[i] = $root.bayesmech.vision.IdoSlamGroundPoint.fromObject(object.groundPoints[i]);
+                    }
+                }
+                if (object.pairDebug) {
+                    if (!Array.isArray(object.pairDebug))
+                        throw TypeError(".bayesmech.vision.IdoSlamResponse.pairDebug: array expected");
+                    message.pairDebug = [];
+                    for (let i = 0; i < object.pairDebug.length; ++i) {
+                        if (typeof object.pairDebug[i] !== "object")
+                            throw TypeError(".bayesmech.vision.IdoSlamResponse.pairDebug: object expected");
+                        message.pairDebug[i] = $root.bayesmech.vision.IdoSlamPairDebug.fromObject(object.pairDebug[i]);
+                    }
+                }
+                if (object.refinedFramePoses) {
+                    if (!Array.isArray(object.refinedFramePoses))
+                        throw TypeError(".bayesmech.vision.IdoSlamResponse.refinedFramePoses: array expected");
+                    message.refinedFramePoses = [];
+                    for (let i = 0; i < object.refinedFramePoses.length; ++i) {
+                        if (typeof object.refinedFramePoses[i] !== "object")
+                            throw TypeError(".bayesmech.vision.IdoSlamResponse.refinedFramePoses: object expected");
+                        message.refinedFramePoses[i] = $root.bayesmech.vision.IdoSlamFramePose.fromObject(object.refinedFramePoses[i]);
+                    }
+                }
+                if (object.pairwiseMotion) {
+                    if (!Array.isArray(object.pairwiseMotion))
+                        throw TypeError(".bayesmech.vision.IdoSlamResponse.pairwiseMotion: array expected");
+                    message.pairwiseMotion = [];
+                    for (let i = 0; i < object.pairwiseMotion.length; ++i) {
+                        if (typeof object.pairwiseMotion[i] !== "object")
+                            throw TypeError(".bayesmech.vision.IdoSlamResponse.pairwiseMotion: object expected");
+                        message.pairwiseMotion[i] = $root.bayesmech.vision.IdoSlamPairwiseMotion.fromObject(object.pairwiseMotion[i]);
+                    }
+                }
+                if (object.planeWidthEstimates) {
+                    if (!Array.isArray(object.planeWidthEstimates))
+                        throw TypeError(".bayesmech.vision.IdoSlamResponse.planeWidthEstimates: array expected");
+                    message.planeWidthEstimates = [];
+                    for (let i = 0; i < object.planeWidthEstimates.length; ++i) {
+                        if (typeof object.planeWidthEstimates[i] !== "object")
+                            throw TypeError(".bayesmech.vision.IdoSlamResponse.planeWidthEstimates: object expected");
+                        message.planeWidthEstimates[i] = $root.bayesmech.vision.IdoSlamTrackWidthEstimate.fromObject(object.planeWidthEstimates[i]);
+                    }
+                }
+                if (object.planeWidthSummaryJson != null)
+                    message.planeWidthSummaryJson = String(object.planeWidthSummaryJson);
+                if (object.canonicalCenterline) {
+                    if (!Array.isArray(object.canonicalCenterline))
+                        throw TypeError(".bayesmech.vision.IdoSlamResponse.canonicalCenterline: array expected");
+                    message.canonicalCenterline = [];
+                    for (let i = 0; i < object.canonicalCenterline.length; ++i) {
+                        if (typeof object.canonicalCenterline[i] !== "object")
+                            throw TypeError(".bayesmech.vision.IdoSlamResponse.canonicalCenterline: object expected");
+                        message.canonicalCenterline[i] = $root.bayesmech.vision.IdoSlamCanonicalCenterlinePoint.fromObject(object.canonicalCenterline[i]);
+                    }
+                }
+                if (object.canonicalFrameTracks) {
+                    if (!Array.isArray(object.canonicalFrameTracks))
+                        throw TypeError(".bayesmech.vision.IdoSlamResponse.canonicalFrameTracks: array expected");
+                    message.canonicalFrameTracks = [];
+                    for (let i = 0; i < object.canonicalFrameTracks.length; ++i) {
+                        if (typeof object.canonicalFrameTracks[i] !== "object")
+                            throw TypeError(".bayesmech.vision.IdoSlamResponse.canonicalFrameTracks: object expected");
+                        message.canonicalFrameTracks[i] = $root.bayesmech.vision.IdoSlamCanonicalFrameTrack.fromObject(object.canonicalFrameTracks[i]);
+                    }
+                }
+                if (object.canonicalSummaryJson != null)
+                    message.canonicalSummaryJson = String(object.canonicalSummaryJson);
+                if (object.triangulatedWidthEstimates) {
+                    if (!Array.isArray(object.triangulatedWidthEstimates))
+                        throw TypeError(".bayesmech.vision.IdoSlamResponse.triangulatedWidthEstimates: array expected");
+                    message.triangulatedWidthEstimates = [];
+                    for (let i = 0; i < object.triangulatedWidthEstimates.length; ++i) {
+                        if (typeof object.triangulatedWidthEstimates[i] !== "object")
+                            throw TypeError(".bayesmech.vision.IdoSlamResponse.triangulatedWidthEstimates: object expected");
+                        message.triangulatedWidthEstimates[i] = $root.bayesmech.vision.IdoSlamTrackWidthEstimate.fromObject(object.triangulatedWidthEstimates[i]);
+                    }
+                }
+                if (object.triangulatedSummaryJson != null)
+                    message.triangulatedSummaryJson = String(object.triangulatedSummaryJson);
+                return message;
+            };
+
+            /**
+             * Creates a plain object from an IdoSlamResponse message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof bayesmech.vision.IdoSlamResponse
+             * @static
+             * @param {bayesmech.vision.IdoSlamResponse} message IdoSlamResponse
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            IdoSlamResponse.toObject = function toObject(message, options) {
+                if (!options)
+                    options = {};
+                let object = {};
+                if (options.arrays || options.defaults) {
+                    object.framePoses = [];
+                    object.groundPoints = [];
+                    object.pairDebug = [];
+                    object.refinedFramePoses = [];
+                    object.pairwiseMotion = [];
+                    object.planeWidthEstimates = [];
+                    object.canonicalCenterline = [];
+                    object.canonicalFrameTracks = [];
+                    object.triangulatedWidthEstimates = [];
+                }
+                if (options.defaults) {
+                    object.firstFrameId = null;
+                    object.recordingPath = "";
+                    object.segmentationPath = "";
+                    object.workspacePath = "";
+                    object.planeWidthSummaryJson = "";
+                    object.canonicalSummaryJson = "";
+                    object.triangulatedSummaryJson = "";
+                }
+                if (message.firstFrameId != null && message.hasOwnProperty("firstFrameId"))
+                    object.firstFrameId = $root.bayesmech.vision.PerceiverFrameIdentifier.toObject(message.firstFrameId, options);
+                if (message.recordingPath != null && message.hasOwnProperty("recordingPath"))
+                    object.recordingPath = message.recordingPath;
+                if (message.segmentationPath != null && message.hasOwnProperty("segmentationPath"))
+                    object.segmentationPath = message.segmentationPath;
+                if (message.workspacePath != null && message.hasOwnProperty("workspacePath"))
+                    object.workspacePath = message.workspacePath;
+                if (message.framePoses && message.framePoses.length) {
+                    object.framePoses = [];
+                    for (let j = 0; j < message.framePoses.length; ++j)
+                        object.framePoses[j] = $root.bayesmech.vision.IdoSlamFramePose.toObject(message.framePoses[j], options);
+                }
+                if (message.groundPoints && message.groundPoints.length) {
+                    object.groundPoints = [];
+                    for (let j = 0; j < message.groundPoints.length; ++j)
+                        object.groundPoints[j] = $root.bayesmech.vision.IdoSlamGroundPoint.toObject(message.groundPoints[j], options);
+                }
+                if (message.pairDebug && message.pairDebug.length) {
+                    object.pairDebug = [];
+                    for (let j = 0; j < message.pairDebug.length; ++j)
+                        object.pairDebug[j] = $root.bayesmech.vision.IdoSlamPairDebug.toObject(message.pairDebug[j], options);
+                }
+                if (message.refinedFramePoses && message.refinedFramePoses.length) {
+                    object.refinedFramePoses = [];
+                    for (let j = 0; j < message.refinedFramePoses.length; ++j)
+                        object.refinedFramePoses[j] = $root.bayesmech.vision.IdoSlamFramePose.toObject(message.refinedFramePoses[j], options);
+                }
+                if (message.pairwiseMotion && message.pairwiseMotion.length) {
+                    object.pairwiseMotion = [];
+                    for (let j = 0; j < message.pairwiseMotion.length; ++j)
+                        object.pairwiseMotion[j] = $root.bayesmech.vision.IdoSlamPairwiseMotion.toObject(message.pairwiseMotion[j], options);
+                }
+                if (message.planeWidthEstimates && message.planeWidthEstimates.length) {
+                    object.planeWidthEstimates = [];
+                    for (let j = 0; j < message.planeWidthEstimates.length; ++j)
+                        object.planeWidthEstimates[j] = $root.bayesmech.vision.IdoSlamTrackWidthEstimate.toObject(message.planeWidthEstimates[j], options);
+                }
+                if (message.planeWidthSummaryJson != null && message.hasOwnProperty("planeWidthSummaryJson"))
+                    object.planeWidthSummaryJson = message.planeWidthSummaryJson;
+                if (message.canonicalCenterline && message.canonicalCenterline.length) {
+                    object.canonicalCenterline = [];
+                    for (let j = 0; j < message.canonicalCenterline.length; ++j)
+                        object.canonicalCenterline[j] = $root.bayesmech.vision.IdoSlamCanonicalCenterlinePoint.toObject(message.canonicalCenterline[j], options);
+                }
+                if (message.canonicalFrameTracks && message.canonicalFrameTracks.length) {
+                    object.canonicalFrameTracks = [];
+                    for (let j = 0; j < message.canonicalFrameTracks.length; ++j)
+                        object.canonicalFrameTracks[j] = $root.bayesmech.vision.IdoSlamCanonicalFrameTrack.toObject(message.canonicalFrameTracks[j], options);
+                }
+                if (message.canonicalSummaryJson != null && message.hasOwnProperty("canonicalSummaryJson"))
+                    object.canonicalSummaryJson = message.canonicalSummaryJson;
+                if (message.triangulatedWidthEstimates && message.triangulatedWidthEstimates.length) {
+                    object.triangulatedWidthEstimates = [];
+                    for (let j = 0; j < message.triangulatedWidthEstimates.length; ++j)
+                        object.triangulatedWidthEstimates[j] = $root.bayesmech.vision.IdoSlamTrackWidthEstimate.toObject(message.triangulatedWidthEstimates[j], options);
+                }
+                if (message.triangulatedSummaryJson != null && message.hasOwnProperty("triangulatedSummaryJson"))
+                    object.triangulatedSummaryJson = message.triangulatedSummaryJson;
+                return object;
+            };
+
+            /**
+             * Converts this IdoSlamResponse to JSON.
+             * @function toJSON
+             * @memberof bayesmech.vision.IdoSlamResponse
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            IdoSlamResponse.prototype.toJSON = function toJSON() {
+                return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the default type url for IdoSlamResponse
+             * @function getTypeUrl
+             * @memberof bayesmech.vision.IdoSlamResponse
+             * @static
+             * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns {string} The default type url
+             */
+            IdoSlamResponse.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+                if (typeUrlPrefix === undefined) {
+                    typeUrlPrefix = "type.googleapis.com";
+                }
+                return typeUrlPrefix + "/bayesmech.vision.IdoSlamResponse";
+            };
+
+            return IdoSlamResponse;
         })();
 
         return vision;

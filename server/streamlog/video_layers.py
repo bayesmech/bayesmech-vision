@@ -4,7 +4,7 @@ video_layers.py — Abstraction for rendering video frames for InsightVideo.
 Each VideoLayer takes frames from a .vis.pb recording and produces JPEG-encoded
 images.  The layer determines *what* visual information is overlaid:
   - RawVideoLayer        → original RGB frames, no processing
-  - MotioncapVideoLayer  → RGB + heatmap + track overlay from .motion.pb/.motion.mp4
+  - MotioncapVideoLayer  → RGB + heatmap + track overlay from .motioncap.pb/.motioncap.mp4
 
 To add a new understanding layer in the future, subclass VideoLayer and register
 it in LAYER_REGISTRY.
@@ -42,16 +42,16 @@ _motion_io = ProtoIO(motioncap_pb2.MotionCaptureResponse)
 # ── Track colours (BGR, matching motioncap/main.py) ───────────────────────────
 
 _TRACK_COLORS = [
-    (0, 165, 255),    # orange
-    (0, 255, 0),      # green
-    (255, 0, 0),      # blue
-    (203, 192, 255),  # pink
-    (255, 255, 0),    # cyan
-    (114, 128, 250),  # salmon
-    (154, 250, 0),    # yellow-green
-    (238, 130, 238),  # violet
-    (245, 206, 135),  # sky-blue
-    (0, 215, 255),    # gold
+    (0,   200, 255),   # orange
+    (50,  255,  50),   # green
+    (255,  80,  80),   # blue
+    (255,  50, 200),   # pink
+    (255, 220,   0),   # cyan
+    (100, 100, 255),   # salmon
+    (0,   255, 200),   # yellow-green
+    (200,   0, 255),   # violet
+    (255, 180,   0),   # sky-blue
+    (0,   128, 255),   # gold
 ]
 
 
@@ -187,6 +187,7 @@ def _build_motioncap_track_legend(
                 "frame_idx": pos.frame_idx,
                 "cx": pos.cx,
                 "cy": pos.cy,
+                "interpolated": pos.interpolated,
             }
             for pos in track.positions
         ]
@@ -254,6 +255,12 @@ class RawVideoLayer(VideoLayer):
         return result
 
 
+def _existing_motioncap_artifact(parent: Path, stem: str, extension: str) -> Path:
+    primary = parent / f"{stem}.motioncap.{extension}"
+    legacy = parent / f"{stem}.motion.{extension}"
+    return primary if primary.exists() or not legacy.exists() else legacy
+
+
 # ── Motioncap overlay layer ───────────────────────────────────────────────────
 
 class MotioncapVideoLayer(VideoLayer):
@@ -262,9 +269,9 @@ class MotioncapVideoLayer(VideoLayer):
     and track overlay that motioncap/main.py --output-video produces.
 
     Priority:
-      1. Read frames directly from the pre-rendered .motion.mp4 (zero extra work,
+      1. Read frames directly from the pre-rendered .motioncap.mp4 (zero extra work,
          pixel-identical to the offline render).
-      2. If .motion.mp4 is absent, render on-demand from .motion.pb + .vis.pb.
+      2. If .motioncap.mp4 is absent, render on-demand from .motioncap.pb + .vis.pb.
       3. If neither exists, fall back to raw frames.
     """
 
@@ -285,8 +292,8 @@ class MotioncapVideoLayer(VideoLayer):
 
     def render_frames(self, vis_path, frame_indices=None, jpeg_quality=75, max_width=0):
         base = vis_path.name.removesuffix(".vis.pb")
-        mp4_path   = vis_path.parent / f"{base}.motion.mp4"
-        motion_path = vis_path.parent / f"{base}.motion.pb"
+        mp4_path = _existing_motioncap_artifact(vis_path.parent, base, "mp4")
+        motion_path = _existing_motioncap_artifact(vis_path.parent, base, "pb")
 
         if self.use_prerendered_video and mp4_path.exists():
             return self._render_from_mp4(vis_path, mp4_path, motion_path, frame_indices, jpeg_quality, max_width)
@@ -301,21 +308,21 @@ class MotioncapVideoLayer(VideoLayer):
     def heatmap_png(self, motion_path: Path, frame_index: int) -> bytes | None:
         return _render_motioncap_heatmap_png(*_motioncap_cache_key(motion_path), frame_index)
 
-    # ── Source: pre-rendered .motion.mp4 ──────────────────────────────────────
+    # ── Source: pre-rendered .motioncap.mp4 ───────────────────────────────────
 
     def _render_from_mp4(self, vis_path, mp4_path, motion_path, frame_indices, jpeg_quality, max_width):
         """
-        Read frames from the pre-rendered .motion.mp4.
+        Read frames from the pre-rendered .motioncap.mp4.
 
-        The mp4 frame sequence corresponds 1:1 with the heatmap records in .motion.pb.
-        We map vis.pb frame timestamps → motion.pb heatmap indices to find the right
+        The mp4 frame sequence corresponds 1:1 with the heatmap records in .motioncap.pb.
+        We map vis.pb frame timestamps → motioncap.pb heatmap indices to find the right
         mp4 frame for each requested vis frame.
         """
         vis_frames = _vis_io.read_file(vis_path)
         if frame_indices is None:
             frame_indices = list(range(len(vis_frames)))
 
-        # Build vis timestamp → mp4 frame index mapping via motion.pb timestamps
+        # Build vis timestamp → mp4 frame index mapping via motioncap.pb timestamps
         hm_by_ts: dict[int, int] = {}
         if motion_path.exists():
             for i, rec in enumerate(_motion_io.read_file(motion_path)):
@@ -360,7 +367,7 @@ class MotioncapVideoLayer(VideoLayer):
 
         return result
 
-    # ── Source: on-demand render from .motion.pb ───────────────────────────────
+    # ── Source: on-demand render from .motioncap.pb ────────────────────────────
 
     def _render_from_pb(self, vis_path, motion_path, frame_indices, jpeg_quality, max_width):
         """Render overlay on-demand when no mp4 is available."""
