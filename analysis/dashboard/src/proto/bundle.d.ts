@@ -5458,5 +5458,1479 @@ export namespace bayesmech {
                 public static getTypeUrl(typeUrlPrefix?: string): string;
             }
         }
+
+        /** Properties of a DataList. */
+        interface IDataList {
+
+            /** DataList fileName */
+            fileName?: (string|null);
+
+            /** DataList isSegmentationAvailable */
+            isSegmentationAvailable?: (boolean|null);
+
+            /** DataList isGensparkAvailable */
+            isGensparkAvailable?: (boolean|null);
+
+            /** DataList isMotioncapAvailable */
+            isMotioncapAvailable?: (boolean|null);
+
+            /** DataList imageFrame */
+            imageFrame?: (Uint8Array|null);
+
+            /** DataList title */
+            title?: (string|null);
+
+            /** DataList tags */
+            tags?: (string[]|null);
+
+            /** DataList chatMessageCount */
+            chatMessageCount?: (number|null);
+
+            /** DataList previewText */
+            previewText?: (string|null);
+        }
+
+        /** Represents a DataList. */
+        class DataList implements IDataList {
+
+            /**
+             * Constructs a new DataList.
+             * @param [properties] Properties to set
+             */
+            constructor(properties?: bayesmech.vision.IDataList);
+
+            /** DataList fileName. */
+            public fileName: string;
+
+            /** DataList isSegmentationAvailable. */
+            public isSegmentationAvailable: boolean;
+
+            /** DataList isGensparkAvailable. */
+            public isGensparkAvailable: boolean;
+
+            /** DataList isMotioncapAvailable. */
+            public isMotioncapAvailable: boolean;
+
+            /** DataList imageFrame. */
+            public imageFrame: Uint8Array;
+
+            /** DataList title. */
+            public title: string;
+
+            /** DataList tags. */
+            public tags: string[];
+
+            /** DataList chatMessageCount. */
+            public chatMessageCount: number;
+
+            /** DataList previewText. */
+            public previewText: string;
+
+            /**
+             * Creates a new DataList instance using the specified properties.
+             * @param [properties] Properties to set
+             * @returns DataList instance
+             */
+            public static create(properties?: bayesmech.vision.IDataList): bayesmech.vision.DataList;
+
+            /**
+             * Encodes the specified DataList message. Does not implicitly {@link bayesmech.vision.DataList.verify|verify} messages.
+             * @param message DataList message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encode(message: bayesmech.vision.IDataList, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Encodes the specified DataList message, length delimited. Does not implicitly {@link bayesmech.vision.DataList.verify|verify} messages.
+             * @param message DataList message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encodeDelimited(message: bayesmech.vision.IDataList, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Decodes a DataList message from the specified reader or buffer.
+             * @param reader Reader or buffer to decode from
+             * @param [length] Message length if known beforehand
+             * @returns DataList
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): bayesmech.vision.DataList;
+
+            /**
+             * Decodes a DataList message from the specified reader or buffer, length delimited.
+             * @param reader Reader or buffer to decode from
+             * @returns DataList
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): bayesmech.vision.DataList;
+
+            /**
+             * Verifies a DataList message.
+             * @param message Plain object to verify
+             * @returns `null` if valid, otherwise the reason why it is not
+             */
+            public static verify(message: { [k: string]: any }): (string|null);
+
+            /**
+             * Creates a DataList message from a plain object. Also converts values to their respective internal types.
+             * @param object Plain object
+             * @returns DataList
+             */
+            public static fromObject(object: { [k: string]: any }): bayesmech.vision.DataList;
+
+            /**
+             * Creates a plain object from a DataList message. Also converts values to other types if specified.
+             * @param message DataList
+             * @param [options] Conversion options
+             * @returns Plain object
+             */
+            public static toObject(message: bayesmech.vision.DataList, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+            /**
+             * Converts this DataList to JSON.
+             * @returns JSON object
+             */
+            public toJSON(): { [k: string]: any };
+
+            /**
+             * Gets the default type url for DataList
+             * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns The default type url
+             */
+            public static getTypeUrl(typeUrlPrefix?: string): string;
+        }
+
+        /** Properties of a ListRecordingsRequest. */
+        interface IListRecordingsRequest {
+
+            /** ListRecordingsRequest username */
+            username?: (string|null);
+
+            /** ListRecordingsRequest authToken */
+            authToken?: (string|null);
+        }
+
+        /** Represents a ListRecordingsRequest. */
+        class ListRecordingsRequest implements IListRecordingsRequest {
+
+            /**
+             * Constructs a new ListRecordingsRequest.
+             * @param [properties] Properties to set
+             */
+            constructor(properties?: bayesmech.vision.IListRecordingsRequest);
+
+            /** ListRecordingsRequest username. */
+            public username: string;
+
+            /** ListRecordingsRequest authToken. */
+            public authToken: string;
+
+            /**
+             * Creates a new ListRecordingsRequest instance using the specified properties.
+             * @param [properties] Properties to set
+             * @returns ListRecordingsRequest instance
+             */
+            public static create(properties?: bayesmech.vision.IListRecordingsRequest): bayesmech.vision.ListRecordingsRequest;
+
+            /**
+             * Encodes the specified ListRecordingsRequest message. Does not implicitly {@link bayesmech.vision.ListRecordingsRequest.verify|verify} messages.
+             * @param message ListRecordingsRequest message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encode(message: bayesmech.vision.IListRecordingsRequest, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Encodes the specified ListRecordingsRequest message, length delimited. Does not implicitly {@link bayesmech.vision.ListRecordingsRequest.verify|verify} messages.
+             * @param message ListRecordingsRequest message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encodeDelimited(message: bayesmech.vision.IListRecordingsRequest, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Decodes a ListRecordingsRequest message from the specified reader or buffer.
+             * @param reader Reader or buffer to decode from
+             * @param [length] Message length if known beforehand
+             * @returns ListRecordingsRequest
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): bayesmech.vision.ListRecordingsRequest;
+
+            /**
+             * Decodes a ListRecordingsRequest message from the specified reader or buffer, length delimited.
+             * @param reader Reader or buffer to decode from
+             * @returns ListRecordingsRequest
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): bayesmech.vision.ListRecordingsRequest;
+
+            /**
+             * Verifies a ListRecordingsRequest message.
+             * @param message Plain object to verify
+             * @returns `null` if valid, otherwise the reason why it is not
+             */
+            public static verify(message: { [k: string]: any }): (string|null);
+
+            /**
+             * Creates a ListRecordingsRequest message from a plain object. Also converts values to their respective internal types.
+             * @param object Plain object
+             * @returns ListRecordingsRequest
+             */
+            public static fromObject(object: { [k: string]: any }): bayesmech.vision.ListRecordingsRequest;
+
+            /**
+             * Creates a plain object from a ListRecordingsRequest message. Also converts values to other types if specified.
+             * @param message ListRecordingsRequest
+             * @param [options] Conversion options
+             * @returns Plain object
+             */
+            public static toObject(message: bayesmech.vision.ListRecordingsRequest, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+            /**
+             * Converts this ListRecordingsRequest to JSON.
+             * @returns JSON object
+             */
+            public toJSON(): { [k: string]: any };
+
+            /**
+             * Gets the default type url for ListRecordingsRequest
+             * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns The default type url
+             */
+            public static getTypeUrl(typeUrlPrefix?: string): string;
+        }
+
+        /** Properties of a ListRecordingsResponse. */
+        interface IListRecordingsResponse {
+
+            /** ListRecordingsResponse recordings */
+            recordings?: (bayesmech.vision.IDataList[]|null);
+        }
+
+        /** Represents a ListRecordingsResponse. */
+        class ListRecordingsResponse implements IListRecordingsResponse {
+
+            /**
+             * Constructs a new ListRecordingsResponse.
+             * @param [properties] Properties to set
+             */
+            constructor(properties?: bayesmech.vision.IListRecordingsResponse);
+
+            /** ListRecordingsResponse recordings. */
+            public recordings: bayesmech.vision.IDataList[];
+
+            /**
+             * Creates a new ListRecordingsResponse instance using the specified properties.
+             * @param [properties] Properties to set
+             * @returns ListRecordingsResponse instance
+             */
+            public static create(properties?: bayesmech.vision.IListRecordingsResponse): bayesmech.vision.ListRecordingsResponse;
+
+            /**
+             * Encodes the specified ListRecordingsResponse message. Does not implicitly {@link bayesmech.vision.ListRecordingsResponse.verify|verify} messages.
+             * @param message ListRecordingsResponse message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encode(message: bayesmech.vision.IListRecordingsResponse, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Encodes the specified ListRecordingsResponse message, length delimited. Does not implicitly {@link bayesmech.vision.ListRecordingsResponse.verify|verify} messages.
+             * @param message ListRecordingsResponse message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encodeDelimited(message: bayesmech.vision.IListRecordingsResponse, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Decodes a ListRecordingsResponse message from the specified reader or buffer.
+             * @param reader Reader or buffer to decode from
+             * @param [length] Message length if known beforehand
+             * @returns ListRecordingsResponse
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): bayesmech.vision.ListRecordingsResponse;
+
+            /**
+             * Decodes a ListRecordingsResponse message from the specified reader or buffer, length delimited.
+             * @param reader Reader or buffer to decode from
+             * @returns ListRecordingsResponse
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): bayesmech.vision.ListRecordingsResponse;
+
+            /**
+             * Verifies a ListRecordingsResponse message.
+             * @param message Plain object to verify
+             * @returns `null` if valid, otherwise the reason why it is not
+             */
+            public static verify(message: { [k: string]: any }): (string|null);
+
+            /**
+             * Creates a ListRecordingsResponse message from a plain object. Also converts values to their respective internal types.
+             * @param object Plain object
+             * @returns ListRecordingsResponse
+             */
+            public static fromObject(object: { [k: string]: any }): bayesmech.vision.ListRecordingsResponse;
+
+            /**
+             * Creates a plain object from a ListRecordingsResponse message. Also converts values to other types if specified.
+             * @param message ListRecordingsResponse
+             * @param [options] Conversion options
+             * @returns Plain object
+             */
+            public static toObject(message: bayesmech.vision.ListRecordingsResponse, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+            /**
+             * Converts this ListRecordingsResponse to JSON.
+             * @returns JSON object
+             */
+            public toJSON(): { [k: string]: any };
+
+            /**
+             * Gets the default type url for ListRecordingsResponse
+             * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns The default type url
+             */
+            public static getTypeUrl(typeUrlPrefix?: string): string;
+        }
+
+        /** Represents an InsightgenService */
+        class InsightgenService extends $protobuf.rpc.Service {
+
+            /**
+             * Constructs a new InsightgenService service.
+             * @param rpcImpl RPC implementation
+             * @param [requestDelimited=false] Whether requests are length-delimited
+             * @param [responseDelimited=false] Whether responses are length-delimited
+             */
+            constructor(rpcImpl: $protobuf.RPCImpl, requestDelimited?: boolean, responseDelimited?: boolean);
+
+            /**
+             * Creates new InsightgenService service using the specified rpc implementation.
+             * @param rpcImpl RPC implementation
+             * @param [requestDelimited=false] Whether requests are length-delimited
+             * @param [responseDelimited=false] Whether responses are length-delimited
+             * @returns RPC service. Useful where requests and/or responses are streamed.
+             */
+            public static create(rpcImpl: $protobuf.RPCImpl, requestDelimited?: boolean, responseDelimited?: boolean): InsightgenService;
+
+            /**
+             * Calls ListRecordings.
+             * @param request ListRecordingsRequest message or plain object
+             * @param callback Node-style callback called with the error, if any, and ListRecordingsResponse
+             */
+            public listRecordings(request: bayesmech.vision.IListRecordingsRequest, callback: bayesmech.vision.InsightgenService.ListRecordingsCallback): void;
+
+            /**
+             * Calls ListRecordings.
+             * @param request ListRecordingsRequest message or plain object
+             * @returns Promise
+             */
+            public listRecordings(request: bayesmech.vision.IListRecordingsRequest): Promise<bayesmech.vision.ListRecordingsResponse>;
+        }
+
+        namespace InsightgenService {
+
+            /**
+             * Callback as used by {@link bayesmech.vision.InsightgenService#listRecordings}.
+             * @param error Error, if any
+             * @param [response] ListRecordingsResponse
+             */
+            type ListRecordingsCallback = (error: (Error|null), response?: bayesmech.vision.ListRecordingsResponse) => void;
+        }
+
+        /** Properties of a GensparkToolCall. */
+        interface IGensparkToolCall {
+
+            /** GensparkToolCall toolName */
+            toolName?: (string|null);
+
+            /** GensparkToolCall argumentsJson */
+            argumentsJson?: (string|null);
+
+            /** GensparkToolCall result */
+            result?: (string|null);
+        }
+
+        /** Represents a GensparkToolCall. */
+        class GensparkToolCall implements IGensparkToolCall {
+
+            /**
+             * Constructs a new GensparkToolCall.
+             * @param [properties] Properties to set
+             */
+            constructor(properties?: bayesmech.vision.IGensparkToolCall);
+
+            /** GensparkToolCall toolName. */
+            public toolName: string;
+
+            /** GensparkToolCall argumentsJson. */
+            public argumentsJson: string;
+
+            /** GensparkToolCall result. */
+            public result: string;
+
+            /**
+             * Creates a new GensparkToolCall instance using the specified properties.
+             * @param [properties] Properties to set
+             * @returns GensparkToolCall instance
+             */
+            public static create(properties?: bayesmech.vision.IGensparkToolCall): bayesmech.vision.GensparkToolCall;
+
+            /**
+             * Encodes the specified GensparkToolCall message. Does not implicitly {@link bayesmech.vision.GensparkToolCall.verify|verify} messages.
+             * @param message GensparkToolCall message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encode(message: bayesmech.vision.IGensparkToolCall, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Encodes the specified GensparkToolCall message, length delimited. Does not implicitly {@link bayesmech.vision.GensparkToolCall.verify|verify} messages.
+             * @param message GensparkToolCall message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encodeDelimited(message: bayesmech.vision.IGensparkToolCall, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Decodes a GensparkToolCall message from the specified reader or buffer.
+             * @param reader Reader or buffer to decode from
+             * @param [length] Message length if known beforehand
+             * @returns GensparkToolCall
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): bayesmech.vision.GensparkToolCall;
+
+            /**
+             * Decodes a GensparkToolCall message from the specified reader or buffer, length delimited.
+             * @param reader Reader or buffer to decode from
+             * @returns GensparkToolCall
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): bayesmech.vision.GensparkToolCall;
+
+            /**
+             * Verifies a GensparkToolCall message.
+             * @param message Plain object to verify
+             * @returns `null` if valid, otherwise the reason why it is not
+             */
+            public static verify(message: { [k: string]: any }): (string|null);
+
+            /**
+             * Creates a GensparkToolCall message from a plain object. Also converts values to their respective internal types.
+             * @param object Plain object
+             * @returns GensparkToolCall
+             */
+            public static fromObject(object: { [k: string]: any }): bayesmech.vision.GensparkToolCall;
+
+            /**
+             * Creates a plain object from a GensparkToolCall message. Also converts values to other types if specified.
+             * @param message GensparkToolCall
+             * @param [options] Conversion options
+             * @returns Plain object
+             */
+            public static toObject(message: bayesmech.vision.GensparkToolCall, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+            /**
+             * Converts this GensparkToolCall to JSON.
+             * @returns JSON object
+             */
+            public toJSON(): { [k: string]: any };
+
+            /**
+             * Gets the default type url for GensparkToolCall
+             * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns The default type url
+             */
+            public static getTypeUrl(typeUrlPrefix?: string): string;
+        }
+
+        /** Properties of a GensparkTurn. */
+        interface IGensparkTurn {
+
+            /** GensparkTurn text */
+            text?: (string|null);
+
+            /** GensparkTurn toolCalls */
+            toolCalls?: (bayesmech.vision.IGensparkToolCall[]|null);
+        }
+
+        /** Represents a GensparkTurn. */
+        class GensparkTurn implements IGensparkTurn {
+
+            /**
+             * Constructs a new GensparkTurn.
+             * @param [properties] Properties to set
+             */
+            constructor(properties?: bayesmech.vision.IGensparkTurn);
+
+            /** GensparkTurn text. */
+            public text: string;
+
+            /** GensparkTurn toolCalls. */
+            public toolCalls: bayesmech.vision.IGensparkToolCall[];
+
+            /**
+             * Creates a new GensparkTurn instance using the specified properties.
+             * @param [properties] Properties to set
+             * @returns GensparkTurn instance
+             */
+            public static create(properties?: bayesmech.vision.IGensparkTurn): bayesmech.vision.GensparkTurn;
+
+            /**
+             * Encodes the specified GensparkTurn message. Does not implicitly {@link bayesmech.vision.GensparkTurn.verify|verify} messages.
+             * @param message GensparkTurn message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encode(message: bayesmech.vision.IGensparkTurn, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Encodes the specified GensparkTurn message, length delimited. Does not implicitly {@link bayesmech.vision.GensparkTurn.verify|verify} messages.
+             * @param message GensparkTurn message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encodeDelimited(message: bayesmech.vision.IGensparkTurn, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Decodes a GensparkTurn message from the specified reader or buffer.
+             * @param reader Reader or buffer to decode from
+             * @param [length] Message length if known beforehand
+             * @returns GensparkTurn
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): bayesmech.vision.GensparkTurn;
+
+            /**
+             * Decodes a GensparkTurn message from the specified reader or buffer, length delimited.
+             * @param reader Reader or buffer to decode from
+             * @returns GensparkTurn
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): bayesmech.vision.GensparkTurn;
+
+            /**
+             * Verifies a GensparkTurn message.
+             * @param message Plain object to verify
+             * @returns `null` if valid, otherwise the reason why it is not
+             */
+            public static verify(message: { [k: string]: any }): (string|null);
+
+            /**
+             * Creates a GensparkTurn message from a plain object. Also converts values to their respective internal types.
+             * @param object Plain object
+             * @returns GensparkTurn
+             */
+            public static fromObject(object: { [k: string]: any }): bayesmech.vision.GensparkTurn;
+
+            /**
+             * Creates a plain object from a GensparkTurn message. Also converts values to other types if specified.
+             * @param message GensparkTurn
+             * @param [options] Conversion options
+             * @returns Plain object
+             */
+            public static toObject(message: bayesmech.vision.GensparkTurn, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+            /**
+             * Converts this GensparkTurn to JSON.
+             * @returns JSON object
+             */
+            public toJSON(): { [k: string]: any };
+
+            /**
+             * Gets the default type url for GensparkTurn
+             * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns The default type url
+             */
+            public static getTypeUrl(typeUrlPrefix?: string): string;
+        }
+
+        /** Properties of a GensparkParameter. */
+        interface IGensparkParameter {
+
+            /** GensparkParameter name */
+            name?: (string|null);
+
+            /** GensparkParameter value */
+            value?: (string|null);
+
+            /** GensparkParameter unit */
+            unit?: (string|null);
+        }
+
+        /** Represents a GensparkParameter. */
+        class GensparkParameter implements IGensparkParameter {
+
+            /**
+             * Constructs a new GensparkParameter.
+             * @param [properties] Properties to set
+             */
+            constructor(properties?: bayesmech.vision.IGensparkParameter);
+
+            /** GensparkParameter name. */
+            public name: string;
+
+            /** GensparkParameter value. */
+            public value: string;
+
+            /** GensparkParameter unit. */
+            public unit: string;
+
+            /**
+             * Creates a new GensparkParameter instance using the specified properties.
+             * @param [properties] Properties to set
+             * @returns GensparkParameter instance
+             */
+            public static create(properties?: bayesmech.vision.IGensparkParameter): bayesmech.vision.GensparkParameter;
+
+            /**
+             * Encodes the specified GensparkParameter message. Does not implicitly {@link bayesmech.vision.GensparkParameter.verify|verify} messages.
+             * @param message GensparkParameter message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encode(message: bayesmech.vision.IGensparkParameter, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Encodes the specified GensparkParameter message, length delimited. Does not implicitly {@link bayesmech.vision.GensparkParameter.verify|verify} messages.
+             * @param message GensparkParameter message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encodeDelimited(message: bayesmech.vision.IGensparkParameter, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Decodes a GensparkParameter message from the specified reader or buffer.
+             * @param reader Reader or buffer to decode from
+             * @param [length] Message length if known beforehand
+             * @returns GensparkParameter
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): bayesmech.vision.GensparkParameter;
+
+            /**
+             * Decodes a GensparkParameter message from the specified reader or buffer, length delimited.
+             * @param reader Reader or buffer to decode from
+             * @returns GensparkParameter
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): bayesmech.vision.GensparkParameter;
+
+            /**
+             * Verifies a GensparkParameter message.
+             * @param message Plain object to verify
+             * @returns `null` if valid, otherwise the reason why it is not
+             */
+            public static verify(message: { [k: string]: any }): (string|null);
+
+            /**
+             * Creates a GensparkParameter message from a plain object. Also converts values to their respective internal types.
+             * @param object Plain object
+             * @returns GensparkParameter
+             */
+            public static fromObject(object: { [k: string]: any }): bayesmech.vision.GensparkParameter;
+
+            /**
+             * Creates a plain object from a GensparkParameter message. Also converts values to other types if specified.
+             * @param message GensparkParameter
+             * @param [options] Conversion options
+             * @returns Plain object
+             */
+            public static toObject(message: bayesmech.vision.GensparkParameter, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+            /**
+             * Converts this GensparkParameter to JSON.
+             * @returns JSON object
+             */
+            public toJSON(): { [k: string]: any };
+
+            /**
+             * Gets the default type url for GensparkParameter
+             * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns The default type url
+             */
+            public static getTypeUrl(typeUrlPrefix?: string): string;
+        }
+
+        /** Properties of a GensparkSummary. */
+        interface IGensparkSummary {
+
+            /** GensparkSummary title */
+            title?: (string|null);
+
+            /** GensparkSummary text */
+            text?: (string|null);
+
+            /** GensparkSummary parameters */
+            parameters?: (bayesmech.vision.IGensparkParameter[]|null);
+        }
+
+        /** Represents a GensparkSummary. */
+        class GensparkSummary implements IGensparkSummary {
+
+            /**
+             * Constructs a new GensparkSummary.
+             * @param [properties] Properties to set
+             */
+            constructor(properties?: bayesmech.vision.IGensparkSummary);
+
+            /** GensparkSummary title. */
+            public title: string;
+
+            /** GensparkSummary text. */
+            public text: string;
+
+            /** GensparkSummary parameters. */
+            public parameters: bayesmech.vision.IGensparkParameter[];
+
+            /**
+             * Creates a new GensparkSummary instance using the specified properties.
+             * @param [properties] Properties to set
+             * @returns GensparkSummary instance
+             */
+            public static create(properties?: bayesmech.vision.IGensparkSummary): bayesmech.vision.GensparkSummary;
+
+            /**
+             * Encodes the specified GensparkSummary message. Does not implicitly {@link bayesmech.vision.GensparkSummary.verify|verify} messages.
+             * @param message GensparkSummary message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encode(message: bayesmech.vision.IGensparkSummary, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Encodes the specified GensparkSummary message, length delimited. Does not implicitly {@link bayesmech.vision.GensparkSummary.verify|verify} messages.
+             * @param message GensparkSummary message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encodeDelimited(message: bayesmech.vision.IGensparkSummary, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Decodes a GensparkSummary message from the specified reader or buffer.
+             * @param reader Reader or buffer to decode from
+             * @param [length] Message length if known beforehand
+             * @returns GensparkSummary
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): bayesmech.vision.GensparkSummary;
+
+            /**
+             * Decodes a GensparkSummary message from the specified reader or buffer, length delimited.
+             * @param reader Reader or buffer to decode from
+             * @returns GensparkSummary
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): bayesmech.vision.GensparkSummary;
+
+            /**
+             * Verifies a GensparkSummary message.
+             * @param message Plain object to verify
+             * @returns `null` if valid, otherwise the reason why it is not
+             */
+            public static verify(message: { [k: string]: any }): (string|null);
+
+            /**
+             * Creates a GensparkSummary message from a plain object. Also converts values to their respective internal types.
+             * @param object Plain object
+             * @returns GensparkSummary
+             */
+            public static fromObject(object: { [k: string]: any }): bayesmech.vision.GensparkSummary;
+
+            /**
+             * Creates a plain object from a GensparkSummary message. Also converts values to other types if specified.
+             * @param message GensparkSummary
+             * @param [options] Conversion options
+             * @returns Plain object
+             */
+            public static toObject(message: bayesmech.vision.GensparkSummary, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+            /**
+             * Converts this GensparkSummary to JSON.
+             * @returns JSON object
+             */
+            public toJSON(): { [k: string]: any };
+
+            /**
+             * Gets the default type url for GensparkSummary
+             * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns The default type url
+             */
+            public static getTypeUrl(typeUrlPrefix?: string): string;
+        }
+
+        /** Properties of a GensparkResponse. */
+        interface IGensparkResponse {
+
+            /** GensparkResponse turns */
+            turns?: (bayesmech.vision.IGensparkTurn[]|null);
+
+            /** GensparkResponse summary */
+            summary?: (bayesmech.vision.IGensparkSummary|null);
+        }
+
+        /** Represents a GensparkResponse. */
+        class GensparkResponse implements IGensparkResponse {
+
+            /**
+             * Constructs a new GensparkResponse.
+             * @param [properties] Properties to set
+             */
+            constructor(properties?: bayesmech.vision.IGensparkResponse);
+
+            /** GensparkResponse turns. */
+            public turns: bayesmech.vision.IGensparkTurn[];
+
+            /** GensparkResponse summary. */
+            public summary?: (bayesmech.vision.IGensparkSummary|null);
+
+            /**
+             * Creates a new GensparkResponse instance using the specified properties.
+             * @param [properties] Properties to set
+             * @returns GensparkResponse instance
+             */
+            public static create(properties?: bayesmech.vision.IGensparkResponse): bayesmech.vision.GensparkResponse;
+
+            /**
+             * Encodes the specified GensparkResponse message. Does not implicitly {@link bayesmech.vision.GensparkResponse.verify|verify} messages.
+             * @param message GensparkResponse message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encode(message: bayesmech.vision.IGensparkResponse, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Encodes the specified GensparkResponse message, length delimited. Does not implicitly {@link bayesmech.vision.GensparkResponse.verify|verify} messages.
+             * @param message GensparkResponse message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encodeDelimited(message: bayesmech.vision.IGensparkResponse, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Decodes a GensparkResponse message from the specified reader or buffer.
+             * @param reader Reader or buffer to decode from
+             * @param [length] Message length if known beforehand
+             * @returns GensparkResponse
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): bayesmech.vision.GensparkResponse;
+
+            /**
+             * Decodes a GensparkResponse message from the specified reader or buffer, length delimited.
+             * @param reader Reader or buffer to decode from
+             * @returns GensparkResponse
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): bayesmech.vision.GensparkResponse;
+
+            /**
+             * Verifies a GensparkResponse message.
+             * @param message Plain object to verify
+             * @returns `null` if valid, otherwise the reason why it is not
+             */
+            public static verify(message: { [k: string]: any }): (string|null);
+
+            /**
+             * Creates a GensparkResponse message from a plain object. Also converts values to their respective internal types.
+             * @param object Plain object
+             * @returns GensparkResponse
+             */
+            public static fromObject(object: { [k: string]: any }): bayesmech.vision.GensparkResponse;
+
+            /**
+             * Creates a plain object from a GensparkResponse message. Also converts values to other types if specified.
+             * @param message GensparkResponse
+             * @param [options] Conversion options
+             * @returns Plain object
+             */
+            public static toObject(message: bayesmech.vision.GensparkResponse, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+            /**
+             * Converts this GensparkResponse to JSON.
+             * @returns JSON object
+             */
+            public toJSON(): { [k: string]: any };
+
+            /**
+             * Gets the default type url for GensparkResponse
+             * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns The default type url
+             */
+            public static getTypeUrl(typeUrlPrefix?: string): string;
+        }
+
+        /** Properties of a VideoFrame. */
+        interface IVideoFrame {
+
+            /** VideoFrame timestampNs */
+            timestampNs?: (number|Long|null);
+
+            /** VideoFrame jpegData */
+            jpegData?: (Uint8Array|null);
+        }
+
+        /** Represents a VideoFrame. */
+        class VideoFrame implements IVideoFrame {
+
+            /**
+             * Constructs a new VideoFrame.
+             * @param [properties] Properties to set
+             */
+            constructor(properties?: bayesmech.vision.IVideoFrame);
+
+            /** VideoFrame timestampNs. */
+            public timestampNs: (number|Long);
+
+            /** VideoFrame jpegData. */
+            public jpegData: Uint8Array;
+
+            /**
+             * Creates a new VideoFrame instance using the specified properties.
+             * @param [properties] Properties to set
+             * @returns VideoFrame instance
+             */
+            public static create(properties?: bayesmech.vision.IVideoFrame): bayesmech.vision.VideoFrame;
+
+            /**
+             * Encodes the specified VideoFrame message. Does not implicitly {@link bayesmech.vision.VideoFrame.verify|verify} messages.
+             * @param message VideoFrame message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encode(message: bayesmech.vision.IVideoFrame, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Encodes the specified VideoFrame message, length delimited. Does not implicitly {@link bayesmech.vision.VideoFrame.verify|verify} messages.
+             * @param message VideoFrame message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encodeDelimited(message: bayesmech.vision.IVideoFrame, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Decodes a VideoFrame message from the specified reader or buffer.
+             * @param reader Reader or buffer to decode from
+             * @param [length] Message length if known beforehand
+             * @returns VideoFrame
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): bayesmech.vision.VideoFrame;
+
+            /**
+             * Decodes a VideoFrame message from the specified reader or buffer, length delimited.
+             * @param reader Reader or buffer to decode from
+             * @returns VideoFrame
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): bayesmech.vision.VideoFrame;
+
+            /**
+             * Verifies a VideoFrame message.
+             * @param message Plain object to verify
+             * @returns `null` if valid, otherwise the reason why it is not
+             */
+            public static verify(message: { [k: string]: any }): (string|null);
+
+            /**
+             * Creates a VideoFrame message from a plain object. Also converts values to their respective internal types.
+             * @param object Plain object
+             * @returns VideoFrame
+             */
+            public static fromObject(object: { [k: string]: any }): bayesmech.vision.VideoFrame;
+
+            /**
+             * Creates a plain object from a VideoFrame message. Also converts values to other types if specified.
+             * @param message VideoFrame
+             * @param [options] Conversion options
+             * @returns Plain object
+             */
+            public static toObject(message: bayesmech.vision.VideoFrame, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+            /**
+             * Converts this VideoFrame to JSON.
+             * @returns JSON object
+             */
+            public toJSON(): { [k: string]: any };
+
+            /**
+             * Gets the default type url for VideoFrame
+             * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns The default type url
+             */
+            public static getTypeUrl(typeUrlPrefix?: string): string;
+        }
+
+        /** Properties of a HighlightSegment. */
+        interface IHighlightSegment {
+
+            /** HighlightSegment startTime */
+            startTime?: (number|null);
+
+            /** HighlightSegment endTime */
+            endTime?: (number|null);
+
+            /** HighlightSegment description */
+            description?: (string|null);
+        }
+
+        /** Represents a HighlightSegment. */
+        class HighlightSegment implements IHighlightSegment {
+
+            /**
+             * Constructs a new HighlightSegment.
+             * @param [properties] Properties to set
+             */
+            constructor(properties?: bayesmech.vision.IHighlightSegment);
+
+            /** HighlightSegment startTime. */
+            public startTime: number;
+
+            /** HighlightSegment endTime. */
+            public endTime: number;
+
+            /** HighlightSegment description. */
+            public description: string;
+
+            /**
+             * Creates a new HighlightSegment instance using the specified properties.
+             * @param [properties] Properties to set
+             * @returns HighlightSegment instance
+             */
+            public static create(properties?: bayesmech.vision.IHighlightSegment): bayesmech.vision.HighlightSegment;
+
+            /**
+             * Encodes the specified HighlightSegment message. Does not implicitly {@link bayesmech.vision.HighlightSegment.verify|verify} messages.
+             * @param message HighlightSegment message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encode(message: bayesmech.vision.IHighlightSegment, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Encodes the specified HighlightSegment message, length delimited. Does not implicitly {@link bayesmech.vision.HighlightSegment.verify|verify} messages.
+             * @param message HighlightSegment message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encodeDelimited(message: bayesmech.vision.IHighlightSegment, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Decodes a HighlightSegment message from the specified reader or buffer.
+             * @param reader Reader or buffer to decode from
+             * @param [length] Message length if known beforehand
+             * @returns HighlightSegment
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): bayesmech.vision.HighlightSegment;
+
+            /**
+             * Decodes a HighlightSegment message from the specified reader or buffer, length delimited.
+             * @param reader Reader or buffer to decode from
+             * @returns HighlightSegment
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): bayesmech.vision.HighlightSegment;
+
+            /**
+             * Verifies a HighlightSegment message.
+             * @param message Plain object to verify
+             * @returns `null` if valid, otherwise the reason why it is not
+             */
+            public static verify(message: { [k: string]: any }): (string|null);
+
+            /**
+             * Creates a HighlightSegment message from a plain object. Also converts values to their respective internal types.
+             * @param object Plain object
+             * @returns HighlightSegment
+             */
+            public static fromObject(object: { [k: string]: any }): bayesmech.vision.HighlightSegment;
+
+            /**
+             * Creates a plain object from a HighlightSegment message. Also converts values to other types if specified.
+             * @param message HighlightSegment
+             * @param [options] Conversion options
+             * @returns Plain object
+             */
+            public static toObject(message: bayesmech.vision.HighlightSegment, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+            /**
+             * Converts this HighlightSegment to JSON.
+             * @returns JSON object
+             */
+            public toJSON(): { [k: string]: any };
+
+            /**
+             * Gets the default type url for HighlightSegment
+             * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns The default type url
+             */
+            public static getTypeUrl(typeUrlPrefix?: string): string;
+        }
+
+        /** Properties of an InsightVideoResponse. */
+        interface IInsightVideoResponse {
+
+            /** InsightVideoResponse frames */
+            frames?: (bayesmech.vision.IVideoFrame[]|null);
+
+            /** InsightVideoResponse fps */
+            fps?: (number|null);
+
+            /** InsightVideoResponse segments */
+            segments?: (bayesmech.vision.IHighlightSegment[]|null);
+        }
+
+        /** Represents an InsightVideoResponse. */
+        class InsightVideoResponse implements IInsightVideoResponse {
+
+            /**
+             * Constructs a new InsightVideoResponse.
+             * @param [properties] Properties to set
+             */
+            constructor(properties?: bayesmech.vision.IInsightVideoResponse);
+
+            /** InsightVideoResponse frames. */
+            public frames: bayesmech.vision.IVideoFrame[];
+
+            /** InsightVideoResponse fps. */
+            public fps: number;
+
+            /** InsightVideoResponse segments. */
+            public segments: bayesmech.vision.IHighlightSegment[];
+
+            /**
+             * Creates a new InsightVideoResponse instance using the specified properties.
+             * @param [properties] Properties to set
+             * @returns InsightVideoResponse instance
+             */
+            public static create(properties?: bayesmech.vision.IInsightVideoResponse): bayesmech.vision.InsightVideoResponse;
+
+            /**
+             * Encodes the specified InsightVideoResponse message. Does not implicitly {@link bayesmech.vision.InsightVideoResponse.verify|verify} messages.
+             * @param message InsightVideoResponse message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encode(message: bayesmech.vision.IInsightVideoResponse, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Encodes the specified InsightVideoResponse message, length delimited. Does not implicitly {@link bayesmech.vision.InsightVideoResponse.verify|verify} messages.
+             * @param message InsightVideoResponse message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encodeDelimited(message: bayesmech.vision.IInsightVideoResponse, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Decodes an InsightVideoResponse message from the specified reader or buffer.
+             * @param reader Reader or buffer to decode from
+             * @param [length] Message length if known beforehand
+             * @returns InsightVideoResponse
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): bayesmech.vision.InsightVideoResponse;
+
+            /**
+             * Decodes an InsightVideoResponse message from the specified reader or buffer, length delimited.
+             * @param reader Reader or buffer to decode from
+             * @returns InsightVideoResponse
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): bayesmech.vision.InsightVideoResponse;
+
+            /**
+             * Verifies an InsightVideoResponse message.
+             * @param message Plain object to verify
+             * @returns `null` if valid, otherwise the reason why it is not
+             */
+            public static verify(message: { [k: string]: any }): (string|null);
+
+            /**
+             * Creates an InsightVideoResponse message from a plain object. Also converts values to their respective internal types.
+             * @param object Plain object
+             * @returns InsightVideoResponse
+             */
+            public static fromObject(object: { [k: string]: any }): bayesmech.vision.InsightVideoResponse;
+
+            /**
+             * Creates a plain object from an InsightVideoResponse message. Also converts values to other types if specified.
+             * @param message InsightVideoResponse
+             * @param [options] Conversion options
+             * @returns Plain object
+             */
+            public static toObject(message: bayesmech.vision.InsightVideoResponse, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+            /**
+             * Converts this InsightVideoResponse to JSON.
+             * @returns JSON object
+             */
+            public toJSON(): { [k: string]: any };
+
+            /**
+             * Gets the default type url for InsightVideoResponse
+             * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns The default type url
+             */
+            public static getTypeUrl(typeUrlPrefix?: string): string;
+        }
+
+        /** Properties of a ChatTurn. */
+        interface IChatTurn {
+
+            /** ChatTurn role */
+            role?: (string|null);
+
+            /** ChatTurn text */
+            text?: (string|null);
+
+            /** ChatTurn timestampNs */
+            timestampNs?: (number|Long|null);
+        }
+
+        /** Represents a ChatTurn. */
+        class ChatTurn implements IChatTurn {
+
+            /**
+             * Constructs a new ChatTurn.
+             * @param [properties] Properties to set
+             */
+            constructor(properties?: bayesmech.vision.IChatTurn);
+
+            /** ChatTurn role. */
+            public role: string;
+
+            /** ChatTurn text. */
+            public text: string;
+
+            /** ChatTurn timestampNs. */
+            public timestampNs: (number|Long);
+
+            /**
+             * Creates a new ChatTurn instance using the specified properties.
+             * @param [properties] Properties to set
+             * @returns ChatTurn instance
+             */
+            public static create(properties?: bayesmech.vision.IChatTurn): bayesmech.vision.ChatTurn;
+
+            /**
+             * Encodes the specified ChatTurn message. Does not implicitly {@link bayesmech.vision.ChatTurn.verify|verify} messages.
+             * @param message ChatTurn message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encode(message: bayesmech.vision.IChatTurn, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Encodes the specified ChatTurn message, length delimited. Does not implicitly {@link bayesmech.vision.ChatTurn.verify|verify} messages.
+             * @param message ChatTurn message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encodeDelimited(message: bayesmech.vision.IChatTurn, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Decodes a ChatTurn message from the specified reader or buffer.
+             * @param reader Reader or buffer to decode from
+             * @param [length] Message length if known beforehand
+             * @returns ChatTurn
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): bayesmech.vision.ChatTurn;
+
+            /**
+             * Decodes a ChatTurn message from the specified reader or buffer, length delimited.
+             * @param reader Reader or buffer to decode from
+             * @returns ChatTurn
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): bayesmech.vision.ChatTurn;
+
+            /**
+             * Verifies a ChatTurn message.
+             * @param message Plain object to verify
+             * @returns `null` if valid, otherwise the reason why it is not
+             */
+            public static verify(message: { [k: string]: any }): (string|null);
+
+            /**
+             * Creates a ChatTurn message from a plain object. Also converts values to their respective internal types.
+             * @param object Plain object
+             * @returns ChatTurn
+             */
+            public static fromObject(object: { [k: string]: any }): bayesmech.vision.ChatTurn;
+
+            /**
+             * Creates a plain object from a ChatTurn message. Also converts values to other types if specified.
+             * @param message ChatTurn
+             * @param [options] Conversion options
+             * @returns Plain object
+             */
+            public static toObject(message: bayesmech.vision.ChatTurn, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+            /**
+             * Converts this ChatTurn to JSON.
+             * @returns JSON object
+             */
+            public toJSON(): { [k: string]: any };
+
+            /**
+             * Gets the default type url for ChatTurn
+             * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns The default type url
+             */
+            public static getTypeUrl(typeUrlPrefix?: string): string;
+        }
+
+        /** Properties of a ChatHistory. */
+        interface IChatHistory {
+
+            /** ChatHistory fileName */
+            fileName?: (string|null);
+
+            /** ChatHistory turns */
+            turns?: (bayesmech.vision.IChatTurn[]|null);
+
+            /** ChatHistory geminiCacheName */
+            geminiCacheName?: (string|null);
+
+            /** ChatHistory threadCreatedTimestampNs */
+            threadCreatedTimestampNs?: (number|Long|null);
+
+            /** ChatHistory initialTurn */
+            initialTurn?: (bayesmech.vision.IChatTurn|null);
+        }
+
+        /** Represents a ChatHistory. */
+        class ChatHistory implements IChatHistory {
+
+            /**
+             * Constructs a new ChatHistory.
+             * @param [properties] Properties to set
+             */
+            constructor(properties?: bayesmech.vision.IChatHistory);
+
+            /** ChatHistory fileName. */
+            public fileName: string;
+
+            /** ChatHistory turns. */
+            public turns: bayesmech.vision.IChatTurn[];
+
+            /** ChatHistory geminiCacheName. */
+            public geminiCacheName: string;
+
+            /** ChatHistory threadCreatedTimestampNs. */
+            public threadCreatedTimestampNs: (number|Long);
+
+            /** ChatHistory initialTurn. */
+            public initialTurn?: (bayesmech.vision.IChatTurn|null);
+
+            /**
+             * Creates a new ChatHistory instance using the specified properties.
+             * @param [properties] Properties to set
+             * @returns ChatHistory instance
+             */
+            public static create(properties?: bayesmech.vision.IChatHistory): bayesmech.vision.ChatHistory;
+
+            /**
+             * Encodes the specified ChatHistory message. Does not implicitly {@link bayesmech.vision.ChatHistory.verify|verify} messages.
+             * @param message ChatHistory message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encode(message: bayesmech.vision.IChatHistory, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Encodes the specified ChatHistory message, length delimited. Does not implicitly {@link bayesmech.vision.ChatHistory.verify|verify} messages.
+             * @param message ChatHistory message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encodeDelimited(message: bayesmech.vision.IChatHistory, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Decodes a ChatHistory message from the specified reader or buffer.
+             * @param reader Reader or buffer to decode from
+             * @param [length] Message length if known beforehand
+             * @returns ChatHistory
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): bayesmech.vision.ChatHistory;
+
+            /**
+             * Decodes a ChatHistory message from the specified reader or buffer, length delimited.
+             * @param reader Reader or buffer to decode from
+             * @returns ChatHistory
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): bayesmech.vision.ChatHistory;
+
+            /**
+             * Verifies a ChatHistory message.
+             * @param message Plain object to verify
+             * @returns `null` if valid, otherwise the reason why it is not
+             */
+            public static verify(message: { [k: string]: any }): (string|null);
+
+            /**
+             * Creates a ChatHistory message from a plain object. Also converts values to their respective internal types.
+             * @param object Plain object
+             * @returns ChatHistory
+             */
+            public static fromObject(object: { [k: string]: any }): bayesmech.vision.ChatHistory;
+
+            /**
+             * Creates a plain object from a ChatHistory message. Also converts values to other types if specified.
+             * @param message ChatHistory
+             * @param [options] Conversion options
+             * @returns Plain object
+             */
+            public static toObject(message: bayesmech.vision.ChatHistory, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+            /**
+             * Converts this ChatHistory to JSON.
+             * @returns JSON object
+             */
+            public toJSON(): { [k: string]: any };
+
+            /**
+             * Gets the default type url for ChatHistory
+             * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns The default type url
+             */
+            public static getTypeUrl(typeUrlPrefix?: string): string;
+        }
     }
 }

@@ -71,6 +71,10 @@ class ChatSession:
 
         self._load_chat_history()
 
+    @property
+    def file_name(self) -> str:
+        return self._file_name
+
     def _legacy_chat_path(self) -> Path:
         return self._chat_path.parent.parent / f"{self._file_name}.chat.pb"
 
@@ -324,3 +328,13 @@ class ChatManager:
 
         response_text, user_turn, model_turn = session.send_message(message)
         return response_text, session_id, user_turn, model_turn
+
+    def invalidate(self, file_name: str) -> None:
+        """Drop in-memory sessions for a recording after its analysis is regenerated."""
+        stale = [
+            session_id
+            for session_id, session in self._sessions.items()
+            if session.file_name == file_name
+        ]
+        for session_id in stale:
+            del self._sessions[session_id]

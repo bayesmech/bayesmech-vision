@@ -16037,6 +16037,3632 @@ export const bayesmech = $root.bayesmech = (() => {
             return PongtownResponse;
         })();
 
+        vision.DataList = (function() {
+
+            /**
+             * Properties of a DataList.
+             * @memberof bayesmech.vision
+             * @interface IDataList
+             * @property {string|null} [fileName] DataList fileName
+             * @property {boolean|null} [isSegmentationAvailable] DataList isSegmentationAvailable
+             * @property {boolean|null} [isGensparkAvailable] DataList isGensparkAvailable
+             * @property {boolean|null} [isMotioncapAvailable] DataList isMotioncapAvailable
+             * @property {Uint8Array|null} [imageFrame] DataList imageFrame
+             * @property {string|null} [title] DataList title
+             * @property {Array.<string>|null} [tags] DataList tags
+             * @property {number|null} [chatMessageCount] DataList chatMessageCount
+             * @property {string|null} [previewText] DataList previewText
+             */
+
+            /**
+             * Constructs a new DataList.
+             * @memberof bayesmech.vision
+             * @classdesc Represents a DataList.
+             * @implements IDataList
+             * @constructor
+             * @param {bayesmech.vision.IDataList=} [properties] Properties to set
+             */
+            function DataList(properties) {
+                this.tags = [];
+                if (properties)
+                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null)
+                            this[keys[i]] = properties[keys[i]];
+            }
+
+            /**
+             * DataList fileName.
+             * @member {string} fileName
+             * @memberof bayesmech.vision.DataList
+             * @instance
+             */
+            DataList.prototype.fileName = "";
+
+            /**
+             * DataList isSegmentationAvailable.
+             * @member {boolean} isSegmentationAvailable
+             * @memberof bayesmech.vision.DataList
+             * @instance
+             */
+            DataList.prototype.isSegmentationAvailable = false;
+
+            /**
+             * DataList isGensparkAvailable.
+             * @member {boolean} isGensparkAvailable
+             * @memberof bayesmech.vision.DataList
+             * @instance
+             */
+            DataList.prototype.isGensparkAvailable = false;
+
+            /**
+             * DataList isMotioncapAvailable.
+             * @member {boolean} isMotioncapAvailable
+             * @memberof bayesmech.vision.DataList
+             * @instance
+             */
+            DataList.prototype.isMotioncapAvailable = false;
+
+            /**
+             * DataList imageFrame.
+             * @member {Uint8Array} imageFrame
+             * @memberof bayesmech.vision.DataList
+             * @instance
+             */
+            DataList.prototype.imageFrame = $util.newBuffer([]);
+
+            /**
+             * DataList title.
+             * @member {string} title
+             * @memberof bayesmech.vision.DataList
+             * @instance
+             */
+            DataList.prototype.title = "";
+
+            /**
+             * DataList tags.
+             * @member {Array.<string>} tags
+             * @memberof bayesmech.vision.DataList
+             * @instance
+             */
+            DataList.prototype.tags = $util.emptyArray;
+
+            /**
+             * DataList chatMessageCount.
+             * @member {number} chatMessageCount
+             * @memberof bayesmech.vision.DataList
+             * @instance
+             */
+            DataList.prototype.chatMessageCount = 0;
+
+            /**
+             * DataList previewText.
+             * @member {string} previewText
+             * @memberof bayesmech.vision.DataList
+             * @instance
+             */
+            DataList.prototype.previewText = "";
+
+            /**
+             * Creates a new DataList instance using the specified properties.
+             * @function create
+             * @memberof bayesmech.vision.DataList
+             * @static
+             * @param {bayesmech.vision.IDataList=} [properties] Properties to set
+             * @returns {bayesmech.vision.DataList} DataList instance
+             */
+            DataList.create = function create(properties) {
+                return new DataList(properties);
+            };
+
+            /**
+             * Encodes the specified DataList message. Does not implicitly {@link bayesmech.vision.DataList.verify|verify} messages.
+             * @function encode
+             * @memberof bayesmech.vision.DataList
+             * @static
+             * @param {bayesmech.vision.IDataList} message DataList message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            DataList.encode = function encode(message, writer) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (message.fileName != null && Object.hasOwnProperty.call(message, "fileName"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.fileName);
+                if (message.isSegmentationAvailable != null && Object.hasOwnProperty.call(message, "isSegmentationAvailable"))
+                    writer.uint32(/* id 2, wireType 0 =*/16).bool(message.isSegmentationAvailable);
+                if (message.isGensparkAvailable != null && Object.hasOwnProperty.call(message, "isGensparkAvailable"))
+                    writer.uint32(/* id 3, wireType 0 =*/24).bool(message.isGensparkAvailable);
+                if (message.isMotioncapAvailable != null && Object.hasOwnProperty.call(message, "isMotioncapAvailable"))
+                    writer.uint32(/* id 4, wireType 0 =*/32).bool(message.isMotioncapAvailable);
+                if (message.imageFrame != null && Object.hasOwnProperty.call(message, "imageFrame"))
+                    writer.uint32(/* id 5, wireType 2 =*/42).bytes(message.imageFrame);
+                if (message.title != null && Object.hasOwnProperty.call(message, "title"))
+                    writer.uint32(/* id 6, wireType 2 =*/50).string(message.title);
+                if (message.tags != null && message.tags.length)
+                    for (let i = 0; i < message.tags.length; ++i)
+                        writer.uint32(/* id 7, wireType 2 =*/58).string(message.tags[i]);
+                if (message.chatMessageCount != null && Object.hasOwnProperty.call(message, "chatMessageCount"))
+                    writer.uint32(/* id 8, wireType 0 =*/64).int32(message.chatMessageCount);
+                if (message.previewText != null && Object.hasOwnProperty.call(message, "previewText"))
+                    writer.uint32(/* id 9, wireType 2 =*/74).string(message.previewText);
+                return writer;
+            };
+
+            /**
+             * Encodes the specified DataList message, length delimited. Does not implicitly {@link bayesmech.vision.DataList.verify|verify} messages.
+             * @function encodeDelimited
+             * @memberof bayesmech.vision.DataList
+             * @static
+             * @param {bayesmech.vision.IDataList} message DataList message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            DataList.encodeDelimited = function encodeDelimited(message, writer) {
+                return this.encode(message, writer).ldelim();
+            };
+
+            /**
+             * Decodes a DataList message from the specified reader or buffer.
+             * @function decode
+             * @memberof bayesmech.vision.DataList
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {bayesmech.vision.DataList} DataList
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            DataList.decode = function decode(reader, length, error) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.DataList();
+                while (reader.pos < end) {
+                    let tag = reader.uint32();
+                    if (tag === error)
+                        break;
+                    switch (tag >>> 3) {
+                    case 1: {
+                            message.fileName = reader.string();
+                            break;
+                        }
+                    case 2: {
+                            message.isSegmentationAvailable = reader.bool();
+                            break;
+                        }
+                    case 3: {
+                            message.isGensparkAvailable = reader.bool();
+                            break;
+                        }
+                    case 4: {
+                            message.isMotioncapAvailable = reader.bool();
+                            break;
+                        }
+                    case 5: {
+                            message.imageFrame = reader.bytes();
+                            break;
+                        }
+                    case 6: {
+                            message.title = reader.string();
+                            break;
+                        }
+                    case 7: {
+                            if (!(message.tags && message.tags.length))
+                                message.tags = [];
+                            message.tags.push(reader.string());
+                            break;
+                        }
+                    case 8: {
+                            message.chatMessageCount = reader.int32();
+                            break;
+                        }
+                    case 9: {
+                            message.previewText = reader.string();
+                            break;
+                        }
+                    default:
+                        reader.skipType(tag & 7);
+                        break;
+                    }
+                }
+                return message;
+            };
+
+            /**
+             * Decodes a DataList message from the specified reader or buffer, length delimited.
+             * @function decodeDelimited
+             * @memberof bayesmech.vision.DataList
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @returns {bayesmech.vision.DataList} DataList
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            DataList.decodeDelimited = function decodeDelimited(reader) {
+                if (!(reader instanceof $Reader))
+                    reader = new $Reader(reader);
+                return this.decode(reader, reader.uint32());
+            };
+
+            /**
+             * Verifies a DataList message.
+             * @function verify
+             * @memberof bayesmech.vision.DataList
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            DataList.verify = function verify(message) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (message.fileName != null && message.hasOwnProperty("fileName"))
+                    if (!$util.isString(message.fileName))
+                        return "fileName: string expected";
+                if (message.isSegmentationAvailable != null && message.hasOwnProperty("isSegmentationAvailable"))
+                    if (typeof message.isSegmentationAvailable !== "boolean")
+                        return "isSegmentationAvailable: boolean expected";
+                if (message.isGensparkAvailable != null && message.hasOwnProperty("isGensparkAvailable"))
+                    if (typeof message.isGensparkAvailable !== "boolean")
+                        return "isGensparkAvailable: boolean expected";
+                if (message.isMotioncapAvailable != null && message.hasOwnProperty("isMotioncapAvailable"))
+                    if (typeof message.isMotioncapAvailable !== "boolean")
+                        return "isMotioncapAvailable: boolean expected";
+                if (message.imageFrame != null && message.hasOwnProperty("imageFrame"))
+                    if (!(message.imageFrame && typeof message.imageFrame.length === "number" || $util.isString(message.imageFrame)))
+                        return "imageFrame: buffer expected";
+                if (message.title != null && message.hasOwnProperty("title"))
+                    if (!$util.isString(message.title))
+                        return "title: string expected";
+                if (message.tags != null && message.hasOwnProperty("tags")) {
+                    if (!Array.isArray(message.tags))
+                        return "tags: array expected";
+                    for (let i = 0; i < message.tags.length; ++i)
+                        if (!$util.isString(message.tags[i]))
+                            return "tags: string[] expected";
+                }
+                if (message.chatMessageCount != null && message.hasOwnProperty("chatMessageCount"))
+                    if (!$util.isInteger(message.chatMessageCount))
+                        return "chatMessageCount: integer expected";
+                if (message.previewText != null && message.hasOwnProperty("previewText"))
+                    if (!$util.isString(message.previewText))
+                        return "previewText: string expected";
+                return null;
+            };
+
+            /**
+             * Creates a DataList message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof bayesmech.vision.DataList
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {bayesmech.vision.DataList} DataList
+             */
+            DataList.fromObject = function fromObject(object) {
+                if (object instanceof $root.bayesmech.vision.DataList)
+                    return object;
+                let message = new $root.bayesmech.vision.DataList();
+                if (object.fileName != null)
+                    message.fileName = String(object.fileName);
+                if (object.isSegmentationAvailable != null)
+                    message.isSegmentationAvailable = Boolean(object.isSegmentationAvailable);
+                if (object.isGensparkAvailable != null)
+                    message.isGensparkAvailable = Boolean(object.isGensparkAvailable);
+                if (object.isMotioncapAvailable != null)
+                    message.isMotioncapAvailable = Boolean(object.isMotioncapAvailable);
+                if (object.imageFrame != null)
+                    if (typeof object.imageFrame === "string")
+                        $util.base64.decode(object.imageFrame, message.imageFrame = $util.newBuffer($util.base64.length(object.imageFrame)), 0);
+                    else if (object.imageFrame.length >= 0)
+                        message.imageFrame = object.imageFrame;
+                if (object.title != null)
+                    message.title = String(object.title);
+                if (object.tags) {
+                    if (!Array.isArray(object.tags))
+                        throw TypeError(".bayesmech.vision.DataList.tags: array expected");
+                    message.tags = [];
+                    for (let i = 0; i < object.tags.length; ++i)
+                        message.tags[i] = String(object.tags[i]);
+                }
+                if (object.chatMessageCount != null)
+                    message.chatMessageCount = object.chatMessageCount | 0;
+                if (object.previewText != null)
+                    message.previewText = String(object.previewText);
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a DataList message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof bayesmech.vision.DataList
+             * @static
+             * @param {bayesmech.vision.DataList} message DataList
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            DataList.toObject = function toObject(message, options) {
+                if (!options)
+                    options = {};
+                let object = {};
+                if (options.arrays || options.defaults)
+                    object.tags = [];
+                if (options.defaults) {
+                    object.fileName = "";
+                    object.isSegmentationAvailable = false;
+                    object.isGensparkAvailable = false;
+                    object.isMotioncapAvailable = false;
+                    if (options.bytes === String)
+                        object.imageFrame = "";
+                    else {
+                        object.imageFrame = [];
+                        if (options.bytes !== Array)
+                            object.imageFrame = $util.newBuffer(object.imageFrame);
+                    }
+                    object.title = "";
+                    object.chatMessageCount = 0;
+                    object.previewText = "";
+                }
+                if (message.fileName != null && message.hasOwnProperty("fileName"))
+                    object.fileName = message.fileName;
+                if (message.isSegmentationAvailable != null && message.hasOwnProperty("isSegmentationAvailable"))
+                    object.isSegmentationAvailable = message.isSegmentationAvailable;
+                if (message.isGensparkAvailable != null && message.hasOwnProperty("isGensparkAvailable"))
+                    object.isGensparkAvailable = message.isGensparkAvailable;
+                if (message.isMotioncapAvailable != null && message.hasOwnProperty("isMotioncapAvailable"))
+                    object.isMotioncapAvailable = message.isMotioncapAvailable;
+                if (message.imageFrame != null && message.hasOwnProperty("imageFrame"))
+                    object.imageFrame = options.bytes === String ? $util.base64.encode(message.imageFrame, 0, message.imageFrame.length) : options.bytes === Array ? Array.prototype.slice.call(message.imageFrame) : message.imageFrame;
+                if (message.title != null && message.hasOwnProperty("title"))
+                    object.title = message.title;
+                if (message.tags && message.tags.length) {
+                    object.tags = [];
+                    for (let j = 0; j < message.tags.length; ++j)
+                        object.tags[j] = message.tags[j];
+                }
+                if (message.chatMessageCount != null && message.hasOwnProperty("chatMessageCount"))
+                    object.chatMessageCount = message.chatMessageCount;
+                if (message.previewText != null && message.hasOwnProperty("previewText"))
+                    object.previewText = message.previewText;
+                return object;
+            };
+
+            /**
+             * Converts this DataList to JSON.
+             * @function toJSON
+             * @memberof bayesmech.vision.DataList
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            DataList.prototype.toJSON = function toJSON() {
+                return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the default type url for DataList
+             * @function getTypeUrl
+             * @memberof bayesmech.vision.DataList
+             * @static
+             * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns {string} The default type url
+             */
+            DataList.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+                if (typeUrlPrefix === undefined) {
+                    typeUrlPrefix = "type.googleapis.com";
+                }
+                return typeUrlPrefix + "/bayesmech.vision.DataList";
+            };
+
+            return DataList;
+        })();
+
+        vision.ListRecordingsRequest = (function() {
+
+            /**
+             * Properties of a ListRecordingsRequest.
+             * @memberof bayesmech.vision
+             * @interface IListRecordingsRequest
+             * @property {string|null} [username] ListRecordingsRequest username
+             * @property {string|null} [authToken] ListRecordingsRequest authToken
+             */
+
+            /**
+             * Constructs a new ListRecordingsRequest.
+             * @memberof bayesmech.vision
+             * @classdesc Represents a ListRecordingsRequest.
+             * @implements IListRecordingsRequest
+             * @constructor
+             * @param {bayesmech.vision.IListRecordingsRequest=} [properties] Properties to set
+             */
+            function ListRecordingsRequest(properties) {
+                if (properties)
+                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null)
+                            this[keys[i]] = properties[keys[i]];
+            }
+
+            /**
+             * ListRecordingsRequest username.
+             * @member {string} username
+             * @memberof bayesmech.vision.ListRecordingsRequest
+             * @instance
+             */
+            ListRecordingsRequest.prototype.username = "";
+
+            /**
+             * ListRecordingsRequest authToken.
+             * @member {string} authToken
+             * @memberof bayesmech.vision.ListRecordingsRequest
+             * @instance
+             */
+            ListRecordingsRequest.prototype.authToken = "";
+
+            /**
+             * Creates a new ListRecordingsRequest instance using the specified properties.
+             * @function create
+             * @memberof bayesmech.vision.ListRecordingsRequest
+             * @static
+             * @param {bayesmech.vision.IListRecordingsRequest=} [properties] Properties to set
+             * @returns {bayesmech.vision.ListRecordingsRequest} ListRecordingsRequest instance
+             */
+            ListRecordingsRequest.create = function create(properties) {
+                return new ListRecordingsRequest(properties);
+            };
+
+            /**
+             * Encodes the specified ListRecordingsRequest message. Does not implicitly {@link bayesmech.vision.ListRecordingsRequest.verify|verify} messages.
+             * @function encode
+             * @memberof bayesmech.vision.ListRecordingsRequest
+             * @static
+             * @param {bayesmech.vision.IListRecordingsRequest} message ListRecordingsRequest message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            ListRecordingsRequest.encode = function encode(message, writer) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (message.username != null && Object.hasOwnProperty.call(message, "username"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.username);
+                if (message.authToken != null && Object.hasOwnProperty.call(message, "authToken"))
+                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.authToken);
+                return writer;
+            };
+
+            /**
+             * Encodes the specified ListRecordingsRequest message, length delimited. Does not implicitly {@link bayesmech.vision.ListRecordingsRequest.verify|verify} messages.
+             * @function encodeDelimited
+             * @memberof bayesmech.vision.ListRecordingsRequest
+             * @static
+             * @param {bayesmech.vision.IListRecordingsRequest} message ListRecordingsRequest message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            ListRecordingsRequest.encodeDelimited = function encodeDelimited(message, writer) {
+                return this.encode(message, writer).ldelim();
+            };
+
+            /**
+             * Decodes a ListRecordingsRequest message from the specified reader or buffer.
+             * @function decode
+             * @memberof bayesmech.vision.ListRecordingsRequest
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {bayesmech.vision.ListRecordingsRequest} ListRecordingsRequest
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            ListRecordingsRequest.decode = function decode(reader, length, error) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.ListRecordingsRequest();
+                while (reader.pos < end) {
+                    let tag = reader.uint32();
+                    if (tag === error)
+                        break;
+                    switch (tag >>> 3) {
+                    case 1: {
+                            message.username = reader.string();
+                            break;
+                        }
+                    case 2: {
+                            message.authToken = reader.string();
+                            break;
+                        }
+                    default:
+                        reader.skipType(tag & 7);
+                        break;
+                    }
+                }
+                return message;
+            };
+
+            /**
+             * Decodes a ListRecordingsRequest message from the specified reader or buffer, length delimited.
+             * @function decodeDelimited
+             * @memberof bayesmech.vision.ListRecordingsRequest
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @returns {bayesmech.vision.ListRecordingsRequest} ListRecordingsRequest
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            ListRecordingsRequest.decodeDelimited = function decodeDelimited(reader) {
+                if (!(reader instanceof $Reader))
+                    reader = new $Reader(reader);
+                return this.decode(reader, reader.uint32());
+            };
+
+            /**
+             * Verifies a ListRecordingsRequest message.
+             * @function verify
+             * @memberof bayesmech.vision.ListRecordingsRequest
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            ListRecordingsRequest.verify = function verify(message) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (message.username != null && message.hasOwnProperty("username"))
+                    if (!$util.isString(message.username))
+                        return "username: string expected";
+                if (message.authToken != null && message.hasOwnProperty("authToken"))
+                    if (!$util.isString(message.authToken))
+                        return "authToken: string expected";
+                return null;
+            };
+
+            /**
+             * Creates a ListRecordingsRequest message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof bayesmech.vision.ListRecordingsRequest
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {bayesmech.vision.ListRecordingsRequest} ListRecordingsRequest
+             */
+            ListRecordingsRequest.fromObject = function fromObject(object) {
+                if (object instanceof $root.bayesmech.vision.ListRecordingsRequest)
+                    return object;
+                let message = new $root.bayesmech.vision.ListRecordingsRequest();
+                if (object.username != null)
+                    message.username = String(object.username);
+                if (object.authToken != null)
+                    message.authToken = String(object.authToken);
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a ListRecordingsRequest message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof bayesmech.vision.ListRecordingsRequest
+             * @static
+             * @param {bayesmech.vision.ListRecordingsRequest} message ListRecordingsRequest
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            ListRecordingsRequest.toObject = function toObject(message, options) {
+                if (!options)
+                    options = {};
+                let object = {};
+                if (options.defaults) {
+                    object.username = "";
+                    object.authToken = "";
+                }
+                if (message.username != null && message.hasOwnProperty("username"))
+                    object.username = message.username;
+                if (message.authToken != null && message.hasOwnProperty("authToken"))
+                    object.authToken = message.authToken;
+                return object;
+            };
+
+            /**
+             * Converts this ListRecordingsRequest to JSON.
+             * @function toJSON
+             * @memberof bayesmech.vision.ListRecordingsRequest
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            ListRecordingsRequest.prototype.toJSON = function toJSON() {
+                return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the default type url for ListRecordingsRequest
+             * @function getTypeUrl
+             * @memberof bayesmech.vision.ListRecordingsRequest
+             * @static
+             * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns {string} The default type url
+             */
+            ListRecordingsRequest.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+                if (typeUrlPrefix === undefined) {
+                    typeUrlPrefix = "type.googleapis.com";
+                }
+                return typeUrlPrefix + "/bayesmech.vision.ListRecordingsRequest";
+            };
+
+            return ListRecordingsRequest;
+        })();
+
+        vision.ListRecordingsResponse = (function() {
+
+            /**
+             * Properties of a ListRecordingsResponse.
+             * @memberof bayesmech.vision
+             * @interface IListRecordingsResponse
+             * @property {Array.<bayesmech.vision.IDataList>|null} [recordings] ListRecordingsResponse recordings
+             */
+
+            /**
+             * Constructs a new ListRecordingsResponse.
+             * @memberof bayesmech.vision
+             * @classdesc Represents a ListRecordingsResponse.
+             * @implements IListRecordingsResponse
+             * @constructor
+             * @param {bayesmech.vision.IListRecordingsResponse=} [properties] Properties to set
+             */
+            function ListRecordingsResponse(properties) {
+                this.recordings = [];
+                if (properties)
+                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null)
+                            this[keys[i]] = properties[keys[i]];
+            }
+
+            /**
+             * ListRecordingsResponse recordings.
+             * @member {Array.<bayesmech.vision.IDataList>} recordings
+             * @memberof bayesmech.vision.ListRecordingsResponse
+             * @instance
+             */
+            ListRecordingsResponse.prototype.recordings = $util.emptyArray;
+
+            /**
+             * Creates a new ListRecordingsResponse instance using the specified properties.
+             * @function create
+             * @memberof bayesmech.vision.ListRecordingsResponse
+             * @static
+             * @param {bayesmech.vision.IListRecordingsResponse=} [properties] Properties to set
+             * @returns {bayesmech.vision.ListRecordingsResponse} ListRecordingsResponse instance
+             */
+            ListRecordingsResponse.create = function create(properties) {
+                return new ListRecordingsResponse(properties);
+            };
+
+            /**
+             * Encodes the specified ListRecordingsResponse message. Does not implicitly {@link bayesmech.vision.ListRecordingsResponse.verify|verify} messages.
+             * @function encode
+             * @memberof bayesmech.vision.ListRecordingsResponse
+             * @static
+             * @param {bayesmech.vision.IListRecordingsResponse} message ListRecordingsResponse message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            ListRecordingsResponse.encode = function encode(message, writer) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (message.recordings != null && message.recordings.length)
+                    for (let i = 0; i < message.recordings.length; ++i)
+                        $root.bayesmech.vision.DataList.encode(message.recordings[i], writer.uint32(/* id 1, wireType 2 =*/10).fork()).ldelim();
+                return writer;
+            };
+
+            /**
+             * Encodes the specified ListRecordingsResponse message, length delimited. Does not implicitly {@link bayesmech.vision.ListRecordingsResponse.verify|verify} messages.
+             * @function encodeDelimited
+             * @memberof bayesmech.vision.ListRecordingsResponse
+             * @static
+             * @param {bayesmech.vision.IListRecordingsResponse} message ListRecordingsResponse message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            ListRecordingsResponse.encodeDelimited = function encodeDelimited(message, writer) {
+                return this.encode(message, writer).ldelim();
+            };
+
+            /**
+             * Decodes a ListRecordingsResponse message from the specified reader or buffer.
+             * @function decode
+             * @memberof bayesmech.vision.ListRecordingsResponse
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {bayesmech.vision.ListRecordingsResponse} ListRecordingsResponse
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            ListRecordingsResponse.decode = function decode(reader, length, error) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.ListRecordingsResponse();
+                while (reader.pos < end) {
+                    let tag = reader.uint32();
+                    if (tag === error)
+                        break;
+                    switch (tag >>> 3) {
+                    case 1: {
+                            if (!(message.recordings && message.recordings.length))
+                                message.recordings = [];
+                            message.recordings.push($root.bayesmech.vision.DataList.decode(reader, reader.uint32()));
+                            break;
+                        }
+                    default:
+                        reader.skipType(tag & 7);
+                        break;
+                    }
+                }
+                return message;
+            };
+
+            /**
+             * Decodes a ListRecordingsResponse message from the specified reader or buffer, length delimited.
+             * @function decodeDelimited
+             * @memberof bayesmech.vision.ListRecordingsResponse
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @returns {bayesmech.vision.ListRecordingsResponse} ListRecordingsResponse
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            ListRecordingsResponse.decodeDelimited = function decodeDelimited(reader) {
+                if (!(reader instanceof $Reader))
+                    reader = new $Reader(reader);
+                return this.decode(reader, reader.uint32());
+            };
+
+            /**
+             * Verifies a ListRecordingsResponse message.
+             * @function verify
+             * @memberof bayesmech.vision.ListRecordingsResponse
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            ListRecordingsResponse.verify = function verify(message) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (message.recordings != null && message.hasOwnProperty("recordings")) {
+                    if (!Array.isArray(message.recordings))
+                        return "recordings: array expected";
+                    for (let i = 0; i < message.recordings.length; ++i) {
+                        let error = $root.bayesmech.vision.DataList.verify(message.recordings[i]);
+                        if (error)
+                            return "recordings." + error;
+                    }
+                }
+                return null;
+            };
+
+            /**
+             * Creates a ListRecordingsResponse message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof bayesmech.vision.ListRecordingsResponse
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {bayesmech.vision.ListRecordingsResponse} ListRecordingsResponse
+             */
+            ListRecordingsResponse.fromObject = function fromObject(object) {
+                if (object instanceof $root.bayesmech.vision.ListRecordingsResponse)
+                    return object;
+                let message = new $root.bayesmech.vision.ListRecordingsResponse();
+                if (object.recordings) {
+                    if (!Array.isArray(object.recordings))
+                        throw TypeError(".bayesmech.vision.ListRecordingsResponse.recordings: array expected");
+                    message.recordings = [];
+                    for (let i = 0; i < object.recordings.length; ++i) {
+                        if (typeof object.recordings[i] !== "object")
+                            throw TypeError(".bayesmech.vision.ListRecordingsResponse.recordings: object expected");
+                        message.recordings[i] = $root.bayesmech.vision.DataList.fromObject(object.recordings[i]);
+                    }
+                }
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a ListRecordingsResponse message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof bayesmech.vision.ListRecordingsResponse
+             * @static
+             * @param {bayesmech.vision.ListRecordingsResponse} message ListRecordingsResponse
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            ListRecordingsResponse.toObject = function toObject(message, options) {
+                if (!options)
+                    options = {};
+                let object = {};
+                if (options.arrays || options.defaults)
+                    object.recordings = [];
+                if (message.recordings && message.recordings.length) {
+                    object.recordings = [];
+                    for (let j = 0; j < message.recordings.length; ++j)
+                        object.recordings[j] = $root.bayesmech.vision.DataList.toObject(message.recordings[j], options);
+                }
+                return object;
+            };
+
+            /**
+             * Converts this ListRecordingsResponse to JSON.
+             * @function toJSON
+             * @memberof bayesmech.vision.ListRecordingsResponse
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            ListRecordingsResponse.prototype.toJSON = function toJSON() {
+                return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the default type url for ListRecordingsResponse
+             * @function getTypeUrl
+             * @memberof bayesmech.vision.ListRecordingsResponse
+             * @static
+             * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns {string} The default type url
+             */
+            ListRecordingsResponse.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+                if (typeUrlPrefix === undefined) {
+                    typeUrlPrefix = "type.googleapis.com";
+                }
+                return typeUrlPrefix + "/bayesmech.vision.ListRecordingsResponse";
+            };
+
+            return ListRecordingsResponse;
+        })();
+
+        vision.InsightgenService = (function() {
+
+            /**
+             * Constructs a new InsightgenService service.
+             * @memberof bayesmech.vision
+             * @classdesc Represents an InsightgenService
+             * @extends $protobuf.rpc.Service
+             * @constructor
+             * @param {$protobuf.RPCImpl} rpcImpl RPC implementation
+             * @param {boolean} [requestDelimited=false] Whether requests are length-delimited
+             * @param {boolean} [responseDelimited=false] Whether responses are length-delimited
+             */
+            function InsightgenService(rpcImpl, requestDelimited, responseDelimited) {
+                $protobuf.rpc.Service.call(this, rpcImpl, requestDelimited, responseDelimited);
+            }
+
+            (InsightgenService.prototype = Object.create($protobuf.rpc.Service.prototype)).constructor = InsightgenService;
+
+            /**
+             * Creates new InsightgenService service using the specified rpc implementation.
+             * @function create
+             * @memberof bayesmech.vision.InsightgenService
+             * @static
+             * @param {$protobuf.RPCImpl} rpcImpl RPC implementation
+             * @param {boolean} [requestDelimited=false] Whether requests are length-delimited
+             * @param {boolean} [responseDelimited=false] Whether responses are length-delimited
+             * @returns {InsightgenService} RPC service. Useful where requests and/or responses are streamed.
+             */
+            InsightgenService.create = function create(rpcImpl, requestDelimited, responseDelimited) {
+                return new this(rpcImpl, requestDelimited, responseDelimited);
+            };
+
+            /**
+             * Callback as used by {@link bayesmech.vision.InsightgenService#listRecordings}.
+             * @memberof bayesmech.vision.InsightgenService
+             * @typedef ListRecordingsCallback
+             * @type {function}
+             * @param {Error|null} error Error, if any
+             * @param {bayesmech.vision.ListRecordingsResponse} [response] ListRecordingsResponse
+             */
+
+            /**
+             * Calls ListRecordings.
+             * @function listRecordings
+             * @memberof bayesmech.vision.InsightgenService
+             * @instance
+             * @param {bayesmech.vision.IListRecordingsRequest} request ListRecordingsRequest message or plain object
+             * @param {bayesmech.vision.InsightgenService.ListRecordingsCallback} callback Node-style callback called with the error, if any, and ListRecordingsResponse
+             * @returns {undefined}
+             * @variation 1
+             */
+            Object.defineProperty(InsightgenService.prototype.listRecordings = function listRecordings(request, callback) {
+                return this.rpcCall(listRecordings, $root.bayesmech.vision.ListRecordingsRequest, $root.bayesmech.vision.ListRecordingsResponse, request, callback);
+            }, "name", { value: "ListRecordings" });
+
+            /**
+             * Calls ListRecordings.
+             * @function listRecordings
+             * @memberof bayesmech.vision.InsightgenService
+             * @instance
+             * @param {bayesmech.vision.IListRecordingsRequest} request ListRecordingsRequest message or plain object
+             * @returns {Promise<bayesmech.vision.ListRecordingsResponse>} Promise
+             * @variation 2
+             */
+
+            return InsightgenService;
+        })();
+
+        vision.GensparkToolCall = (function() {
+
+            /**
+             * Properties of a GensparkToolCall.
+             * @memberof bayesmech.vision
+             * @interface IGensparkToolCall
+             * @property {string|null} [toolName] GensparkToolCall toolName
+             * @property {string|null} [argumentsJson] GensparkToolCall argumentsJson
+             * @property {string|null} [result] GensparkToolCall result
+             */
+
+            /**
+             * Constructs a new GensparkToolCall.
+             * @memberof bayesmech.vision
+             * @classdesc Represents a GensparkToolCall.
+             * @implements IGensparkToolCall
+             * @constructor
+             * @param {bayesmech.vision.IGensparkToolCall=} [properties] Properties to set
+             */
+            function GensparkToolCall(properties) {
+                if (properties)
+                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null)
+                            this[keys[i]] = properties[keys[i]];
+            }
+
+            /**
+             * GensparkToolCall toolName.
+             * @member {string} toolName
+             * @memberof bayesmech.vision.GensparkToolCall
+             * @instance
+             */
+            GensparkToolCall.prototype.toolName = "";
+
+            /**
+             * GensparkToolCall argumentsJson.
+             * @member {string} argumentsJson
+             * @memberof bayesmech.vision.GensparkToolCall
+             * @instance
+             */
+            GensparkToolCall.prototype.argumentsJson = "";
+
+            /**
+             * GensparkToolCall result.
+             * @member {string} result
+             * @memberof bayesmech.vision.GensparkToolCall
+             * @instance
+             */
+            GensparkToolCall.prototype.result = "";
+
+            /**
+             * Creates a new GensparkToolCall instance using the specified properties.
+             * @function create
+             * @memberof bayesmech.vision.GensparkToolCall
+             * @static
+             * @param {bayesmech.vision.IGensparkToolCall=} [properties] Properties to set
+             * @returns {bayesmech.vision.GensparkToolCall} GensparkToolCall instance
+             */
+            GensparkToolCall.create = function create(properties) {
+                return new GensparkToolCall(properties);
+            };
+
+            /**
+             * Encodes the specified GensparkToolCall message. Does not implicitly {@link bayesmech.vision.GensparkToolCall.verify|verify} messages.
+             * @function encode
+             * @memberof bayesmech.vision.GensparkToolCall
+             * @static
+             * @param {bayesmech.vision.IGensparkToolCall} message GensparkToolCall message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            GensparkToolCall.encode = function encode(message, writer) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (message.toolName != null && Object.hasOwnProperty.call(message, "toolName"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.toolName);
+                if (message.argumentsJson != null && Object.hasOwnProperty.call(message, "argumentsJson"))
+                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.argumentsJson);
+                if (message.result != null && Object.hasOwnProperty.call(message, "result"))
+                    writer.uint32(/* id 3, wireType 2 =*/26).string(message.result);
+                return writer;
+            };
+
+            /**
+             * Encodes the specified GensparkToolCall message, length delimited. Does not implicitly {@link bayesmech.vision.GensparkToolCall.verify|verify} messages.
+             * @function encodeDelimited
+             * @memberof bayesmech.vision.GensparkToolCall
+             * @static
+             * @param {bayesmech.vision.IGensparkToolCall} message GensparkToolCall message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            GensparkToolCall.encodeDelimited = function encodeDelimited(message, writer) {
+                return this.encode(message, writer).ldelim();
+            };
+
+            /**
+             * Decodes a GensparkToolCall message from the specified reader or buffer.
+             * @function decode
+             * @memberof bayesmech.vision.GensparkToolCall
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {bayesmech.vision.GensparkToolCall} GensparkToolCall
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            GensparkToolCall.decode = function decode(reader, length, error) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.GensparkToolCall();
+                while (reader.pos < end) {
+                    let tag = reader.uint32();
+                    if (tag === error)
+                        break;
+                    switch (tag >>> 3) {
+                    case 1: {
+                            message.toolName = reader.string();
+                            break;
+                        }
+                    case 2: {
+                            message.argumentsJson = reader.string();
+                            break;
+                        }
+                    case 3: {
+                            message.result = reader.string();
+                            break;
+                        }
+                    default:
+                        reader.skipType(tag & 7);
+                        break;
+                    }
+                }
+                return message;
+            };
+
+            /**
+             * Decodes a GensparkToolCall message from the specified reader or buffer, length delimited.
+             * @function decodeDelimited
+             * @memberof bayesmech.vision.GensparkToolCall
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @returns {bayesmech.vision.GensparkToolCall} GensparkToolCall
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            GensparkToolCall.decodeDelimited = function decodeDelimited(reader) {
+                if (!(reader instanceof $Reader))
+                    reader = new $Reader(reader);
+                return this.decode(reader, reader.uint32());
+            };
+
+            /**
+             * Verifies a GensparkToolCall message.
+             * @function verify
+             * @memberof bayesmech.vision.GensparkToolCall
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            GensparkToolCall.verify = function verify(message) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (message.toolName != null && message.hasOwnProperty("toolName"))
+                    if (!$util.isString(message.toolName))
+                        return "toolName: string expected";
+                if (message.argumentsJson != null && message.hasOwnProperty("argumentsJson"))
+                    if (!$util.isString(message.argumentsJson))
+                        return "argumentsJson: string expected";
+                if (message.result != null && message.hasOwnProperty("result"))
+                    if (!$util.isString(message.result))
+                        return "result: string expected";
+                return null;
+            };
+
+            /**
+             * Creates a GensparkToolCall message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof bayesmech.vision.GensparkToolCall
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {bayesmech.vision.GensparkToolCall} GensparkToolCall
+             */
+            GensparkToolCall.fromObject = function fromObject(object) {
+                if (object instanceof $root.bayesmech.vision.GensparkToolCall)
+                    return object;
+                let message = new $root.bayesmech.vision.GensparkToolCall();
+                if (object.toolName != null)
+                    message.toolName = String(object.toolName);
+                if (object.argumentsJson != null)
+                    message.argumentsJson = String(object.argumentsJson);
+                if (object.result != null)
+                    message.result = String(object.result);
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a GensparkToolCall message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof bayesmech.vision.GensparkToolCall
+             * @static
+             * @param {bayesmech.vision.GensparkToolCall} message GensparkToolCall
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            GensparkToolCall.toObject = function toObject(message, options) {
+                if (!options)
+                    options = {};
+                let object = {};
+                if (options.defaults) {
+                    object.toolName = "";
+                    object.argumentsJson = "";
+                    object.result = "";
+                }
+                if (message.toolName != null && message.hasOwnProperty("toolName"))
+                    object.toolName = message.toolName;
+                if (message.argumentsJson != null && message.hasOwnProperty("argumentsJson"))
+                    object.argumentsJson = message.argumentsJson;
+                if (message.result != null && message.hasOwnProperty("result"))
+                    object.result = message.result;
+                return object;
+            };
+
+            /**
+             * Converts this GensparkToolCall to JSON.
+             * @function toJSON
+             * @memberof bayesmech.vision.GensparkToolCall
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            GensparkToolCall.prototype.toJSON = function toJSON() {
+                return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the default type url for GensparkToolCall
+             * @function getTypeUrl
+             * @memberof bayesmech.vision.GensparkToolCall
+             * @static
+             * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns {string} The default type url
+             */
+            GensparkToolCall.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+                if (typeUrlPrefix === undefined) {
+                    typeUrlPrefix = "type.googleapis.com";
+                }
+                return typeUrlPrefix + "/bayesmech.vision.GensparkToolCall";
+            };
+
+            return GensparkToolCall;
+        })();
+
+        vision.GensparkTurn = (function() {
+
+            /**
+             * Properties of a GensparkTurn.
+             * @memberof bayesmech.vision
+             * @interface IGensparkTurn
+             * @property {string|null} [text] GensparkTurn text
+             * @property {Array.<bayesmech.vision.IGensparkToolCall>|null} [toolCalls] GensparkTurn toolCalls
+             */
+
+            /**
+             * Constructs a new GensparkTurn.
+             * @memberof bayesmech.vision
+             * @classdesc Represents a GensparkTurn.
+             * @implements IGensparkTurn
+             * @constructor
+             * @param {bayesmech.vision.IGensparkTurn=} [properties] Properties to set
+             */
+            function GensparkTurn(properties) {
+                this.toolCalls = [];
+                if (properties)
+                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null)
+                            this[keys[i]] = properties[keys[i]];
+            }
+
+            /**
+             * GensparkTurn text.
+             * @member {string} text
+             * @memberof bayesmech.vision.GensparkTurn
+             * @instance
+             */
+            GensparkTurn.prototype.text = "";
+
+            /**
+             * GensparkTurn toolCalls.
+             * @member {Array.<bayesmech.vision.IGensparkToolCall>} toolCalls
+             * @memberof bayesmech.vision.GensparkTurn
+             * @instance
+             */
+            GensparkTurn.prototype.toolCalls = $util.emptyArray;
+
+            /**
+             * Creates a new GensparkTurn instance using the specified properties.
+             * @function create
+             * @memberof bayesmech.vision.GensparkTurn
+             * @static
+             * @param {bayesmech.vision.IGensparkTurn=} [properties] Properties to set
+             * @returns {bayesmech.vision.GensparkTurn} GensparkTurn instance
+             */
+            GensparkTurn.create = function create(properties) {
+                return new GensparkTurn(properties);
+            };
+
+            /**
+             * Encodes the specified GensparkTurn message. Does not implicitly {@link bayesmech.vision.GensparkTurn.verify|verify} messages.
+             * @function encode
+             * @memberof bayesmech.vision.GensparkTurn
+             * @static
+             * @param {bayesmech.vision.IGensparkTurn} message GensparkTurn message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            GensparkTurn.encode = function encode(message, writer) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (message.text != null && Object.hasOwnProperty.call(message, "text"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.text);
+                if (message.toolCalls != null && message.toolCalls.length)
+                    for (let i = 0; i < message.toolCalls.length; ++i)
+                        $root.bayesmech.vision.GensparkToolCall.encode(message.toolCalls[i], writer.uint32(/* id 2, wireType 2 =*/18).fork()).ldelim();
+                return writer;
+            };
+
+            /**
+             * Encodes the specified GensparkTurn message, length delimited. Does not implicitly {@link bayesmech.vision.GensparkTurn.verify|verify} messages.
+             * @function encodeDelimited
+             * @memberof bayesmech.vision.GensparkTurn
+             * @static
+             * @param {bayesmech.vision.IGensparkTurn} message GensparkTurn message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            GensparkTurn.encodeDelimited = function encodeDelimited(message, writer) {
+                return this.encode(message, writer).ldelim();
+            };
+
+            /**
+             * Decodes a GensparkTurn message from the specified reader or buffer.
+             * @function decode
+             * @memberof bayesmech.vision.GensparkTurn
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {bayesmech.vision.GensparkTurn} GensparkTurn
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            GensparkTurn.decode = function decode(reader, length, error) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.GensparkTurn();
+                while (reader.pos < end) {
+                    let tag = reader.uint32();
+                    if (tag === error)
+                        break;
+                    switch (tag >>> 3) {
+                    case 1: {
+                            message.text = reader.string();
+                            break;
+                        }
+                    case 2: {
+                            if (!(message.toolCalls && message.toolCalls.length))
+                                message.toolCalls = [];
+                            message.toolCalls.push($root.bayesmech.vision.GensparkToolCall.decode(reader, reader.uint32()));
+                            break;
+                        }
+                    default:
+                        reader.skipType(tag & 7);
+                        break;
+                    }
+                }
+                return message;
+            };
+
+            /**
+             * Decodes a GensparkTurn message from the specified reader or buffer, length delimited.
+             * @function decodeDelimited
+             * @memberof bayesmech.vision.GensparkTurn
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @returns {bayesmech.vision.GensparkTurn} GensparkTurn
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            GensparkTurn.decodeDelimited = function decodeDelimited(reader) {
+                if (!(reader instanceof $Reader))
+                    reader = new $Reader(reader);
+                return this.decode(reader, reader.uint32());
+            };
+
+            /**
+             * Verifies a GensparkTurn message.
+             * @function verify
+             * @memberof bayesmech.vision.GensparkTurn
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            GensparkTurn.verify = function verify(message) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (message.text != null && message.hasOwnProperty("text"))
+                    if (!$util.isString(message.text))
+                        return "text: string expected";
+                if (message.toolCalls != null && message.hasOwnProperty("toolCalls")) {
+                    if (!Array.isArray(message.toolCalls))
+                        return "toolCalls: array expected";
+                    for (let i = 0; i < message.toolCalls.length; ++i) {
+                        let error = $root.bayesmech.vision.GensparkToolCall.verify(message.toolCalls[i]);
+                        if (error)
+                            return "toolCalls." + error;
+                    }
+                }
+                return null;
+            };
+
+            /**
+             * Creates a GensparkTurn message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof bayesmech.vision.GensparkTurn
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {bayesmech.vision.GensparkTurn} GensparkTurn
+             */
+            GensparkTurn.fromObject = function fromObject(object) {
+                if (object instanceof $root.bayesmech.vision.GensparkTurn)
+                    return object;
+                let message = new $root.bayesmech.vision.GensparkTurn();
+                if (object.text != null)
+                    message.text = String(object.text);
+                if (object.toolCalls) {
+                    if (!Array.isArray(object.toolCalls))
+                        throw TypeError(".bayesmech.vision.GensparkTurn.toolCalls: array expected");
+                    message.toolCalls = [];
+                    for (let i = 0; i < object.toolCalls.length; ++i) {
+                        if (typeof object.toolCalls[i] !== "object")
+                            throw TypeError(".bayesmech.vision.GensparkTurn.toolCalls: object expected");
+                        message.toolCalls[i] = $root.bayesmech.vision.GensparkToolCall.fromObject(object.toolCalls[i]);
+                    }
+                }
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a GensparkTurn message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof bayesmech.vision.GensparkTurn
+             * @static
+             * @param {bayesmech.vision.GensparkTurn} message GensparkTurn
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            GensparkTurn.toObject = function toObject(message, options) {
+                if (!options)
+                    options = {};
+                let object = {};
+                if (options.arrays || options.defaults)
+                    object.toolCalls = [];
+                if (options.defaults)
+                    object.text = "";
+                if (message.text != null && message.hasOwnProperty("text"))
+                    object.text = message.text;
+                if (message.toolCalls && message.toolCalls.length) {
+                    object.toolCalls = [];
+                    for (let j = 0; j < message.toolCalls.length; ++j)
+                        object.toolCalls[j] = $root.bayesmech.vision.GensparkToolCall.toObject(message.toolCalls[j], options);
+                }
+                return object;
+            };
+
+            /**
+             * Converts this GensparkTurn to JSON.
+             * @function toJSON
+             * @memberof bayesmech.vision.GensparkTurn
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            GensparkTurn.prototype.toJSON = function toJSON() {
+                return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the default type url for GensparkTurn
+             * @function getTypeUrl
+             * @memberof bayesmech.vision.GensparkTurn
+             * @static
+             * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns {string} The default type url
+             */
+            GensparkTurn.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+                if (typeUrlPrefix === undefined) {
+                    typeUrlPrefix = "type.googleapis.com";
+                }
+                return typeUrlPrefix + "/bayesmech.vision.GensparkTurn";
+            };
+
+            return GensparkTurn;
+        })();
+
+        vision.GensparkParameter = (function() {
+
+            /**
+             * Properties of a GensparkParameter.
+             * @memberof bayesmech.vision
+             * @interface IGensparkParameter
+             * @property {string|null} [name] GensparkParameter name
+             * @property {string|null} [value] GensparkParameter value
+             * @property {string|null} [unit] GensparkParameter unit
+             */
+
+            /**
+             * Constructs a new GensparkParameter.
+             * @memberof bayesmech.vision
+             * @classdesc Represents a GensparkParameter.
+             * @implements IGensparkParameter
+             * @constructor
+             * @param {bayesmech.vision.IGensparkParameter=} [properties] Properties to set
+             */
+            function GensparkParameter(properties) {
+                if (properties)
+                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null)
+                            this[keys[i]] = properties[keys[i]];
+            }
+
+            /**
+             * GensparkParameter name.
+             * @member {string} name
+             * @memberof bayesmech.vision.GensparkParameter
+             * @instance
+             */
+            GensparkParameter.prototype.name = "";
+
+            /**
+             * GensparkParameter value.
+             * @member {string} value
+             * @memberof bayesmech.vision.GensparkParameter
+             * @instance
+             */
+            GensparkParameter.prototype.value = "";
+
+            /**
+             * GensparkParameter unit.
+             * @member {string} unit
+             * @memberof bayesmech.vision.GensparkParameter
+             * @instance
+             */
+            GensparkParameter.prototype.unit = "";
+
+            /**
+             * Creates a new GensparkParameter instance using the specified properties.
+             * @function create
+             * @memberof bayesmech.vision.GensparkParameter
+             * @static
+             * @param {bayesmech.vision.IGensparkParameter=} [properties] Properties to set
+             * @returns {bayesmech.vision.GensparkParameter} GensparkParameter instance
+             */
+            GensparkParameter.create = function create(properties) {
+                return new GensparkParameter(properties);
+            };
+
+            /**
+             * Encodes the specified GensparkParameter message. Does not implicitly {@link bayesmech.vision.GensparkParameter.verify|verify} messages.
+             * @function encode
+             * @memberof bayesmech.vision.GensparkParameter
+             * @static
+             * @param {bayesmech.vision.IGensparkParameter} message GensparkParameter message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            GensparkParameter.encode = function encode(message, writer) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (message.name != null && Object.hasOwnProperty.call(message, "name"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.name);
+                if (message.value != null && Object.hasOwnProperty.call(message, "value"))
+                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.value);
+                if (message.unit != null && Object.hasOwnProperty.call(message, "unit"))
+                    writer.uint32(/* id 3, wireType 2 =*/26).string(message.unit);
+                return writer;
+            };
+
+            /**
+             * Encodes the specified GensparkParameter message, length delimited. Does not implicitly {@link bayesmech.vision.GensparkParameter.verify|verify} messages.
+             * @function encodeDelimited
+             * @memberof bayesmech.vision.GensparkParameter
+             * @static
+             * @param {bayesmech.vision.IGensparkParameter} message GensparkParameter message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            GensparkParameter.encodeDelimited = function encodeDelimited(message, writer) {
+                return this.encode(message, writer).ldelim();
+            };
+
+            /**
+             * Decodes a GensparkParameter message from the specified reader or buffer.
+             * @function decode
+             * @memberof bayesmech.vision.GensparkParameter
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {bayesmech.vision.GensparkParameter} GensparkParameter
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            GensparkParameter.decode = function decode(reader, length, error) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.GensparkParameter();
+                while (reader.pos < end) {
+                    let tag = reader.uint32();
+                    if (tag === error)
+                        break;
+                    switch (tag >>> 3) {
+                    case 1: {
+                            message.name = reader.string();
+                            break;
+                        }
+                    case 2: {
+                            message.value = reader.string();
+                            break;
+                        }
+                    case 3: {
+                            message.unit = reader.string();
+                            break;
+                        }
+                    default:
+                        reader.skipType(tag & 7);
+                        break;
+                    }
+                }
+                return message;
+            };
+
+            /**
+             * Decodes a GensparkParameter message from the specified reader or buffer, length delimited.
+             * @function decodeDelimited
+             * @memberof bayesmech.vision.GensparkParameter
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @returns {bayesmech.vision.GensparkParameter} GensparkParameter
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            GensparkParameter.decodeDelimited = function decodeDelimited(reader) {
+                if (!(reader instanceof $Reader))
+                    reader = new $Reader(reader);
+                return this.decode(reader, reader.uint32());
+            };
+
+            /**
+             * Verifies a GensparkParameter message.
+             * @function verify
+             * @memberof bayesmech.vision.GensparkParameter
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            GensparkParameter.verify = function verify(message) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (message.name != null && message.hasOwnProperty("name"))
+                    if (!$util.isString(message.name))
+                        return "name: string expected";
+                if (message.value != null && message.hasOwnProperty("value"))
+                    if (!$util.isString(message.value))
+                        return "value: string expected";
+                if (message.unit != null && message.hasOwnProperty("unit"))
+                    if (!$util.isString(message.unit))
+                        return "unit: string expected";
+                return null;
+            };
+
+            /**
+             * Creates a GensparkParameter message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof bayesmech.vision.GensparkParameter
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {bayesmech.vision.GensparkParameter} GensparkParameter
+             */
+            GensparkParameter.fromObject = function fromObject(object) {
+                if (object instanceof $root.bayesmech.vision.GensparkParameter)
+                    return object;
+                let message = new $root.bayesmech.vision.GensparkParameter();
+                if (object.name != null)
+                    message.name = String(object.name);
+                if (object.value != null)
+                    message.value = String(object.value);
+                if (object.unit != null)
+                    message.unit = String(object.unit);
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a GensparkParameter message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof bayesmech.vision.GensparkParameter
+             * @static
+             * @param {bayesmech.vision.GensparkParameter} message GensparkParameter
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            GensparkParameter.toObject = function toObject(message, options) {
+                if (!options)
+                    options = {};
+                let object = {};
+                if (options.defaults) {
+                    object.name = "";
+                    object.value = "";
+                    object.unit = "";
+                }
+                if (message.name != null && message.hasOwnProperty("name"))
+                    object.name = message.name;
+                if (message.value != null && message.hasOwnProperty("value"))
+                    object.value = message.value;
+                if (message.unit != null && message.hasOwnProperty("unit"))
+                    object.unit = message.unit;
+                return object;
+            };
+
+            /**
+             * Converts this GensparkParameter to JSON.
+             * @function toJSON
+             * @memberof bayesmech.vision.GensparkParameter
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            GensparkParameter.prototype.toJSON = function toJSON() {
+                return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the default type url for GensparkParameter
+             * @function getTypeUrl
+             * @memberof bayesmech.vision.GensparkParameter
+             * @static
+             * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns {string} The default type url
+             */
+            GensparkParameter.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+                if (typeUrlPrefix === undefined) {
+                    typeUrlPrefix = "type.googleapis.com";
+                }
+                return typeUrlPrefix + "/bayesmech.vision.GensparkParameter";
+            };
+
+            return GensparkParameter;
+        })();
+
+        vision.GensparkSummary = (function() {
+
+            /**
+             * Properties of a GensparkSummary.
+             * @memberof bayesmech.vision
+             * @interface IGensparkSummary
+             * @property {string|null} [title] GensparkSummary title
+             * @property {string|null} [text] GensparkSummary text
+             * @property {Array.<bayesmech.vision.IGensparkParameter>|null} [parameters] GensparkSummary parameters
+             */
+
+            /**
+             * Constructs a new GensparkSummary.
+             * @memberof bayesmech.vision
+             * @classdesc Represents a GensparkSummary.
+             * @implements IGensparkSummary
+             * @constructor
+             * @param {bayesmech.vision.IGensparkSummary=} [properties] Properties to set
+             */
+            function GensparkSummary(properties) {
+                this.parameters = [];
+                if (properties)
+                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null)
+                            this[keys[i]] = properties[keys[i]];
+            }
+
+            /**
+             * GensparkSummary title.
+             * @member {string} title
+             * @memberof bayesmech.vision.GensparkSummary
+             * @instance
+             */
+            GensparkSummary.prototype.title = "";
+
+            /**
+             * GensparkSummary text.
+             * @member {string} text
+             * @memberof bayesmech.vision.GensparkSummary
+             * @instance
+             */
+            GensparkSummary.prototype.text = "";
+
+            /**
+             * GensparkSummary parameters.
+             * @member {Array.<bayesmech.vision.IGensparkParameter>} parameters
+             * @memberof bayesmech.vision.GensparkSummary
+             * @instance
+             */
+            GensparkSummary.prototype.parameters = $util.emptyArray;
+
+            /**
+             * Creates a new GensparkSummary instance using the specified properties.
+             * @function create
+             * @memberof bayesmech.vision.GensparkSummary
+             * @static
+             * @param {bayesmech.vision.IGensparkSummary=} [properties] Properties to set
+             * @returns {bayesmech.vision.GensparkSummary} GensparkSummary instance
+             */
+            GensparkSummary.create = function create(properties) {
+                return new GensparkSummary(properties);
+            };
+
+            /**
+             * Encodes the specified GensparkSummary message. Does not implicitly {@link bayesmech.vision.GensparkSummary.verify|verify} messages.
+             * @function encode
+             * @memberof bayesmech.vision.GensparkSummary
+             * @static
+             * @param {bayesmech.vision.IGensparkSummary} message GensparkSummary message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            GensparkSummary.encode = function encode(message, writer) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (message.title != null && Object.hasOwnProperty.call(message, "title"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.title);
+                if (message.text != null && Object.hasOwnProperty.call(message, "text"))
+                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.text);
+                if (message.parameters != null && message.parameters.length)
+                    for (let i = 0; i < message.parameters.length; ++i)
+                        $root.bayesmech.vision.GensparkParameter.encode(message.parameters[i], writer.uint32(/* id 3, wireType 2 =*/26).fork()).ldelim();
+                return writer;
+            };
+
+            /**
+             * Encodes the specified GensparkSummary message, length delimited. Does not implicitly {@link bayesmech.vision.GensparkSummary.verify|verify} messages.
+             * @function encodeDelimited
+             * @memberof bayesmech.vision.GensparkSummary
+             * @static
+             * @param {bayesmech.vision.IGensparkSummary} message GensparkSummary message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            GensparkSummary.encodeDelimited = function encodeDelimited(message, writer) {
+                return this.encode(message, writer).ldelim();
+            };
+
+            /**
+             * Decodes a GensparkSummary message from the specified reader or buffer.
+             * @function decode
+             * @memberof bayesmech.vision.GensparkSummary
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {bayesmech.vision.GensparkSummary} GensparkSummary
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            GensparkSummary.decode = function decode(reader, length, error) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.GensparkSummary();
+                while (reader.pos < end) {
+                    let tag = reader.uint32();
+                    if (tag === error)
+                        break;
+                    switch (tag >>> 3) {
+                    case 1: {
+                            message.title = reader.string();
+                            break;
+                        }
+                    case 2: {
+                            message.text = reader.string();
+                            break;
+                        }
+                    case 3: {
+                            if (!(message.parameters && message.parameters.length))
+                                message.parameters = [];
+                            message.parameters.push($root.bayesmech.vision.GensparkParameter.decode(reader, reader.uint32()));
+                            break;
+                        }
+                    default:
+                        reader.skipType(tag & 7);
+                        break;
+                    }
+                }
+                return message;
+            };
+
+            /**
+             * Decodes a GensparkSummary message from the specified reader or buffer, length delimited.
+             * @function decodeDelimited
+             * @memberof bayesmech.vision.GensparkSummary
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @returns {bayesmech.vision.GensparkSummary} GensparkSummary
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            GensparkSummary.decodeDelimited = function decodeDelimited(reader) {
+                if (!(reader instanceof $Reader))
+                    reader = new $Reader(reader);
+                return this.decode(reader, reader.uint32());
+            };
+
+            /**
+             * Verifies a GensparkSummary message.
+             * @function verify
+             * @memberof bayesmech.vision.GensparkSummary
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            GensparkSummary.verify = function verify(message) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (message.title != null && message.hasOwnProperty("title"))
+                    if (!$util.isString(message.title))
+                        return "title: string expected";
+                if (message.text != null && message.hasOwnProperty("text"))
+                    if (!$util.isString(message.text))
+                        return "text: string expected";
+                if (message.parameters != null && message.hasOwnProperty("parameters")) {
+                    if (!Array.isArray(message.parameters))
+                        return "parameters: array expected";
+                    for (let i = 0; i < message.parameters.length; ++i) {
+                        let error = $root.bayesmech.vision.GensparkParameter.verify(message.parameters[i]);
+                        if (error)
+                            return "parameters." + error;
+                    }
+                }
+                return null;
+            };
+
+            /**
+             * Creates a GensparkSummary message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof bayesmech.vision.GensparkSummary
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {bayesmech.vision.GensparkSummary} GensparkSummary
+             */
+            GensparkSummary.fromObject = function fromObject(object) {
+                if (object instanceof $root.bayesmech.vision.GensparkSummary)
+                    return object;
+                let message = new $root.bayesmech.vision.GensparkSummary();
+                if (object.title != null)
+                    message.title = String(object.title);
+                if (object.text != null)
+                    message.text = String(object.text);
+                if (object.parameters) {
+                    if (!Array.isArray(object.parameters))
+                        throw TypeError(".bayesmech.vision.GensparkSummary.parameters: array expected");
+                    message.parameters = [];
+                    for (let i = 0; i < object.parameters.length; ++i) {
+                        if (typeof object.parameters[i] !== "object")
+                            throw TypeError(".bayesmech.vision.GensparkSummary.parameters: object expected");
+                        message.parameters[i] = $root.bayesmech.vision.GensparkParameter.fromObject(object.parameters[i]);
+                    }
+                }
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a GensparkSummary message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof bayesmech.vision.GensparkSummary
+             * @static
+             * @param {bayesmech.vision.GensparkSummary} message GensparkSummary
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            GensparkSummary.toObject = function toObject(message, options) {
+                if (!options)
+                    options = {};
+                let object = {};
+                if (options.arrays || options.defaults)
+                    object.parameters = [];
+                if (options.defaults) {
+                    object.title = "";
+                    object.text = "";
+                }
+                if (message.title != null && message.hasOwnProperty("title"))
+                    object.title = message.title;
+                if (message.text != null && message.hasOwnProperty("text"))
+                    object.text = message.text;
+                if (message.parameters && message.parameters.length) {
+                    object.parameters = [];
+                    for (let j = 0; j < message.parameters.length; ++j)
+                        object.parameters[j] = $root.bayesmech.vision.GensparkParameter.toObject(message.parameters[j], options);
+                }
+                return object;
+            };
+
+            /**
+             * Converts this GensparkSummary to JSON.
+             * @function toJSON
+             * @memberof bayesmech.vision.GensparkSummary
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            GensparkSummary.prototype.toJSON = function toJSON() {
+                return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the default type url for GensparkSummary
+             * @function getTypeUrl
+             * @memberof bayesmech.vision.GensparkSummary
+             * @static
+             * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns {string} The default type url
+             */
+            GensparkSummary.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+                if (typeUrlPrefix === undefined) {
+                    typeUrlPrefix = "type.googleapis.com";
+                }
+                return typeUrlPrefix + "/bayesmech.vision.GensparkSummary";
+            };
+
+            return GensparkSummary;
+        })();
+
+        vision.GensparkResponse = (function() {
+
+            /**
+             * Properties of a GensparkResponse.
+             * @memberof bayesmech.vision
+             * @interface IGensparkResponse
+             * @property {Array.<bayesmech.vision.IGensparkTurn>|null} [turns] GensparkResponse turns
+             * @property {bayesmech.vision.IGensparkSummary|null} [summary] GensparkResponse summary
+             */
+
+            /**
+             * Constructs a new GensparkResponse.
+             * @memberof bayesmech.vision
+             * @classdesc Represents a GensparkResponse.
+             * @implements IGensparkResponse
+             * @constructor
+             * @param {bayesmech.vision.IGensparkResponse=} [properties] Properties to set
+             */
+            function GensparkResponse(properties) {
+                this.turns = [];
+                if (properties)
+                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null)
+                            this[keys[i]] = properties[keys[i]];
+            }
+
+            /**
+             * GensparkResponse turns.
+             * @member {Array.<bayesmech.vision.IGensparkTurn>} turns
+             * @memberof bayesmech.vision.GensparkResponse
+             * @instance
+             */
+            GensparkResponse.prototype.turns = $util.emptyArray;
+
+            /**
+             * GensparkResponse summary.
+             * @member {bayesmech.vision.IGensparkSummary|null|undefined} summary
+             * @memberof bayesmech.vision.GensparkResponse
+             * @instance
+             */
+            GensparkResponse.prototype.summary = null;
+
+            /**
+             * Creates a new GensparkResponse instance using the specified properties.
+             * @function create
+             * @memberof bayesmech.vision.GensparkResponse
+             * @static
+             * @param {bayesmech.vision.IGensparkResponse=} [properties] Properties to set
+             * @returns {bayesmech.vision.GensparkResponse} GensparkResponse instance
+             */
+            GensparkResponse.create = function create(properties) {
+                return new GensparkResponse(properties);
+            };
+
+            /**
+             * Encodes the specified GensparkResponse message. Does not implicitly {@link bayesmech.vision.GensparkResponse.verify|verify} messages.
+             * @function encode
+             * @memberof bayesmech.vision.GensparkResponse
+             * @static
+             * @param {bayesmech.vision.IGensparkResponse} message GensparkResponse message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            GensparkResponse.encode = function encode(message, writer) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (message.turns != null && message.turns.length)
+                    for (let i = 0; i < message.turns.length; ++i)
+                        $root.bayesmech.vision.GensparkTurn.encode(message.turns[i], writer.uint32(/* id 1, wireType 2 =*/10).fork()).ldelim();
+                if (message.summary != null && Object.hasOwnProperty.call(message, "summary"))
+                    $root.bayesmech.vision.GensparkSummary.encode(message.summary, writer.uint32(/* id 2, wireType 2 =*/18).fork()).ldelim();
+                return writer;
+            };
+
+            /**
+             * Encodes the specified GensparkResponse message, length delimited. Does not implicitly {@link bayesmech.vision.GensparkResponse.verify|verify} messages.
+             * @function encodeDelimited
+             * @memberof bayesmech.vision.GensparkResponse
+             * @static
+             * @param {bayesmech.vision.IGensparkResponse} message GensparkResponse message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            GensparkResponse.encodeDelimited = function encodeDelimited(message, writer) {
+                return this.encode(message, writer).ldelim();
+            };
+
+            /**
+             * Decodes a GensparkResponse message from the specified reader or buffer.
+             * @function decode
+             * @memberof bayesmech.vision.GensparkResponse
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {bayesmech.vision.GensparkResponse} GensparkResponse
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            GensparkResponse.decode = function decode(reader, length, error) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.GensparkResponse();
+                while (reader.pos < end) {
+                    let tag = reader.uint32();
+                    if (tag === error)
+                        break;
+                    switch (tag >>> 3) {
+                    case 1: {
+                            if (!(message.turns && message.turns.length))
+                                message.turns = [];
+                            message.turns.push($root.bayesmech.vision.GensparkTurn.decode(reader, reader.uint32()));
+                            break;
+                        }
+                    case 2: {
+                            message.summary = $root.bayesmech.vision.GensparkSummary.decode(reader, reader.uint32());
+                            break;
+                        }
+                    default:
+                        reader.skipType(tag & 7);
+                        break;
+                    }
+                }
+                return message;
+            };
+
+            /**
+             * Decodes a GensparkResponse message from the specified reader or buffer, length delimited.
+             * @function decodeDelimited
+             * @memberof bayesmech.vision.GensparkResponse
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @returns {bayesmech.vision.GensparkResponse} GensparkResponse
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            GensparkResponse.decodeDelimited = function decodeDelimited(reader) {
+                if (!(reader instanceof $Reader))
+                    reader = new $Reader(reader);
+                return this.decode(reader, reader.uint32());
+            };
+
+            /**
+             * Verifies a GensparkResponse message.
+             * @function verify
+             * @memberof bayesmech.vision.GensparkResponse
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            GensparkResponse.verify = function verify(message) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (message.turns != null && message.hasOwnProperty("turns")) {
+                    if (!Array.isArray(message.turns))
+                        return "turns: array expected";
+                    for (let i = 0; i < message.turns.length; ++i) {
+                        let error = $root.bayesmech.vision.GensparkTurn.verify(message.turns[i]);
+                        if (error)
+                            return "turns." + error;
+                    }
+                }
+                if (message.summary != null && message.hasOwnProperty("summary")) {
+                    let error = $root.bayesmech.vision.GensparkSummary.verify(message.summary);
+                    if (error)
+                        return "summary." + error;
+                }
+                return null;
+            };
+
+            /**
+             * Creates a GensparkResponse message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof bayesmech.vision.GensparkResponse
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {bayesmech.vision.GensparkResponse} GensparkResponse
+             */
+            GensparkResponse.fromObject = function fromObject(object) {
+                if (object instanceof $root.bayesmech.vision.GensparkResponse)
+                    return object;
+                let message = new $root.bayesmech.vision.GensparkResponse();
+                if (object.turns) {
+                    if (!Array.isArray(object.turns))
+                        throw TypeError(".bayesmech.vision.GensparkResponse.turns: array expected");
+                    message.turns = [];
+                    for (let i = 0; i < object.turns.length; ++i) {
+                        if (typeof object.turns[i] !== "object")
+                            throw TypeError(".bayesmech.vision.GensparkResponse.turns: object expected");
+                        message.turns[i] = $root.bayesmech.vision.GensparkTurn.fromObject(object.turns[i]);
+                    }
+                }
+                if (object.summary != null) {
+                    if (typeof object.summary !== "object")
+                        throw TypeError(".bayesmech.vision.GensparkResponse.summary: object expected");
+                    message.summary = $root.bayesmech.vision.GensparkSummary.fromObject(object.summary);
+                }
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a GensparkResponse message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof bayesmech.vision.GensparkResponse
+             * @static
+             * @param {bayesmech.vision.GensparkResponse} message GensparkResponse
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            GensparkResponse.toObject = function toObject(message, options) {
+                if (!options)
+                    options = {};
+                let object = {};
+                if (options.arrays || options.defaults)
+                    object.turns = [];
+                if (options.defaults)
+                    object.summary = null;
+                if (message.turns && message.turns.length) {
+                    object.turns = [];
+                    for (let j = 0; j < message.turns.length; ++j)
+                        object.turns[j] = $root.bayesmech.vision.GensparkTurn.toObject(message.turns[j], options);
+                }
+                if (message.summary != null && message.hasOwnProperty("summary"))
+                    object.summary = $root.bayesmech.vision.GensparkSummary.toObject(message.summary, options);
+                return object;
+            };
+
+            /**
+             * Converts this GensparkResponse to JSON.
+             * @function toJSON
+             * @memberof bayesmech.vision.GensparkResponse
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            GensparkResponse.prototype.toJSON = function toJSON() {
+                return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the default type url for GensparkResponse
+             * @function getTypeUrl
+             * @memberof bayesmech.vision.GensparkResponse
+             * @static
+             * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns {string} The default type url
+             */
+            GensparkResponse.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+                if (typeUrlPrefix === undefined) {
+                    typeUrlPrefix = "type.googleapis.com";
+                }
+                return typeUrlPrefix + "/bayesmech.vision.GensparkResponse";
+            };
+
+            return GensparkResponse;
+        })();
+
+        vision.VideoFrame = (function() {
+
+            /**
+             * Properties of a VideoFrame.
+             * @memberof bayesmech.vision
+             * @interface IVideoFrame
+             * @property {number|Long|null} [timestampNs] VideoFrame timestampNs
+             * @property {Uint8Array|null} [jpegData] VideoFrame jpegData
+             */
+
+            /**
+             * Constructs a new VideoFrame.
+             * @memberof bayesmech.vision
+             * @classdesc Represents a VideoFrame.
+             * @implements IVideoFrame
+             * @constructor
+             * @param {bayesmech.vision.IVideoFrame=} [properties] Properties to set
+             */
+            function VideoFrame(properties) {
+                if (properties)
+                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null)
+                            this[keys[i]] = properties[keys[i]];
+            }
+
+            /**
+             * VideoFrame timestampNs.
+             * @member {number|Long} timestampNs
+             * @memberof bayesmech.vision.VideoFrame
+             * @instance
+             */
+            VideoFrame.prototype.timestampNs = $util.Long ? $util.Long.fromBits(0,0,true) : 0;
+
+            /**
+             * VideoFrame jpegData.
+             * @member {Uint8Array} jpegData
+             * @memberof bayesmech.vision.VideoFrame
+             * @instance
+             */
+            VideoFrame.prototype.jpegData = $util.newBuffer([]);
+
+            /**
+             * Creates a new VideoFrame instance using the specified properties.
+             * @function create
+             * @memberof bayesmech.vision.VideoFrame
+             * @static
+             * @param {bayesmech.vision.IVideoFrame=} [properties] Properties to set
+             * @returns {bayesmech.vision.VideoFrame} VideoFrame instance
+             */
+            VideoFrame.create = function create(properties) {
+                return new VideoFrame(properties);
+            };
+
+            /**
+             * Encodes the specified VideoFrame message. Does not implicitly {@link bayesmech.vision.VideoFrame.verify|verify} messages.
+             * @function encode
+             * @memberof bayesmech.vision.VideoFrame
+             * @static
+             * @param {bayesmech.vision.IVideoFrame} message VideoFrame message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            VideoFrame.encode = function encode(message, writer) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (message.timestampNs != null && Object.hasOwnProperty.call(message, "timestampNs"))
+                    writer.uint32(/* id 1, wireType 0 =*/8).uint64(message.timestampNs);
+                if (message.jpegData != null && Object.hasOwnProperty.call(message, "jpegData"))
+                    writer.uint32(/* id 2, wireType 2 =*/18).bytes(message.jpegData);
+                return writer;
+            };
+
+            /**
+             * Encodes the specified VideoFrame message, length delimited. Does not implicitly {@link bayesmech.vision.VideoFrame.verify|verify} messages.
+             * @function encodeDelimited
+             * @memberof bayesmech.vision.VideoFrame
+             * @static
+             * @param {bayesmech.vision.IVideoFrame} message VideoFrame message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            VideoFrame.encodeDelimited = function encodeDelimited(message, writer) {
+                return this.encode(message, writer).ldelim();
+            };
+
+            /**
+             * Decodes a VideoFrame message from the specified reader or buffer.
+             * @function decode
+             * @memberof bayesmech.vision.VideoFrame
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {bayesmech.vision.VideoFrame} VideoFrame
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            VideoFrame.decode = function decode(reader, length, error) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.VideoFrame();
+                while (reader.pos < end) {
+                    let tag = reader.uint32();
+                    if (tag === error)
+                        break;
+                    switch (tag >>> 3) {
+                    case 1: {
+                            message.timestampNs = reader.uint64();
+                            break;
+                        }
+                    case 2: {
+                            message.jpegData = reader.bytes();
+                            break;
+                        }
+                    default:
+                        reader.skipType(tag & 7);
+                        break;
+                    }
+                }
+                return message;
+            };
+
+            /**
+             * Decodes a VideoFrame message from the specified reader or buffer, length delimited.
+             * @function decodeDelimited
+             * @memberof bayesmech.vision.VideoFrame
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @returns {bayesmech.vision.VideoFrame} VideoFrame
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            VideoFrame.decodeDelimited = function decodeDelimited(reader) {
+                if (!(reader instanceof $Reader))
+                    reader = new $Reader(reader);
+                return this.decode(reader, reader.uint32());
+            };
+
+            /**
+             * Verifies a VideoFrame message.
+             * @function verify
+             * @memberof bayesmech.vision.VideoFrame
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            VideoFrame.verify = function verify(message) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (message.timestampNs != null && message.hasOwnProperty("timestampNs"))
+                    if (!$util.isInteger(message.timestampNs) && !(message.timestampNs && $util.isInteger(message.timestampNs.low) && $util.isInteger(message.timestampNs.high)))
+                        return "timestampNs: integer|Long expected";
+                if (message.jpegData != null && message.hasOwnProperty("jpegData"))
+                    if (!(message.jpegData && typeof message.jpegData.length === "number" || $util.isString(message.jpegData)))
+                        return "jpegData: buffer expected";
+                return null;
+            };
+
+            /**
+             * Creates a VideoFrame message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof bayesmech.vision.VideoFrame
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {bayesmech.vision.VideoFrame} VideoFrame
+             */
+            VideoFrame.fromObject = function fromObject(object) {
+                if (object instanceof $root.bayesmech.vision.VideoFrame)
+                    return object;
+                let message = new $root.bayesmech.vision.VideoFrame();
+                if (object.timestampNs != null)
+                    if ($util.Long)
+                        (message.timestampNs = $util.Long.fromValue(object.timestampNs)).unsigned = true;
+                    else if (typeof object.timestampNs === "string")
+                        message.timestampNs = parseInt(object.timestampNs, 10);
+                    else if (typeof object.timestampNs === "number")
+                        message.timestampNs = object.timestampNs;
+                    else if (typeof object.timestampNs === "object")
+                        message.timestampNs = new $util.LongBits(object.timestampNs.low >>> 0, object.timestampNs.high >>> 0).toNumber(true);
+                if (object.jpegData != null)
+                    if (typeof object.jpegData === "string")
+                        $util.base64.decode(object.jpegData, message.jpegData = $util.newBuffer($util.base64.length(object.jpegData)), 0);
+                    else if (object.jpegData.length >= 0)
+                        message.jpegData = object.jpegData;
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a VideoFrame message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof bayesmech.vision.VideoFrame
+             * @static
+             * @param {bayesmech.vision.VideoFrame} message VideoFrame
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            VideoFrame.toObject = function toObject(message, options) {
+                if (!options)
+                    options = {};
+                let object = {};
+                if (options.defaults) {
+                    if ($util.Long) {
+                        let long = new $util.Long(0, 0, true);
+                        object.timestampNs = options.longs === String ? long.toString() : options.longs === Number ? long.toNumber() : long;
+                    } else
+                        object.timestampNs = options.longs === String ? "0" : 0;
+                    if (options.bytes === String)
+                        object.jpegData = "";
+                    else {
+                        object.jpegData = [];
+                        if (options.bytes !== Array)
+                            object.jpegData = $util.newBuffer(object.jpegData);
+                    }
+                }
+                if (message.timestampNs != null && message.hasOwnProperty("timestampNs"))
+                    if (typeof message.timestampNs === "number")
+                        object.timestampNs = options.longs === String ? String(message.timestampNs) : message.timestampNs;
+                    else
+                        object.timestampNs = options.longs === String ? $util.Long.prototype.toString.call(message.timestampNs) : options.longs === Number ? new $util.LongBits(message.timestampNs.low >>> 0, message.timestampNs.high >>> 0).toNumber(true) : message.timestampNs;
+                if (message.jpegData != null && message.hasOwnProperty("jpegData"))
+                    object.jpegData = options.bytes === String ? $util.base64.encode(message.jpegData, 0, message.jpegData.length) : options.bytes === Array ? Array.prototype.slice.call(message.jpegData) : message.jpegData;
+                return object;
+            };
+
+            /**
+             * Converts this VideoFrame to JSON.
+             * @function toJSON
+             * @memberof bayesmech.vision.VideoFrame
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            VideoFrame.prototype.toJSON = function toJSON() {
+                return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the default type url for VideoFrame
+             * @function getTypeUrl
+             * @memberof bayesmech.vision.VideoFrame
+             * @static
+             * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns {string} The default type url
+             */
+            VideoFrame.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+                if (typeUrlPrefix === undefined) {
+                    typeUrlPrefix = "type.googleapis.com";
+                }
+                return typeUrlPrefix + "/bayesmech.vision.VideoFrame";
+            };
+
+            return VideoFrame;
+        })();
+
+        vision.HighlightSegment = (function() {
+
+            /**
+             * Properties of a HighlightSegment.
+             * @memberof bayesmech.vision
+             * @interface IHighlightSegment
+             * @property {number|null} [startTime] HighlightSegment startTime
+             * @property {number|null} [endTime] HighlightSegment endTime
+             * @property {string|null} [description] HighlightSegment description
+             */
+
+            /**
+             * Constructs a new HighlightSegment.
+             * @memberof bayesmech.vision
+             * @classdesc Represents a HighlightSegment.
+             * @implements IHighlightSegment
+             * @constructor
+             * @param {bayesmech.vision.IHighlightSegment=} [properties] Properties to set
+             */
+            function HighlightSegment(properties) {
+                if (properties)
+                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null)
+                            this[keys[i]] = properties[keys[i]];
+            }
+
+            /**
+             * HighlightSegment startTime.
+             * @member {number} startTime
+             * @memberof bayesmech.vision.HighlightSegment
+             * @instance
+             */
+            HighlightSegment.prototype.startTime = 0;
+
+            /**
+             * HighlightSegment endTime.
+             * @member {number} endTime
+             * @memberof bayesmech.vision.HighlightSegment
+             * @instance
+             */
+            HighlightSegment.prototype.endTime = 0;
+
+            /**
+             * HighlightSegment description.
+             * @member {string} description
+             * @memberof bayesmech.vision.HighlightSegment
+             * @instance
+             */
+            HighlightSegment.prototype.description = "";
+
+            /**
+             * Creates a new HighlightSegment instance using the specified properties.
+             * @function create
+             * @memberof bayesmech.vision.HighlightSegment
+             * @static
+             * @param {bayesmech.vision.IHighlightSegment=} [properties] Properties to set
+             * @returns {bayesmech.vision.HighlightSegment} HighlightSegment instance
+             */
+            HighlightSegment.create = function create(properties) {
+                return new HighlightSegment(properties);
+            };
+
+            /**
+             * Encodes the specified HighlightSegment message. Does not implicitly {@link bayesmech.vision.HighlightSegment.verify|verify} messages.
+             * @function encode
+             * @memberof bayesmech.vision.HighlightSegment
+             * @static
+             * @param {bayesmech.vision.IHighlightSegment} message HighlightSegment message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            HighlightSegment.encode = function encode(message, writer) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (message.startTime != null && Object.hasOwnProperty.call(message, "startTime"))
+                    writer.uint32(/* id 1, wireType 5 =*/13).float(message.startTime);
+                if (message.endTime != null && Object.hasOwnProperty.call(message, "endTime"))
+                    writer.uint32(/* id 2, wireType 5 =*/21).float(message.endTime);
+                if (message.description != null && Object.hasOwnProperty.call(message, "description"))
+                    writer.uint32(/* id 3, wireType 2 =*/26).string(message.description);
+                return writer;
+            };
+
+            /**
+             * Encodes the specified HighlightSegment message, length delimited. Does not implicitly {@link bayesmech.vision.HighlightSegment.verify|verify} messages.
+             * @function encodeDelimited
+             * @memberof bayesmech.vision.HighlightSegment
+             * @static
+             * @param {bayesmech.vision.IHighlightSegment} message HighlightSegment message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            HighlightSegment.encodeDelimited = function encodeDelimited(message, writer) {
+                return this.encode(message, writer).ldelim();
+            };
+
+            /**
+             * Decodes a HighlightSegment message from the specified reader or buffer.
+             * @function decode
+             * @memberof bayesmech.vision.HighlightSegment
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {bayesmech.vision.HighlightSegment} HighlightSegment
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            HighlightSegment.decode = function decode(reader, length, error) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.HighlightSegment();
+                while (reader.pos < end) {
+                    let tag = reader.uint32();
+                    if (tag === error)
+                        break;
+                    switch (tag >>> 3) {
+                    case 1: {
+                            message.startTime = reader.float();
+                            break;
+                        }
+                    case 2: {
+                            message.endTime = reader.float();
+                            break;
+                        }
+                    case 3: {
+                            message.description = reader.string();
+                            break;
+                        }
+                    default:
+                        reader.skipType(tag & 7);
+                        break;
+                    }
+                }
+                return message;
+            };
+
+            /**
+             * Decodes a HighlightSegment message from the specified reader or buffer, length delimited.
+             * @function decodeDelimited
+             * @memberof bayesmech.vision.HighlightSegment
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @returns {bayesmech.vision.HighlightSegment} HighlightSegment
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            HighlightSegment.decodeDelimited = function decodeDelimited(reader) {
+                if (!(reader instanceof $Reader))
+                    reader = new $Reader(reader);
+                return this.decode(reader, reader.uint32());
+            };
+
+            /**
+             * Verifies a HighlightSegment message.
+             * @function verify
+             * @memberof bayesmech.vision.HighlightSegment
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            HighlightSegment.verify = function verify(message) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (message.startTime != null && message.hasOwnProperty("startTime"))
+                    if (typeof message.startTime !== "number")
+                        return "startTime: number expected";
+                if (message.endTime != null && message.hasOwnProperty("endTime"))
+                    if (typeof message.endTime !== "number")
+                        return "endTime: number expected";
+                if (message.description != null && message.hasOwnProperty("description"))
+                    if (!$util.isString(message.description))
+                        return "description: string expected";
+                return null;
+            };
+
+            /**
+             * Creates a HighlightSegment message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof bayesmech.vision.HighlightSegment
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {bayesmech.vision.HighlightSegment} HighlightSegment
+             */
+            HighlightSegment.fromObject = function fromObject(object) {
+                if (object instanceof $root.bayesmech.vision.HighlightSegment)
+                    return object;
+                let message = new $root.bayesmech.vision.HighlightSegment();
+                if (object.startTime != null)
+                    message.startTime = Number(object.startTime);
+                if (object.endTime != null)
+                    message.endTime = Number(object.endTime);
+                if (object.description != null)
+                    message.description = String(object.description);
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a HighlightSegment message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof bayesmech.vision.HighlightSegment
+             * @static
+             * @param {bayesmech.vision.HighlightSegment} message HighlightSegment
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            HighlightSegment.toObject = function toObject(message, options) {
+                if (!options)
+                    options = {};
+                let object = {};
+                if (options.defaults) {
+                    object.startTime = 0;
+                    object.endTime = 0;
+                    object.description = "";
+                }
+                if (message.startTime != null && message.hasOwnProperty("startTime"))
+                    object.startTime = options.json && !isFinite(message.startTime) ? String(message.startTime) : message.startTime;
+                if (message.endTime != null && message.hasOwnProperty("endTime"))
+                    object.endTime = options.json && !isFinite(message.endTime) ? String(message.endTime) : message.endTime;
+                if (message.description != null && message.hasOwnProperty("description"))
+                    object.description = message.description;
+                return object;
+            };
+
+            /**
+             * Converts this HighlightSegment to JSON.
+             * @function toJSON
+             * @memberof bayesmech.vision.HighlightSegment
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            HighlightSegment.prototype.toJSON = function toJSON() {
+                return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the default type url for HighlightSegment
+             * @function getTypeUrl
+             * @memberof bayesmech.vision.HighlightSegment
+             * @static
+             * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns {string} The default type url
+             */
+            HighlightSegment.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+                if (typeUrlPrefix === undefined) {
+                    typeUrlPrefix = "type.googleapis.com";
+                }
+                return typeUrlPrefix + "/bayesmech.vision.HighlightSegment";
+            };
+
+            return HighlightSegment;
+        })();
+
+        vision.InsightVideoResponse = (function() {
+
+            /**
+             * Properties of an InsightVideoResponse.
+             * @memberof bayesmech.vision
+             * @interface IInsightVideoResponse
+             * @property {Array.<bayesmech.vision.IVideoFrame>|null} [frames] InsightVideoResponse frames
+             * @property {number|null} [fps] InsightVideoResponse fps
+             * @property {Array.<bayesmech.vision.IHighlightSegment>|null} [segments] InsightVideoResponse segments
+             */
+
+            /**
+             * Constructs a new InsightVideoResponse.
+             * @memberof bayesmech.vision
+             * @classdesc Represents an InsightVideoResponse.
+             * @implements IInsightVideoResponse
+             * @constructor
+             * @param {bayesmech.vision.IInsightVideoResponse=} [properties] Properties to set
+             */
+            function InsightVideoResponse(properties) {
+                this.frames = [];
+                this.segments = [];
+                if (properties)
+                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null)
+                            this[keys[i]] = properties[keys[i]];
+            }
+
+            /**
+             * InsightVideoResponse frames.
+             * @member {Array.<bayesmech.vision.IVideoFrame>} frames
+             * @memberof bayesmech.vision.InsightVideoResponse
+             * @instance
+             */
+            InsightVideoResponse.prototype.frames = $util.emptyArray;
+
+            /**
+             * InsightVideoResponse fps.
+             * @member {number} fps
+             * @memberof bayesmech.vision.InsightVideoResponse
+             * @instance
+             */
+            InsightVideoResponse.prototype.fps = 0;
+
+            /**
+             * InsightVideoResponse segments.
+             * @member {Array.<bayesmech.vision.IHighlightSegment>} segments
+             * @memberof bayesmech.vision.InsightVideoResponse
+             * @instance
+             */
+            InsightVideoResponse.prototype.segments = $util.emptyArray;
+
+            /**
+             * Creates a new InsightVideoResponse instance using the specified properties.
+             * @function create
+             * @memberof bayesmech.vision.InsightVideoResponse
+             * @static
+             * @param {bayesmech.vision.IInsightVideoResponse=} [properties] Properties to set
+             * @returns {bayesmech.vision.InsightVideoResponse} InsightVideoResponse instance
+             */
+            InsightVideoResponse.create = function create(properties) {
+                return new InsightVideoResponse(properties);
+            };
+
+            /**
+             * Encodes the specified InsightVideoResponse message. Does not implicitly {@link bayesmech.vision.InsightVideoResponse.verify|verify} messages.
+             * @function encode
+             * @memberof bayesmech.vision.InsightVideoResponse
+             * @static
+             * @param {bayesmech.vision.IInsightVideoResponse} message InsightVideoResponse message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            InsightVideoResponse.encode = function encode(message, writer) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (message.frames != null && message.frames.length)
+                    for (let i = 0; i < message.frames.length; ++i)
+                        $root.bayesmech.vision.VideoFrame.encode(message.frames[i], writer.uint32(/* id 1, wireType 2 =*/10).fork()).ldelim();
+                if (message.fps != null && Object.hasOwnProperty.call(message, "fps"))
+                    writer.uint32(/* id 2, wireType 5 =*/21).float(message.fps);
+                if (message.segments != null && message.segments.length)
+                    for (let i = 0; i < message.segments.length; ++i)
+                        $root.bayesmech.vision.HighlightSegment.encode(message.segments[i], writer.uint32(/* id 3, wireType 2 =*/26).fork()).ldelim();
+                return writer;
+            };
+
+            /**
+             * Encodes the specified InsightVideoResponse message, length delimited. Does not implicitly {@link bayesmech.vision.InsightVideoResponse.verify|verify} messages.
+             * @function encodeDelimited
+             * @memberof bayesmech.vision.InsightVideoResponse
+             * @static
+             * @param {bayesmech.vision.IInsightVideoResponse} message InsightVideoResponse message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            InsightVideoResponse.encodeDelimited = function encodeDelimited(message, writer) {
+                return this.encode(message, writer).ldelim();
+            };
+
+            /**
+             * Decodes an InsightVideoResponse message from the specified reader or buffer.
+             * @function decode
+             * @memberof bayesmech.vision.InsightVideoResponse
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {bayesmech.vision.InsightVideoResponse} InsightVideoResponse
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            InsightVideoResponse.decode = function decode(reader, length, error) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.InsightVideoResponse();
+                while (reader.pos < end) {
+                    let tag = reader.uint32();
+                    if (tag === error)
+                        break;
+                    switch (tag >>> 3) {
+                    case 1: {
+                            if (!(message.frames && message.frames.length))
+                                message.frames = [];
+                            message.frames.push($root.bayesmech.vision.VideoFrame.decode(reader, reader.uint32()));
+                            break;
+                        }
+                    case 2: {
+                            message.fps = reader.float();
+                            break;
+                        }
+                    case 3: {
+                            if (!(message.segments && message.segments.length))
+                                message.segments = [];
+                            message.segments.push($root.bayesmech.vision.HighlightSegment.decode(reader, reader.uint32()));
+                            break;
+                        }
+                    default:
+                        reader.skipType(tag & 7);
+                        break;
+                    }
+                }
+                return message;
+            };
+
+            /**
+             * Decodes an InsightVideoResponse message from the specified reader or buffer, length delimited.
+             * @function decodeDelimited
+             * @memberof bayesmech.vision.InsightVideoResponse
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @returns {bayesmech.vision.InsightVideoResponse} InsightVideoResponse
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            InsightVideoResponse.decodeDelimited = function decodeDelimited(reader) {
+                if (!(reader instanceof $Reader))
+                    reader = new $Reader(reader);
+                return this.decode(reader, reader.uint32());
+            };
+
+            /**
+             * Verifies an InsightVideoResponse message.
+             * @function verify
+             * @memberof bayesmech.vision.InsightVideoResponse
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            InsightVideoResponse.verify = function verify(message) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (message.frames != null && message.hasOwnProperty("frames")) {
+                    if (!Array.isArray(message.frames))
+                        return "frames: array expected";
+                    for (let i = 0; i < message.frames.length; ++i) {
+                        let error = $root.bayesmech.vision.VideoFrame.verify(message.frames[i]);
+                        if (error)
+                            return "frames." + error;
+                    }
+                }
+                if (message.fps != null && message.hasOwnProperty("fps"))
+                    if (typeof message.fps !== "number")
+                        return "fps: number expected";
+                if (message.segments != null && message.hasOwnProperty("segments")) {
+                    if (!Array.isArray(message.segments))
+                        return "segments: array expected";
+                    for (let i = 0; i < message.segments.length; ++i) {
+                        let error = $root.bayesmech.vision.HighlightSegment.verify(message.segments[i]);
+                        if (error)
+                            return "segments." + error;
+                    }
+                }
+                return null;
+            };
+
+            /**
+             * Creates an InsightVideoResponse message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof bayesmech.vision.InsightVideoResponse
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {bayesmech.vision.InsightVideoResponse} InsightVideoResponse
+             */
+            InsightVideoResponse.fromObject = function fromObject(object) {
+                if (object instanceof $root.bayesmech.vision.InsightVideoResponse)
+                    return object;
+                let message = new $root.bayesmech.vision.InsightVideoResponse();
+                if (object.frames) {
+                    if (!Array.isArray(object.frames))
+                        throw TypeError(".bayesmech.vision.InsightVideoResponse.frames: array expected");
+                    message.frames = [];
+                    for (let i = 0; i < object.frames.length; ++i) {
+                        if (typeof object.frames[i] !== "object")
+                            throw TypeError(".bayesmech.vision.InsightVideoResponse.frames: object expected");
+                        message.frames[i] = $root.bayesmech.vision.VideoFrame.fromObject(object.frames[i]);
+                    }
+                }
+                if (object.fps != null)
+                    message.fps = Number(object.fps);
+                if (object.segments) {
+                    if (!Array.isArray(object.segments))
+                        throw TypeError(".bayesmech.vision.InsightVideoResponse.segments: array expected");
+                    message.segments = [];
+                    for (let i = 0; i < object.segments.length; ++i) {
+                        if (typeof object.segments[i] !== "object")
+                            throw TypeError(".bayesmech.vision.InsightVideoResponse.segments: object expected");
+                        message.segments[i] = $root.bayesmech.vision.HighlightSegment.fromObject(object.segments[i]);
+                    }
+                }
+                return message;
+            };
+
+            /**
+             * Creates a plain object from an InsightVideoResponse message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof bayesmech.vision.InsightVideoResponse
+             * @static
+             * @param {bayesmech.vision.InsightVideoResponse} message InsightVideoResponse
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            InsightVideoResponse.toObject = function toObject(message, options) {
+                if (!options)
+                    options = {};
+                let object = {};
+                if (options.arrays || options.defaults) {
+                    object.frames = [];
+                    object.segments = [];
+                }
+                if (options.defaults)
+                    object.fps = 0;
+                if (message.frames && message.frames.length) {
+                    object.frames = [];
+                    for (let j = 0; j < message.frames.length; ++j)
+                        object.frames[j] = $root.bayesmech.vision.VideoFrame.toObject(message.frames[j], options);
+                }
+                if (message.fps != null && message.hasOwnProperty("fps"))
+                    object.fps = options.json && !isFinite(message.fps) ? String(message.fps) : message.fps;
+                if (message.segments && message.segments.length) {
+                    object.segments = [];
+                    for (let j = 0; j < message.segments.length; ++j)
+                        object.segments[j] = $root.bayesmech.vision.HighlightSegment.toObject(message.segments[j], options);
+                }
+                return object;
+            };
+
+            /**
+             * Converts this InsightVideoResponse to JSON.
+             * @function toJSON
+             * @memberof bayesmech.vision.InsightVideoResponse
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            InsightVideoResponse.prototype.toJSON = function toJSON() {
+                return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the default type url for InsightVideoResponse
+             * @function getTypeUrl
+             * @memberof bayesmech.vision.InsightVideoResponse
+             * @static
+             * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns {string} The default type url
+             */
+            InsightVideoResponse.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+                if (typeUrlPrefix === undefined) {
+                    typeUrlPrefix = "type.googleapis.com";
+                }
+                return typeUrlPrefix + "/bayesmech.vision.InsightVideoResponse";
+            };
+
+            return InsightVideoResponse;
+        })();
+
+        vision.ChatTurn = (function() {
+
+            /**
+             * Properties of a ChatTurn.
+             * @memberof bayesmech.vision
+             * @interface IChatTurn
+             * @property {string|null} [role] ChatTurn role
+             * @property {string|null} [text] ChatTurn text
+             * @property {number|Long|null} [timestampNs] ChatTurn timestampNs
+             */
+
+            /**
+             * Constructs a new ChatTurn.
+             * @memberof bayesmech.vision
+             * @classdesc Represents a ChatTurn.
+             * @implements IChatTurn
+             * @constructor
+             * @param {bayesmech.vision.IChatTurn=} [properties] Properties to set
+             */
+            function ChatTurn(properties) {
+                if (properties)
+                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null)
+                            this[keys[i]] = properties[keys[i]];
+            }
+
+            /**
+             * ChatTurn role.
+             * @member {string} role
+             * @memberof bayesmech.vision.ChatTurn
+             * @instance
+             */
+            ChatTurn.prototype.role = "";
+
+            /**
+             * ChatTurn text.
+             * @member {string} text
+             * @memberof bayesmech.vision.ChatTurn
+             * @instance
+             */
+            ChatTurn.prototype.text = "";
+
+            /**
+             * ChatTurn timestampNs.
+             * @member {number|Long} timestampNs
+             * @memberof bayesmech.vision.ChatTurn
+             * @instance
+             */
+            ChatTurn.prototype.timestampNs = $util.Long ? $util.Long.fromBits(0,0,false) : 0;
+
+            /**
+             * Creates a new ChatTurn instance using the specified properties.
+             * @function create
+             * @memberof bayesmech.vision.ChatTurn
+             * @static
+             * @param {bayesmech.vision.IChatTurn=} [properties] Properties to set
+             * @returns {bayesmech.vision.ChatTurn} ChatTurn instance
+             */
+            ChatTurn.create = function create(properties) {
+                return new ChatTurn(properties);
+            };
+
+            /**
+             * Encodes the specified ChatTurn message. Does not implicitly {@link bayesmech.vision.ChatTurn.verify|verify} messages.
+             * @function encode
+             * @memberof bayesmech.vision.ChatTurn
+             * @static
+             * @param {bayesmech.vision.IChatTurn} message ChatTurn message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            ChatTurn.encode = function encode(message, writer) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (message.role != null && Object.hasOwnProperty.call(message, "role"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.role);
+                if (message.text != null && Object.hasOwnProperty.call(message, "text"))
+                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.text);
+                if (message.timestampNs != null && Object.hasOwnProperty.call(message, "timestampNs"))
+                    writer.uint32(/* id 3, wireType 0 =*/24).int64(message.timestampNs);
+                return writer;
+            };
+
+            /**
+             * Encodes the specified ChatTurn message, length delimited. Does not implicitly {@link bayesmech.vision.ChatTurn.verify|verify} messages.
+             * @function encodeDelimited
+             * @memberof bayesmech.vision.ChatTurn
+             * @static
+             * @param {bayesmech.vision.IChatTurn} message ChatTurn message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            ChatTurn.encodeDelimited = function encodeDelimited(message, writer) {
+                return this.encode(message, writer).ldelim();
+            };
+
+            /**
+             * Decodes a ChatTurn message from the specified reader or buffer.
+             * @function decode
+             * @memberof bayesmech.vision.ChatTurn
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {bayesmech.vision.ChatTurn} ChatTurn
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            ChatTurn.decode = function decode(reader, length, error) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.ChatTurn();
+                while (reader.pos < end) {
+                    let tag = reader.uint32();
+                    if (tag === error)
+                        break;
+                    switch (tag >>> 3) {
+                    case 1: {
+                            message.role = reader.string();
+                            break;
+                        }
+                    case 2: {
+                            message.text = reader.string();
+                            break;
+                        }
+                    case 3: {
+                            message.timestampNs = reader.int64();
+                            break;
+                        }
+                    default:
+                        reader.skipType(tag & 7);
+                        break;
+                    }
+                }
+                return message;
+            };
+
+            /**
+             * Decodes a ChatTurn message from the specified reader or buffer, length delimited.
+             * @function decodeDelimited
+             * @memberof bayesmech.vision.ChatTurn
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @returns {bayesmech.vision.ChatTurn} ChatTurn
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            ChatTurn.decodeDelimited = function decodeDelimited(reader) {
+                if (!(reader instanceof $Reader))
+                    reader = new $Reader(reader);
+                return this.decode(reader, reader.uint32());
+            };
+
+            /**
+             * Verifies a ChatTurn message.
+             * @function verify
+             * @memberof bayesmech.vision.ChatTurn
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            ChatTurn.verify = function verify(message) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (message.role != null && message.hasOwnProperty("role"))
+                    if (!$util.isString(message.role))
+                        return "role: string expected";
+                if (message.text != null && message.hasOwnProperty("text"))
+                    if (!$util.isString(message.text))
+                        return "text: string expected";
+                if (message.timestampNs != null && message.hasOwnProperty("timestampNs"))
+                    if (!$util.isInteger(message.timestampNs) && !(message.timestampNs && $util.isInteger(message.timestampNs.low) && $util.isInteger(message.timestampNs.high)))
+                        return "timestampNs: integer|Long expected";
+                return null;
+            };
+
+            /**
+             * Creates a ChatTurn message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof bayesmech.vision.ChatTurn
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {bayesmech.vision.ChatTurn} ChatTurn
+             */
+            ChatTurn.fromObject = function fromObject(object) {
+                if (object instanceof $root.bayesmech.vision.ChatTurn)
+                    return object;
+                let message = new $root.bayesmech.vision.ChatTurn();
+                if (object.role != null)
+                    message.role = String(object.role);
+                if (object.text != null)
+                    message.text = String(object.text);
+                if (object.timestampNs != null)
+                    if ($util.Long)
+                        (message.timestampNs = $util.Long.fromValue(object.timestampNs)).unsigned = false;
+                    else if (typeof object.timestampNs === "string")
+                        message.timestampNs = parseInt(object.timestampNs, 10);
+                    else if (typeof object.timestampNs === "number")
+                        message.timestampNs = object.timestampNs;
+                    else if (typeof object.timestampNs === "object")
+                        message.timestampNs = new $util.LongBits(object.timestampNs.low >>> 0, object.timestampNs.high >>> 0).toNumber();
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a ChatTurn message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof bayesmech.vision.ChatTurn
+             * @static
+             * @param {bayesmech.vision.ChatTurn} message ChatTurn
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            ChatTurn.toObject = function toObject(message, options) {
+                if (!options)
+                    options = {};
+                let object = {};
+                if (options.defaults) {
+                    object.role = "";
+                    object.text = "";
+                    if ($util.Long) {
+                        let long = new $util.Long(0, 0, false);
+                        object.timestampNs = options.longs === String ? long.toString() : options.longs === Number ? long.toNumber() : long;
+                    } else
+                        object.timestampNs = options.longs === String ? "0" : 0;
+                }
+                if (message.role != null && message.hasOwnProperty("role"))
+                    object.role = message.role;
+                if (message.text != null && message.hasOwnProperty("text"))
+                    object.text = message.text;
+                if (message.timestampNs != null && message.hasOwnProperty("timestampNs"))
+                    if (typeof message.timestampNs === "number")
+                        object.timestampNs = options.longs === String ? String(message.timestampNs) : message.timestampNs;
+                    else
+                        object.timestampNs = options.longs === String ? $util.Long.prototype.toString.call(message.timestampNs) : options.longs === Number ? new $util.LongBits(message.timestampNs.low >>> 0, message.timestampNs.high >>> 0).toNumber() : message.timestampNs;
+                return object;
+            };
+
+            /**
+             * Converts this ChatTurn to JSON.
+             * @function toJSON
+             * @memberof bayesmech.vision.ChatTurn
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            ChatTurn.prototype.toJSON = function toJSON() {
+                return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the default type url for ChatTurn
+             * @function getTypeUrl
+             * @memberof bayesmech.vision.ChatTurn
+             * @static
+             * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns {string} The default type url
+             */
+            ChatTurn.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+                if (typeUrlPrefix === undefined) {
+                    typeUrlPrefix = "type.googleapis.com";
+                }
+                return typeUrlPrefix + "/bayesmech.vision.ChatTurn";
+            };
+
+            return ChatTurn;
+        })();
+
+        vision.ChatHistory = (function() {
+
+            /**
+             * Properties of a ChatHistory.
+             * @memberof bayesmech.vision
+             * @interface IChatHistory
+             * @property {string|null} [fileName] ChatHistory fileName
+             * @property {Array.<bayesmech.vision.IChatTurn>|null} [turns] ChatHistory turns
+             * @property {string|null} [geminiCacheName] ChatHistory geminiCacheName
+             * @property {number|Long|null} [threadCreatedTimestampNs] ChatHistory threadCreatedTimestampNs
+             * @property {bayesmech.vision.IChatTurn|null} [initialTurn] ChatHistory initialTurn
+             */
+
+            /**
+             * Constructs a new ChatHistory.
+             * @memberof bayesmech.vision
+             * @classdesc Represents a ChatHistory.
+             * @implements IChatHistory
+             * @constructor
+             * @param {bayesmech.vision.IChatHistory=} [properties] Properties to set
+             */
+            function ChatHistory(properties) {
+                this.turns = [];
+                if (properties)
+                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null)
+                            this[keys[i]] = properties[keys[i]];
+            }
+
+            /**
+             * ChatHistory fileName.
+             * @member {string} fileName
+             * @memberof bayesmech.vision.ChatHistory
+             * @instance
+             */
+            ChatHistory.prototype.fileName = "";
+
+            /**
+             * ChatHistory turns.
+             * @member {Array.<bayesmech.vision.IChatTurn>} turns
+             * @memberof bayesmech.vision.ChatHistory
+             * @instance
+             */
+            ChatHistory.prototype.turns = $util.emptyArray;
+
+            /**
+             * ChatHistory geminiCacheName.
+             * @member {string} geminiCacheName
+             * @memberof bayesmech.vision.ChatHistory
+             * @instance
+             */
+            ChatHistory.prototype.geminiCacheName = "";
+
+            /**
+             * ChatHistory threadCreatedTimestampNs.
+             * @member {number|Long} threadCreatedTimestampNs
+             * @memberof bayesmech.vision.ChatHistory
+             * @instance
+             */
+            ChatHistory.prototype.threadCreatedTimestampNs = $util.Long ? $util.Long.fromBits(0,0,false) : 0;
+
+            /**
+             * ChatHistory initialTurn.
+             * @member {bayesmech.vision.IChatTurn|null|undefined} initialTurn
+             * @memberof bayesmech.vision.ChatHistory
+             * @instance
+             */
+            ChatHistory.prototype.initialTurn = null;
+
+            /**
+             * Creates a new ChatHistory instance using the specified properties.
+             * @function create
+             * @memberof bayesmech.vision.ChatHistory
+             * @static
+             * @param {bayesmech.vision.IChatHistory=} [properties] Properties to set
+             * @returns {bayesmech.vision.ChatHistory} ChatHistory instance
+             */
+            ChatHistory.create = function create(properties) {
+                return new ChatHistory(properties);
+            };
+
+            /**
+             * Encodes the specified ChatHistory message. Does not implicitly {@link bayesmech.vision.ChatHistory.verify|verify} messages.
+             * @function encode
+             * @memberof bayesmech.vision.ChatHistory
+             * @static
+             * @param {bayesmech.vision.IChatHistory} message ChatHistory message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            ChatHistory.encode = function encode(message, writer) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (message.fileName != null && Object.hasOwnProperty.call(message, "fileName"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.fileName);
+                if (message.turns != null && message.turns.length)
+                    for (let i = 0; i < message.turns.length; ++i)
+                        $root.bayesmech.vision.ChatTurn.encode(message.turns[i], writer.uint32(/* id 2, wireType 2 =*/18).fork()).ldelim();
+                if (message.geminiCacheName != null && Object.hasOwnProperty.call(message, "geminiCacheName"))
+                    writer.uint32(/* id 3, wireType 2 =*/26).string(message.geminiCacheName);
+                if (message.threadCreatedTimestampNs != null && Object.hasOwnProperty.call(message, "threadCreatedTimestampNs"))
+                    writer.uint32(/* id 4, wireType 0 =*/32).int64(message.threadCreatedTimestampNs);
+                if (message.initialTurn != null && Object.hasOwnProperty.call(message, "initialTurn"))
+                    $root.bayesmech.vision.ChatTurn.encode(message.initialTurn, writer.uint32(/* id 5, wireType 2 =*/42).fork()).ldelim();
+                return writer;
+            };
+
+            /**
+             * Encodes the specified ChatHistory message, length delimited. Does not implicitly {@link bayesmech.vision.ChatHistory.verify|verify} messages.
+             * @function encodeDelimited
+             * @memberof bayesmech.vision.ChatHistory
+             * @static
+             * @param {bayesmech.vision.IChatHistory} message ChatHistory message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            ChatHistory.encodeDelimited = function encodeDelimited(message, writer) {
+                return this.encode(message, writer).ldelim();
+            };
+
+            /**
+             * Decodes a ChatHistory message from the specified reader or buffer.
+             * @function decode
+             * @memberof bayesmech.vision.ChatHistory
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {bayesmech.vision.ChatHistory} ChatHistory
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            ChatHistory.decode = function decode(reader, length, error) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.ChatHistory();
+                while (reader.pos < end) {
+                    let tag = reader.uint32();
+                    if (tag === error)
+                        break;
+                    switch (tag >>> 3) {
+                    case 1: {
+                            message.fileName = reader.string();
+                            break;
+                        }
+                    case 2: {
+                            if (!(message.turns && message.turns.length))
+                                message.turns = [];
+                            message.turns.push($root.bayesmech.vision.ChatTurn.decode(reader, reader.uint32()));
+                            break;
+                        }
+                    case 3: {
+                            message.geminiCacheName = reader.string();
+                            break;
+                        }
+                    case 4: {
+                            message.threadCreatedTimestampNs = reader.int64();
+                            break;
+                        }
+                    case 5: {
+                            message.initialTurn = $root.bayesmech.vision.ChatTurn.decode(reader, reader.uint32());
+                            break;
+                        }
+                    default:
+                        reader.skipType(tag & 7);
+                        break;
+                    }
+                }
+                return message;
+            };
+
+            /**
+             * Decodes a ChatHistory message from the specified reader or buffer, length delimited.
+             * @function decodeDelimited
+             * @memberof bayesmech.vision.ChatHistory
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @returns {bayesmech.vision.ChatHistory} ChatHistory
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            ChatHistory.decodeDelimited = function decodeDelimited(reader) {
+                if (!(reader instanceof $Reader))
+                    reader = new $Reader(reader);
+                return this.decode(reader, reader.uint32());
+            };
+
+            /**
+             * Verifies a ChatHistory message.
+             * @function verify
+             * @memberof bayesmech.vision.ChatHistory
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            ChatHistory.verify = function verify(message) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (message.fileName != null && message.hasOwnProperty("fileName"))
+                    if (!$util.isString(message.fileName))
+                        return "fileName: string expected";
+                if (message.turns != null && message.hasOwnProperty("turns")) {
+                    if (!Array.isArray(message.turns))
+                        return "turns: array expected";
+                    for (let i = 0; i < message.turns.length; ++i) {
+                        let error = $root.bayesmech.vision.ChatTurn.verify(message.turns[i]);
+                        if (error)
+                            return "turns." + error;
+                    }
+                }
+                if (message.geminiCacheName != null && message.hasOwnProperty("geminiCacheName"))
+                    if (!$util.isString(message.geminiCacheName))
+                        return "geminiCacheName: string expected";
+                if (message.threadCreatedTimestampNs != null && message.hasOwnProperty("threadCreatedTimestampNs"))
+                    if (!$util.isInteger(message.threadCreatedTimestampNs) && !(message.threadCreatedTimestampNs && $util.isInteger(message.threadCreatedTimestampNs.low) && $util.isInteger(message.threadCreatedTimestampNs.high)))
+                        return "threadCreatedTimestampNs: integer|Long expected";
+                if (message.initialTurn != null && message.hasOwnProperty("initialTurn")) {
+                    let error = $root.bayesmech.vision.ChatTurn.verify(message.initialTurn);
+                    if (error)
+                        return "initialTurn." + error;
+                }
+                return null;
+            };
+
+            /**
+             * Creates a ChatHistory message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof bayesmech.vision.ChatHistory
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {bayesmech.vision.ChatHistory} ChatHistory
+             */
+            ChatHistory.fromObject = function fromObject(object) {
+                if (object instanceof $root.bayesmech.vision.ChatHistory)
+                    return object;
+                let message = new $root.bayesmech.vision.ChatHistory();
+                if (object.fileName != null)
+                    message.fileName = String(object.fileName);
+                if (object.turns) {
+                    if (!Array.isArray(object.turns))
+                        throw TypeError(".bayesmech.vision.ChatHistory.turns: array expected");
+                    message.turns = [];
+                    for (let i = 0; i < object.turns.length; ++i) {
+                        if (typeof object.turns[i] !== "object")
+                            throw TypeError(".bayesmech.vision.ChatHistory.turns: object expected");
+                        message.turns[i] = $root.bayesmech.vision.ChatTurn.fromObject(object.turns[i]);
+                    }
+                }
+                if (object.geminiCacheName != null)
+                    message.geminiCacheName = String(object.geminiCacheName);
+                if (object.threadCreatedTimestampNs != null)
+                    if ($util.Long)
+                        (message.threadCreatedTimestampNs = $util.Long.fromValue(object.threadCreatedTimestampNs)).unsigned = false;
+                    else if (typeof object.threadCreatedTimestampNs === "string")
+                        message.threadCreatedTimestampNs = parseInt(object.threadCreatedTimestampNs, 10);
+                    else if (typeof object.threadCreatedTimestampNs === "number")
+                        message.threadCreatedTimestampNs = object.threadCreatedTimestampNs;
+                    else if (typeof object.threadCreatedTimestampNs === "object")
+                        message.threadCreatedTimestampNs = new $util.LongBits(object.threadCreatedTimestampNs.low >>> 0, object.threadCreatedTimestampNs.high >>> 0).toNumber();
+                if (object.initialTurn != null) {
+                    if (typeof object.initialTurn !== "object")
+                        throw TypeError(".bayesmech.vision.ChatHistory.initialTurn: object expected");
+                    message.initialTurn = $root.bayesmech.vision.ChatTurn.fromObject(object.initialTurn);
+                }
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a ChatHistory message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof bayesmech.vision.ChatHistory
+             * @static
+             * @param {bayesmech.vision.ChatHistory} message ChatHistory
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            ChatHistory.toObject = function toObject(message, options) {
+                if (!options)
+                    options = {};
+                let object = {};
+                if (options.arrays || options.defaults)
+                    object.turns = [];
+                if (options.defaults) {
+                    object.fileName = "";
+                    object.geminiCacheName = "";
+                    if ($util.Long) {
+                        let long = new $util.Long(0, 0, false);
+                        object.threadCreatedTimestampNs = options.longs === String ? long.toString() : options.longs === Number ? long.toNumber() : long;
+                    } else
+                        object.threadCreatedTimestampNs = options.longs === String ? "0" : 0;
+                    object.initialTurn = null;
+                }
+                if (message.fileName != null && message.hasOwnProperty("fileName"))
+                    object.fileName = message.fileName;
+                if (message.turns && message.turns.length) {
+                    object.turns = [];
+                    for (let j = 0; j < message.turns.length; ++j)
+                        object.turns[j] = $root.bayesmech.vision.ChatTurn.toObject(message.turns[j], options);
+                }
+                if (message.geminiCacheName != null && message.hasOwnProperty("geminiCacheName"))
+                    object.geminiCacheName = message.geminiCacheName;
+                if (message.threadCreatedTimestampNs != null && message.hasOwnProperty("threadCreatedTimestampNs"))
+                    if (typeof message.threadCreatedTimestampNs === "number")
+                        object.threadCreatedTimestampNs = options.longs === String ? String(message.threadCreatedTimestampNs) : message.threadCreatedTimestampNs;
+                    else
+                        object.threadCreatedTimestampNs = options.longs === String ? $util.Long.prototype.toString.call(message.threadCreatedTimestampNs) : options.longs === Number ? new $util.LongBits(message.threadCreatedTimestampNs.low >>> 0, message.threadCreatedTimestampNs.high >>> 0).toNumber() : message.threadCreatedTimestampNs;
+                if (message.initialTurn != null && message.hasOwnProperty("initialTurn"))
+                    object.initialTurn = $root.bayesmech.vision.ChatTurn.toObject(message.initialTurn, options);
+                return object;
+            };
+
+            /**
+             * Converts this ChatHistory to JSON.
+             * @function toJSON
+             * @memberof bayesmech.vision.ChatHistory
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            ChatHistory.prototype.toJSON = function toJSON() {
+                return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the default type url for ChatHistory
+             * @function getTypeUrl
+             * @memberof bayesmech.vision.ChatHistory
+             * @static
+             * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns {string} The default type url
+             */
+            ChatHistory.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+                if (typeUrlPrefix === undefined) {
+                    typeUrlPrefix = "type.googleapis.com";
+                }
+                return typeUrlPrefix + "/bayesmech.vision.ChatHistory";
+            };
+
+            return ChatHistory;
+        })();
+
         return vision;
     })();
 

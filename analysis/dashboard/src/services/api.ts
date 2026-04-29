@@ -6,8 +6,14 @@ import type {
   StreamStats,
   RecordingInfo,
 } from '../types'
-import type { bayesmech } from '../proto/bundle'
+import { bayesmech } from '../proto/bundle'
 import { decodeIdoSlamResponse, decodeMotioncapRecords, decodePongtownRecords } from './proto'
+
+export type GensparkAnalysisResponse = bayesmech.vision.IGensparkResponse
+export type GensparkChatHistory = bayesmech.vision.IChatHistory
+export type GensparkChatTurn = bayesmech.vision.IChatTurn
+export type GensparkSummary = bayesmech.vision.IGensparkSummary
+export type GensparkToolCall = bayesmech.vision.IGensparkToolCall
 
 const MOTIONCAP_TRACK_COLORS: [number, number, number][] = [
   [255, 200, 0],
@@ -179,4 +185,62 @@ export async function fetchRecordingPongtownData(recordingName: string): Promise
   }
 
   return { frames, byFrameNumber, byFrameIndex, summary }
+}
+
+export async function fetchGensparkResponse(recordingName: string): Promise<GensparkAnalysisResponse | null> {
+  const res = await fetch(
+    `/api/analysis/recordings/${encodeURIComponent(recordingName)}/analyses/genspark/artifacts/proto`,
+    { cache: 'no-store' },
+  )
+  if (res.status === 404) return null
+  if (!res.ok) throw new Error(`Failed to fetch Genspark response: ${res.status}`)
+  return bayesmech.vision.GensparkResponse.decode(new Uint8Array(await res.arrayBuffer()))
+}
+
+export async function fetchGensparkChatHistory(recordingName: string, sinceTimestampNs = 0): Promise<GensparkChatHistory> {
+  const res = await fetch(
+    `/api/insightgen/chat?file=${encodeURIComponent(recordingName)}&since_timestamp_ns=${sinceTimestampNs}`,
+    { cache: 'no-store' },
+  )
+  if (!res.ok) throw new Error(`Failed to fetch Genspark chat: ${res.status}`)
+  return bayesmech.vision.ChatHistory.decode(new Uint8Array(await res.arrayBuffer()))
+}
+
+export async function sendGensparkMessage(
+  recordingName: string,
+  message: string,
+  sessionId?: string,
+): Promise<{
+  response: string
+  sessionId: string
+  userTimestampNs: number
+  responseTimestampNs: number
+}> {
+  const res = await fetch('/api/insightgen/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ file: recordingName, message, session_id: sessionId }),
+  })
+  if (!res.ok) throw new Error(`Failed to send Genspark message: ${res.status}`)
+  const payload = await res.json() as {
+    response?: string
+    session_id?: string
+    user_timestamp_ns?: number
+    response_timestamp_ns?: number
+  }
+  return {
+    response: payload.response ?? '',
+    sessionId: payload.session_id ?? '',
+    userTimestampNs: payload.user_timestamp_ns ?? Date.now() * 1_000_000,
+    responseTimestampNs: payload.response_timestamp_ns ?? Date.now() * 1_000_000,
+  }
+}
+
+export async function regenerateGensparkAnalysis(recordingName: string): Promise<void> {
+  const res = await fetch('/api/insightgen/regenerate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ file: recordingName }),
+  })
+  if (!res.ok) throw new Error(`Failed to regenerate Genspark: ${res.status}`)
 }
