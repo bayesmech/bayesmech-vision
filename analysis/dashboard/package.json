@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "proto": "pbjs -t static-module -w es6 -o src/proto/bundle.js ../../proto/primitives.proto ../../proto/perceiver.proto ../../proto/spatial.proto ../../proto/segmentation.proto ../../proto/motioncap.proto ../../proto/idoslam.proto && pbts -o src/proto/bundle.d.ts src/proto/bundle.js",
+    "proto": "pbjs -t static-module -w es6 -o src/proto/bundle.js ../../proto/primitives.proto ../../proto/perceiver.proto ../../proto/spatial.proto ../../proto/segmentation.proto ../../proto/motioncap.proto ../../proto/idoslam.proto ../../proto/pongtown.proto && pbts -o src/proto/bundle.d.ts src/proto/bundle.js",
     "predev": "npm run proto",
     "dev": "vite",
     "prebuild": "npm run proto",
@@ -20,7 +20,8 @@
     "protobufjs": "^8.0.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "react-leaflet": "^5.0.0"
+    "react-leaflet": "^5.0.0",
+    "three": "^0.184.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
@@ -28,13 +29,14 @@
     "@types/node": "^24.10.1",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
+    "@types/three": "^0.184.0",
     "@vitejs/plugin-react": "^5.1.1",
     "eslint": "^9.39.1",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.24",
     "globals": "^16.5.0",
-    "protobufjs-cli": "^2.0.0",
     "protobufjs": "^8.0.0",
+    "protobufjs-cli": "^2.0.0",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.48.0",
     "vite": "^7.3.1"

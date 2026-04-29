@@ -7,6 +7,8 @@ export type SegmentationResponse = bayesmech.vision.SegmentationResponse
 export type ISegmentationResponse = bayesmech.vision.ISegmentationResponse
 export type IdoSlamResponse = bayesmech.vision.IdoSlamResponse
 export type IIdoSlamResponse = bayesmech.vision.IIdoSlamResponse
+export type PongtownResponse = bayesmech.vision.PongtownResponse
+export type IPongtownResponse = bayesmech.vision.IPongtownResponse
 
 // === Legacy interfaces used by existing components ===
 
@@ -120,6 +122,7 @@ export interface RecordingInfo {
   has_segmentation: boolean
   has_idoslam?: boolean
   has_motioncap: boolean
+  has_pongtown?: boolean
 }
 
 // === Decoded frame for UI consumption ===
@@ -223,4 +226,18 @@ export interface MotioncapData {
   byFrameNumber: Map<number, MotioncapFrameRecord>
   byHeatmapIndex: Map<number, MotioncapFrameRecord>
   tracks: MotioncapTrackLegendItem[]
+}
+
+export interface PongtownFrameRecord {
+  frameIndex: number
+  frameNumber: number
+  timestampNs: number
+  record: bayesmech.vision.PongtownResponse
+}
+
+export interface PongtownData {
+  frames: PongtownFrameRecord[]
+  byFrameNumber: Map<number, PongtownFrameRecord>
+  byFrameIndex: Map<number, PongtownFrameRecord>
+  summary?: bayesmech.vision.PongtownResponse
 }

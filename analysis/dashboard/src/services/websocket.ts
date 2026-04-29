@@ -1,9 +1,17 @@
 import type { ConnectionStatus, TrajectoryPoint, SensorFrameData } from '../types'
 import { bayesmech } from '../proto/bundle'
-import { PREFIX_FRAME, PREFIX_ANNOTATION, decodeFrames, decodeAnnotations } from './proto'
+import {
+  PREFIX_FRAME,
+  PREFIX_ANNOTATION,
+  PREFIX_PONGTOWN,
+  decodeFrames,
+  decodeAnnotations,
+  decodePongtownRecords,
+} from './proto'
 
 export type FrameListener = (frames: bayesmech.vision.PerceiverDataFrame[]) => void
 export type AnnotationListener = (annotations: bayesmech.vision.SegmentationResponse[]) => void
+export type PongtownListener = (records: bayesmech.vision.PongtownResponse[]) => void
 export type StatsListener = (stats: Record<string, unknown>) => void
 export type TrajectoryListener = (positions: TrajectoryPoint[]) => void
 export type SensorDataListener = (frames: SensorFrameData[]) => void
@@ -13,6 +21,7 @@ class DashboardWebSocketService {
   private ws: WebSocket | null = null
   private frameListeners: Set<FrameListener> = new Set()
   private annotationListeners: Set<AnnotationListener> = new Set()
+  private pongtownListeners: Set<PongtownListener> = new Set()
   private statsListeners: Set<StatsListener> = new Set()
   private trajectoryListeners: Set<TrajectoryListener> = new Set()
   private sensorDataListeners: Set<SensorDataListener> = new Set()
@@ -108,6 +117,14 @@ class DashboardWebSocketService {
     this.send({ action: 'get_annotations', frame_number: frameNumber })
   }
 
+  getPongtownForFrame(frameNumber: number): void {
+    this.send({ action: 'get_pongtown', frame_number: frameNumber })
+  }
+
+  getPongtownRange(start: number, end: number): void {
+    this.send({ action: 'get_pongtown', start, end })
+  }
+
   // ---- Listeners ----
 
   addFrameListener(cb: FrameListener): () => void {
@@ -118,6 +135,11 @@ class DashboardWebSocketService {
   addAnnotationListener(cb: AnnotationListener): () => void {
     this.annotationListeners.add(cb)
     return () => { this.annotationListeners.delete(cb) }
+  }
+
+  addPongtownListener(cb: PongtownListener): () => void {
+    this.pongtownListeners.add(cb)
+    return () => { this.pongtownListeners.delete(cb) }
   }
 
   addStatsListener(cb: StatsListener): () => void {
@@ -157,6 +179,11 @@ class DashboardWebSocketService {
       const annotations = decodeAnnotations(payload)
       if (annotations.length > 0) {
         this.annotationListeners.forEach((cb) => cb(annotations))
+      }
+    } else if (prefix === PREFIX_PONGTOWN) {
+      const records = decodePongtownRecords(payload)
+      if (records.length > 0) {
+        this.pongtownListeners.forEach((cb) => cb(records))
       }
     }
   }

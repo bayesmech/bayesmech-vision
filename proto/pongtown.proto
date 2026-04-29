@@ -1,0 +1,210 @@
+syntax = "proto3";
+
+package bayesmech.vision;
+
+option java_multiple_files = true;
+option java_package = "com.bayesmech.vision";
+
+import "perceiver.proto";
+
+// Pongtown pipeline output: per-frame ping-pong table quadrilateral + camera
+// pose relative to the table, plus a trailing summary record carrying the
+// globally-refined table pose in ARCore world coordinates.
+//
+// Wire format (length-delimited): N per-frame PongtownResponse records
+// followed by exactly one summary record. The summary record has an empty
+// frame_identifier and global_table_pose.has_pose == true.
+message PongtownResponse {
+
+  PerceiverFrameIdentifier frame_identifier = 1;
+
+  message TablePose {
+    enum Method {
+      UNKNOWN = 0;
+      QUAD_FULL = 1;            // 4 strong table lines from RANSAC
+      QUAD_FROM_MIDLINE = 2;    // 3 table lines + reflection through net midline
+      QUAD_FAILED = 3;
+      OFF_SCREEN = 4;           // global pose reprojects entirely outside frame
+    }
+    Method method = 1;
+    float quad_quality = 2;                            // image-plane fit, [0, 1]
+    float pnp_iou = 3;                                 // PnP reprojection, [0, 1]
+
+    // Image-space quadrilateral, CCW from top-left of mask bbox.
+    // Layout: [u0, v0, u1, v1, u2, v2, u3, v3]
+    repeated float quad_img = 4 [packed = true];
+
+    // Detected net midline (segment): [u0, v0, u1, v1]
+    repeated float midline_img = 5 [packed = true];
+
+    // Per-frame camera-to-table transform from PnP. 4x4 row-major.
+    repeated float T_table_to_camera = 6 [packed = true];
+
+    // Reprojection of the final global pose into this frame.
+    // Layout matches quad_img.
+    repeated float quad_img_global = 7 [packed = true];
+    float global_iou = 8;
+  }
+  TablePose table_pose = 2;
+
+  // Debug payload sufficient to redraw the image-plane and PnP geometry
+  // overlays for this frame when paired with the source RGB/mask inputs.
+  //
+  // The current file format stores one PongtownResponse per frame, so each
+  // per-frame record normally carries exactly one PnpFrameDebug entry. This is
+  // repeated to allow future summary records or batched debug records to carry
+  // multiple frames without changing the schema.
+  message PnpFrameDebug {
+    uint32 frame_idx = 1;                         // zero-based index in input recording
+    CameraIntrinsics camera_intrinsics = 2;
+    repeated float camera_matrix = 3 [packed = true]; // 3x3 row-major K
+
+    TablePose.Method image_plane_method = 4;
+    float image_plane_quad_quality = 5;
+    repeated float image_plane_table_quad_img = 6 [packed = true];      // [u0,v0,...,u3,v3]
+    repeated float image_plane_half_table_quad_img = 7 [packed = true]; // visible half, if known
+    repeated float image_plane_midline_img = 8 [packed = true];         // [u0,v0,u1,v1]
+    repeated float image_plane_net_quad_img = 9 [packed = true];        // [u0,v0,...,u3,v3]
+
+    bool pnp_table_success = 10;
+    float pnp_table_iou = 11;
+    repeated float pnp_table_quad_img = 12 [packed = true];     // table PnP reprojection
+    repeated float pnp_T_table_to_camera = 13 [packed = true];  // 4x4 row-major
+
+    bool pnp_net_success = 14;
+    float pnp_net_iou = 15;
+    repeated float pnp_net_quad_img = 16 [packed = true];       // independent net PnP reprojection
+    repeated float pnp_T_net_to_camera = 17 [packed = true];    // 4x4 row-major
+
+    // Net rectangle actually drawn in the PnP overlay. This is the independent
+    // net PnP reprojection when available, otherwise the fallback net strip
+    // projected from the table PnP pose.
+    repeated float pnp_overlay_net_quad_img = 18 [packed = true];
+  }
+  repeated PnpFrameDebug pnp_frame_debug = 8;
+
+  // The primary per-frame output: the globally-stabilised table pose expressed
+  // in this frame's camera coordinates, plus its image-space reprojections.
+  // These values are intentionally stored even though they can be recomputed
+  // from the summary pose and camera matrix, so overlay consumers do not need
+  // to repeat projection logic.
+  message FrameOutput {
+    uint32 frame_idx = 1;
+    bool has_pose = 2;
+    bool off_screen = 3;
+    float global_iou = 4;
+    repeated float T_table_to_camera = 5 [packed = true]; // 4x4 row-major
+    repeated float table_quad_img = 6 [packed = true];    // [u0,v0,...,u3,v3]
+    repeated float net_quad_img = 7 [packed = true];      // [u0,v0,...,u3,v3]
+    bool has_net_pose = 8;
+    repeated float T_net_to_camera = 9 [packed = true];   // 4x4 row-major, if has_net_pose
+  }
+  FrameOutput frame_output = 9;
+
+  enum TableSide {
+    SIDE_UNKNOWN = 0;
+    NEAR = 1;       // +x table half by pongtown convention, camera-side half
+    FAR = 2;        // -x table half
+    NET = 3;        // approximately on x=0
+    OFF_TABLE = 4;  // projected point is outside the playable table margin
+  }
+
+  // A ping-pong ball centroid observation. Per-frame records contain the
+  // observation(s) for that frame; the summary trajectory contains the same
+  // observations in temporal order.
+  message BallPosition {
+    uint32 track_id = 1;            // currently 1 for the single ping-pong ball
+    uint32 observation_idx = 2;     // index within ball_trajectory.positions
+    uint32 frame_idx = 3;
+    uint32 frame_number = 4;
+    uint64 timestamp_ns = 5;
+    float u_img = 6;
+    float v_img = 7;
+    uint32 area_px = 8;
+    float confidence = 9;
+    bool interpolated = 10;
+    bool has_table_position = 11;
+    // Ray-cast intersection with the table plane, not estimated airborne height.
+    repeated float cam_xyz_mm = 12 [packed = true];    // length 3 when has_table_position
+    repeated float table_xyz_mm = 13 [packed = true];  // length 3 when has_table_position
+    TableSide side = 14;
+    bool inside_table = 15;
+  }
+  repeated BallPosition ball_positions = 10;
+
+  message BallTrajectorySegment {
+    uint32 start_observation_idx = 1;
+    uint32 end_observation_idx = 2;
+    uint32 start_frame_idx = 3;
+    uint32 end_frame_idx = 4;
+    uint64 start_timestamp_ns = 5;
+    uint64 end_timestamp_ns = 6;
+    float dt_s = 7;
+    float du_img = 8;
+    float dv_img = 9;
+    float image_distance_px = 10;
+    float image_speed_px_s = 11;
+    bool has_table_displacement = 12;
+    repeated float table_delta_mm = 13 [packed = true]; // length 3 when available
+    float table_distance_mm = 14;
+    float table_speed_mm_s = 15;
+  }
+
+  message BallBounce {
+    uint32 bounce_idx = 1;
+    uint32 observation_idx = 2;
+    uint32 frame_idx = 3;
+    uint32 frame_number = 4;
+    uint64 timestamp_ns = 5;
+    float u_img = 6;
+    float v_img = 7;
+    float prominence_px = 8;
+    float confidence = 9;
+    bool has_table_position = 10;
+    // Ray-cast intersection with the table plane at the bounce frame.
+    repeated float cam_xyz_mm = 11 [packed = true];    // length 3 when has_table_position
+    repeated float table_xyz_mm = 12 [packed = true];  // length 3 when has_table_position
+    TableSide side = 13;
+    bool inside_table = 14;
+  }
+
+  // Summary record only: full ball trajectory derived from segmentation masks
+  // and Stage 3 table pose. Per-frame records duplicate their BallPosition for
+  // cheap overlays, while this summary preserves the ordered track, segment
+  // motion, and bounce candidates.
+  message BallTrajectory {
+    uint32 track_id = 1;
+    uint32 observed_frames = 2;
+    uint32 first_frame_idx = 3;
+    uint32 last_frame_idx = 4;
+    uint64 first_timestamp_ns = 5;
+    uint64 last_timestamp_ns = 6;
+    float min_bounce_prominence_px = 7;
+    uint32 min_bounce_spacing_frames = 8;
+    float smooth_sigma = 9;
+    repeated BallPosition positions = 10;
+    repeated BallTrajectorySegment segments = 11;
+    repeated BallBounce bounces = 12;
+  }
+  BallTrajectory ball_trajectory = 11;
+
+  // Summary record only.
+  message GlobalTablePose {
+    bool has_pose = 1;
+    repeated float T_table_to_world = 2 [packed = true];   // 4x4 row-major
+    float refined_cost = 3;
+    uint32 frames_used = 4;
+    float mean_iou = 5;
+    float p10_iou = 6;
+    float p90_iou = 7;
+    bool has_net_pose = 8;
+    repeated float T_net_to_world = 9 [packed = true];      // 4x4 row-major
+  }
+  GlobalTablePose global_table_pose = 3;
+
+  // Canonical geometry (summary record only, mm).
+  float table_width_mm = 4;     // 2740
+  float table_height_mm = 5;    // 1525
+  float net_overhang_mm = 6;    // 152.5 (net hangs 152.5 mm past each long edge)
+  float net_height_mm = 7;      // 152.5
+}

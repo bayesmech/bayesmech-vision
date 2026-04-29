@@ -1,0 +1,63 @@
+# Tuned against recordings/20260425_140029/. Re-tune if tracking on other
+# captures looks worse than expected.
+
+extraction:
+  sample_every: 1
+  max_frames: 0      # 0 = no cap
+
+mask_labels:
+  table_top:  ["table top", "table-top", "tabletop"]
+  table_legs: ["legs", "legs and sides", "apron"]
+  net:        ["net"]
+  person:     ["person", "player", "human"]
+  bat:        ["bat", "paddle", "racket"]
+  ball:       ["ball"]
+
+table:
+  width_mm: 2740
+  height_mm: 1525
+  net_overhang_mm: 152.5
+  net_height_mm: 152.5
+
+quad:
+  min_mask_area_px: 4000
+  ransac_distance_threshold_px: 3.0
+  ransac_angle_threshold_deg: 12.0
+  ransac_min_inliers: 80
+  ransac_max_iterations: 400
+  area_ratio_min: 0.7
+  area_ratio_max: 1.6
+  aspect_ratio_min: 1.2
+  aspect_ratio_max: 4.5
+  parallel_threshold_deg: 8.0
+  midline_equidistance_tolerance: 0.15   # fraction of short-edge length
+
+pnp:
+  iou_min: 0.6
+
+world:
+  # Frames with quad-fit quality below this threshold are excluded from
+  # Stage 3 RANSAC aggregation. The cross-ratio quad extension is very
+  # sensitive to long-edge noise on low-quality fits — those frames'
+  # PnP-recovered poses have 20-40 px reprojection error and contribute
+  # noise rather than signal. High-quality fits (q ≥ 0.85) have 1-5 px
+  # error and clean poses.
+  ransac_min_quality: 0.85
+  refine: true
+  refine_sample_size: 50
+  iou_alpha: 1.0          # weight on table-rect IoU term
+  iou_beta:  0.5          # weight on net-strip IoU term
+  line_gamma: 0.3         # weight on midline overlap term
+  line_distance_threshold_px: 4.0
+
+trajectory:
+  min_bounce_prominence_px: 4.0
+  min_bounce_spacing_frames: 4
+  smooth_sigma: 1.0
+
+overlay:
+  every_n_frames: 5
+
+pipeline:
+  render_mp4: false
+  debug_dumps: true

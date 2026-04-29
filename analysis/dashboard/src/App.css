@@ -442,6 +442,210 @@ body {
   line-height: 1.5;
 }
 
+.sport-understanding-layout {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  align-items: start;
+}
+
+.surface-pose-card {
+  min-height: 0;
+}
+
+.surface-pose-header {
+  gap: 1rem;
+  align-items: center;
+}
+
+.surface-pose-mode-control {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  width: min(100%, 520px);
+  border: 1px solid rgba(0, 255, 136, 0.35);
+  background: #030303;
+}
+
+.surface-pose-mode {
+  min-height: 2.25rem;
+  padding: 0 0.75rem;
+  border: 0;
+  border-right: 1px solid rgba(0, 255, 136, 0.22);
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.surface-pose-mode:last-child {
+  border-right: 0;
+}
+
+.surface-pose-mode:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.surface-pose-mode.is-active {
+  color: #001b0f;
+  background: var(--accent);
+}
+
+.surface-pose-viewer {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  min-height: 360px;
+  background: #000;
+  border: 1px solid var(--border);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.surface-pose-layer,
+.surface-pose-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.surface-pose-layer {
+  object-fit: contain;
+}
+
+.surface-pose-svg {
+  pointer-events: none;
+}
+
+.surface-pose-table,
+.surface-pose-net,
+.surface-pose-midline,
+.surface-pose-offscreen {
+  fill: none;
+  vector-effect: non-scaling-stroke;
+}
+
+.surface-pose-table {
+  stroke: #ffffff;
+  stroke-width: 3;
+}
+
+.surface-pose-net {
+  stroke: #ff35ff;
+  stroke-width: 2;
+}
+
+.surface-pose-midline {
+  stroke: #ff3030;
+  stroke-width: 2;
+}
+
+.surface-pose-offscreen {
+  stroke: var(--error);
+  stroke-width: 6;
+}
+
+.surface-pose-overlay-message {
+  position: absolute;
+  left: 50%;
+  bottom: 1rem;
+  transform: translateX(-50%);
+  padding: 0.45rem 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(0, 0, 0, 0.72);
+  color: var(--text-dim);
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.surface-pose-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 0.75rem;
+  color: var(--text-dim);
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.table-3d-card {
+  min-height: 0;
+}
+
+.table-3d-header {
+  gap: 1rem;
+}
+
+.table-3d-controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.table-3d-toggle {
+  min-height: 2rem;
+  padding: 0 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: #050706;
+  color: var(--text-dim);
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.table-3d-toggle.is-active {
+  border-color: rgba(0, 255, 136, 0.52);
+  background: rgba(0, 255, 136, 0.12);
+  color: var(--text);
+}
+
+.table-3d-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.table-3d-status {
+  color: var(--text-dim);
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.table-3d-viewer {
+  width: 100%;
+  height: clamp(360px, 48vh, 640px);
+  background: #050706;
+  border: 1px solid var(--border);
+  overflow: hidden;
+  position: relative;
+  cursor: grab;
+}
+
+.table-3d-viewer:active {
+  cursor: grabbing;
+}
+
+.table-3d-viewer canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
 @media (max-width: 1024px) {
   .dashboard-workspace {
     grid-template-columns: 1fr;
@@ -458,6 +662,25 @@ body {
 
   .slam-overview-row {
     grid-template-columns: 1fr;
+  }
+
+  .sport-understanding-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .surface-pose-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .table-3d-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .table-3d-controls {
+    justify-content: flex-start;
+    width: 100%;
   }
 }
 

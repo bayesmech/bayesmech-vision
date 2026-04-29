@@ -240,6 +240,11 @@ const LoadButton: React.FC = () => {
                         MOTIONCAP
                       </span>
                     )}
+                    {rec.has_pongtown && (
+                      <span style={analysisBadgeStyle('#ff35ff')}>
+                        PONGTOWN
+                      </span>
+                    )}
                     {rec.has_segmentation && (
                       <span style={analysisBadgeStyle('#00ff88')}>
                         SEGMENTATION
