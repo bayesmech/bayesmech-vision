@@ -17,9 +17,7 @@ const XYZ = ['X', 'Y', 'Z']
 type DashboardTabId =
   | 'segmentation'
   | 'motion-capture'
-  | 'stable-entity-understanding'
   | 'sensors'
-  | 'path-planning'
   | 'localization-mapping'
 
 const DASHBOARD_TABS: {
@@ -41,22 +39,10 @@ const DASHBOARD_TABS: {
     description: 'Review motion heatmaps and tracked object paths without on-frame labels.',
   },
   {
-    id: 'stable-entity-understanding',
-    label: 'Stable entity understanding',
-    badge: 'SEU',
-    description: 'Inspect depth, point cloud, and plane detections for the current frame.',
-  },
-  {
     id: 'sensors',
     label: 'Sensor Data',
     badge: 'IMU',
-    description: 'Inspect the live or recorded IMU streams and signal coverage.',
-  },
-  {
-    id: 'path-planning',
-    label: 'Path Planning',
-    badge: 'NAV',
-    description: 'Compare GPS motion with the SLAM-generated trajectory.',
+    description: 'Inspect IMU streams, geometry understanding, and route context.',
   },
   {
     id: 'localization-mapping',
@@ -265,16 +251,8 @@ const DashboardPage = () => {
                   <MotionChart key={chart.field} {...chart} />
                 ))}
               </div>
-            </>
-          )}
 
-          {activeTab === 'motion-capture' && (
-            <MotioncapPanel key={currentRecordingName ?? (isLive ? 'live' : 'idle')} />
-          )}
-
-          {activeTab === 'stable-entity-understanding' && (
-            <>
-              <div className="dashboard-summary-grid">
+              <div className="dashboard-summary-grid" style={{ marginTop: '1.25rem' }}>
                 <InfoCard value={displayedFrame?.hasDepthData ? 'Available' : 'N/A'} label="Depth Map" />
                 <InfoCard
                   value={displayedFrame?.inferred_geometry?.point_cloud_count ?? 0}
@@ -324,12 +302,8 @@ const DashboardPage = () => {
                   geometry={displayedFrame?.inferred_geometry}
                 />
               </div>
-            </>
-          )}
 
-          {activeTab === 'path-planning' && (
-            <>
-              <div className="dashboard-summary-grid">
+              <div className="dashboard-summary-grid" style={{ marginTop: '1.25rem' }}>
                 <InfoCard value={gpsPositionLabel} label="GPS Position" />
                 <InfoCard
                   value={currentGps ? `${currentGps.accuracy.toFixed(1)} m` : 'N/A'}
@@ -360,6 +334,10 @@ const DashboardPage = () => {
                 />
               </div>
             </>
+          )}
+
+          {activeTab === 'motion-capture' && (
+            <MotioncapPanel key={currentRecordingName ?? (isLive ? 'live' : 'idle')} />
           )}
 
           {activeTab === 'localization-mapping' && (
