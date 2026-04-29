@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { useDashboard } from '../context/DashboardContext'
 import { fetchRecordingPongtownData } from '../services/api'
 import type { PongtownData, PongtownFrameRecord } from '../types'
+import PongtownTable3D from './PongtownTable3D'
 
 type PoseOverlayMode = 'hull' | 'pnp' | 'global'
 
@@ -235,6 +236,8 @@ const SportUnderstandingPanel: React.FC = () => {
     geometry.tableQuad.length >= 2 ||
     geometry.netQuad.length >= 2 ||
     geometry.midline.length >= 2
+  const currentPongtownFrameIndex = currentPongtownFrame?.frameIndex ?? currentIndex
+  const currentPongtownFrameNumber = currentPongtownFrame?.frameNumber ?? displayedFrameNumber
 
   return (
     <div className="sport-understanding-layout">
@@ -328,6 +331,11 @@ const SportUnderstandingPanel: React.FC = () => {
           </span>
         </div>
       </div>
+      <PongtownTable3D
+        summary={pongtownData?.summary}
+        currentFrameIndex={currentPongtownFrameIndex}
+        currentFrameNumber={currentPongtownFrameNumber}
+      />
     </div>
   )
 }

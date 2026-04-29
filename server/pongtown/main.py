@@ -43,6 +43,7 @@ from pongtown.render import (
     render_pose_panel,
     render_stage1_panel,
 )
+from pongtown.trajectory import BallTrackPoint, extract_ball_trajectory
 from streamlog.protoio import ProtoIO
 
 
@@ -103,6 +104,91 @@ def _fill_intrinsics(msg, K: np.ndarray, image_shape: tuple[int, int]) -> None:
     msg.cy = float(K[1, 2])
     msg.image_width = float(w)
     msg.image_height = float(h)
+
+
+def _side_enum(side: str, inside_table: bool) -> int:
+    if not inside_table and side:
+        return pongtown_pb2.PongtownResponse.OFF_TABLE
+    if side == "near":
+        return pongtown_pb2.PongtownResponse.NEAR
+    if side == "far":
+        return pongtown_pb2.PongtownResponse.FAR
+    if side == "net":
+        return pongtown_pb2.PongtownResponse.NET
+    return pongtown_pb2.PongtownResponse.SIDE_UNKNOWN
+
+
+def _populate_ball_position_proto(
+    msg: pongtown_pb2.PongtownResponse.BallPosition,
+    obs: BallTrackPoint,
+) -> None:
+    msg.track_id = 1
+    msg.observation_idx = int(obs.observation_idx)
+    msg.frame_idx = int(obs.frame_idx)
+    msg.frame_number = int(obs.frame_number)
+    msg.timestamp_ns = int(obs.timestamp_ns)
+    msg.u_img = float(obs.u)
+    msg.v_img = float(obs.v)
+    msg.area_px = int(obs.area_px)
+    msg.confidence = float(obs.confidence)
+    msg.interpolated = False
+    msg.has_table_position = bool(obs.has_table_position)
+    _extend_floats(msg.cam_xyz_mm, obs.cam_xyz_mm)
+    _extend_floats(msg.table_xyz_mm, obs.table_xyz_mm)
+    msg.side = _side_enum(obs.side, obs.inside_table)
+    msg.inside_table = bool(obs.inside_table)
+
+
+def _populate_ball_trajectory_proto(
+    msg: pongtown_pb2.PongtownResponse.BallTrajectory,
+    trajectory: dict,
+) -> None:
+    positions: list[BallTrackPoint] = trajectory["positions"]
+    msg.track_id = 1
+    msg.observed_frames = len(positions)
+    msg.min_bounce_prominence_px = float(trajectory["min_prominence_px"])
+    msg.min_bounce_spacing_frames = int(trajectory["min_spacing_frames"])
+    msg.smooth_sigma = float(trajectory["smooth_sigma"])
+    if positions:
+        msg.first_frame_idx = int(positions[0].frame_idx)
+        msg.last_frame_idx = int(positions[-1].frame_idx)
+        msg.first_timestamp_ns = int(positions[0].timestamp_ns)
+        msg.last_timestamp_ns = int(positions[-1].timestamp_ns)
+    for obs in positions:
+        _populate_ball_position_proto(msg.positions.add(), obs)
+    for seg in trajectory["segments"]:
+        out = msg.segments.add()
+        out.start_observation_idx = int(seg.start_observation_idx)
+        out.end_observation_idx = int(seg.end_observation_idx)
+        out.start_frame_idx = int(seg.start_frame_idx)
+        out.end_frame_idx = int(seg.end_frame_idx)
+        out.start_timestamp_ns = int(seg.start_timestamp_ns)
+        out.end_timestamp_ns = int(seg.end_timestamp_ns)
+        out.dt_s = float(seg.dt_s)
+        out.du_img = float(seg.du_img)
+        out.dv_img = float(seg.dv_img)
+        out.image_distance_px = float(seg.image_distance_px)
+        out.image_speed_px_s = float(seg.image_speed_px_s)
+        out.has_table_displacement = bool(seg.has_table_displacement)
+        _extend_floats(out.table_delta_mm, seg.table_delta_mm)
+        out.table_distance_mm = float(seg.table_distance_mm)
+        out.table_speed_mm_s = float(seg.table_speed_mm_s)
+    for bnc in trajectory["bounces"]:
+        out = msg.bounces.add()
+        out.bounce_idx = int(bnc.bounce_idx)
+        out.observation_idx = int(bnc.observation_idx)
+        out.frame_idx = int(bnc.frame_idx)
+        out.frame_number = int(bnc.frame_number)
+        out.timestamp_ns = int(bnc.timestamp_ns)
+        out.u_img = float(bnc.u)
+        out.v_img = float(bnc.v)
+        out.prominence_px = float(bnc.prominence_px)
+        out.confidence = float(bnc.confidence)
+        out.has_table_position = bool(bnc.has_table_position)
+        _extend_floats(out.cam_xyz_mm, bnc.cam_xyz_mm)
+        _extend_floats(out.table_xyz_mm, bnc.table_xyz_mm)
+        out.side = _side_enum(bnc.side, bnc.inside_table)
+        out.inside_table = bool(bnc.inside_table)
 
 
 def _project_points(
@@ -217,6 +303,7 @@ def _write_pongtown_pb(
     T_global_world: np.ndarray | None,
     T_global_net_world: np.ndarray | None,
     frames_used: int,
+    ball_trajectory: dict | None,
     refined_cost: float = 0.0,
 ) -> None:
     if out_path.exists():
@@ -260,6 +347,9 @@ def _write_pongtown_pb(
         out.has_net_pose = result.get("T_final_net_to_camera") is not None
         _extend_floats(out.T_net_to_camera, result.get("T_final_net_to_camera"))
 
+        for obs in result.get("ball_positions", []):
+            _populate_ball_position_proto(rec.ball_positions.add(), obs)
+
         batch.append(rec)
         if len(batch) >= 50:
             _pong_io.write_file(out_path, batch)
@@ -293,6 +383,8 @@ def _write_pongtown_pb(
     summary.table_height_mm = float(cfg["table"]["height_mm"])
     summary.net_overhang_mm = float(cfg["table"]["net_overhang_mm"])
     summary.net_height_mm = float(cfg["table"]["net_height_mm"])
+    if ball_trajectory is not None:
+        _populate_ball_trajectory_proto(summary.ball_trajectory, ball_trajectory)
     _pong_io.write_file(out_path, [summary])
 
 
@@ -765,6 +857,14 @@ def main() -> None:
         deciles = " ".join(f"p{q}={s[f'p{q}']:.3f}" for q in range(10, 100, 10))
         log.info("%s IoU deciles: %s", label, deciles)
 
+    ball_trajectory = extract_ball_trajectory(results, cfg)
+    log.info(
+        "Ball trajectory: %d positions, %d segments, %d bounce candidates",
+        len(ball_trajectory["positions"]),
+        len(ball_trajectory["segments"]),
+        len(ball_trajectory["bounces"]),
+    )
+
     out_pb = _pongtown_pb_path(vis_path)
     _write_pongtown_pb(
         out_pb,
@@ -773,6 +873,7 @@ def main() -> None:
         T_global_world=T_global_world,
         T_global_net_world=T_global_net_world,
         frames_used=int(inlier_mask.sum()),
+        ball_trajectory=ball_trajectory,
     )
     log.info("Wrote %s (%d frames + 1 summary)", out_pb.name, len(results))
 

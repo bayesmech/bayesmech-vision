@@ -36,6 +36,14 @@ sys.path.insert(0, str(_server_root))
 
 from proto import pongtown_pb2  # noqa: E402
 from pongtown.loader import iter_bundles  # noqa: E402
+from pongtown.trajectory import (  # noqa: E402
+    ball_centroid as _ball_centroid,
+    bounce_confidence as _confidence,
+    classify_side as _classify_side,
+    detect_bounces as _detect_bounces,
+    ray_plane_intersect_in_camera as _ray_plane_intersect_in_camera,
+    to_table_local as _to_table_local,
+)
 from streamlog.protoio import ProtoIO  # noqa: E402
 
 
@@ -107,135 +115,6 @@ def _load_per_frame_pose(pongtown_pb: Path) -> dict[int, np.ndarray]:
             continue
         out[int(fo.frame_idx)] = np.array(fo.T_table_to_camera, dtype=np.float64).reshape(4, 4)
     return out
-
-
-def _ball_centroid(mask: np.ndarray) -> tuple[float, float, int] | None:
-    if mask is None or not mask.any():
-        return None
-    n, _, stats, centroids = cv2.connectedComponentsWithStats(
-        mask.astype(np.uint8), connectivity=8
-    )
-    if n <= 1:
-        return None
-    areas = stats[1:, cv2.CC_STAT_AREA]
-    best = int(np.argmax(areas)) + 1
-    area = int(stats[best, cv2.CC_STAT_AREA])
-    if area < 2:
-        return None
-    cx, cy = centroids[best]
-    return float(cx), float(cy), area
-
-
-def _gaussian_smooth(y: np.ndarray, sigma: float) -> np.ndarray:
-    if sigma <= 0:
-        return y.copy()
-    radius = int(max(1, np.ceil(3 * sigma)))
-    x = np.arange(-radius, radius + 1)
-    k = np.exp(-0.5 * (x / sigma) ** 2)
-    k /= k.sum()
-    return np.convolve(y, k, mode="same")
-
-
-def _detect_bounces(
-    obs: list[BallObs],
-    *,
-    min_prominence_px: float,
-    min_spacing: int,
-    smooth_sigma: float,
-) -> list[tuple[int, float]]:
-    """Local maxima in image v(t). Image y grows downward, so a bounce is a
-    peak in v. Returns (obs_idx, prominence_px) list."""
-    if len(obs) < 5:
-        return []
-    v = np.array([o.v for o in obs], dtype=np.float64)
-    frame_idx = np.array([o.frame_idx for o in obs], dtype=np.int64)
-    v_smooth = _gaussian_smooth(v, smooth_sigma)
-    cands: list[tuple[int, float]] = []
-    for i in range(2, len(obs) - 2):
-        if not (v_smooth[i] > v_smooth[i - 1] and v_smooth[i] >= v_smooth[i + 1]):
-            continue
-        # Reject if observation gaps too large (likely tracking dropout).
-        if (frame_idx[i] - frame_idx[i - 2] > 8) or (frame_idx[i + 2] - frame_idx[i] > 8):
-            continue
-        lo_l = max(0, i - 6)
-        lo_r = min(len(v_smooth), i + 7)
-        prom = min(
-            v_smooth[i] - v_smooth[lo_l:i].min(),
-            v_smooth[i] - v_smooth[i + 1:lo_r].min(),
-        )
-        if prom < min_prominence_px:
-            continue
-        # Strict reversal sanity — descending before, ascending after.
-        if v[i] - v[max(0, i - 2)] <= 0:
-            continue
-        if v[min(len(v) - 1, i + 2)] - v[i] >= 0:
-            continue
-        cands.append((i, float(prom)))
-    cands.sort(key=lambda x: x[0])
-    pruned: list[tuple[int, float]] = []
-    for idx, prom in cands:
-        if pruned and idx - pruned[-1][0] < min_spacing:
-            if prom > pruned[-1][1]:
-                pruned[-1] = (idx, prom)
-            continue
-        pruned.append((idx, prom))
-    return pruned
-
-
-def _ray_plane_intersect_in_camera(
-    K: np.ndarray, uv: tuple[float, float], T_table_to_camera: np.ndarray
-) -> np.ndarray | None:
-    """Cast pixel ray into camera frame and intersect with the table plane
-    (z_table = 0). Returns 3D point in *camera* frame (mm), or None on miss."""
-    K_inv = np.linalg.inv(K)
-    pix_h = np.array([uv[0], uv[1], 1.0], dtype=np.float64)
-    d_cam = K_inv @ pix_h
-    d_cam /= np.linalg.norm(d_cam)
-
-    # Plane in camera frame: any point on table-z=0 satisfies n_cam · (P - p0) = 0
-    # with n_cam = R_t2c[:, 2] (table-local +z mapped to camera) and p0 = t_t2c.
-    R_t2c = T_table_to_camera[:3, :3]
-    t_t2c = T_table_to_camera[:3, 3]
-    n_cam = R_t2c[:, 2]
-    denom = float(n_cam @ d_cam)
-    if abs(denom) < 1e-9:
-        return None
-    s = float(n_cam @ t_t2c) / denom
-    if s <= 0:
-        return None
-    return s * d_cam
-
-
-def _to_table_local(P_cam_mm: np.ndarray, T_table_to_camera: np.ndarray) -> np.ndarray:
-    T_c2t = np.linalg.inv(T_table_to_camera)
-    return (T_c2t[:3, :3] @ P_cam_mm) + T_c2t[:3, 3]
-
-
-def _classify_side(P_table_mm: np.ndarray, table_w_mm: float, table_h_mm: float) -> tuple[str, bool]:
-    """Side label + inside-table flag. Table-local: x along long axis (width),
-    y along short axis (height), z = up. +x is the camera-side half by
-    pongtown convention (canonical_half_rectangle_mm comments)."""
-    x, y = float(P_table_mm[0]), float(P_table_mm[1])
-    inside = abs(x) <= table_w_mm / 2 + 50.0 and abs(y) <= table_h_mm / 2 + 50.0
-    if x > 0:
-        side = "near"
-    elif x < 0:
-        side = "far"
-    else:
-        side = "net"
-    return side, bool(inside)
-
-
-def _confidence(b_obs: BallObs, prominence: float, P_table_mm: np.ndarray,
-                table_w_mm: float, table_h_mm: float) -> float:
-    """Heuristic [0, 1] confidence."""
-    area_score = min(1.0, b_obs.area_px / 30.0)
-    prom_score = min(1.0, prominence / 12.0)
-    x, y = abs(P_table_mm[0]), abs(P_table_mm[1])
-    margin_x = max(0.0, table_w_mm / 2 + 200.0 - x) / (table_w_mm / 2 + 200.0)
-    margin_y = max(0.0, table_h_mm / 2 + 200.0 - y) / (table_h_mm / 2 + 200.0)
-    geom_score = float(np.clip(min(margin_x, margin_y), 0.0, 1.0))
-    return float(0.4 * area_score + 0.3 * prom_score + 0.3 * geom_score)
 
 
 # ── Rendering ────────────────────────────────────────────────────────────────

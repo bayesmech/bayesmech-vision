@@ -101,6 +101,93 @@ message PongtownResponse {
   }
   FrameOutput frame_output = 9;
 
+  enum TableSide {
+    SIDE_UNKNOWN = 0;
+    NEAR = 1;       // +x table half by pongtown convention, camera-side half
+    FAR = 2;        // -x table half
+    NET = 3;        // approximately on x=0
+    OFF_TABLE = 4;  // projected point is outside the playable table margin
+  }
+
+  // A ping-pong ball centroid observation. Per-frame records contain the
+  // observation(s) for that frame; the summary trajectory contains the same
+  // observations in temporal order.
+  message BallPosition {
+    uint32 track_id = 1;            // currently 1 for the single ping-pong ball
+    uint32 observation_idx = 2;     // index within ball_trajectory.positions
+    uint32 frame_idx = 3;
+    uint32 frame_number = 4;
+    uint64 timestamp_ns = 5;
+    float u_img = 6;
+    float v_img = 7;
+    uint32 area_px = 8;
+    float confidence = 9;
+    bool interpolated = 10;
+    bool has_table_position = 11;
+    // Ray-cast intersection with the table plane, not estimated airborne height.
+    repeated float cam_xyz_mm = 12 [packed = true];    // length 3 when has_table_position
+    repeated float table_xyz_mm = 13 [packed = true];  // length 3 when has_table_position
+    TableSide side = 14;
+    bool inside_table = 15;
+  }
+  repeated BallPosition ball_positions = 10;
+
+  message BallTrajectorySegment {
+    uint32 start_observation_idx = 1;
+    uint32 end_observation_idx = 2;
+    uint32 start_frame_idx = 3;
+    uint32 end_frame_idx = 4;
+    uint64 start_timestamp_ns = 5;
+    uint64 end_timestamp_ns = 6;
+    float dt_s = 7;
+    float du_img = 8;
+    float dv_img = 9;
+    float image_distance_px = 10;
+    float image_speed_px_s = 11;
+    bool has_table_displacement = 12;
+    repeated float table_delta_mm = 13 [packed = true]; // length 3 when available
+    float table_distance_mm = 14;
+    float table_speed_mm_s = 15;
+  }
+
+  message BallBounce {
+    uint32 bounce_idx = 1;
+    uint32 observation_idx = 2;
+    uint32 frame_idx = 3;
+    uint32 frame_number = 4;
+    uint64 timestamp_ns = 5;
+    float u_img = 6;
+    float v_img = 7;
+    float prominence_px = 8;
+    float confidence = 9;
+    bool has_table_position = 10;
+    // Ray-cast intersection with the table plane at the bounce frame.
+    repeated float cam_xyz_mm = 11 [packed = true];    // length 3 when has_table_position
+    repeated float table_xyz_mm = 12 [packed = true];  // length 3 when has_table_position
+    TableSide side = 13;
+    bool inside_table = 14;
+  }
+
+  // Summary record only: full ball trajectory derived from segmentation masks
+  // and Stage 3 table pose. Per-frame records duplicate their BallPosition for
+  // cheap overlays, while this summary preserves the ordered track, segment
+  // motion, and bounce candidates.
+  message BallTrajectory {
+    uint32 track_id = 1;
+    uint32 observed_frames = 2;
+    uint32 first_frame_idx = 3;
+    uint32 last_frame_idx = 4;
+    uint64 first_timestamp_ns = 5;
+    uint64 last_timestamp_ns = 6;
+    float min_bounce_prominence_px = 7;
+    uint32 min_bounce_spacing_frames = 8;
+    float smooth_sigma = 9;
+    repeated BallPosition positions = 10;
+    repeated BallTrajectorySegment segments = 11;
+    repeated BallBounce bounces = 12;
+  }
+  BallTrajectory ball_trajectory = 11;
+
   // Summary record only.
   message GlobalTablePose {
     bool has_pose = 1;

@@ -3965,6 +3965,12 @@ export namespace bayesmech {
             /** PongtownResponse frameOutput */
             frameOutput?: (bayesmech.vision.PongtownResponse.IFrameOutput|null);
 
+            /** PongtownResponse ballPositions */
+            ballPositions?: (bayesmech.vision.PongtownResponse.IBallPosition[]|null);
+
+            /** PongtownResponse ballTrajectory */
+            ballTrajectory?: (bayesmech.vision.PongtownResponse.IBallTrajectory|null);
+
             /** PongtownResponse globalTablePose */
             globalTablePose?: (bayesmech.vision.PongtownResponse.IGlobalTablePose|null);
 
@@ -4001,6 +4007,12 @@ export namespace bayesmech {
 
             /** PongtownResponse frameOutput. */
             public frameOutput?: (bayesmech.vision.PongtownResponse.IFrameOutput|null);
+
+            /** PongtownResponse ballPositions. */
+            public ballPositions: bayesmech.vision.PongtownResponse.IBallPosition[];
+
+            /** PongtownResponse ballTrajectory. */
+            public ballTrajectory?: (bayesmech.vision.PongtownResponse.IBallTrajectory|null);
 
             /** PongtownResponse globalTablePose. */
             public globalTablePose?: (bayesmech.vision.PongtownResponse.IGlobalTablePose|null);
@@ -4586,6 +4598,715 @@ export namespace bayesmech {
 
                 /**
                  * Gets the default type url for FrameOutput
+                 * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+                 * @returns The default type url
+                 */
+                public static getTypeUrl(typeUrlPrefix?: string): string;
+            }
+
+            /** TableSide enum. */
+            enum TableSide {
+                SIDE_UNKNOWN = 0,
+                NEAR = 1,
+                FAR = 2,
+                NET = 3,
+                OFF_TABLE = 4
+            }
+
+            /** Properties of a BallPosition. */
+            interface IBallPosition {
+
+                /** BallPosition trackId */
+                trackId?: (number|null);
+
+                /** BallPosition observationIdx */
+                observationIdx?: (number|null);
+
+                /** BallPosition frameIdx */
+                frameIdx?: (number|null);
+
+                /** BallPosition frameNumber */
+                frameNumber?: (number|null);
+
+                /** BallPosition timestampNs */
+                timestampNs?: (number|Long|null);
+
+                /** BallPosition uImg */
+                uImg?: (number|null);
+
+                /** BallPosition vImg */
+                vImg?: (number|null);
+
+                /** BallPosition areaPx */
+                areaPx?: (number|null);
+
+                /** BallPosition confidence */
+                confidence?: (number|null);
+
+                /** BallPosition interpolated */
+                interpolated?: (boolean|null);
+
+                /** BallPosition hasTablePosition */
+                hasTablePosition?: (boolean|null);
+
+                /** BallPosition camXyzMm */
+                camXyzMm?: (number[]|null);
+
+                /** BallPosition tableXyzMm */
+                tableXyzMm?: (number[]|null);
+
+                /** BallPosition side */
+                side?: (bayesmech.vision.PongtownResponse.TableSide|null);
+
+                /** BallPosition insideTable */
+                insideTable?: (boolean|null);
+            }
+
+            /** Represents a BallPosition. */
+            class BallPosition implements IBallPosition {
+
+                /**
+                 * Constructs a new BallPosition.
+                 * @param [properties] Properties to set
+                 */
+                constructor(properties?: bayesmech.vision.PongtownResponse.IBallPosition);
+
+                /** BallPosition trackId. */
+                public trackId: number;
+
+                /** BallPosition observationIdx. */
+                public observationIdx: number;
+
+                /** BallPosition frameIdx. */
+                public frameIdx: number;
+
+                /** BallPosition frameNumber. */
+                public frameNumber: number;
+
+                /** BallPosition timestampNs. */
+                public timestampNs: (number|Long);
+
+                /** BallPosition uImg. */
+                public uImg: number;
+
+                /** BallPosition vImg. */
+                public vImg: number;
+
+                /** BallPosition areaPx. */
+                public areaPx: number;
+
+                /** BallPosition confidence. */
+                public confidence: number;
+
+                /** BallPosition interpolated. */
+                public interpolated: boolean;
+
+                /** BallPosition hasTablePosition. */
+                public hasTablePosition: boolean;
+
+                /** BallPosition camXyzMm. */
+                public camXyzMm: number[];
+
+                /** BallPosition tableXyzMm. */
+                public tableXyzMm: number[];
+
+                /** BallPosition side. */
+                public side: bayesmech.vision.PongtownResponse.TableSide;
+
+                /** BallPosition insideTable. */
+                public insideTable: boolean;
+
+                /**
+                 * Creates a new BallPosition instance using the specified properties.
+                 * @param [properties] Properties to set
+                 * @returns BallPosition instance
+                 */
+                public static create(properties?: bayesmech.vision.PongtownResponse.IBallPosition): bayesmech.vision.PongtownResponse.BallPosition;
+
+                /**
+                 * Encodes the specified BallPosition message. Does not implicitly {@link bayesmech.vision.PongtownResponse.BallPosition.verify|verify} messages.
+                 * @param message BallPosition message or plain object to encode
+                 * @param [writer] Writer to encode to
+                 * @returns Writer
+                 */
+                public static encode(message: bayesmech.vision.PongtownResponse.IBallPosition, writer?: $protobuf.Writer): $protobuf.Writer;
+
+                /**
+                 * Encodes the specified BallPosition message, length delimited. Does not implicitly {@link bayesmech.vision.PongtownResponse.BallPosition.verify|verify} messages.
+                 * @param message BallPosition message or plain object to encode
+                 * @param [writer] Writer to encode to
+                 * @returns Writer
+                 */
+                public static encodeDelimited(message: bayesmech.vision.PongtownResponse.IBallPosition, writer?: $protobuf.Writer): $protobuf.Writer;
+
+                /**
+                 * Decodes a BallPosition message from the specified reader or buffer.
+                 * @param reader Reader or buffer to decode from
+                 * @param [length] Message length if known beforehand
+                 * @returns BallPosition
+                 * @throws {Error} If the payload is not a reader or valid buffer
+                 * @throws {$protobuf.util.ProtocolError} If required fields are missing
+                 */
+                public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): bayesmech.vision.PongtownResponse.BallPosition;
+
+                /**
+                 * Decodes a BallPosition message from the specified reader or buffer, length delimited.
+                 * @param reader Reader or buffer to decode from
+                 * @returns BallPosition
+                 * @throws {Error} If the payload is not a reader or valid buffer
+                 * @throws {$protobuf.util.ProtocolError} If required fields are missing
+                 */
+                public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): bayesmech.vision.PongtownResponse.BallPosition;
+
+                /**
+                 * Verifies a BallPosition message.
+                 * @param message Plain object to verify
+                 * @returns `null` if valid, otherwise the reason why it is not
+                 */
+                public static verify(message: { [k: string]: any }): (string|null);
+
+                /**
+                 * Creates a BallPosition message from a plain object. Also converts values to their respective internal types.
+                 * @param object Plain object
+                 * @returns BallPosition
+                 */
+                public static fromObject(object: { [k: string]: any }): bayesmech.vision.PongtownResponse.BallPosition;
+
+                /**
+                 * Creates a plain object from a BallPosition message. Also converts values to other types if specified.
+                 * @param message BallPosition
+                 * @param [options] Conversion options
+                 * @returns Plain object
+                 */
+                public static toObject(message: bayesmech.vision.PongtownResponse.BallPosition, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+                /**
+                 * Converts this BallPosition to JSON.
+                 * @returns JSON object
+                 */
+                public toJSON(): { [k: string]: any };
+
+                /**
+                 * Gets the default type url for BallPosition
+                 * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+                 * @returns The default type url
+                 */
+                public static getTypeUrl(typeUrlPrefix?: string): string;
+            }
+
+            /** Properties of a BallTrajectorySegment. */
+            interface IBallTrajectorySegment {
+
+                /** BallTrajectorySegment startObservationIdx */
+                startObservationIdx?: (number|null);
+
+                /** BallTrajectorySegment endObservationIdx */
+                endObservationIdx?: (number|null);
+
+                /** BallTrajectorySegment startFrameIdx */
+                startFrameIdx?: (number|null);
+
+                /** BallTrajectorySegment endFrameIdx */
+                endFrameIdx?: (number|null);
+
+                /** BallTrajectorySegment startTimestampNs */
+                startTimestampNs?: (number|Long|null);
+
+                /** BallTrajectorySegment endTimestampNs */
+                endTimestampNs?: (number|Long|null);
+
+                /** BallTrajectorySegment dtS */
+                dtS?: (number|null);
+
+                /** BallTrajectorySegment duImg */
+                duImg?: (number|null);
+
+                /** BallTrajectorySegment dvImg */
+                dvImg?: (number|null);
+
+                /** BallTrajectorySegment imageDistancePx */
+                imageDistancePx?: (number|null);
+
+                /** BallTrajectorySegment imageSpeedPxS */
+                imageSpeedPxS?: (number|null);
+
+                /** BallTrajectorySegment hasTableDisplacement */
+                hasTableDisplacement?: (boolean|null);
+
+                /** BallTrajectorySegment tableDeltaMm */
+                tableDeltaMm?: (number[]|null);
+
+                /** BallTrajectorySegment tableDistanceMm */
+                tableDistanceMm?: (number|null);
+
+                /** BallTrajectorySegment tableSpeedMmS */
+                tableSpeedMmS?: (number|null);
+            }
+
+            /** Represents a BallTrajectorySegment. */
+            class BallTrajectorySegment implements IBallTrajectorySegment {
+
+                /**
+                 * Constructs a new BallTrajectorySegment.
+                 * @param [properties] Properties to set
+                 */
+                constructor(properties?: bayesmech.vision.PongtownResponse.IBallTrajectorySegment);
+
+                /** BallTrajectorySegment startObservationIdx. */
+                public startObservationIdx: number;
+
+                /** BallTrajectorySegment endObservationIdx. */
+                public endObservationIdx: number;
+
+                /** BallTrajectorySegment startFrameIdx. */
+                public startFrameIdx: number;
+
+                /** BallTrajectorySegment endFrameIdx. */
+                public endFrameIdx: number;
+
+                /** BallTrajectorySegment startTimestampNs. */
+                public startTimestampNs: (number|Long);
+
+                /** BallTrajectorySegment endTimestampNs. */
+                public endTimestampNs: (number|Long);
+
+                /** BallTrajectorySegment dtS. */
+                public dtS: number;
+
+                /** BallTrajectorySegment duImg. */
+                public duImg: number;
+
+                /** BallTrajectorySegment dvImg. */
+                public dvImg: number;
+
+                /** BallTrajectorySegment imageDistancePx. */
+                public imageDistancePx: number;
+
+                /** BallTrajectorySegment imageSpeedPxS. */
+                public imageSpeedPxS: number;
+
+                /** BallTrajectorySegment hasTableDisplacement. */
+                public hasTableDisplacement: boolean;
+
+                /** BallTrajectorySegment tableDeltaMm. */
+                public tableDeltaMm: number[];
+
+                /** BallTrajectorySegment tableDistanceMm. */
+                public tableDistanceMm: number;
+
+                /** BallTrajectorySegment tableSpeedMmS. */
+                public tableSpeedMmS: number;
+
+                /**
+                 * Creates a new BallTrajectorySegment instance using the specified properties.
+                 * @param [properties] Properties to set
+                 * @returns BallTrajectorySegment instance
+                 */
+                public static create(properties?: bayesmech.vision.PongtownResponse.IBallTrajectorySegment): bayesmech.vision.PongtownResponse.BallTrajectorySegment;
+
+                /**
+                 * Encodes the specified BallTrajectorySegment message. Does not implicitly {@link bayesmech.vision.PongtownResponse.BallTrajectorySegment.verify|verify} messages.
+                 * @param message BallTrajectorySegment message or plain object to encode
+                 * @param [writer] Writer to encode to
+                 * @returns Writer
+                 */
+                public static encode(message: bayesmech.vision.PongtownResponse.IBallTrajectorySegment, writer?: $protobuf.Writer): $protobuf.Writer;
+
+                /**
+                 * Encodes the specified BallTrajectorySegment message, length delimited. Does not implicitly {@link bayesmech.vision.PongtownResponse.BallTrajectorySegment.verify|verify} messages.
+                 * @param message BallTrajectorySegment message or plain object to encode
+                 * @param [writer] Writer to encode to
+                 * @returns Writer
+                 */
+                public static encodeDelimited(message: bayesmech.vision.PongtownResponse.IBallTrajectorySegment, writer?: $protobuf.Writer): $protobuf.Writer;
+
+                /**
+                 * Decodes a BallTrajectorySegment message from the specified reader or buffer.
+                 * @param reader Reader or buffer to decode from
+                 * @param [length] Message length if known beforehand
+                 * @returns BallTrajectorySegment
+                 * @throws {Error} If the payload is not a reader or valid buffer
+                 * @throws {$protobuf.util.ProtocolError} If required fields are missing
+                 */
+                public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): bayesmech.vision.PongtownResponse.BallTrajectorySegment;
+
+                /**
+                 * Decodes a BallTrajectorySegment message from the specified reader or buffer, length delimited.
+                 * @param reader Reader or buffer to decode from
+                 * @returns BallTrajectorySegment
+                 * @throws {Error} If the payload is not a reader or valid buffer
+                 * @throws {$protobuf.util.ProtocolError} If required fields are missing
+                 */
+                public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): bayesmech.vision.PongtownResponse.BallTrajectorySegment;
+
+                /**
+                 * Verifies a BallTrajectorySegment message.
+                 * @param message Plain object to verify
+                 * @returns `null` if valid, otherwise the reason why it is not
+                 */
+                public static verify(message: { [k: string]: any }): (string|null);
+
+                /**
+                 * Creates a BallTrajectorySegment message from a plain object. Also converts values to their respective internal types.
+                 * @param object Plain object
+                 * @returns BallTrajectorySegment
+                 */
+                public static fromObject(object: { [k: string]: any }): bayesmech.vision.PongtownResponse.BallTrajectorySegment;
+
+                /**
+                 * Creates a plain object from a BallTrajectorySegment message. Also converts values to other types if specified.
+                 * @param message BallTrajectorySegment
+                 * @param [options] Conversion options
+                 * @returns Plain object
+                 */
+                public static toObject(message: bayesmech.vision.PongtownResponse.BallTrajectorySegment, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+                /**
+                 * Converts this BallTrajectorySegment to JSON.
+                 * @returns JSON object
+                 */
+                public toJSON(): { [k: string]: any };
+
+                /**
+                 * Gets the default type url for BallTrajectorySegment
+                 * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+                 * @returns The default type url
+                 */
+                public static getTypeUrl(typeUrlPrefix?: string): string;
+            }
+
+            /** Properties of a BallBounce. */
+            interface IBallBounce {
+
+                /** BallBounce bounceIdx */
+                bounceIdx?: (number|null);
+
+                /** BallBounce observationIdx */
+                observationIdx?: (number|null);
+
+                /** BallBounce frameIdx */
+                frameIdx?: (number|null);
+
+                /** BallBounce frameNumber */
+                frameNumber?: (number|null);
+
+                /** BallBounce timestampNs */
+                timestampNs?: (number|Long|null);
+
+                /** BallBounce uImg */
+                uImg?: (number|null);
+
+                /** BallBounce vImg */
+                vImg?: (number|null);
+
+                /** BallBounce prominencePx */
+                prominencePx?: (number|null);
+
+                /** BallBounce confidence */
+                confidence?: (number|null);
+
+                /** BallBounce hasTablePosition */
+                hasTablePosition?: (boolean|null);
+
+                /** BallBounce camXyzMm */
+                camXyzMm?: (number[]|null);
+
+                /** BallBounce tableXyzMm */
+                tableXyzMm?: (number[]|null);
+
+                /** BallBounce side */
+                side?: (bayesmech.vision.PongtownResponse.TableSide|null);
+
+                /** BallBounce insideTable */
+                insideTable?: (boolean|null);
+            }
+
+            /** Represents a BallBounce. */
+            class BallBounce implements IBallBounce {
+
+                /**
+                 * Constructs a new BallBounce.
+                 * @param [properties] Properties to set
+                 */
+                constructor(properties?: bayesmech.vision.PongtownResponse.IBallBounce);
+
+                /** BallBounce bounceIdx. */
+                public bounceIdx: number;
+
+                /** BallBounce observationIdx. */
+                public observationIdx: number;
+
+                /** BallBounce frameIdx. */
+                public frameIdx: number;
+
+                /** BallBounce frameNumber. */
+                public frameNumber: number;
+
+                /** BallBounce timestampNs. */
+                public timestampNs: (number|Long);
+
+                /** BallBounce uImg. */
+                public uImg: number;
+
+                /** BallBounce vImg. */
+                public vImg: number;
+
+                /** BallBounce prominencePx. */
+                public prominencePx: number;
+
+                /** BallBounce confidence. */
+                public confidence: number;
+
+                /** BallBounce hasTablePosition. */
+                public hasTablePosition: boolean;
+
+                /** BallBounce camXyzMm. */
+                public camXyzMm: number[];
+
+                /** BallBounce tableXyzMm. */
+                public tableXyzMm: number[];
+
+                /** BallBounce side. */
+                public side: bayesmech.vision.PongtownResponse.TableSide;
+
+                /** BallBounce insideTable. */
+                public insideTable: boolean;
+
+                /**
+                 * Creates a new BallBounce instance using the specified properties.
+                 * @param [properties] Properties to set
+                 * @returns BallBounce instance
+                 */
+                public static create(properties?: bayesmech.vision.PongtownResponse.IBallBounce): bayesmech.vision.PongtownResponse.BallBounce;
+
+                /**
+                 * Encodes the specified BallBounce message. Does not implicitly {@link bayesmech.vision.PongtownResponse.BallBounce.verify|verify} messages.
+                 * @param message BallBounce message or plain object to encode
+                 * @param [writer] Writer to encode to
+                 * @returns Writer
+                 */
+                public static encode(message: bayesmech.vision.PongtownResponse.IBallBounce, writer?: $protobuf.Writer): $protobuf.Writer;
+
+                /**
+                 * Encodes the specified BallBounce message, length delimited. Does not implicitly {@link bayesmech.vision.PongtownResponse.BallBounce.verify|verify} messages.
+                 * @param message BallBounce message or plain object to encode
+                 * @param [writer] Writer to encode to
+                 * @returns Writer
+                 */
+                public static encodeDelimited(message: bayesmech.vision.PongtownResponse.IBallBounce, writer?: $protobuf.Writer): $protobuf.Writer;
+
+                /**
+                 * Decodes a BallBounce message from the specified reader or buffer.
+                 * @param reader Reader or buffer to decode from
+                 * @param [length] Message length if known beforehand
+                 * @returns BallBounce
+                 * @throws {Error} If the payload is not a reader or valid buffer
+                 * @throws {$protobuf.util.ProtocolError} If required fields are missing
+                 */
+                public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): bayesmech.vision.PongtownResponse.BallBounce;
+
+                /**
+                 * Decodes a BallBounce message from the specified reader or buffer, length delimited.
+                 * @param reader Reader or buffer to decode from
+                 * @returns BallBounce
+                 * @throws {Error} If the payload is not a reader or valid buffer
+                 * @throws {$protobuf.util.ProtocolError} If required fields are missing
+                 */
+                public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): bayesmech.vision.PongtownResponse.BallBounce;
+
+                /**
+                 * Verifies a BallBounce message.
+                 * @param message Plain object to verify
+                 * @returns `null` if valid, otherwise the reason why it is not
+                 */
+                public static verify(message: { [k: string]: any }): (string|null);
+
+                /**
+                 * Creates a BallBounce message from a plain object. Also converts values to their respective internal types.
+                 * @param object Plain object
+                 * @returns BallBounce
+                 */
+                public static fromObject(object: { [k: string]: any }): bayesmech.vision.PongtownResponse.BallBounce;
+
+                /**
+                 * Creates a plain object from a BallBounce message. Also converts values to other types if specified.
+                 * @param message BallBounce
+                 * @param [options] Conversion options
+                 * @returns Plain object
+                 */
+                public static toObject(message: bayesmech.vision.PongtownResponse.BallBounce, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+                /**
+                 * Converts this BallBounce to JSON.
+                 * @returns JSON object
+                 */
+                public toJSON(): { [k: string]: any };
+
+                /**
+                 * Gets the default type url for BallBounce
+                 * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+                 * @returns The default type url
+                 */
+                public static getTypeUrl(typeUrlPrefix?: string): string;
+            }
+
+            /** Properties of a BallTrajectory. */
+            interface IBallTrajectory {
+
+                /** BallTrajectory trackId */
+                trackId?: (number|null);
+
+                /** BallTrajectory observedFrames */
+                observedFrames?: (number|null);
+
+                /** BallTrajectory firstFrameIdx */
+                firstFrameIdx?: (number|null);
+
+                /** BallTrajectory lastFrameIdx */
+                lastFrameIdx?: (number|null);
+
+                /** BallTrajectory firstTimestampNs */
+                firstTimestampNs?: (number|Long|null);
+
+                /** BallTrajectory lastTimestampNs */
+                lastTimestampNs?: (number|Long|null);
+
+                /** BallTrajectory minBounceProminencePx */
+                minBounceProminencePx?: (number|null);
+
+                /** BallTrajectory minBounceSpacingFrames */
+                minBounceSpacingFrames?: (number|null);
+
+                /** BallTrajectory smoothSigma */
+                smoothSigma?: (number|null);
+
+                /** BallTrajectory positions */
+                positions?: (bayesmech.vision.PongtownResponse.IBallPosition[]|null);
+
+                /** BallTrajectory segments */
+                segments?: (bayesmech.vision.PongtownResponse.IBallTrajectorySegment[]|null);
+
+                /** BallTrajectory bounces */
+                bounces?: (bayesmech.vision.PongtownResponse.IBallBounce[]|null);
+            }
+
+            /** Represents a BallTrajectory. */
+            class BallTrajectory implements IBallTrajectory {
+
+                /**
+                 * Constructs a new BallTrajectory.
+                 * @param [properties] Properties to set
+                 */
+                constructor(properties?: bayesmech.vision.PongtownResponse.IBallTrajectory);
+
+                /** BallTrajectory trackId. */
+                public trackId: number;
+
+                /** BallTrajectory observedFrames. */
+                public observedFrames: number;
+
+                /** BallTrajectory firstFrameIdx. */
+                public firstFrameIdx: number;
+
+                /** BallTrajectory lastFrameIdx. */
+                public lastFrameIdx: number;
+
+                /** BallTrajectory firstTimestampNs. */
+                public firstTimestampNs: (number|Long);
+
+                /** BallTrajectory lastTimestampNs. */
+                public lastTimestampNs: (number|Long);
+
+                /** BallTrajectory minBounceProminencePx. */
+                public minBounceProminencePx: number;
+
+                /** BallTrajectory minBounceSpacingFrames. */
+                public minBounceSpacingFrames: number;
+
+                /** BallTrajectory smoothSigma. */
+                public smoothSigma: number;
+
+                /** BallTrajectory positions. */
+                public positions: bayesmech.vision.PongtownResponse.IBallPosition[];
+
+                /** BallTrajectory segments. */
+                public segments: bayesmech.vision.PongtownResponse.IBallTrajectorySegment[];
+
+                /** BallTrajectory bounces. */
+                public bounces: bayesmech.vision.PongtownResponse.IBallBounce[];
+
+                /**
+                 * Creates a new BallTrajectory instance using the specified properties.
+                 * @param [properties] Properties to set
+                 * @returns BallTrajectory instance
+                 */
+                public static create(properties?: bayesmech.vision.PongtownResponse.IBallTrajectory): bayesmech.vision.PongtownResponse.BallTrajectory;
+
+                /**
+                 * Encodes the specified BallTrajectory message. Does not implicitly {@link bayesmech.vision.PongtownResponse.BallTrajectory.verify|verify} messages.
+                 * @param message BallTrajectory message or plain object to encode
+                 * @param [writer] Writer to encode to
+                 * @returns Writer
+                 */
+                public static encode(message: bayesmech.vision.PongtownResponse.IBallTrajectory, writer?: $protobuf.Writer): $protobuf.Writer;
+
+                /**
+                 * Encodes the specified BallTrajectory message, length delimited. Does not implicitly {@link bayesmech.vision.PongtownResponse.BallTrajectory.verify|verify} messages.
+                 * @param message BallTrajectory message or plain object to encode
+                 * @param [writer] Writer to encode to
+                 * @returns Writer
+                 */
+                public static encodeDelimited(message: bayesmech.vision.PongtownResponse.IBallTrajectory, writer?: $protobuf.Writer): $protobuf.Writer;
+
+                /**
+                 * Decodes a BallTrajectory message from the specified reader or buffer.
+                 * @param reader Reader or buffer to decode from
+                 * @param [length] Message length if known beforehand
+                 * @returns BallTrajectory
+                 * @throws {Error} If the payload is not a reader or valid buffer
+                 * @throws {$protobuf.util.ProtocolError} If required fields are missing
+                 */
+                public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): bayesmech.vision.PongtownResponse.BallTrajectory;
+
+                /**
+                 * Decodes a BallTrajectory message from the specified reader or buffer, length delimited.
+                 * @param reader Reader or buffer to decode from
+                 * @returns BallTrajectory
+                 * @throws {Error} If the payload is not a reader or valid buffer
+                 * @throws {$protobuf.util.ProtocolError} If required fields are missing
+                 */
+                public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): bayesmech.vision.PongtownResponse.BallTrajectory;
+
+                /**
+                 * Verifies a BallTrajectory message.
+                 * @param message Plain object to verify
+                 * @returns `null` if valid, otherwise the reason why it is not
+                 */
+                public static verify(message: { [k: string]: any }): (string|null);
+
+                /**
+                 * Creates a BallTrajectory message from a plain object. Also converts values to their respective internal types.
+                 * @param object Plain object
+                 * @returns BallTrajectory
+                 */
+                public static fromObject(object: { [k: string]: any }): bayesmech.vision.PongtownResponse.BallTrajectory;
+
+                /**
+                 * Creates a plain object from a BallTrajectory message. Also converts values to other types if specified.
+                 * @param message BallTrajectory
+                 * @param [options] Conversion options
+                 * @returns Plain object
+                 */
+                public static toObject(message: bayesmech.vision.PongtownResponse.BallTrajectory, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+                /**
+                 * Converts this BallTrajectory to JSON.
+                 * @returns JSON object
+                 */
+                public toJSON(): { [k: string]: any };
+
+                /**
+                 * Gets the default type url for BallTrajectory
                  * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
                  * @returns The default type url
                  */

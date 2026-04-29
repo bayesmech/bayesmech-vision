@@ -50,6 +50,11 @@ world:
   line_gamma: 0.3         # weight on midline overlap term
   line_distance_threshold_px: 4.0
 
+trajectory:
+  min_bounce_prominence_px: 4.0
+  min_bounce_spacing_frames: 4
+  smooth_sigma: 1.0
+
 overlay:
   every_n_frames: 5
 

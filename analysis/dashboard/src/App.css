@@ -444,8 +444,9 @@ body {
 
 .sport-understanding-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1.25fr) minmax(360px, 0.75fr);
   gap: 1rem;
+  align-items: start;
 }
 
 .surface-pose-card {
@@ -577,6 +578,42 @@ body {
   text-transform: uppercase;
 }
 
+.table-3d-card {
+  min-height: 0;
+}
+
+.table-3d-header {
+  gap: 1rem;
+}
+
+.table-3d-status {
+  color: var(--text-dim);
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.table-3d-viewer {
+  width: 100%;
+  height: clamp(360px, 48vh, 640px);
+  background: #050706;
+  border: 1px solid var(--border);
+  overflow: hidden;
+  position: relative;
+  cursor: grab;
+}
+
+.table-3d-viewer:active {
+  cursor: grabbing;
+}
+
+.table-3d-viewer canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
 @media (max-width: 1024px) {
   .dashboard-workspace {
     grid-template-columns: 1fr;
@@ -592,6 +629,10 @@ body {
   }
 
   .slam-overview-row {
+    grid-template-columns: 1fr;
+  }
+
+  .sport-understanding-layout {
     grid-template-columns: 1fr;
   }
 

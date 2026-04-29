@@ -10835,6 +10835,8 @@ export const bayesmech = $root.bayesmech = (() => {
              * @property {bayesmech.vision.PongtownResponse.ITablePose|null} [tablePose] PongtownResponse tablePose
              * @property {Array.<bayesmech.vision.PongtownResponse.IPnpFrameDebug>|null} [pnpFrameDebug] PongtownResponse pnpFrameDebug
              * @property {bayesmech.vision.PongtownResponse.IFrameOutput|null} [frameOutput] PongtownResponse frameOutput
+             * @property {Array.<bayesmech.vision.PongtownResponse.IBallPosition>|null} [ballPositions] PongtownResponse ballPositions
+             * @property {bayesmech.vision.PongtownResponse.IBallTrajectory|null} [ballTrajectory] PongtownResponse ballTrajectory
              * @property {bayesmech.vision.PongtownResponse.IGlobalTablePose|null} [globalTablePose] PongtownResponse globalTablePose
              * @property {number|null} [tableWidthMm] PongtownResponse tableWidthMm
              * @property {number|null} [tableHeightMm] PongtownResponse tableHeightMm
@@ -10852,6 +10854,7 @@ export const bayesmech = $root.bayesmech = (() => {
              */
             function PongtownResponse(properties) {
                 this.pnpFrameDebug = [];
+                this.ballPositions = [];
                 if (properties)
                     for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
                         if (properties[keys[i]] != null)
@@ -10889,6 +10892,22 @@ export const bayesmech = $root.bayesmech = (() => {
              * @instance
              */
             PongtownResponse.prototype.frameOutput = null;
+
+            /**
+             * PongtownResponse ballPositions.
+             * @member {Array.<bayesmech.vision.PongtownResponse.IBallPosition>} ballPositions
+             * @memberof bayesmech.vision.PongtownResponse
+             * @instance
+             */
+            PongtownResponse.prototype.ballPositions = $util.emptyArray;
+
+            /**
+             * PongtownResponse ballTrajectory.
+             * @member {bayesmech.vision.PongtownResponse.IBallTrajectory|null|undefined} ballTrajectory
+             * @memberof bayesmech.vision.PongtownResponse
+             * @instance
+             */
+            PongtownResponse.prototype.ballTrajectory = null;
 
             /**
              * PongtownResponse globalTablePose.
@@ -10973,6 +10992,11 @@ export const bayesmech = $root.bayesmech = (() => {
                         $root.bayesmech.vision.PongtownResponse.PnpFrameDebug.encode(message.pnpFrameDebug[i], writer.uint32(/* id 8, wireType 2 =*/66).fork()).ldelim();
                 if (message.frameOutput != null && Object.hasOwnProperty.call(message, "frameOutput"))
                     $root.bayesmech.vision.PongtownResponse.FrameOutput.encode(message.frameOutput, writer.uint32(/* id 9, wireType 2 =*/74).fork()).ldelim();
+                if (message.ballPositions != null && message.ballPositions.length)
+                    for (let i = 0; i < message.ballPositions.length; ++i)
+                        $root.bayesmech.vision.PongtownResponse.BallPosition.encode(message.ballPositions[i], writer.uint32(/* id 10, wireType 2 =*/82).fork()).ldelim();
+                if (message.ballTrajectory != null && Object.hasOwnProperty.call(message, "ballTrajectory"))
+                    $root.bayesmech.vision.PongtownResponse.BallTrajectory.encode(message.ballTrajectory, writer.uint32(/* id 11, wireType 2 =*/90).fork()).ldelim();
                 return writer;
             };
 
@@ -11025,6 +11049,16 @@ export const bayesmech = $root.bayesmech = (() => {
                         }
                     case 9: {
                             message.frameOutput = $root.bayesmech.vision.PongtownResponse.FrameOutput.decode(reader, reader.uint32());
+                            break;
+                        }
+                    case 10: {
+                            if (!(message.ballPositions && message.ballPositions.length))
+                                message.ballPositions = [];
+                            message.ballPositions.push($root.bayesmech.vision.PongtownResponse.BallPosition.decode(reader, reader.uint32()));
+                            break;
+                        }
+                    case 11: {
+                            message.ballTrajectory = $root.bayesmech.vision.PongtownResponse.BallTrajectory.decode(reader, reader.uint32());
                             break;
                         }
                     case 3: {
@@ -11106,6 +11140,20 @@ export const bayesmech = $root.bayesmech = (() => {
                     if (error)
                         return "frameOutput." + error;
                 }
+                if (message.ballPositions != null && message.hasOwnProperty("ballPositions")) {
+                    if (!Array.isArray(message.ballPositions))
+                        return "ballPositions: array expected";
+                    for (let i = 0; i < message.ballPositions.length; ++i) {
+                        let error = $root.bayesmech.vision.PongtownResponse.BallPosition.verify(message.ballPositions[i]);
+                        if (error)
+                            return "ballPositions." + error;
+                    }
+                }
+                if (message.ballTrajectory != null && message.hasOwnProperty("ballTrajectory")) {
+                    let error = $root.bayesmech.vision.PongtownResponse.BallTrajectory.verify(message.ballTrajectory);
+                    if (error)
+                        return "ballTrajectory." + error;
+                }
                 if (message.globalTablePose != null && message.hasOwnProperty("globalTablePose")) {
                     let error = $root.bayesmech.vision.PongtownResponse.GlobalTablePose.verify(message.globalTablePose);
                     if (error)
@@ -11163,6 +11211,21 @@ export const bayesmech = $root.bayesmech = (() => {
                         throw TypeError(".bayesmech.vision.PongtownResponse.frameOutput: object expected");
                     message.frameOutput = $root.bayesmech.vision.PongtownResponse.FrameOutput.fromObject(object.frameOutput);
                 }
+                if (object.ballPositions) {
+                    if (!Array.isArray(object.ballPositions))
+                        throw TypeError(".bayesmech.vision.PongtownResponse.ballPositions: array expected");
+                    message.ballPositions = [];
+                    for (let i = 0; i < object.ballPositions.length; ++i) {
+                        if (typeof object.ballPositions[i] !== "object")
+                            throw TypeError(".bayesmech.vision.PongtownResponse.ballPositions: object expected");
+                        message.ballPositions[i] = $root.bayesmech.vision.PongtownResponse.BallPosition.fromObject(object.ballPositions[i]);
+                    }
+                }
+                if (object.ballTrajectory != null) {
+                    if (typeof object.ballTrajectory !== "object")
+                        throw TypeError(".bayesmech.vision.PongtownResponse.ballTrajectory: object expected");
+                    message.ballTrajectory = $root.bayesmech.vision.PongtownResponse.BallTrajectory.fromObject(object.ballTrajectory);
+                }
                 if (object.globalTablePose != null) {
                     if (typeof object.globalTablePose !== "object")
                         throw TypeError(".bayesmech.vision.PongtownResponse.globalTablePose: object expected");
@@ -11192,8 +11255,10 @@ export const bayesmech = $root.bayesmech = (() => {
                 if (!options)
                     options = {};
                 let object = {};
-                if (options.arrays || options.defaults)
+                if (options.arrays || options.defaults) {
                     object.pnpFrameDebug = [];
+                    object.ballPositions = [];
+                }
                 if (options.defaults) {
                     object.frameIdentifier = null;
                     object.tablePose = null;
@@ -11203,6 +11268,7 @@ export const bayesmech = $root.bayesmech = (() => {
                     object.netOverhangMm = 0;
                     object.netHeightMm = 0;
                     object.frameOutput = null;
+                    object.ballTrajectory = null;
                 }
                 if (message.frameIdentifier != null && message.hasOwnProperty("frameIdentifier"))
                     object.frameIdentifier = $root.bayesmech.vision.PerceiverFrameIdentifier.toObject(message.frameIdentifier, options);
@@ -11225,6 +11291,13 @@ export const bayesmech = $root.bayesmech = (() => {
                 }
                 if (message.frameOutput != null && message.hasOwnProperty("frameOutput"))
                     object.frameOutput = $root.bayesmech.vision.PongtownResponse.FrameOutput.toObject(message.frameOutput, options);
+                if (message.ballPositions && message.ballPositions.length) {
+                    object.ballPositions = [];
+                    for (let j = 0; j < message.ballPositions.length; ++j)
+                        object.ballPositions[j] = $root.bayesmech.vision.PongtownResponse.BallPosition.toObject(message.ballPositions[j], options);
+                }
+                if (message.ballTrajectory != null && message.hasOwnProperty("ballTrajectory"))
+                    object.ballTrajectory = $root.bayesmech.vision.PongtownResponse.BallTrajectory.toObject(message.ballTrajectory, options);
                 return object;
             };
 
@@ -13137,6 +13210,2388 @@ export const bayesmech = $root.bayesmech = (() => {
                 };
 
                 return FrameOutput;
+            })();
+
+            /**
+             * TableSide enum.
+             * @name bayesmech.vision.PongtownResponse.TableSide
+             * @enum {number}
+             * @property {number} SIDE_UNKNOWN=0 SIDE_UNKNOWN value
+             * @property {number} NEAR=1 NEAR value
+             * @property {number} FAR=2 FAR value
+             * @property {number} NET=3 NET value
+             * @property {number} OFF_TABLE=4 OFF_TABLE value
+             */
+            PongtownResponse.TableSide = (function() {
+                const valuesById = {}, values = Object.create(valuesById);
+                values[valuesById[0] = "SIDE_UNKNOWN"] = 0;
+                values[valuesById[1] = "NEAR"] = 1;
+                values[valuesById[2] = "FAR"] = 2;
+                values[valuesById[3] = "NET"] = 3;
+                values[valuesById[4] = "OFF_TABLE"] = 4;
+                return values;
+            })();
+
+            PongtownResponse.BallPosition = (function() {
+
+                /**
+                 * Properties of a BallPosition.
+                 * @memberof bayesmech.vision.PongtownResponse
+                 * @interface IBallPosition
+                 * @property {number|null} [trackId] BallPosition trackId
+                 * @property {number|null} [observationIdx] BallPosition observationIdx
+                 * @property {number|null} [frameIdx] BallPosition frameIdx
+                 * @property {number|null} [frameNumber] BallPosition frameNumber
+                 * @property {number|Long|null} [timestampNs] BallPosition timestampNs
+                 * @property {number|null} [uImg] BallPosition uImg
+                 * @property {number|null} [vImg] BallPosition vImg
+                 * @property {number|null} [areaPx] BallPosition areaPx
+                 * @property {number|null} [confidence] BallPosition confidence
+                 * @property {boolean|null} [interpolated] BallPosition interpolated
+                 * @property {boolean|null} [hasTablePosition] BallPosition hasTablePosition
+                 * @property {Array.<number>|null} [camXyzMm] BallPosition camXyzMm
+                 * @property {Array.<number>|null} [tableXyzMm] BallPosition tableXyzMm
+                 * @property {bayesmech.vision.PongtownResponse.TableSide|null} [side] BallPosition side
+                 * @property {boolean|null} [insideTable] BallPosition insideTable
+                 */
+
+                /**
+                 * Constructs a new BallPosition.
+                 * @memberof bayesmech.vision.PongtownResponse
+                 * @classdesc Represents a BallPosition.
+                 * @implements IBallPosition
+                 * @constructor
+                 * @param {bayesmech.vision.PongtownResponse.IBallPosition=} [properties] Properties to set
+                 */
+                function BallPosition(properties) {
+                    this.camXyzMm = [];
+                    this.tableXyzMm = [];
+                    if (properties)
+                        for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                            if (properties[keys[i]] != null)
+                                this[keys[i]] = properties[keys[i]];
+                }
+
+                /**
+                 * BallPosition trackId.
+                 * @member {number} trackId
+                 * @memberof bayesmech.vision.PongtownResponse.BallPosition
+                 * @instance
+                 */
+                BallPosition.prototype.trackId = 0;
+
+                /**
+                 * BallPosition observationIdx.
+                 * @member {number} observationIdx
+                 * @memberof bayesmech.vision.PongtownResponse.BallPosition
+                 * @instance
+                 */
+                BallPosition.prototype.observationIdx = 0;
+
+                /**
+                 * BallPosition frameIdx.
+                 * @member {number} frameIdx
+                 * @memberof bayesmech.vision.PongtownResponse.BallPosition
+                 * @instance
+                 */
+                BallPosition.prototype.frameIdx = 0;
+
+                /**
+                 * BallPosition frameNumber.
+                 * @member {number} frameNumber
+                 * @memberof bayesmech.vision.PongtownResponse.BallPosition
+                 * @instance
+                 */
+                BallPosition.prototype.frameNumber = 0;
+
+                /**
+                 * BallPosition timestampNs.
+                 * @member {number|Long} timestampNs
+                 * @memberof bayesmech.vision.PongtownResponse.BallPosition
+                 * @instance
+                 */
+                BallPosition.prototype.timestampNs = $util.Long ? $util.Long.fromBits(0,0,true) : 0;
+
+                /**
+                 * BallPosition uImg.
+                 * @member {number} uImg
+                 * @memberof bayesmech.vision.PongtownResponse.BallPosition
+                 * @instance
+                 */
+                BallPosition.prototype.uImg = 0;
+
+                /**
+                 * BallPosition vImg.
+                 * @member {number} vImg
+                 * @memberof bayesmech.vision.PongtownResponse.BallPosition
+                 * @instance
+                 */
+                BallPosition.prototype.vImg = 0;
+
+                /**
+                 * BallPosition areaPx.
+                 * @member {number} areaPx
+                 * @memberof bayesmech.vision.PongtownResponse.BallPosition
+                 * @instance
+                 */
+                BallPosition.prototype.areaPx = 0;
+
+                /**
+                 * BallPosition confidence.
+                 * @member {number} confidence
+                 * @memberof bayesmech.vision.PongtownResponse.BallPosition
+                 * @instance
+                 */
+                BallPosition.prototype.confidence = 0;
+
+                /**
+                 * BallPosition interpolated.
+                 * @member {boolean} interpolated
+                 * @memberof bayesmech.vision.PongtownResponse.BallPosition
+                 * @instance
+                 */
+                BallPosition.prototype.interpolated = false;
+
+                /**
+                 * BallPosition hasTablePosition.
+                 * @member {boolean} hasTablePosition
+                 * @memberof bayesmech.vision.PongtownResponse.BallPosition
+                 * @instance
+                 */
+                BallPosition.prototype.hasTablePosition = false;
+
+                /**
+                 * BallPosition camXyzMm.
+                 * @member {Array.<number>} camXyzMm
+                 * @memberof bayesmech.vision.PongtownResponse.BallPosition
+                 * @instance
+                 */
+                BallPosition.prototype.camXyzMm = $util.emptyArray;
+
+                /**
+                 * BallPosition tableXyzMm.
+                 * @member {Array.<number>} tableXyzMm
+                 * @memberof bayesmech.vision.PongtownResponse.BallPosition
+                 * @instance
+                 */
+                BallPosition.prototype.tableXyzMm = $util.emptyArray;
+
+                /**
+                 * BallPosition side.
+                 * @member {bayesmech.vision.PongtownResponse.TableSide} side
+                 * @memberof bayesmech.vision.PongtownResponse.BallPosition
+                 * @instance
+                 */
+                BallPosition.prototype.side = 0;
+
+                /**
+                 * BallPosition insideTable.
+                 * @member {boolean} insideTable
+                 * @memberof bayesmech.vision.PongtownResponse.BallPosition
+                 * @instance
+                 */
+                BallPosition.prototype.insideTable = false;
+
+                /**
+                 * Creates a new BallPosition instance using the specified properties.
+                 * @function create
+                 * @memberof bayesmech.vision.PongtownResponse.BallPosition
+                 * @static
+                 * @param {bayesmech.vision.PongtownResponse.IBallPosition=} [properties] Properties to set
+                 * @returns {bayesmech.vision.PongtownResponse.BallPosition} BallPosition instance
+                 */
+                BallPosition.create = function create(properties) {
+                    return new BallPosition(properties);
+                };
+
+                /**
+                 * Encodes the specified BallPosition message. Does not implicitly {@link bayesmech.vision.PongtownResponse.BallPosition.verify|verify} messages.
+                 * @function encode
+                 * @memberof bayesmech.vision.PongtownResponse.BallPosition
+                 * @static
+                 * @param {bayesmech.vision.PongtownResponse.IBallPosition} message BallPosition message or plain object to encode
+                 * @param {$protobuf.Writer} [writer] Writer to encode to
+                 * @returns {$protobuf.Writer} Writer
+                 */
+                BallPosition.encode = function encode(message, writer) {
+                    if (!writer)
+                        writer = $Writer.create();
+                    if (message.trackId != null && Object.hasOwnProperty.call(message, "trackId"))
+                        writer.uint32(/* id 1, wireType 0 =*/8).uint32(message.trackId);
+                    if (message.observationIdx != null && Object.hasOwnProperty.call(message, "observationIdx"))
+                        writer.uint32(/* id 2, wireType 0 =*/16).uint32(message.observationIdx);
+                    if (message.frameIdx != null && Object.hasOwnProperty.call(message, "frameIdx"))
+                        writer.uint32(/* id 3, wireType 0 =*/24).uint32(message.frameIdx);
+                    if (message.frameNumber != null && Object.hasOwnProperty.call(message, "frameNumber"))
+                        writer.uint32(/* id 4, wireType 0 =*/32).uint32(message.frameNumber);
+                    if (message.timestampNs != null && Object.hasOwnProperty.call(message, "timestampNs"))
+                        writer.uint32(/* id 5, wireType 0 =*/40).uint64(message.timestampNs);
+                    if (message.uImg != null && Object.hasOwnProperty.call(message, "uImg"))
+                        writer.uint32(/* id 6, wireType 5 =*/53).float(message.uImg);
+                    if (message.vImg != null && Object.hasOwnProperty.call(message, "vImg"))
+                        writer.uint32(/* id 7, wireType 5 =*/61).float(message.vImg);
+                    if (message.areaPx != null && Object.hasOwnProperty.call(message, "areaPx"))
+                        writer.uint32(/* id 8, wireType 0 =*/64).uint32(message.areaPx);
+                    if (message.confidence != null && Object.hasOwnProperty.call(message, "confidence"))
+                        writer.uint32(/* id 9, wireType 5 =*/77).float(message.confidence);
+                    if (message.interpolated != null && Object.hasOwnProperty.call(message, "interpolated"))
+                        writer.uint32(/* id 10, wireType 0 =*/80).bool(message.interpolated);
+                    if (message.hasTablePosition != null && Object.hasOwnProperty.call(message, "hasTablePosition"))
+                        writer.uint32(/* id 11, wireType 0 =*/88).bool(message.hasTablePosition);
+                    if (message.camXyzMm != null && message.camXyzMm.length) {
+                        writer.uint32(/* id 12, wireType 2 =*/98).fork();
+                        for (let i = 0; i < message.camXyzMm.length; ++i)
+                            writer.float(message.camXyzMm[i]);
+                        writer.ldelim();
+                    }
+                    if (message.tableXyzMm != null && message.tableXyzMm.length) {
+                        writer.uint32(/* id 13, wireType 2 =*/106).fork();
+                        for (let i = 0; i < message.tableXyzMm.length; ++i)
+                            writer.float(message.tableXyzMm[i]);
+                        writer.ldelim();
+                    }
+                    if (message.side != null && Object.hasOwnProperty.call(message, "side"))
+                        writer.uint32(/* id 14, wireType 0 =*/112).int32(message.side);
+                    if (message.insideTable != null && Object.hasOwnProperty.call(message, "insideTable"))
+                        writer.uint32(/* id 15, wireType 0 =*/120).bool(message.insideTable);
+                    return writer;
+                };
+
+                /**
+                 * Encodes the specified BallPosition message, length delimited. Does not implicitly {@link bayesmech.vision.PongtownResponse.BallPosition.verify|verify} messages.
+                 * @function encodeDelimited
+                 * @memberof bayesmech.vision.PongtownResponse.BallPosition
+                 * @static
+                 * @param {bayesmech.vision.PongtownResponse.IBallPosition} message BallPosition message or plain object to encode
+                 * @param {$protobuf.Writer} [writer] Writer to encode to
+                 * @returns {$protobuf.Writer} Writer
+                 */
+                BallPosition.encodeDelimited = function encodeDelimited(message, writer) {
+                    return this.encode(message, writer).ldelim();
+                };
+
+                /**
+                 * Decodes a BallPosition message from the specified reader or buffer.
+                 * @function decode
+                 * @memberof bayesmech.vision.PongtownResponse.BallPosition
+                 * @static
+                 * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+                 * @param {number} [length] Message length if known beforehand
+                 * @returns {bayesmech.vision.PongtownResponse.BallPosition} BallPosition
+                 * @throws {Error} If the payload is not a reader or valid buffer
+                 * @throws {$protobuf.util.ProtocolError} If required fields are missing
+                 */
+                BallPosition.decode = function decode(reader, length, error) {
+                    if (!(reader instanceof $Reader))
+                        reader = $Reader.create(reader);
+                    let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.PongtownResponse.BallPosition();
+                    while (reader.pos < end) {
+                        let tag = reader.uint32();
+                        if (tag === error)
+                            break;
+                        switch (tag >>> 3) {
+                        case 1: {
+                                message.trackId = reader.uint32();
+                                break;
+                            }
+                        case 2: {
+                                message.observationIdx = reader.uint32();
+                                break;
+                            }
+                        case 3: {
+                                message.frameIdx = reader.uint32();
+                                break;
+                            }
+                        case 4: {
+                                message.frameNumber = reader.uint32();
+                                break;
+                            }
+                        case 5: {
+                                message.timestampNs = reader.uint64();
+                                break;
+                            }
+                        case 6: {
+                                message.uImg = reader.float();
+                                break;
+                            }
+                        case 7: {
+                                message.vImg = reader.float();
+                                break;
+                            }
+                        case 8: {
+                                message.areaPx = reader.uint32();
+                                break;
+                            }
+                        case 9: {
+                                message.confidence = reader.float();
+                                break;
+                            }
+                        case 10: {
+                                message.interpolated = reader.bool();
+                                break;
+                            }
+                        case 11: {
+                                message.hasTablePosition = reader.bool();
+                                break;
+                            }
+                        case 12: {
+                                if (!(message.camXyzMm && message.camXyzMm.length))
+                                    message.camXyzMm = [];
+                                if ((tag & 7) === 2) {
+                                    let end2 = reader.uint32() + reader.pos;
+                                    while (reader.pos < end2)
+                                        message.camXyzMm.push(reader.float());
+                                } else
+                                    message.camXyzMm.push(reader.float());
+                                break;
+                            }
+                        case 13: {
+                                if (!(message.tableXyzMm && message.tableXyzMm.length))
+                                    message.tableXyzMm = [];
+                                if ((tag & 7) === 2) {
+                                    let end2 = reader.uint32() + reader.pos;
+                                    while (reader.pos < end2)
+                                        message.tableXyzMm.push(reader.float());
+                                } else
+                                    message.tableXyzMm.push(reader.float());
+                                break;
+                            }
+                        case 14: {
+                                message.side = reader.int32();
+                                break;
+                            }
+                        case 15: {
+                                message.insideTable = reader.bool();
+                                break;
+                            }
+                        default:
+                            reader.skipType(tag & 7);
+                            break;
+                        }
+                    }
+                    return message;
+                };
+
+                /**
+                 * Decodes a BallPosition message from the specified reader or buffer, length delimited.
+                 * @function decodeDelimited
+                 * @memberof bayesmech.vision.PongtownResponse.BallPosition
+                 * @static
+                 * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+                 * @returns {bayesmech.vision.PongtownResponse.BallPosition} BallPosition
+                 * @throws {Error} If the payload is not a reader or valid buffer
+                 * @throws {$protobuf.util.ProtocolError} If required fields are missing
+                 */
+                BallPosition.decodeDelimited = function decodeDelimited(reader) {
+                    if (!(reader instanceof $Reader))
+                        reader = new $Reader(reader);
+                    return this.decode(reader, reader.uint32());
+                };
+
+                /**
+                 * Verifies a BallPosition message.
+                 * @function verify
+                 * @memberof bayesmech.vision.PongtownResponse.BallPosition
+                 * @static
+                 * @param {Object.<string,*>} message Plain object to verify
+                 * @returns {string|null} `null` if valid, otherwise the reason why it is not
+                 */
+                BallPosition.verify = function verify(message) {
+                    if (typeof message !== "object" || message === null)
+                        return "object expected";
+                    if (message.trackId != null && message.hasOwnProperty("trackId"))
+                        if (!$util.isInteger(message.trackId))
+                            return "trackId: integer expected";
+                    if (message.observationIdx != null && message.hasOwnProperty("observationIdx"))
+                        if (!$util.isInteger(message.observationIdx))
+                            return "observationIdx: integer expected";
+                    if (message.frameIdx != null && message.hasOwnProperty("frameIdx"))
+                        if (!$util.isInteger(message.frameIdx))
+                            return "frameIdx: integer expected";
+                    if (message.frameNumber != null && message.hasOwnProperty("frameNumber"))
+                        if (!$util.isInteger(message.frameNumber))
+                            return "frameNumber: integer expected";
+                    if (message.timestampNs != null && message.hasOwnProperty("timestampNs"))
+                        if (!$util.isInteger(message.timestampNs) && !(message.timestampNs && $util.isInteger(message.timestampNs.low) && $util.isInteger(message.timestampNs.high)))
+                            return "timestampNs: integer|Long expected";
+                    if (message.uImg != null && message.hasOwnProperty("uImg"))
+                        if (typeof message.uImg !== "number")
+                            return "uImg: number expected";
+                    if (message.vImg != null && message.hasOwnProperty("vImg"))
+                        if (typeof message.vImg !== "number")
+                            return "vImg: number expected";
+                    if (message.areaPx != null && message.hasOwnProperty("areaPx"))
+                        if (!$util.isInteger(message.areaPx))
+                            return "areaPx: integer expected";
+                    if (message.confidence != null && message.hasOwnProperty("confidence"))
+                        if (typeof message.confidence !== "number")
+                            return "confidence: number expected";
+                    if (message.interpolated != null && message.hasOwnProperty("interpolated"))
+                        if (typeof message.interpolated !== "boolean")
+                            return "interpolated: boolean expected";
+                    if (message.hasTablePosition != null && message.hasOwnProperty("hasTablePosition"))
+                        if (typeof message.hasTablePosition !== "boolean")
+                            return "hasTablePosition: boolean expected";
+                    if (message.camXyzMm != null && message.hasOwnProperty("camXyzMm")) {
+                        if (!Array.isArray(message.camXyzMm))
+                            return "camXyzMm: array expected";
+                        for (let i = 0; i < message.camXyzMm.length; ++i)
+                            if (typeof message.camXyzMm[i] !== "number")
+                                return "camXyzMm: number[] expected";
+                    }
+                    if (message.tableXyzMm != null && message.hasOwnProperty("tableXyzMm")) {
+                        if (!Array.isArray(message.tableXyzMm))
+                            return "tableXyzMm: array expected";
+                        for (let i = 0; i < message.tableXyzMm.length; ++i)
+                            if (typeof message.tableXyzMm[i] !== "number")
+                                return "tableXyzMm: number[] expected";
+                    }
+                    if (message.side != null && message.hasOwnProperty("side"))
+                        switch (message.side) {
+                        default:
+                            return "side: enum value expected";
+                        case 0:
+                        case 1:
+                        case 2:
+                        case 3:
+                        case 4:
+                            break;
+                        }
+                    if (message.insideTable != null && message.hasOwnProperty("insideTable"))
+                        if (typeof message.insideTable !== "boolean")
+                            return "insideTable: boolean expected";
+                    return null;
+                };
+
+                /**
+                 * Creates a BallPosition message from a plain object. Also converts values to their respective internal types.
+                 * @function fromObject
+                 * @memberof bayesmech.vision.PongtownResponse.BallPosition
+                 * @static
+                 * @param {Object.<string,*>} object Plain object
+                 * @returns {bayesmech.vision.PongtownResponse.BallPosition} BallPosition
+                 */
+                BallPosition.fromObject = function fromObject(object) {
+                    if (object instanceof $root.bayesmech.vision.PongtownResponse.BallPosition)
+                        return object;
+                    let message = new $root.bayesmech.vision.PongtownResponse.BallPosition();
+                    if (object.trackId != null)
+                        message.trackId = object.trackId >>> 0;
+                    if (object.observationIdx != null)
+                        message.observationIdx = object.observationIdx >>> 0;
+                    if (object.frameIdx != null)
+                        message.frameIdx = object.frameIdx >>> 0;
+                    if (object.frameNumber != null)
+                        message.frameNumber = object.frameNumber >>> 0;
+                    if (object.timestampNs != null)
+                        if ($util.Long)
+                            (message.timestampNs = $util.Long.fromValue(object.timestampNs)).unsigned = true;
+                        else if (typeof object.timestampNs === "string")
+                            message.timestampNs = parseInt(object.timestampNs, 10);
+                        else if (typeof object.timestampNs === "number")
+                            message.timestampNs = object.timestampNs;
+                        else if (typeof object.timestampNs === "object")
+                            message.timestampNs = new $util.LongBits(object.timestampNs.low >>> 0, object.timestampNs.high >>> 0).toNumber(true);
+                    if (object.uImg != null)
+                        message.uImg = Number(object.uImg);
+                    if (object.vImg != null)
+                        message.vImg = Number(object.vImg);
+                    if (object.areaPx != null)
+                        message.areaPx = object.areaPx >>> 0;
+                    if (object.confidence != null)
+                        message.confidence = Number(object.confidence);
+                    if (object.interpolated != null)
+                        message.interpolated = Boolean(object.interpolated);
+                    if (object.hasTablePosition != null)
+                        message.hasTablePosition = Boolean(object.hasTablePosition);
+                    if (object.camXyzMm) {
+                        if (!Array.isArray(object.camXyzMm))
+                            throw TypeError(".bayesmech.vision.PongtownResponse.BallPosition.camXyzMm: array expected");
+                        message.camXyzMm = [];
+                        for (let i = 0; i < object.camXyzMm.length; ++i)
+                            message.camXyzMm[i] = Number(object.camXyzMm[i]);
+                    }
+                    if (object.tableXyzMm) {
+                        if (!Array.isArray(object.tableXyzMm))
+                            throw TypeError(".bayesmech.vision.PongtownResponse.BallPosition.tableXyzMm: array expected");
+                        message.tableXyzMm = [];
+                        for (let i = 0; i < object.tableXyzMm.length; ++i)
+                            message.tableXyzMm[i] = Number(object.tableXyzMm[i]);
+                    }
+                    switch (object.side) {
+                    default:
+                        if (typeof object.side === "number") {
+                            message.side = object.side;
+                            break;
+                        }
+                        break;
+                    case "SIDE_UNKNOWN":
+                    case 0:
+                        message.side = 0;
+                        break;
+                    case "NEAR":
+                    case 1:
+                        message.side = 1;
+                        break;
+                    case "FAR":
+                    case 2:
+                        message.side = 2;
+                        break;
+                    case "NET":
+                    case 3:
+                        message.side = 3;
+                        break;
+                    case "OFF_TABLE":
+                    case 4:
+                        message.side = 4;
+                        break;
+                    }
+                    if (object.insideTable != null)
+                        message.insideTable = Boolean(object.insideTable);
+                    return message;
+                };
+
+                /**
+                 * Creates a plain object from a BallPosition message. Also converts values to other types if specified.
+                 * @function toObject
+                 * @memberof bayesmech.vision.PongtownResponse.BallPosition
+                 * @static
+                 * @param {bayesmech.vision.PongtownResponse.BallPosition} message BallPosition
+                 * @param {$protobuf.IConversionOptions} [options] Conversion options
+                 * @returns {Object.<string,*>} Plain object
+                 */
+                BallPosition.toObject = function toObject(message, options) {
+                    if (!options)
+                        options = {};
+                    let object = {};
+                    if (options.arrays || options.defaults) {
+                        object.camXyzMm = [];
+                        object.tableXyzMm = [];
+                    }
+                    if (options.defaults) {
+                        object.trackId = 0;
+                        object.observationIdx = 0;
+                        object.frameIdx = 0;
+                        object.frameNumber = 0;
+                        if ($util.Long) {
+                            let long = new $util.Long(0, 0, true);
+                            object.timestampNs = options.longs === String ? long.toString() : options.longs === Number ? long.toNumber() : long;
+                        } else
+                            object.timestampNs = options.longs === String ? "0" : 0;
+                        object.uImg = 0;
+                        object.vImg = 0;
+                        object.areaPx = 0;
+                        object.confidence = 0;
+                        object.interpolated = false;
+                        object.hasTablePosition = false;
+                        object.side = options.enums === String ? "SIDE_UNKNOWN" : 0;
+                        object.insideTable = false;
+                    }
+                    if (message.trackId != null && message.hasOwnProperty("trackId"))
+                        object.trackId = message.trackId;
+                    if (message.observationIdx != null && message.hasOwnProperty("observationIdx"))
+                        object.observationIdx = message.observationIdx;
+                    if (message.frameIdx != null && message.hasOwnProperty("frameIdx"))
+                        object.frameIdx = message.frameIdx;
+                    if (message.frameNumber != null && message.hasOwnProperty("frameNumber"))
+                        object.frameNumber = message.frameNumber;
+                    if (message.timestampNs != null && message.hasOwnProperty("timestampNs"))
+                        if (typeof message.timestampNs === "number")
+                            object.timestampNs = options.longs === String ? String(message.timestampNs) : message.timestampNs;
+                        else
+                            object.timestampNs = options.longs === String ? $util.Long.prototype.toString.call(message.timestampNs) : options.longs === Number ? new $util.LongBits(message.timestampNs.low >>> 0, message.timestampNs.high >>> 0).toNumber(true) : message.timestampNs;
+                    if (message.uImg != null && message.hasOwnProperty("uImg"))
+                        object.uImg = options.json && !isFinite(message.uImg) ? String(message.uImg) : message.uImg;
+                    if (message.vImg != null && message.hasOwnProperty("vImg"))
+                        object.vImg = options.json && !isFinite(message.vImg) ? String(message.vImg) : message.vImg;
+                    if (message.areaPx != null && message.hasOwnProperty("areaPx"))
+                        object.areaPx = message.areaPx;
+                    if (message.confidence != null && message.hasOwnProperty("confidence"))
+                        object.confidence = options.json && !isFinite(message.confidence) ? String(message.confidence) : message.confidence;
+                    if (message.interpolated != null && message.hasOwnProperty("interpolated"))
+                        object.interpolated = message.interpolated;
+                    if (message.hasTablePosition != null && message.hasOwnProperty("hasTablePosition"))
+                        object.hasTablePosition = message.hasTablePosition;
+                    if (message.camXyzMm && message.camXyzMm.length) {
+                        object.camXyzMm = [];
+                        for (let j = 0; j < message.camXyzMm.length; ++j)
+                            object.camXyzMm[j] = options.json && !isFinite(message.camXyzMm[j]) ? String(message.camXyzMm[j]) : message.camXyzMm[j];
+                    }
+                    if (message.tableXyzMm && message.tableXyzMm.length) {
+                        object.tableXyzMm = [];
+                        for (let j = 0; j < message.tableXyzMm.length; ++j)
+                            object.tableXyzMm[j] = options.json && !isFinite(message.tableXyzMm[j]) ? String(message.tableXyzMm[j]) : message.tableXyzMm[j];
+                    }
+                    if (message.side != null && message.hasOwnProperty("side"))
+                        object.side = options.enums === String ? $root.bayesmech.vision.PongtownResponse.TableSide[message.side] === undefined ? message.side : $root.bayesmech.vision.PongtownResponse.TableSide[message.side] : message.side;
+                    if (message.insideTable != null && message.hasOwnProperty("insideTable"))
+                        object.insideTable = message.insideTable;
+                    return object;
+                };
+
+                /**
+                 * Converts this BallPosition to JSON.
+                 * @function toJSON
+                 * @memberof bayesmech.vision.PongtownResponse.BallPosition
+                 * @instance
+                 * @returns {Object.<string,*>} JSON object
+                 */
+                BallPosition.prototype.toJSON = function toJSON() {
+                    return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+                };
+
+                /**
+                 * Gets the default type url for BallPosition
+                 * @function getTypeUrl
+                 * @memberof bayesmech.vision.PongtownResponse.BallPosition
+                 * @static
+                 * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+                 * @returns {string} The default type url
+                 */
+                BallPosition.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+                    if (typeUrlPrefix === undefined) {
+                        typeUrlPrefix = "type.googleapis.com";
+                    }
+                    return typeUrlPrefix + "/bayesmech.vision.PongtownResponse.BallPosition";
+                };
+
+                return BallPosition;
+            })();
+
+            PongtownResponse.BallTrajectorySegment = (function() {
+
+                /**
+                 * Properties of a BallTrajectorySegment.
+                 * @memberof bayesmech.vision.PongtownResponse
+                 * @interface IBallTrajectorySegment
+                 * @property {number|null} [startObservationIdx] BallTrajectorySegment startObservationIdx
+                 * @property {number|null} [endObservationIdx] BallTrajectorySegment endObservationIdx
+                 * @property {number|null} [startFrameIdx] BallTrajectorySegment startFrameIdx
+                 * @property {number|null} [endFrameIdx] BallTrajectorySegment endFrameIdx
+                 * @property {number|Long|null} [startTimestampNs] BallTrajectorySegment startTimestampNs
+                 * @property {number|Long|null} [endTimestampNs] BallTrajectorySegment endTimestampNs
+                 * @property {number|null} [dtS] BallTrajectorySegment dtS
+                 * @property {number|null} [duImg] BallTrajectorySegment duImg
+                 * @property {number|null} [dvImg] BallTrajectorySegment dvImg
+                 * @property {number|null} [imageDistancePx] BallTrajectorySegment imageDistancePx
+                 * @property {number|null} [imageSpeedPxS] BallTrajectorySegment imageSpeedPxS
+                 * @property {boolean|null} [hasTableDisplacement] BallTrajectorySegment hasTableDisplacement
+                 * @property {Array.<number>|null} [tableDeltaMm] BallTrajectorySegment tableDeltaMm
+                 * @property {number|null} [tableDistanceMm] BallTrajectorySegment tableDistanceMm
+                 * @property {number|null} [tableSpeedMmS] BallTrajectorySegment tableSpeedMmS
+                 */
+
+                /**
+                 * Constructs a new BallTrajectorySegment.
+                 * @memberof bayesmech.vision.PongtownResponse
+                 * @classdesc Represents a BallTrajectorySegment.
+                 * @implements IBallTrajectorySegment
+                 * @constructor
+                 * @param {bayesmech.vision.PongtownResponse.IBallTrajectorySegment=} [properties] Properties to set
+                 */
+                function BallTrajectorySegment(properties) {
+                    this.tableDeltaMm = [];
+                    if (properties)
+                        for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                            if (properties[keys[i]] != null)
+                                this[keys[i]] = properties[keys[i]];
+                }
+
+                /**
+                 * BallTrajectorySegment startObservationIdx.
+                 * @member {number} startObservationIdx
+                 * @memberof bayesmech.vision.PongtownResponse.BallTrajectorySegment
+                 * @instance
+                 */
+                BallTrajectorySegment.prototype.startObservationIdx = 0;
+
+                /**
+                 * BallTrajectorySegment endObservationIdx.
+                 * @member {number} endObservationIdx
+                 * @memberof bayesmech.vision.PongtownResponse.BallTrajectorySegment
+                 * @instance
+                 */
+                BallTrajectorySegment.prototype.endObservationIdx = 0;
+
+                /**
+                 * BallTrajectorySegment startFrameIdx.
+                 * @member {number} startFrameIdx
+                 * @memberof bayesmech.vision.PongtownResponse.BallTrajectorySegment
+                 * @instance
+                 */
+                BallTrajectorySegment.prototype.startFrameIdx = 0;
+
+                /**
+                 * BallTrajectorySegment endFrameIdx.
+                 * @member {number} endFrameIdx
+                 * @memberof bayesmech.vision.PongtownResponse.BallTrajectorySegment
+                 * @instance
+                 */
+                BallTrajectorySegment.prototype.endFrameIdx = 0;
+
+                /**
+                 * BallTrajectorySegment startTimestampNs.
+                 * @member {number|Long} startTimestampNs
+                 * @memberof bayesmech.vision.PongtownResponse.BallTrajectorySegment
+                 * @instance
+                 */
+                BallTrajectorySegment.prototype.startTimestampNs = $util.Long ? $util.Long.fromBits(0,0,true) : 0;
+
+                /**
+                 * BallTrajectorySegment endTimestampNs.
+                 * @member {number|Long} endTimestampNs
+                 * @memberof bayesmech.vision.PongtownResponse.BallTrajectorySegment
+                 * @instance
+                 */
+                BallTrajectorySegment.prototype.endTimestampNs = $util.Long ? $util.Long.fromBits(0,0,true) : 0;
+
+                /**
+                 * BallTrajectorySegment dtS.
+                 * @member {number} dtS
+                 * @memberof bayesmech.vision.PongtownResponse.BallTrajectorySegment
+                 * @instance
+                 */
+                BallTrajectorySegment.prototype.dtS = 0;
+
+                /**
+                 * BallTrajectorySegment duImg.
+                 * @member {number} duImg
+                 * @memberof bayesmech.vision.PongtownResponse.BallTrajectorySegment
+                 * @instance
+                 */
+                BallTrajectorySegment.prototype.duImg = 0;
+
+                /**
+                 * BallTrajectorySegment dvImg.
+                 * @member {number} dvImg
+                 * @memberof bayesmech.vision.PongtownResponse.BallTrajectorySegment
+                 * @instance
+                 */
+                BallTrajectorySegment.prototype.dvImg = 0;
+
+                /**
+                 * BallTrajectorySegment imageDistancePx.
+                 * @member {number} imageDistancePx
+                 * @memberof bayesmech.vision.PongtownResponse.BallTrajectorySegment
+                 * @instance
+                 */
+                BallTrajectorySegment.prototype.imageDistancePx = 0;
+
+                /**
+                 * BallTrajectorySegment imageSpeedPxS.
+                 * @member {number} imageSpeedPxS
+                 * @memberof bayesmech.vision.PongtownResponse.BallTrajectorySegment
+                 * @instance
+                 */
+                BallTrajectorySegment.prototype.imageSpeedPxS = 0;
+
+                /**
+                 * BallTrajectorySegment hasTableDisplacement.
+                 * @member {boolean} hasTableDisplacement
+                 * @memberof bayesmech.vision.PongtownResponse.BallTrajectorySegment
+                 * @instance
+                 */
+                BallTrajectorySegment.prototype.hasTableDisplacement = false;
+
+                /**
+                 * BallTrajectorySegment tableDeltaMm.
+                 * @member {Array.<number>} tableDeltaMm
+                 * @memberof bayesmech.vision.PongtownResponse.BallTrajectorySegment
+                 * @instance
+                 */
+                BallTrajectorySegment.prototype.tableDeltaMm = $util.emptyArray;
+
+                /**
+                 * BallTrajectorySegment tableDistanceMm.
+                 * @member {number} tableDistanceMm
+                 * @memberof bayesmech.vision.PongtownResponse.BallTrajectorySegment
+                 * @instance
+                 */
+                BallTrajectorySegment.prototype.tableDistanceMm = 0;
+
+                /**
+                 * BallTrajectorySegment tableSpeedMmS.
+                 * @member {number} tableSpeedMmS
+                 * @memberof bayesmech.vision.PongtownResponse.BallTrajectorySegment
+                 * @instance
+                 */
+                BallTrajectorySegment.prototype.tableSpeedMmS = 0;
+
+                /**
+                 * Creates a new BallTrajectorySegment instance using the specified properties.
+                 * @function create
+                 * @memberof bayesmech.vision.PongtownResponse.BallTrajectorySegment
+                 * @static
+                 * @param {bayesmech.vision.PongtownResponse.IBallTrajectorySegment=} [properties] Properties to set
+                 * @returns {bayesmech.vision.PongtownResponse.BallTrajectorySegment} BallTrajectorySegment instance
+                 */
+                BallTrajectorySegment.create = function create(properties) {
+                    return new BallTrajectorySegment(properties);
+                };
+
+                /**
+                 * Encodes the specified BallTrajectorySegment message. Does not implicitly {@link bayesmech.vision.PongtownResponse.BallTrajectorySegment.verify|verify} messages.
+                 * @function encode
+                 * @memberof bayesmech.vision.PongtownResponse.BallTrajectorySegment
+                 * @static
+                 * @param {bayesmech.vision.PongtownResponse.IBallTrajectorySegment} message BallTrajectorySegment message or plain object to encode
+                 * @param {$protobuf.Writer} [writer] Writer to encode to
+                 * @returns {$protobuf.Writer} Writer
+                 */
+                BallTrajectorySegment.encode = function encode(message, writer) {
+                    if (!writer)
+                        writer = $Writer.create();
+                    if (message.startObservationIdx != null && Object.hasOwnProperty.call(message, "startObservationIdx"))
+                        writer.uint32(/* id 1, wireType 0 =*/8).uint32(message.startObservationIdx);
+                    if (message.endObservationIdx != null && Object.hasOwnProperty.call(message, "endObservationIdx"))
+                        writer.uint32(/* id 2, wireType 0 =*/16).uint32(message.endObservationIdx);
+                    if (message.startFrameIdx != null && Object.hasOwnProperty.call(message, "startFrameIdx"))
+                        writer.uint32(/* id 3, wireType 0 =*/24).uint32(message.startFrameIdx);
+                    if (message.endFrameIdx != null && Object.hasOwnProperty.call(message, "endFrameIdx"))
+                        writer.uint32(/* id 4, wireType 0 =*/32).uint32(message.endFrameIdx);
+                    if (message.startTimestampNs != null && Object.hasOwnProperty.call(message, "startTimestampNs"))
+                        writer.uint32(/* id 5, wireType 0 =*/40).uint64(message.startTimestampNs);
+                    if (message.endTimestampNs != null && Object.hasOwnProperty.call(message, "endTimestampNs"))
+                        writer.uint32(/* id 6, wireType 0 =*/48).uint64(message.endTimestampNs);
+                    if (message.dtS != null && Object.hasOwnProperty.call(message, "dtS"))
+                        writer.uint32(/* id 7, wireType 5 =*/61).float(message.dtS);
+                    if (message.duImg != null && Object.hasOwnProperty.call(message, "duImg"))
+                        writer.uint32(/* id 8, wireType 5 =*/69).float(message.duImg);
+                    if (message.dvImg != null && Object.hasOwnProperty.call(message, "dvImg"))
+                        writer.uint32(/* id 9, wireType 5 =*/77).float(message.dvImg);
+                    if (message.imageDistancePx != null && Object.hasOwnProperty.call(message, "imageDistancePx"))
+                        writer.uint32(/* id 10, wireType 5 =*/85).float(message.imageDistancePx);
+                    if (message.imageSpeedPxS != null && Object.hasOwnProperty.call(message, "imageSpeedPxS"))
+                        writer.uint32(/* id 11, wireType 5 =*/93).float(message.imageSpeedPxS);
+                    if (message.hasTableDisplacement != null && Object.hasOwnProperty.call(message, "hasTableDisplacement"))
+                        writer.uint32(/* id 12, wireType 0 =*/96).bool(message.hasTableDisplacement);
+                    if (message.tableDeltaMm != null && message.tableDeltaMm.length) {
+                        writer.uint32(/* id 13, wireType 2 =*/106).fork();
+                        for (let i = 0; i < message.tableDeltaMm.length; ++i)
+                            writer.float(message.tableDeltaMm[i]);
+                        writer.ldelim();
+                    }
+                    if (message.tableDistanceMm != null && Object.hasOwnProperty.call(message, "tableDistanceMm"))
+                        writer.uint32(/* id 14, wireType 5 =*/117).float(message.tableDistanceMm);
+                    if (message.tableSpeedMmS != null && Object.hasOwnProperty.call(message, "tableSpeedMmS"))
+                        writer.uint32(/* id 15, wireType 5 =*/125).float(message.tableSpeedMmS);
+                    return writer;
+                };
+
+                /**
+                 * Encodes the specified BallTrajectorySegment message, length delimited. Does not implicitly {@link bayesmech.vision.PongtownResponse.BallTrajectorySegment.verify|verify} messages.
+                 * @function encodeDelimited
+                 * @memberof bayesmech.vision.PongtownResponse.BallTrajectorySegment
+                 * @static
+                 * @param {bayesmech.vision.PongtownResponse.IBallTrajectorySegment} message BallTrajectorySegment message or plain object to encode
+                 * @param {$protobuf.Writer} [writer] Writer to encode to
+                 * @returns {$protobuf.Writer} Writer
+                 */
+                BallTrajectorySegment.encodeDelimited = function encodeDelimited(message, writer) {
+                    return this.encode(message, writer).ldelim();
+                };
+
+                /**
+                 * Decodes a BallTrajectorySegment message from the specified reader or buffer.
+                 * @function decode
+                 * @memberof bayesmech.vision.PongtownResponse.BallTrajectorySegment
+                 * @static
+                 * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+                 * @param {number} [length] Message length if known beforehand
+                 * @returns {bayesmech.vision.PongtownResponse.BallTrajectorySegment} BallTrajectorySegment
+                 * @throws {Error} If the payload is not a reader or valid buffer
+                 * @throws {$protobuf.util.ProtocolError} If required fields are missing
+                 */
+                BallTrajectorySegment.decode = function decode(reader, length, error) {
+                    if (!(reader instanceof $Reader))
+                        reader = $Reader.create(reader);
+                    let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.PongtownResponse.BallTrajectorySegment();
+                    while (reader.pos < end) {
+                        let tag = reader.uint32();
+                        if (tag === error)
+                            break;
+                        switch (tag >>> 3) {
+                        case 1: {
+                                message.startObservationIdx = reader.uint32();
+                                break;
+                            }
+                        case 2: {
+                                message.endObservationIdx = reader.uint32();
+                                break;
+                            }
+                        case 3: {
+                                message.startFrameIdx = reader.uint32();
+                                break;
+                            }
+                        case 4: {
+                                message.endFrameIdx = reader.uint32();
+                                break;
+                            }
+                        case 5: {
+                                message.startTimestampNs = reader.uint64();
+                                break;
+                            }
+                        case 6: {
+                                message.endTimestampNs = reader.uint64();
+                                break;
+                            }
+                        case 7: {
+                                message.dtS = reader.float();
+                                break;
+                            }
+                        case 8: {
+                                message.duImg = reader.float();
+                                break;
+                            }
+                        case 9: {
+                                message.dvImg = reader.float();
+                                break;
+                            }
+                        case 10: {
+                                message.imageDistancePx = reader.float();
+                                break;
+                            }
+                        case 11: {
+                                message.imageSpeedPxS = reader.float();
+                                break;
+                            }
+                        case 12: {
+                                message.hasTableDisplacement = reader.bool();
+                                break;
+                            }
+                        case 13: {
+                                if (!(message.tableDeltaMm && message.tableDeltaMm.length))
+                                    message.tableDeltaMm = [];
+                                if ((tag & 7) === 2) {
+                                    let end2 = reader.uint32() + reader.pos;
+                                    while (reader.pos < end2)
+                                        message.tableDeltaMm.push(reader.float());
+                                } else
+                                    message.tableDeltaMm.push(reader.float());
+                                break;
+                            }
+                        case 14: {
+                                message.tableDistanceMm = reader.float();
+                                break;
+                            }
+                        case 15: {
+                                message.tableSpeedMmS = reader.float();
+                                break;
+                            }
+                        default:
+                            reader.skipType(tag & 7);
+                            break;
+                        }
+                    }
+                    return message;
+                };
+
+                /**
+                 * Decodes a BallTrajectorySegment message from the specified reader or buffer, length delimited.
+                 * @function decodeDelimited
+                 * @memberof bayesmech.vision.PongtownResponse.BallTrajectorySegment
+                 * @static
+                 * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+                 * @returns {bayesmech.vision.PongtownResponse.BallTrajectorySegment} BallTrajectorySegment
+                 * @throws {Error} If the payload is not a reader or valid buffer
+                 * @throws {$protobuf.util.ProtocolError} If required fields are missing
+                 */
+                BallTrajectorySegment.decodeDelimited = function decodeDelimited(reader) {
+                    if (!(reader instanceof $Reader))
+                        reader = new $Reader(reader);
+                    return this.decode(reader, reader.uint32());
+                };
+
+                /**
+                 * Verifies a BallTrajectorySegment message.
+                 * @function verify
+                 * @memberof bayesmech.vision.PongtownResponse.BallTrajectorySegment
+                 * @static
+                 * @param {Object.<string,*>} message Plain object to verify
+                 * @returns {string|null} `null` if valid, otherwise the reason why it is not
+                 */
+                BallTrajectorySegment.verify = function verify(message) {
+                    if (typeof message !== "object" || message === null)
+                        return "object expected";
+                    if (message.startObservationIdx != null && message.hasOwnProperty("startObservationIdx"))
+                        if (!$util.isInteger(message.startObservationIdx))
+                            return "startObservationIdx: integer expected";
+                    if (message.endObservationIdx != null && message.hasOwnProperty("endObservationIdx"))
+                        if (!$util.isInteger(message.endObservationIdx))
+                            return "endObservationIdx: integer expected";
+                    if (message.startFrameIdx != null && message.hasOwnProperty("startFrameIdx"))
+                        if (!$util.isInteger(message.startFrameIdx))
+                            return "startFrameIdx: integer expected";
+                    if (message.endFrameIdx != null && message.hasOwnProperty("endFrameIdx"))
+                        if (!$util.isInteger(message.endFrameIdx))
+                            return "endFrameIdx: integer expected";
+                    if (message.startTimestampNs != null && message.hasOwnProperty("startTimestampNs"))
+                        if (!$util.isInteger(message.startTimestampNs) && !(message.startTimestampNs && $util.isInteger(message.startTimestampNs.low) && $util.isInteger(message.startTimestampNs.high)))
+                            return "startTimestampNs: integer|Long expected";
+                    if (message.endTimestampNs != null && message.hasOwnProperty("endTimestampNs"))
+                        if (!$util.isInteger(message.endTimestampNs) && !(message.endTimestampNs && $util.isInteger(message.endTimestampNs.low) && $util.isInteger(message.endTimestampNs.high)))
+                            return "endTimestampNs: integer|Long expected";
+                    if (message.dtS != null && message.hasOwnProperty("dtS"))
+                        if (typeof message.dtS !== "number")
+                            return "dtS: number expected";
+                    if (message.duImg != null && message.hasOwnProperty("duImg"))
+                        if (typeof message.duImg !== "number")
+                            return "duImg: number expected";
+                    if (message.dvImg != null && message.hasOwnProperty("dvImg"))
+                        if (typeof message.dvImg !== "number")
+                            return "dvImg: number expected";
+                    if (message.imageDistancePx != null && message.hasOwnProperty("imageDistancePx"))
+                        if (typeof message.imageDistancePx !== "number")
+                            return "imageDistancePx: number expected";
+                    if (message.imageSpeedPxS != null && message.hasOwnProperty("imageSpeedPxS"))
+                        if (typeof message.imageSpeedPxS !== "number")
+                            return "imageSpeedPxS: number expected";
+                    if (message.hasTableDisplacement != null && message.hasOwnProperty("hasTableDisplacement"))
+                        if (typeof message.hasTableDisplacement !== "boolean")
+                            return "hasTableDisplacement: boolean expected";
+                    if (message.tableDeltaMm != null && message.hasOwnProperty("tableDeltaMm")) {
+                        if (!Array.isArray(message.tableDeltaMm))
+                            return "tableDeltaMm: array expected";
+                        for (let i = 0; i < message.tableDeltaMm.length; ++i)
+                            if (typeof message.tableDeltaMm[i] !== "number")
+                                return "tableDeltaMm: number[] expected";
+                    }
+                    if (message.tableDistanceMm != null && message.hasOwnProperty("tableDistanceMm"))
+                        if (typeof message.tableDistanceMm !== "number")
+                            return "tableDistanceMm: number expected";
+                    if (message.tableSpeedMmS != null && message.hasOwnProperty("tableSpeedMmS"))
+                        if (typeof message.tableSpeedMmS !== "number")
+                            return "tableSpeedMmS: number expected";
+                    return null;
+                };
+
+                /**
+                 * Creates a BallTrajectorySegment message from a plain object. Also converts values to their respective internal types.
+                 * @function fromObject
+                 * @memberof bayesmech.vision.PongtownResponse.BallTrajectorySegment
+                 * @static
+                 * @param {Object.<string,*>} object Plain object
+                 * @returns {bayesmech.vision.PongtownResponse.BallTrajectorySegment} BallTrajectorySegment
+                 */
+                BallTrajectorySegment.fromObject = function fromObject(object) {
+                    if (object instanceof $root.bayesmech.vision.PongtownResponse.BallTrajectorySegment)
+                        return object;
+                    let message = new $root.bayesmech.vision.PongtownResponse.BallTrajectorySegment();
+                    if (object.startObservationIdx != null)
+                        message.startObservationIdx = object.startObservationIdx >>> 0;
+                    if (object.endObservationIdx != null)
+                        message.endObservationIdx = object.endObservationIdx >>> 0;
+                    if (object.startFrameIdx != null)
+                        message.startFrameIdx = object.startFrameIdx >>> 0;
+                    if (object.endFrameIdx != null)
+                        message.endFrameIdx = object.endFrameIdx >>> 0;
+                    if (object.startTimestampNs != null)
+                        if ($util.Long)
+                            (message.startTimestampNs = $util.Long.fromValue(object.startTimestampNs)).unsigned = true;
+                        else if (typeof object.startTimestampNs === "string")
+                            message.startTimestampNs = parseInt(object.startTimestampNs, 10);
+                        else if (typeof object.startTimestampNs === "number")
+                            message.startTimestampNs = object.startTimestampNs;
+                        else if (typeof object.startTimestampNs === "object")
+                            message.startTimestampNs = new $util.LongBits(object.startTimestampNs.low >>> 0, object.startTimestampNs.high >>> 0).toNumber(true);
+                    if (object.endTimestampNs != null)
+                        if ($util.Long)
+                            (message.endTimestampNs = $util.Long.fromValue(object.endTimestampNs)).unsigned = true;
+                        else if (typeof object.endTimestampNs === "string")
+                            message.endTimestampNs = parseInt(object.endTimestampNs, 10);
+                        else if (typeof object.endTimestampNs === "number")
+                            message.endTimestampNs = object.endTimestampNs;
+                        else if (typeof object.endTimestampNs === "object")
+                            message.endTimestampNs = new $util.LongBits(object.endTimestampNs.low >>> 0, object.endTimestampNs.high >>> 0).toNumber(true);
+                    if (object.dtS != null)
+                        message.dtS = Number(object.dtS);
+                    if (object.duImg != null)
+                        message.duImg = Number(object.duImg);
+                    if (object.dvImg != null)
+                        message.dvImg = Number(object.dvImg);
+                    if (object.imageDistancePx != null)
+                        message.imageDistancePx = Number(object.imageDistancePx);
+                    if (object.imageSpeedPxS != null)
+                        message.imageSpeedPxS = Number(object.imageSpeedPxS);
+                    if (object.hasTableDisplacement != null)
+                        message.hasTableDisplacement = Boolean(object.hasTableDisplacement);
+                    if (object.tableDeltaMm) {
+                        if (!Array.isArray(object.tableDeltaMm))
+                            throw TypeError(".bayesmech.vision.PongtownResponse.BallTrajectorySegment.tableDeltaMm: array expected");
+                        message.tableDeltaMm = [];
+                        for (let i = 0; i < object.tableDeltaMm.length; ++i)
+                            message.tableDeltaMm[i] = Number(object.tableDeltaMm[i]);
+                    }
+                    if (object.tableDistanceMm != null)
+                        message.tableDistanceMm = Number(object.tableDistanceMm);
+                    if (object.tableSpeedMmS != null)
+                        message.tableSpeedMmS = Number(object.tableSpeedMmS);
+                    return message;
+                };
+
+                /**
+                 * Creates a plain object from a BallTrajectorySegment message. Also converts values to other types if specified.
+                 * @function toObject
+                 * @memberof bayesmech.vision.PongtownResponse.BallTrajectorySegment
+                 * @static
+                 * @param {bayesmech.vision.PongtownResponse.BallTrajectorySegment} message BallTrajectorySegment
+                 * @param {$protobuf.IConversionOptions} [options] Conversion options
+                 * @returns {Object.<string,*>} Plain object
+                 */
+                BallTrajectorySegment.toObject = function toObject(message, options) {
+                    if (!options)
+                        options = {};
+                    let object = {};
+                    if (options.arrays || options.defaults)
+                        object.tableDeltaMm = [];
+                    if (options.defaults) {
+                        object.startObservationIdx = 0;
+                        object.endObservationIdx = 0;
+                        object.startFrameIdx = 0;
+                        object.endFrameIdx = 0;
+                        if ($util.Long) {
+                            let long = new $util.Long(0, 0, true);
+                            object.startTimestampNs = options.longs === String ? long.toString() : options.longs === Number ? long.toNumber() : long;
+                        } else
+                            object.startTimestampNs = options.longs === String ? "0" : 0;
+                        if ($util.Long) {
+                            let long = new $util.Long(0, 0, true);
+                            object.endTimestampNs = options.longs === String ? long.toString() : options.longs === Number ? long.toNumber() : long;
+                        } else
+                            object.endTimestampNs = options.longs === String ? "0" : 0;
+                        object.dtS = 0;
+                        object.duImg = 0;
+                        object.dvImg = 0;
+                        object.imageDistancePx = 0;
+                        object.imageSpeedPxS = 0;
+                        object.hasTableDisplacement = false;
+                        object.tableDistanceMm = 0;
+                        object.tableSpeedMmS = 0;
+                    }
+                    if (message.startObservationIdx != null && message.hasOwnProperty("startObservationIdx"))
+                        object.startObservationIdx = message.startObservationIdx;
+                    if (message.endObservationIdx != null && message.hasOwnProperty("endObservationIdx"))
+                        object.endObservationIdx = message.endObservationIdx;
+                    if (message.startFrameIdx != null && message.hasOwnProperty("startFrameIdx"))
+                        object.startFrameIdx = message.startFrameIdx;
+                    if (message.endFrameIdx != null && message.hasOwnProperty("endFrameIdx"))
+                        object.endFrameIdx = message.endFrameIdx;
+                    if (message.startTimestampNs != null && message.hasOwnProperty("startTimestampNs"))
+                        if (typeof message.startTimestampNs === "number")
+                            object.startTimestampNs = options.longs === String ? String(message.startTimestampNs) : message.startTimestampNs;
+                        else
+                            object.startTimestampNs = options.longs === String ? $util.Long.prototype.toString.call(message.startTimestampNs) : options.longs === Number ? new $util.LongBits(message.startTimestampNs.low >>> 0, message.startTimestampNs.high >>> 0).toNumber(true) : message.startTimestampNs;
+                    if (message.endTimestampNs != null && message.hasOwnProperty("endTimestampNs"))
+                        if (typeof message.endTimestampNs === "number")
+                            object.endTimestampNs = options.longs === String ? String(message.endTimestampNs) : message.endTimestampNs;
+                        else
+                            object.endTimestampNs = options.longs === String ? $util.Long.prototype.toString.call(message.endTimestampNs) : options.longs === Number ? new $util.LongBits(message.endTimestampNs.low >>> 0, message.endTimestampNs.high >>> 0).toNumber(true) : message.endTimestampNs;
+                    if (message.dtS != null && message.hasOwnProperty("dtS"))
+                        object.dtS = options.json && !isFinite(message.dtS) ? String(message.dtS) : message.dtS;
+                    if (message.duImg != null && message.hasOwnProperty("duImg"))
+                        object.duImg = options.json && !isFinite(message.duImg) ? String(message.duImg) : message.duImg;
+                    if (message.dvImg != null && message.hasOwnProperty("dvImg"))
+                        object.dvImg = options.json && !isFinite(message.dvImg) ? String(message.dvImg) : message.dvImg;
+                    if (message.imageDistancePx != null && message.hasOwnProperty("imageDistancePx"))
+                        object.imageDistancePx = options.json && !isFinite(message.imageDistancePx) ? String(message.imageDistancePx) : message.imageDistancePx;
+                    if (message.imageSpeedPxS != null && message.hasOwnProperty("imageSpeedPxS"))
+                        object.imageSpeedPxS = options.json && !isFinite(message.imageSpeedPxS) ? String(message.imageSpeedPxS) : message.imageSpeedPxS;
+                    if (message.hasTableDisplacement != null && message.hasOwnProperty("hasTableDisplacement"))
+                        object.hasTableDisplacement = message.hasTableDisplacement;
+                    if (message.tableDeltaMm && message.tableDeltaMm.length) {
+                        object.tableDeltaMm = [];
+                        for (let j = 0; j < message.tableDeltaMm.length; ++j)
+                            object.tableDeltaMm[j] = options.json && !isFinite(message.tableDeltaMm[j]) ? String(message.tableDeltaMm[j]) : message.tableDeltaMm[j];
+                    }
+                    if (message.tableDistanceMm != null && message.hasOwnProperty("tableDistanceMm"))
+                        object.tableDistanceMm = options.json && !isFinite(message.tableDistanceMm) ? String(message.tableDistanceMm) : message.tableDistanceMm;
+                    if (message.tableSpeedMmS != null && message.hasOwnProperty("tableSpeedMmS"))
+                        object.tableSpeedMmS = options.json && !isFinite(message.tableSpeedMmS) ? String(message.tableSpeedMmS) : message.tableSpeedMmS;
+                    return object;
+                };
+
+                /**
+                 * Converts this BallTrajectorySegment to JSON.
+                 * @function toJSON
+                 * @memberof bayesmech.vision.PongtownResponse.BallTrajectorySegment
+                 * @instance
+                 * @returns {Object.<string,*>} JSON object
+                 */
+                BallTrajectorySegment.prototype.toJSON = function toJSON() {
+                    return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+                };
+
+                /**
+                 * Gets the default type url for BallTrajectorySegment
+                 * @function getTypeUrl
+                 * @memberof bayesmech.vision.PongtownResponse.BallTrajectorySegment
+                 * @static
+                 * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+                 * @returns {string} The default type url
+                 */
+                BallTrajectorySegment.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+                    if (typeUrlPrefix === undefined) {
+                        typeUrlPrefix = "type.googleapis.com";
+                    }
+                    return typeUrlPrefix + "/bayesmech.vision.PongtownResponse.BallTrajectorySegment";
+                };
+
+                return BallTrajectorySegment;
+            })();
+
+            PongtownResponse.BallBounce = (function() {
+
+                /**
+                 * Properties of a BallBounce.
+                 * @memberof bayesmech.vision.PongtownResponse
+                 * @interface IBallBounce
+                 * @property {number|null} [bounceIdx] BallBounce bounceIdx
+                 * @property {number|null} [observationIdx] BallBounce observationIdx
+                 * @property {number|null} [frameIdx] BallBounce frameIdx
+                 * @property {number|null} [frameNumber] BallBounce frameNumber
+                 * @property {number|Long|null} [timestampNs] BallBounce timestampNs
+                 * @property {number|null} [uImg] BallBounce uImg
+                 * @property {number|null} [vImg] BallBounce vImg
+                 * @property {number|null} [prominencePx] BallBounce prominencePx
+                 * @property {number|null} [confidence] BallBounce confidence
+                 * @property {boolean|null} [hasTablePosition] BallBounce hasTablePosition
+                 * @property {Array.<number>|null} [camXyzMm] BallBounce camXyzMm
+                 * @property {Array.<number>|null} [tableXyzMm] BallBounce tableXyzMm
+                 * @property {bayesmech.vision.PongtownResponse.TableSide|null} [side] BallBounce side
+                 * @property {boolean|null} [insideTable] BallBounce insideTable
+                 */
+
+                /**
+                 * Constructs a new BallBounce.
+                 * @memberof bayesmech.vision.PongtownResponse
+                 * @classdesc Represents a BallBounce.
+                 * @implements IBallBounce
+                 * @constructor
+                 * @param {bayesmech.vision.PongtownResponse.IBallBounce=} [properties] Properties to set
+                 */
+                function BallBounce(properties) {
+                    this.camXyzMm = [];
+                    this.tableXyzMm = [];
+                    if (properties)
+                        for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                            if (properties[keys[i]] != null)
+                                this[keys[i]] = properties[keys[i]];
+                }
+
+                /**
+                 * BallBounce bounceIdx.
+                 * @member {number} bounceIdx
+                 * @memberof bayesmech.vision.PongtownResponse.BallBounce
+                 * @instance
+                 */
+                BallBounce.prototype.bounceIdx = 0;
+
+                /**
+                 * BallBounce observationIdx.
+                 * @member {number} observationIdx
+                 * @memberof bayesmech.vision.PongtownResponse.BallBounce
+                 * @instance
+                 */
+                BallBounce.prototype.observationIdx = 0;
+
+                /**
+                 * BallBounce frameIdx.
+                 * @member {number} frameIdx
+                 * @memberof bayesmech.vision.PongtownResponse.BallBounce
+                 * @instance
+                 */
+                BallBounce.prototype.frameIdx = 0;
+
+                /**
+                 * BallBounce frameNumber.
+                 * @member {number} frameNumber
+                 * @memberof bayesmech.vision.PongtownResponse.BallBounce
+                 * @instance
+                 */
+                BallBounce.prototype.frameNumber = 0;
+
+                /**
+                 * BallBounce timestampNs.
+                 * @member {number|Long} timestampNs
+                 * @memberof bayesmech.vision.PongtownResponse.BallBounce
+                 * @instance
+                 */
+                BallBounce.prototype.timestampNs = $util.Long ? $util.Long.fromBits(0,0,true) : 0;
+
+                /**
+                 * BallBounce uImg.
+                 * @member {number} uImg
+                 * @memberof bayesmech.vision.PongtownResponse.BallBounce
+                 * @instance
+                 */
+                BallBounce.prototype.uImg = 0;
+
+                /**
+                 * BallBounce vImg.
+                 * @member {number} vImg
+                 * @memberof bayesmech.vision.PongtownResponse.BallBounce
+                 * @instance
+                 */
+                BallBounce.prototype.vImg = 0;
+
+                /**
+                 * BallBounce prominencePx.
+                 * @member {number} prominencePx
+                 * @memberof bayesmech.vision.PongtownResponse.BallBounce
+                 * @instance
+                 */
+                BallBounce.prototype.prominencePx = 0;
+
+                /**
+                 * BallBounce confidence.
+                 * @member {number} confidence
+                 * @memberof bayesmech.vision.PongtownResponse.BallBounce
+                 * @instance
+                 */
+                BallBounce.prototype.confidence = 0;
+
+                /**
+                 * BallBounce hasTablePosition.
+                 * @member {boolean} hasTablePosition
+                 * @memberof bayesmech.vision.PongtownResponse.BallBounce
+                 * @instance
+                 */
+                BallBounce.prototype.hasTablePosition = false;
+
+                /**
+                 * BallBounce camXyzMm.
+                 * @member {Array.<number>} camXyzMm
+                 * @memberof bayesmech.vision.PongtownResponse.BallBounce
+                 * @instance
+                 */
+                BallBounce.prototype.camXyzMm = $util.emptyArray;
+
+                /**
+                 * BallBounce tableXyzMm.
+                 * @member {Array.<number>} tableXyzMm
+                 * @memberof bayesmech.vision.PongtownResponse.BallBounce
+                 * @instance
+                 */
+                BallBounce.prototype.tableXyzMm = $util.emptyArray;
+
+                /**
+                 * BallBounce side.
+                 * @member {bayesmech.vision.PongtownResponse.TableSide} side
+                 * @memberof bayesmech.vision.PongtownResponse.BallBounce
+                 * @instance
+                 */
+                BallBounce.prototype.side = 0;
+
+                /**
+                 * BallBounce insideTable.
+                 * @member {boolean} insideTable
+                 * @memberof bayesmech.vision.PongtownResponse.BallBounce
+                 * @instance
+                 */
+                BallBounce.prototype.insideTable = false;
+
+                /**
+                 * Creates a new BallBounce instance using the specified properties.
+                 * @function create
+                 * @memberof bayesmech.vision.PongtownResponse.BallBounce
+                 * @static
+                 * @param {bayesmech.vision.PongtownResponse.IBallBounce=} [properties] Properties to set
+                 * @returns {bayesmech.vision.PongtownResponse.BallBounce} BallBounce instance
+                 */
+                BallBounce.create = function create(properties) {
+                    return new BallBounce(properties);
+                };
+
+                /**
+                 * Encodes the specified BallBounce message. Does not implicitly {@link bayesmech.vision.PongtownResponse.BallBounce.verify|verify} messages.
+                 * @function encode
+                 * @memberof bayesmech.vision.PongtownResponse.BallBounce
+                 * @static
+                 * @param {bayesmech.vision.PongtownResponse.IBallBounce} message BallBounce message or plain object to encode
+                 * @param {$protobuf.Writer} [writer] Writer to encode to
+                 * @returns {$protobuf.Writer} Writer
+                 */
+                BallBounce.encode = function encode(message, writer) {
+                    if (!writer)
+                        writer = $Writer.create();
+                    if (message.bounceIdx != null && Object.hasOwnProperty.call(message, "bounceIdx"))
+                        writer.uint32(/* id 1, wireType 0 =*/8).uint32(message.bounceIdx);
+                    if (message.observationIdx != null && Object.hasOwnProperty.call(message, "observationIdx"))
+                        writer.uint32(/* id 2, wireType 0 =*/16).uint32(message.observationIdx);
+                    if (message.frameIdx != null && Object.hasOwnProperty.call(message, "frameIdx"))
+                        writer.uint32(/* id 3, wireType 0 =*/24).uint32(message.frameIdx);
+                    if (message.frameNumber != null && Object.hasOwnProperty.call(message, "frameNumber"))
+                        writer.uint32(/* id 4, wireType 0 =*/32).uint32(message.frameNumber);
+                    if (message.timestampNs != null && Object.hasOwnProperty.call(message, "timestampNs"))
+                        writer.uint32(/* id 5, wireType 0 =*/40).uint64(message.timestampNs);
+                    if (message.uImg != null && Object.hasOwnProperty.call(message, "uImg"))
+                        writer.uint32(/* id 6, wireType 5 =*/53).float(message.uImg);
+                    if (message.vImg != null && Object.hasOwnProperty.call(message, "vImg"))
+                        writer.uint32(/* id 7, wireType 5 =*/61).float(message.vImg);
+                    if (message.prominencePx != null && Object.hasOwnProperty.call(message, "prominencePx"))
+                        writer.uint32(/* id 8, wireType 5 =*/69).float(message.prominencePx);
+                    if (message.confidence != null && Object.hasOwnProperty.call(message, "confidence"))
+                        writer.uint32(/* id 9, wireType 5 =*/77).float(message.confidence);
+                    if (message.hasTablePosition != null && Object.hasOwnProperty.call(message, "hasTablePosition"))
+                        writer.uint32(/* id 10, wireType 0 =*/80).bool(message.hasTablePosition);
+                    if (message.camXyzMm != null && message.camXyzMm.length) {
+                        writer.uint32(/* id 11, wireType 2 =*/90).fork();
+                        for (let i = 0; i < message.camXyzMm.length; ++i)
+                            writer.float(message.camXyzMm[i]);
+                        writer.ldelim();
+                    }
+                    if (message.tableXyzMm != null && message.tableXyzMm.length) {
+                        writer.uint32(/* id 12, wireType 2 =*/98).fork();
+                        for (let i = 0; i < message.tableXyzMm.length; ++i)
+                            writer.float(message.tableXyzMm[i]);
+                        writer.ldelim();
+                    }
+                    if (message.side != null && Object.hasOwnProperty.call(message, "side"))
+                        writer.uint32(/* id 13, wireType 0 =*/104).int32(message.side);
+                    if (message.insideTable != null && Object.hasOwnProperty.call(message, "insideTable"))
+                        writer.uint32(/* id 14, wireType 0 =*/112).bool(message.insideTable);
+                    return writer;
+                };
+
+                /**
+                 * Encodes the specified BallBounce message, length delimited. Does not implicitly {@link bayesmech.vision.PongtownResponse.BallBounce.verify|verify} messages.
+                 * @function encodeDelimited
+                 * @memberof bayesmech.vision.PongtownResponse.BallBounce
+                 * @static
+                 * @param {bayesmech.vision.PongtownResponse.IBallBounce} message BallBounce message or plain object to encode
+                 * @param {$protobuf.Writer} [writer] Writer to encode to
+                 * @returns {$protobuf.Writer} Writer
+                 */
+                BallBounce.encodeDelimited = function encodeDelimited(message, writer) {
+                    return this.encode(message, writer).ldelim();
+                };
+
+                /**
+                 * Decodes a BallBounce message from the specified reader or buffer.
+                 * @function decode
+                 * @memberof bayesmech.vision.PongtownResponse.BallBounce
+                 * @static
+                 * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+                 * @param {number} [length] Message length if known beforehand
+                 * @returns {bayesmech.vision.PongtownResponse.BallBounce} BallBounce
+                 * @throws {Error} If the payload is not a reader or valid buffer
+                 * @throws {$protobuf.util.ProtocolError} If required fields are missing
+                 */
+                BallBounce.decode = function decode(reader, length, error) {
+                    if (!(reader instanceof $Reader))
+                        reader = $Reader.create(reader);
+                    let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.PongtownResponse.BallBounce();
+                    while (reader.pos < end) {
+                        let tag = reader.uint32();
+                        if (tag === error)
+                            break;
+                        switch (tag >>> 3) {
+                        case 1: {
+                                message.bounceIdx = reader.uint32();
+                                break;
+                            }
+                        case 2: {
+                                message.observationIdx = reader.uint32();
+                                break;
+                            }
+                        case 3: {
+                                message.frameIdx = reader.uint32();
+                                break;
+                            }
+                        case 4: {
+                                message.frameNumber = reader.uint32();
+                                break;
+                            }
+                        case 5: {
+                                message.timestampNs = reader.uint64();
+                                break;
+                            }
+                        case 6: {
+                                message.uImg = reader.float();
+                                break;
+                            }
+                        case 7: {
+                                message.vImg = reader.float();
+                                break;
+                            }
+                        case 8: {
+                                message.prominencePx = reader.float();
+                                break;
+                            }
+                        case 9: {
+                                message.confidence = reader.float();
+                                break;
+                            }
+                        case 10: {
+                                message.hasTablePosition = reader.bool();
+                                break;
+                            }
+                        case 11: {
+                                if (!(message.camXyzMm && message.camXyzMm.length))
+                                    message.camXyzMm = [];
+                                if ((tag & 7) === 2) {
+                                    let end2 = reader.uint32() + reader.pos;
+                                    while (reader.pos < end2)
+                                        message.camXyzMm.push(reader.float());
+                                } else
+                                    message.camXyzMm.push(reader.float());
+                                break;
+                            }
+                        case 12: {
+                                if (!(message.tableXyzMm && message.tableXyzMm.length))
+                                    message.tableXyzMm = [];
+                                if ((tag & 7) === 2) {
+                                    let end2 = reader.uint32() + reader.pos;
+                                    while (reader.pos < end2)
+                                        message.tableXyzMm.push(reader.float());
+                                } else
+                                    message.tableXyzMm.push(reader.float());
+                                break;
+                            }
+                        case 13: {
+                                message.side = reader.int32();
+                                break;
+                            }
+                        case 14: {
+                                message.insideTable = reader.bool();
+                                break;
+                            }
+                        default:
+                            reader.skipType(tag & 7);
+                            break;
+                        }
+                    }
+                    return message;
+                };
+
+                /**
+                 * Decodes a BallBounce message from the specified reader or buffer, length delimited.
+                 * @function decodeDelimited
+                 * @memberof bayesmech.vision.PongtownResponse.BallBounce
+                 * @static
+                 * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+                 * @returns {bayesmech.vision.PongtownResponse.BallBounce} BallBounce
+                 * @throws {Error} If the payload is not a reader or valid buffer
+                 * @throws {$protobuf.util.ProtocolError} If required fields are missing
+                 */
+                BallBounce.decodeDelimited = function decodeDelimited(reader) {
+                    if (!(reader instanceof $Reader))
+                        reader = new $Reader(reader);
+                    return this.decode(reader, reader.uint32());
+                };
+
+                /**
+                 * Verifies a BallBounce message.
+                 * @function verify
+                 * @memberof bayesmech.vision.PongtownResponse.BallBounce
+                 * @static
+                 * @param {Object.<string,*>} message Plain object to verify
+                 * @returns {string|null} `null` if valid, otherwise the reason why it is not
+                 */
+                BallBounce.verify = function verify(message) {
+                    if (typeof message !== "object" || message === null)
+                        return "object expected";
+                    if (message.bounceIdx != null && message.hasOwnProperty("bounceIdx"))
+                        if (!$util.isInteger(message.bounceIdx))
+                            return "bounceIdx: integer expected";
+                    if (message.observationIdx != null && message.hasOwnProperty("observationIdx"))
+                        if (!$util.isInteger(message.observationIdx))
+                            return "observationIdx: integer expected";
+                    if (message.frameIdx != null && message.hasOwnProperty("frameIdx"))
+                        if (!$util.isInteger(message.frameIdx))
+                            return "frameIdx: integer expected";
+                    if (message.frameNumber != null && message.hasOwnProperty("frameNumber"))
+                        if (!$util.isInteger(message.frameNumber))
+                            return "frameNumber: integer expected";
+                    if (message.timestampNs != null && message.hasOwnProperty("timestampNs"))
+                        if (!$util.isInteger(message.timestampNs) && !(message.timestampNs && $util.isInteger(message.timestampNs.low) && $util.isInteger(message.timestampNs.high)))
+                            return "timestampNs: integer|Long expected";
+                    if (message.uImg != null && message.hasOwnProperty("uImg"))
+                        if (typeof message.uImg !== "number")
+                            return "uImg: number expected";
+                    if (message.vImg != null && message.hasOwnProperty("vImg"))
+                        if (typeof message.vImg !== "number")
+                            return "vImg: number expected";
+                    if (message.prominencePx != null && message.hasOwnProperty("prominencePx"))
+                        if (typeof message.prominencePx !== "number")
+                            return "prominencePx: number expected";
+                    if (message.confidence != null && message.hasOwnProperty("confidence"))
+                        if (typeof message.confidence !== "number")
+                            return "confidence: number expected";
+                    if (message.hasTablePosition != null && message.hasOwnProperty("hasTablePosition"))
+                        if (typeof message.hasTablePosition !== "boolean")
+                            return "hasTablePosition: boolean expected";
+                    if (message.camXyzMm != null && message.hasOwnProperty("camXyzMm")) {
+                        if (!Array.isArray(message.camXyzMm))
+                            return "camXyzMm: array expected";
+                        for (let i = 0; i < message.camXyzMm.length; ++i)
+                            if (typeof message.camXyzMm[i] !== "number")
+                                return "camXyzMm: number[] expected";
+                    }
+                    if (message.tableXyzMm != null && message.hasOwnProperty("tableXyzMm")) {
+                        if (!Array.isArray(message.tableXyzMm))
+                            return "tableXyzMm: array expected";
+                        for (let i = 0; i < message.tableXyzMm.length; ++i)
+                            if (typeof message.tableXyzMm[i] !== "number")
+                                return "tableXyzMm: number[] expected";
+                    }
+                    if (message.side != null && message.hasOwnProperty("side"))
+                        switch (message.side) {
+                        default:
+                            return "side: enum value expected";
+                        case 0:
+                        case 1:
+                        case 2:
+                        case 3:
+                        case 4:
+                            break;
+                        }
+                    if (message.insideTable != null && message.hasOwnProperty("insideTable"))
+                        if (typeof message.insideTable !== "boolean")
+                            return "insideTable: boolean expected";
+                    return null;
+                };
+
+                /**
+                 * Creates a BallBounce message from a plain object. Also converts values to their respective internal types.
+                 * @function fromObject
+                 * @memberof bayesmech.vision.PongtownResponse.BallBounce
+                 * @static
+                 * @param {Object.<string,*>} object Plain object
+                 * @returns {bayesmech.vision.PongtownResponse.BallBounce} BallBounce
+                 */
+                BallBounce.fromObject = function fromObject(object) {
+                    if (object instanceof $root.bayesmech.vision.PongtownResponse.BallBounce)
+                        return object;
+                    let message = new $root.bayesmech.vision.PongtownResponse.BallBounce();
+                    if (object.bounceIdx != null)
+                        message.bounceIdx = object.bounceIdx >>> 0;
+                    if (object.observationIdx != null)
+                        message.observationIdx = object.observationIdx >>> 0;
+                    if (object.frameIdx != null)
+                        message.frameIdx = object.frameIdx >>> 0;
+                    if (object.frameNumber != null)
+                        message.frameNumber = object.frameNumber >>> 0;
+                    if (object.timestampNs != null)
+                        if ($util.Long)
+                            (message.timestampNs = $util.Long.fromValue(object.timestampNs)).unsigned = true;
+                        else if (typeof object.timestampNs === "string")
+                            message.timestampNs = parseInt(object.timestampNs, 10);
+                        else if (typeof object.timestampNs === "number")
+                            message.timestampNs = object.timestampNs;
+                        else if (typeof object.timestampNs === "object")
+                            message.timestampNs = new $util.LongBits(object.timestampNs.low >>> 0, object.timestampNs.high >>> 0).toNumber(true);
+                    if (object.uImg != null)
+                        message.uImg = Number(object.uImg);
+                    if (object.vImg != null)
+                        message.vImg = Number(object.vImg);
+                    if (object.prominencePx != null)
+                        message.prominencePx = Number(object.prominencePx);
+                    if (object.confidence != null)
+                        message.confidence = Number(object.confidence);
+                    if (object.hasTablePosition != null)
+                        message.hasTablePosition = Boolean(object.hasTablePosition);
+                    if (object.camXyzMm) {
+                        if (!Array.isArray(object.camXyzMm))
+                            throw TypeError(".bayesmech.vision.PongtownResponse.BallBounce.camXyzMm: array expected");
+                        message.camXyzMm = [];
+                        for (let i = 0; i < object.camXyzMm.length; ++i)
+                            message.camXyzMm[i] = Number(object.camXyzMm[i]);
+                    }
+                    if (object.tableXyzMm) {
+                        if (!Array.isArray(object.tableXyzMm))
+                            throw TypeError(".bayesmech.vision.PongtownResponse.BallBounce.tableXyzMm: array expected");
+                        message.tableXyzMm = [];
+                        for (let i = 0; i < object.tableXyzMm.length; ++i)
+                            message.tableXyzMm[i] = Number(object.tableXyzMm[i]);
+                    }
+                    switch (object.side) {
+                    default:
+                        if (typeof object.side === "number") {
+                            message.side = object.side;
+                            break;
+                        }
+                        break;
+                    case "SIDE_UNKNOWN":
+                    case 0:
+                        message.side = 0;
+                        break;
+                    case "NEAR":
+                    case 1:
+                        message.side = 1;
+                        break;
+                    case "FAR":
+                    case 2:
+                        message.side = 2;
+                        break;
+                    case "NET":
+                    case 3:
+                        message.side = 3;
+                        break;
+                    case "OFF_TABLE":
+                    case 4:
+                        message.side = 4;
+                        break;
+                    }
+                    if (object.insideTable != null)
+                        message.insideTable = Boolean(object.insideTable);
+                    return message;
+                };
+
+                /**
+                 * Creates a plain object from a BallBounce message. Also converts values to other types if specified.
+                 * @function toObject
+                 * @memberof bayesmech.vision.PongtownResponse.BallBounce
+                 * @static
+                 * @param {bayesmech.vision.PongtownResponse.BallBounce} message BallBounce
+                 * @param {$protobuf.IConversionOptions} [options] Conversion options
+                 * @returns {Object.<string,*>} Plain object
+                 */
+                BallBounce.toObject = function toObject(message, options) {
+                    if (!options)
+                        options = {};
+                    let object = {};
+                    if (options.arrays || options.defaults) {
+                        object.camXyzMm = [];
+                        object.tableXyzMm = [];
+                    }
+                    if (options.defaults) {
+                        object.bounceIdx = 0;
+                        object.observationIdx = 0;
+                        object.frameIdx = 0;
+                        object.frameNumber = 0;
+                        if ($util.Long) {
+                            let long = new $util.Long(0, 0, true);
+                            object.timestampNs = options.longs === String ? long.toString() : options.longs === Number ? long.toNumber() : long;
+                        } else
+                            object.timestampNs = options.longs === String ? "0" : 0;
+                        object.uImg = 0;
+                        object.vImg = 0;
+                        object.prominencePx = 0;
+                        object.confidence = 0;
+                        object.hasTablePosition = false;
+                        object.side = options.enums === String ? "SIDE_UNKNOWN" : 0;
+                        object.insideTable = false;
+                    }
+                    if (message.bounceIdx != null && message.hasOwnProperty("bounceIdx"))
+                        object.bounceIdx = message.bounceIdx;
+                    if (message.observationIdx != null && message.hasOwnProperty("observationIdx"))
+                        object.observationIdx = message.observationIdx;
+                    if (message.frameIdx != null && message.hasOwnProperty("frameIdx"))
+                        object.frameIdx = message.frameIdx;
+                    if (message.frameNumber != null && message.hasOwnProperty("frameNumber"))
+                        object.frameNumber = message.frameNumber;
+                    if (message.timestampNs != null && message.hasOwnProperty("timestampNs"))
+                        if (typeof message.timestampNs === "number")
+                            object.timestampNs = options.longs === String ? String(message.timestampNs) : message.timestampNs;
+                        else
+                            object.timestampNs = options.longs === String ? $util.Long.prototype.toString.call(message.timestampNs) : options.longs === Number ? new $util.LongBits(message.timestampNs.low >>> 0, message.timestampNs.high >>> 0).toNumber(true) : message.timestampNs;
+                    if (message.uImg != null && message.hasOwnProperty("uImg"))
+                        object.uImg = options.json && !isFinite(message.uImg) ? String(message.uImg) : message.uImg;
+                    if (message.vImg != null && message.hasOwnProperty("vImg"))
+                        object.vImg = options.json && !isFinite(message.vImg) ? String(message.vImg) : message.vImg;
+                    if (message.prominencePx != null && message.hasOwnProperty("prominencePx"))
+                        object.prominencePx = options.json && !isFinite(message.prominencePx) ? String(message.prominencePx) : message.prominencePx;
+                    if (message.confidence != null && message.hasOwnProperty("confidence"))
+                        object.confidence = options.json && !isFinite(message.confidence) ? String(message.confidence) : message.confidence;
+                    if (message.hasTablePosition != null && message.hasOwnProperty("hasTablePosition"))
+                        object.hasTablePosition = message.hasTablePosition;
+                    if (message.camXyzMm && message.camXyzMm.length) {
+                        object.camXyzMm = [];
+                        for (let j = 0; j < message.camXyzMm.length; ++j)
+                            object.camXyzMm[j] = options.json && !isFinite(message.camXyzMm[j]) ? String(message.camXyzMm[j]) : message.camXyzMm[j];
+                    }
+                    if (message.tableXyzMm && message.tableXyzMm.length) {
+                        object.tableXyzMm = [];
+                        for (let j = 0; j < message.tableXyzMm.length; ++j)
+                            object.tableXyzMm[j] = options.json && !isFinite(message.tableXyzMm[j]) ? String(message.tableXyzMm[j]) : message.tableXyzMm[j];
+                    }
+                    if (message.side != null && message.hasOwnProperty("side"))
+                        object.side = options.enums === String ? $root.bayesmech.vision.PongtownResponse.TableSide[message.side] === undefined ? message.side : $root.bayesmech.vision.PongtownResponse.TableSide[message.side] : message.side;
+                    if (message.insideTable != null && message.hasOwnProperty("insideTable"))
+                        object.insideTable = message.insideTable;
+                    return object;
+                };
+
+                /**
+                 * Converts this BallBounce to JSON.
+                 * @function toJSON
+                 * @memberof bayesmech.vision.PongtownResponse.BallBounce
+                 * @instance
+                 * @returns {Object.<string,*>} JSON object
+                 */
+                BallBounce.prototype.toJSON = function toJSON() {
+                    return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+                };
+
+                /**
+                 * Gets the default type url for BallBounce
+                 * @function getTypeUrl
+                 * @memberof bayesmech.vision.PongtownResponse.BallBounce
+                 * @static
+                 * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+                 * @returns {string} The default type url
+                 */
+                BallBounce.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+                    if (typeUrlPrefix === undefined) {
+                        typeUrlPrefix = "type.googleapis.com";
+                    }
+                    return typeUrlPrefix + "/bayesmech.vision.PongtownResponse.BallBounce";
+                };
+
+                return BallBounce;
+            })();
+
+            PongtownResponse.BallTrajectory = (function() {
+
+                /**
+                 * Properties of a BallTrajectory.
+                 * @memberof bayesmech.vision.PongtownResponse
+                 * @interface IBallTrajectory
+                 * @property {number|null} [trackId] BallTrajectory trackId
+                 * @property {number|null} [observedFrames] BallTrajectory observedFrames
+                 * @property {number|null} [firstFrameIdx] BallTrajectory firstFrameIdx
+                 * @property {number|null} [lastFrameIdx] BallTrajectory lastFrameIdx
+                 * @property {number|Long|null} [firstTimestampNs] BallTrajectory firstTimestampNs
+                 * @property {number|Long|null} [lastTimestampNs] BallTrajectory lastTimestampNs
+                 * @property {number|null} [minBounceProminencePx] BallTrajectory minBounceProminencePx
+                 * @property {number|null} [minBounceSpacingFrames] BallTrajectory minBounceSpacingFrames
+                 * @property {number|null} [smoothSigma] BallTrajectory smoothSigma
+                 * @property {Array.<bayesmech.vision.PongtownResponse.IBallPosition>|null} [positions] BallTrajectory positions
+                 * @property {Array.<bayesmech.vision.PongtownResponse.IBallTrajectorySegment>|null} [segments] BallTrajectory segments
+                 * @property {Array.<bayesmech.vision.PongtownResponse.IBallBounce>|null} [bounces] BallTrajectory bounces
+                 */
+
+                /**
+                 * Constructs a new BallTrajectory.
+                 * @memberof bayesmech.vision.PongtownResponse
+                 * @classdesc Represents a BallTrajectory.
+                 * @implements IBallTrajectory
+                 * @constructor
+                 * @param {bayesmech.vision.PongtownResponse.IBallTrajectory=} [properties] Properties to set
+                 */
+                function BallTrajectory(properties) {
+                    this.positions = [];
+                    this.segments = [];
+                    this.bounces = [];
+                    if (properties)
+                        for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                            if (properties[keys[i]] != null)
+                                this[keys[i]] = properties[keys[i]];
+                }
+
+                /**
+                 * BallTrajectory trackId.
+                 * @member {number} trackId
+                 * @memberof bayesmech.vision.PongtownResponse.BallTrajectory
+                 * @instance
+                 */
+                BallTrajectory.prototype.trackId = 0;
+
+                /**
+                 * BallTrajectory observedFrames.
+                 * @member {number} observedFrames
+                 * @memberof bayesmech.vision.PongtownResponse.BallTrajectory
+                 * @instance
+                 */
+                BallTrajectory.prototype.observedFrames = 0;
+
+                /**
+                 * BallTrajectory firstFrameIdx.
+                 * @member {number} firstFrameIdx
+                 * @memberof bayesmech.vision.PongtownResponse.BallTrajectory
+                 * @instance
+                 */
+                BallTrajectory.prototype.firstFrameIdx = 0;
+
+                /**
+                 * BallTrajectory lastFrameIdx.
+                 * @member {number} lastFrameIdx
+                 * @memberof bayesmech.vision.PongtownResponse.BallTrajectory
+                 * @instance
+                 */
+                BallTrajectory.prototype.lastFrameIdx = 0;
+
+                /**
+                 * BallTrajectory firstTimestampNs.
+                 * @member {number|Long} firstTimestampNs
+                 * @memberof bayesmech.vision.PongtownResponse.BallTrajectory
+                 * @instance
+                 */
+                BallTrajectory.prototype.firstTimestampNs = $util.Long ? $util.Long.fromBits(0,0,true) : 0;
+
+                /**
+                 * BallTrajectory lastTimestampNs.
+                 * @member {number|Long} lastTimestampNs
+                 * @memberof bayesmech.vision.PongtownResponse.BallTrajectory
+                 * @instance
+                 */
+                BallTrajectory.prototype.lastTimestampNs = $util.Long ? $util.Long.fromBits(0,0,true) : 0;
+
+                /**
+                 * BallTrajectory minBounceProminencePx.
+                 * @member {number} minBounceProminencePx
+                 * @memberof bayesmech.vision.PongtownResponse.BallTrajectory
+                 * @instance
+                 */
+                BallTrajectory.prototype.minBounceProminencePx = 0;
+
+                /**
+                 * BallTrajectory minBounceSpacingFrames.
+                 * @member {number} minBounceSpacingFrames
+                 * @memberof bayesmech.vision.PongtownResponse.BallTrajectory
+                 * @instance
+                 */
+                BallTrajectory.prototype.minBounceSpacingFrames = 0;
+
+                /**
+                 * BallTrajectory smoothSigma.
+                 * @member {number} smoothSigma
+                 * @memberof bayesmech.vision.PongtownResponse.BallTrajectory
+                 * @instance
+                 */
+                BallTrajectory.prototype.smoothSigma = 0;
+
+                /**
+                 * BallTrajectory positions.
+                 * @member {Array.<bayesmech.vision.PongtownResponse.IBallPosition>} positions
+                 * @memberof bayesmech.vision.PongtownResponse.BallTrajectory
+                 * @instance
+                 */
+                BallTrajectory.prototype.positions = $util.emptyArray;
+
+                /**
+                 * BallTrajectory segments.
+                 * @member {Array.<bayesmech.vision.PongtownResponse.IBallTrajectorySegment>} segments
+                 * @memberof bayesmech.vision.PongtownResponse.BallTrajectory
+                 * @instance
+                 */
+                BallTrajectory.prototype.segments = $util.emptyArray;
+
+                /**
+                 * BallTrajectory bounces.
+                 * @member {Array.<bayesmech.vision.PongtownResponse.IBallBounce>} bounces
+                 * @memberof bayesmech.vision.PongtownResponse.BallTrajectory
+                 * @instance
+                 */
+                BallTrajectory.prototype.bounces = $util.emptyArray;
+
+                /**
+                 * Creates a new BallTrajectory instance using the specified properties.
+                 * @function create
+                 * @memberof bayesmech.vision.PongtownResponse.BallTrajectory
+                 * @static
+                 * @param {bayesmech.vision.PongtownResponse.IBallTrajectory=} [properties] Properties to set
+                 * @returns {bayesmech.vision.PongtownResponse.BallTrajectory} BallTrajectory instance
+                 */
+                BallTrajectory.create = function create(properties) {
+                    return new BallTrajectory(properties);
+                };
+
+                /**
+                 * Encodes the specified BallTrajectory message. Does not implicitly {@link bayesmech.vision.PongtownResponse.BallTrajectory.verify|verify} messages.
+                 * @function encode
+                 * @memberof bayesmech.vision.PongtownResponse.BallTrajectory
+                 * @static
+                 * @param {bayesmech.vision.PongtownResponse.IBallTrajectory} message BallTrajectory message or plain object to encode
+                 * @param {$protobuf.Writer} [writer] Writer to encode to
+                 * @returns {$protobuf.Writer} Writer
+                 */
+                BallTrajectory.encode = function encode(message, writer) {
+                    if (!writer)
+                        writer = $Writer.create();
+                    if (message.trackId != null && Object.hasOwnProperty.call(message, "trackId"))
+                        writer.uint32(/* id 1, wireType 0 =*/8).uint32(message.trackId);
+                    if (message.observedFrames != null && Object.hasOwnProperty.call(message, "observedFrames"))
+                        writer.uint32(/* id 2, wireType 0 =*/16).uint32(message.observedFrames);
+                    if (message.firstFrameIdx != null && Object.hasOwnProperty.call(message, "firstFrameIdx"))
+                        writer.uint32(/* id 3, wireType 0 =*/24).uint32(message.firstFrameIdx);
+                    if (message.lastFrameIdx != null && Object.hasOwnProperty.call(message, "lastFrameIdx"))
+                        writer.uint32(/* id 4, wireType 0 =*/32).uint32(message.lastFrameIdx);
+                    if (message.firstTimestampNs != null && Object.hasOwnProperty.call(message, "firstTimestampNs"))
+                        writer.uint32(/* id 5, wireType 0 =*/40).uint64(message.firstTimestampNs);
+                    if (message.lastTimestampNs != null && Object.hasOwnProperty.call(message, "lastTimestampNs"))
+                        writer.uint32(/* id 6, wireType 0 =*/48).uint64(message.lastTimestampNs);
+                    if (message.minBounceProminencePx != null && Object.hasOwnProperty.call(message, "minBounceProminencePx"))
+                        writer.uint32(/* id 7, wireType 5 =*/61).float(message.minBounceProminencePx);
+                    if (message.minBounceSpacingFrames != null && Object.hasOwnProperty.call(message, "minBounceSpacingFrames"))
+                        writer.uint32(/* id 8, wireType 0 =*/64).uint32(message.minBounceSpacingFrames);
+                    if (message.smoothSigma != null && Object.hasOwnProperty.call(message, "smoothSigma"))
+                        writer.uint32(/* id 9, wireType 5 =*/77).float(message.smoothSigma);
+                    if (message.positions != null && message.positions.length)
+                        for (let i = 0; i < message.positions.length; ++i)
+                            $root.bayesmech.vision.PongtownResponse.BallPosition.encode(message.positions[i], writer.uint32(/* id 10, wireType 2 =*/82).fork()).ldelim();
+                    if (message.segments != null && message.segments.length)
+                        for (let i = 0; i < message.segments.length; ++i)
+                            $root.bayesmech.vision.PongtownResponse.BallTrajectorySegment.encode(message.segments[i], writer.uint32(/* id 11, wireType 2 =*/90).fork()).ldelim();
+                    if (message.bounces != null && message.bounces.length)
+                        for (let i = 0; i < message.bounces.length; ++i)
+                            $root.bayesmech.vision.PongtownResponse.BallBounce.encode(message.bounces[i], writer.uint32(/* id 12, wireType 2 =*/98).fork()).ldelim();
+                    return writer;
+                };
+
+                /**
+                 * Encodes the specified BallTrajectory message, length delimited. Does not implicitly {@link bayesmech.vision.PongtownResponse.BallTrajectory.verify|verify} messages.
+                 * @function encodeDelimited
+                 * @memberof bayesmech.vision.PongtownResponse.BallTrajectory
+                 * @static
+                 * @param {bayesmech.vision.PongtownResponse.IBallTrajectory} message BallTrajectory message or plain object to encode
+                 * @param {$protobuf.Writer} [writer] Writer to encode to
+                 * @returns {$protobuf.Writer} Writer
+                 */
+                BallTrajectory.encodeDelimited = function encodeDelimited(message, writer) {
+                    return this.encode(message, writer).ldelim();
+                };
+
+                /**
+                 * Decodes a BallTrajectory message from the specified reader or buffer.
+                 * @function decode
+                 * @memberof bayesmech.vision.PongtownResponse.BallTrajectory
+                 * @static
+                 * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+                 * @param {number} [length] Message length if known beforehand
+                 * @returns {bayesmech.vision.PongtownResponse.BallTrajectory} BallTrajectory
+                 * @throws {Error} If the payload is not a reader or valid buffer
+                 * @throws {$protobuf.util.ProtocolError} If required fields are missing
+                 */
+                BallTrajectory.decode = function decode(reader, length, error) {
+                    if (!(reader instanceof $Reader))
+                        reader = $Reader.create(reader);
+                    let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.PongtownResponse.BallTrajectory();
+                    while (reader.pos < end) {
+                        let tag = reader.uint32();
+                        if (tag === error)
+                            break;
+                        switch (tag >>> 3) {
+                        case 1: {
+                                message.trackId = reader.uint32();
+                                break;
+                            }
+                        case 2: {
+                                message.observedFrames = reader.uint32();
+                                break;
+                            }
+                        case 3: {
+                                message.firstFrameIdx = reader.uint32();
+                                break;
+                            }
+                        case 4: {
+                                message.lastFrameIdx = reader.uint32();
+                                break;
+                            }
+                        case 5: {
+                                message.firstTimestampNs = reader.uint64();
+                                break;
+                            }
+                        case 6: {
+                                message.lastTimestampNs = reader.uint64();
+                                break;
+                            }
+                        case 7: {
+                                message.minBounceProminencePx = reader.float();
+                                break;
+                            }
+                        case 8: {
+                                message.minBounceSpacingFrames = reader.uint32();
+                                break;
+                            }
+                        case 9: {
+                                message.smoothSigma = reader.float();
+                                break;
+                            }
+                        case 10: {
+                                if (!(message.positions && message.positions.length))
+                                    message.positions = [];
+                                message.positions.push($root.bayesmech.vision.PongtownResponse.BallPosition.decode(reader, reader.uint32()));
+                                break;
+                            }
+                        case 11: {
+                                if (!(message.segments && message.segments.length))
+                                    message.segments = [];
+                                message.segments.push($root.bayesmech.vision.PongtownResponse.BallTrajectorySegment.decode(reader, reader.uint32()));
+                                break;
+                            }
+                        case 12: {
+                                if (!(message.bounces && message.bounces.length))
+                                    message.bounces = [];
+                                message.bounces.push($root.bayesmech.vision.PongtownResponse.BallBounce.decode(reader, reader.uint32()));
+                                break;
+                            }
+                        default:
+                            reader.skipType(tag & 7);
+                            break;
+                        }
+                    }
+                    return message;
+                };
+
+                /**
+                 * Decodes a BallTrajectory message from the specified reader or buffer, length delimited.
+                 * @function decodeDelimited
+                 * @memberof bayesmech.vision.PongtownResponse.BallTrajectory
+                 * @static
+                 * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+                 * @returns {bayesmech.vision.PongtownResponse.BallTrajectory} BallTrajectory
+                 * @throws {Error} If the payload is not a reader or valid buffer
+                 * @throws {$protobuf.util.ProtocolError} If required fields are missing
+                 */
+                BallTrajectory.decodeDelimited = function decodeDelimited(reader) {
+                    if (!(reader instanceof $Reader))
+                        reader = new $Reader(reader);
+                    return this.decode(reader, reader.uint32());
+                };
+
+                /**
+                 * Verifies a BallTrajectory message.
+                 * @function verify
+                 * @memberof bayesmech.vision.PongtownResponse.BallTrajectory
+                 * @static
+                 * @param {Object.<string,*>} message Plain object to verify
+                 * @returns {string|null} `null` if valid, otherwise the reason why it is not
+                 */
+                BallTrajectory.verify = function verify(message) {
+                    if (typeof message !== "object" || message === null)
+                        return "object expected";
+                    if (message.trackId != null && message.hasOwnProperty("trackId"))
+                        if (!$util.isInteger(message.trackId))
+                            return "trackId: integer expected";
+                    if (message.observedFrames != null && message.hasOwnProperty("observedFrames"))
+                        if (!$util.isInteger(message.observedFrames))
+                            return "observedFrames: integer expected";
+                    if (message.firstFrameIdx != null && message.hasOwnProperty("firstFrameIdx"))
+                        if (!$util.isInteger(message.firstFrameIdx))
+                            return "firstFrameIdx: integer expected";
+                    if (message.lastFrameIdx != null && message.hasOwnProperty("lastFrameIdx"))
+                        if (!$util.isInteger(message.lastFrameIdx))
+                            return "lastFrameIdx: integer expected";
+                    if (message.firstTimestampNs != null && message.hasOwnProperty("firstTimestampNs"))
+                        if (!$util.isInteger(message.firstTimestampNs) && !(message.firstTimestampNs && $util.isInteger(message.firstTimestampNs.low) && $util.isInteger(message.firstTimestampNs.high)))
+                            return "firstTimestampNs: integer|Long expected";
+                    if (message.lastTimestampNs != null && message.hasOwnProperty("lastTimestampNs"))
+                        if (!$util.isInteger(message.lastTimestampNs) && !(message.lastTimestampNs && $util.isInteger(message.lastTimestampNs.low) && $util.isInteger(message.lastTimestampNs.high)))
+                            return "lastTimestampNs: integer|Long expected";
+                    if (message.minBounceProminencePx != null && message.hasOwnProperty("minBounceProminencePx"))
+                        if (typeof message.minBounceProminencePx !== "number")
+                            return "minBounceProminencePx: number expected";
+                    if (message.minBounceSpacingFrames != null && message.hasOwnProperty("minBounceSpacingFrames"))
+                        if (!$util.isInteger(message.minBounceSpacingFrames))
+                            return "minBounceSpacingFrames: integer expected";
+                    if (message.smoothSigma != null && message.hasOwnProperty("smoothSigma"))
+                        if (typeof message.smoothSigma !== "number")
+                            return "smoothSigma: number expected";
+                    if (message.positions != null && message.hasOwnProperty("positions")) {
+                        if (!Array.isArray(message.positions))
+                            return "positions: array expected";
+                        for (let i = 0; i < message.positions.length; ++i) {
+                            let error = $root.bayesmech.vision.PongtownResponse.BallPosition.verify(message.positions[i]);
+                            if (error)
+                                return "positions." + error;
+                        }
+                    }
+                    if (message.segments != null && message.hasOwnProperty("segments")) {
+                        if (!Array.isArray(message.segments))
+                            return "segments: array expected";
+                        for (let i = 0; i < message.segments.length; ++i) {
+                            let error = $root.bayesmech.vision.PongtownResponse.BallTrajectorySegment.verify(message.segments[i]);
+                            if (error)
+                                return "segments." + error;
+                        }
+                    }
+                    if (message.bounces != null && message.hasOwnProperty("bounces")) {
+                        if (!Array.isArray(message.bounces))
+                            return "bounces: array expected";
+                        for (let i = 0; i < message.bounces.length; ++i) {
+                            let error = $root.bayesmech.vision.PongtownResponse.BallBounce.verify(message.bounces[i]);
+                            if (error)
+                                return "bounces." + error;
+                        }
+                    }
+                    return null;
+                };
+
+                /**
+                 * Creates a BallTrajectory message from a plain object. Also converts values to their respective internal types.
+                 * @function fromObject
+                 * @memberof bayesmech.vision.PongtownResponse.BallTrajectory
+                 * @static
+                 * @param {Object.<string,*>} object Plain object
+                 * @returns {bayesmech.vision.PongtownResponse.BallTrajectory} BallTrajectory
+                 */
+                BallTrajectory.fromObject = function fromObject(object) {
+                    if (object instanceof $root.bayesmech.vision.PongtownResponse.BallTrajectory)
+                        return object;
+                    let message = new $root.bayesmech.vision.PongtownResponse.BallTrajectory();
+                    if (object.trackId != null)
+                        message.trackId = object.trackId >>> 0;
+                    if (object.observedFrames != null)
+                        message.observedFrames = object.observedFrames >>> 0;
+                    if (object.firstFrameIdx != null)
+                        message.firstFrameIdx = object.firstFrameIdx >>> 0;
+                    if (object.lastFrameIdx != null)
+                        message.lastFrameIdx = object.lastFrameIdx >>> 0;
+                    if (object.firstTimestampNs != null)
+                        if ($util.Long)
+                            (message.firstTimestampNs = $util.Long.fromValue(object.firstTimestampNs)).unsigned = true;
+                        else if (typeof object.firstTimestampNs === "string")
+                            message.firstTimestampNs = parseInt(object.firstTimestampNs, 10);
+                        else if (typeof object.firstTimestampNs === "number")
+                            message.firstTimestampNs = object.firstTimestampNs;
+                        else if (typeof object.firstTimestampNs === "object")
+                            message.firstTimestampNs = new $util.LongBits(object.firstTimestampNs.low >>> 0, object.firstTimestampNs.high >>> 0).toNumber(true);
+                    if (object.lastTimestampNs != null)
+                        if ($util.Long)
+                            (message.lastTimestampNs = $util.Long.fromValue(object.lastTimestampNs)).unsigned = true;
+                        else if (typeof object.lastTimestampNs === "string")
+                            message.lastTimestampNs = parseInt(object.lastTimestampNs, 10);
+                        else if (typeof object.lastTimestampNs === "number")
+                            message.lastTimestampNs = object.lastTimestampNs;
+                        else if (typeof object.lastTimestampNs === "object")
+                            message.lastTimestampNs = new $util.LongBits(object.lastTimestampNs.low >>> 0, object.lastTimestampNs.high >>> 0).toNumber(true);
+                    if (object.minBounceProminencePx != null)
+                        message.minBounceProminencePx = Number(object.minBounceProminencePx);
+                    if (object.minBounceSpacingFrames != null)
+                        message.minBounceSpacingFrames = object.minBounceSpacingFrames >>> 0;
+                    if (object.smoothSigma != null)
+                        message.smoothSigma = Number(object.smoothSigma);
+                    if (object.positions) {
+                        if (!Array.isArray(object.positions))
+                            throw TypeError(".bayesmech.vision.PongtownResponse.BallTrajectory.positions: array expected");
+                        message.positions = [];
+                        for (let i = 0; i < object.positions.length; ++i) {
+                            if (typeof object.positions[i] !== "object")
+                                throw TypeError(".bayesmech.vision.PongtownResponse.BallTrajectory.positions: object expected");
+                            message.positions[i] = $root.bayesmech.vision.PongtownResponse.BallPosition.fromObject(object.positions[i]);
+                        }
+                    }
+                    if (object.segments) {
+                        if (!Array.isArray(object.segments))
+                            throw TypeError(".bayesmech.vision.PongtownResponse.BallTrajectory.segments: array expected");
+                        message.segments = [];
+                        for (let i = 0; i < object.segments.length; ++i) {
+                            if (typeof object.segments[i] !== "object")
+                                throw TypeError(".bayesmech.vision.PongtownResponse.BallTrajectory.segments: object expected");
+                            message.segments[i] = $root.bayesmech.vision.PongtownResponse.BallTrajectorySegment.fromObject(object.segments[i]);
+                        }
+                    }
+                    if (object.bounces) {
+                        if (!Array.isArray(object.bounces))
+                            throw TypeError(".bayesmech.vision.PongtownResponse.BallTrajectory.bounces: array expected");
+                        message.bounces = [];
+                        for (let i = 0; i < object.bounces.length; ++i) {
+                            if (typeof object.bounces[i] !== "object")
+                                throw TypeError(".bayesmech.vision.PongtownResponse.BallTrajectory.bounces: object expected");
+                            message.bounces[i] = $root.bayesmech.vision.PongtownResponse.BallBounce.fromObject(object.bounces[i]);
+                        }
+                    }
+                    return message;
+                };
+
+                /**
+                 * Creates a plain object from a BallTrajectory message. Also converts values to other types if specified.
+                 * @function toObject
+                 * @memberof bayesmech.vision.PongtownResponse.BallTrajectory
+                 * @static
+                 * @param {bayesmech.vision.PongtownResponse.BallTrajectory} message BallTrajectory
+                 * @param {$protobuf.IConversionOptions} [options] Conversion options
+                 * @returns {Object.<string,*>} Plain object
+                 */
+                BallTrajectory.toObject = function toObject(message, options) {
+                    if (!options)
+                        options = {};
+                    let object = {};
+                    if (options.arrays || options.defaults) {
+                        object.positions = [];
+                        object.segments = [];
+                        object.bounces = [];
+                    }
+                    if (options.defaults) {
+                        object.trackId = 0;
+                        object.observedFrames = 0;
+                        object.firstFrameIdx = 0;
+                        object.lastFrameIdx = 0;
+                        if ($util.Long) {
+                            let long = new $util.Long(0, 0, true);
+                            object.firstTimestampNs = options.longs === String ? long.toString() : options.longs === Number ? long.toNumber() : long;
+                        } else
+                            object.firstTimestampNs = options.longs === String ? "0" : 0;
+                        if ($util.Long) {
+                            let long = new $util.Long(0, 0, true);
+                            object.lastTimestampNs = options.longs === String ? long.toString() : options.longs === Number ? long.toNumber() : long;
+                        } else
+                            object.lastTimestampNs = options.longs === String ? "0" : 0;
+                        object.minBounceProminencePx = 0;
+                        object.minBounceSpacingFrames = 0;
+                        object.smoothSigma = 0;
+                    }
+                    if (message.trackId != null && message.hasOwnProperty("trackId"))
+                        object.trackId = message.trackId;
+                    if (message.observedFrames != null && message.hasOwnProperty("observedFrames"))
+                        object.observedFrames = message.observedFrames;
+                    if (message.firstFrameIdx != null && message.hasOwnProperty("firstFrameIdx"))
+                        object.firstFrameIdx = message.firstFrameIdx;
+                    if (message.lastFrameIdx != null && message.hasOwnProperty("lastFrameIdx"))
+                        object.lastFrameIdx = message.lastFrameIdx;
+                    if (message.firstTimestampNs != null && message.hasOwnProperty("firstTimestampNs"))
+                        if (typeof message.firstTimestampNs === "number")
+                            object.firstTimestampNs = options.longs === String ? String(message.firstTimestampNs) : message.firstTimestampNs;
+                        else
+                            object.firstTimestampNs = options.longs === String ? $util.Long.prototype.toString.call(message.firstTimestampNs) : options.longs === Number ? new $util.LongBits(message.firstTimestampNs.low >>> 0, message.firstTimestampNs.high >>> 0).toNumber(true) : message.firstTimestampNs;
+                    if (message.lastTimestampNs != null && message.hasOwnProperty("lastTimestampNs"))
+                        if (typeof message.lastTimestampNs === "number")
+                            object.lastTimestampNs = options.longs === String ? String(message.lastTimestampNs) : message.lastTimestampNs;
+                        else
+                            object.lastTimestampNs = options.longs === String ? $util.Long.prototype.toString.call(message.lastTimestampNs) : options.longs === Number ? new $util.LongBits(message.lastTimestampNs.low >>> 0, message.lastTimestampNs.high >>> 0).toNumber(true) : message.lastTimestampNs;
+                    if (message.minBounceProminencePx != null && message.hasOwnProperty("minBounceProminencePx"))
+                        object.minBounceProminencePx = options.json && !isFinite(message.minBounceProminencePx) ? String(message.minBounceProminencePx) : message.minBounceProminencePx;
+                    if (message.minBounceSpacingFrames != null && message.hasOwnProperty("minBounceSpacingFrames"))
+                        object.minBounceSpacingFrames = message.minBounceSpacingFrames;
+                    if (message.smoothSigma != null && message.hasOwnProperty("smoothSigma"))
+                        object.smoothSigma = options.json && !isFinite(message.smoothSigma) ? String(message.smoothSigma) : message.smoothSigma;
+                    if (message.positions && message.positions.length) {
+                        object.positions = [];
+                        for (let j = 0; j < message.positions.length; ++j)
+                            object.positions[j] = $root.bayesmech.vision.PongtownResponse.BallPosition.toObject(message.positions[j], options);
+                    }
+                    if (message.segments && message.segments.length) {
+                        object.segments = [];
+                        for (let j = 0; j < message.segments.length; ++j)
+                            object.segments[j] = $root.bayesmech.vision.PongtownResponse.BallTrajectorySegment.toObject(message.segments[j], options);
+                    }
+                    if (message.bounces && message.bounces.length) {
+                        object.bounces = [];
+                        for (let j = 0; j < message.bounces.length; ++j)
+                            object.bounces[j] = $root.bayesmech.vision.PongtownResponse.BallBounce.toObject(message.bounces[j], options);
+                    }
+                    return object;
+                };
+
+                /**
+                 * Converts this BallTrajectory to JSON.
+                 * @function toJSON
+                 * @memberof bayesmech.vision.PongtownResponse.BallTrajectory
+                 * @instance
+                 * @returns {Object.<string,*>} JSON object
+                 */
+                BallTrajectory.prototype.toJSON = function toJSON() {
+                    return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+                };
+
+                /**
+                 * Gets the default type url for BallTrajectory
+                 * @function getTypeUrl
+                 * @memberof bayesmech.vision.PongtownResponse.BallTrajectory
+                 * @static
+                 * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+                 * @returns {string} The default type url
+                 */
+                BallTrajectory.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+                    if (typeUrlPrefix === undefined) {
+                        typeUrlPrefix = "type.googleapis.com";
+                    }
+                    return typeUrlPrefix + "/bayesmech.vision.PongtownResponse.BallTrajectory";
+                };
+
+                return BallTrajectory;
             })();
 
             PongtownResponse.GlobalTablePose = (function() {
