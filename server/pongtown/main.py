@@ -32,7 +32,6 @@ from pongtown.quad_fit import (
 )
 from pongtown.render import (
     montage,
-    render_net_panel,
     render_pose_panel,
     render_stage1_panel,
 )
@@ -264,6 +263,8 @@ def main() -> None:
                     cfg=cfg,
                     T_camera_to_world=b.T_camera_to_world,
                     world_up_axis=1,
+                    net_mask=b.net_mask,
+                    image_shape=b.rgb.shape[:2],
                 )
         results.append({
             "bundle": b,
@@ -291,11 +292,7 @@ def main() -> None:
                     pres.pnp_iou,
                     f"f{b.frame_idx} stage2",
                     mask_overlays=mask_overlay,
-                ))
-                panels.append(render_net_panel(
-                    b.rgb, b.net_mask, net_quad_img,
-                    nres.rvec, nres.tvec, b.intrinsics,
-                    f"f{b.frame_idx} net-pnp",
+                    net_rvec=nres.rvec, net_tvec=nres.tvec,
                 ))
             cv2.imwrite(str(odir / f"frame_{b.frame_idx:06d}.png"), montage(panels))
 
@@ -354,6 +351,42 @@ def main() -> None:
             cfg.get("world", {}).get("ransac_yaw_inlier_deg", 8.0)
         ),
     )
+
+    # ── Stage 3 net: independent RANSAC over per-frame net poses ─────────────
+    net_valid = [r for r in results if r["nres"].success]
+    T_global_net_world: np.ndarray | None = None
+    if net_valid:
+        net_iou_thresh = float(
+            np.percentile([r["nres"].pnp_iou for r in net_valid], 100 * (1 - top_pct))
+        )
+        net_eligible = [r for r in net_valid if r["nres"].pnp_iou >= net_iou_thresh]
+        if not net_eligible:
+            net_eligible = net_valid
+        log.info(
+            "Stage 3 net candidates: %d / %d frames in top %.0f%% by net IoU (thresh=%.3f)",
+            len(net_eligible), len(net_valid), top_pct * 100, net_iou_thresh,
+        )
+        net_poses_T = np.stack(
+            [_lift_to_world(r["nres"].T_table_to_camera, r["bundle"].T_camera_to_world)
+             for r in net_eligible], axis=0,
+        )
+        net_weights = np.array([r["nres"].pnp_iou for r in net_eligible])
+        net_weights = np.where(net_weights > 0, net_weights, 1.0)
+        T_global_net_world, net_inlier_mask = _weighted_ransac_pose(
+            net_poses_T, net_weights,
+            pos_inlier_thresh_m=cfg.get("world", {}).get("ransac_pos_inlier_m", 0.20),
+            rot_inlier_thresh_rad=math.radians(
+                cfg.get("world", {}).get("ransac_yaw_inlier_deg", 8.0)
+            ),
+        )
+        t_net = T_global_net_world[:3, 3]
+        log.info(
+            "Stage 3 net RANSAC: inliers %d/%d, t=(%.3f, %.3f, %.3f) m",
+            int(net_inlier_mask.sum()), len(net_inlier_mask),
+            t_net[0] / 1000, t_net[1] / 1000, t_net[2] / 1000,
+        )
+    else:
+        log.warning("Stage 3 net: no valid net poses, net rectangle will use table pose fallback")
     t = T_global_world[:3, 3]
     log.info(
         "Stage 3 RANSAC: inliers %d/%d, t=(%.3f, %.3f, %.3f) m",
@@ -421,11 +454,18 @@ def main() -> None:
             "net": b.net_mask,
             "person": b.person_mask,
         }
+        # Global net pose projected back to this frame's camera.
+        net_rv_s3 = net_tv_s3 = None
+        if T_global_net_world is not None:
+            T_net_cam = T_world_to_camera @ T_global_net_world
+            net_rv_s3, _ = cv2.Rodrigues(T_net_cam[:3, :3])
+            net_tv_s3 = T_net_cam[:3, 3]
         stage3 = render_pose_panel(
             b.rgb, rv, tv, b.intrinsics, score.iou,
             f"f{b.frame_idx} stage3 global",
             mask_overlays=mask_overlay,
             quad_thickness=3,
+            net_rvec=net_rv_s3, net_tvec=net_tv_s3,
         )
         stage1 = render_stage1_panel(
             b.rgb, b.table_mask, b.net_mask, b.person_mask,
@@ -438,15 +478,11 @@ def main() -> None:
             r["pres"].pnp_iou,
             f"f{b.frame_idx} stage2",
             mask_overlays=mask_overlay,
-        )
-        net_panel = render_net_panel(
-            b.rgb, b.net_mask, r["net_quad_img"],
-            r["nres"].rvec, r["nres"].tvec, b.intrinsics,
-            f"f{b.frame_idx} net-pnp",
+            net_rvec=r["nres"].rvec, net_tvec=r["nres"].tvec,
         )
         cv2.imwrite(
             str(odir / f"frame_{b.frame_idx:06d}.png"),
-            montage([stage1, stage2, stage3, net_panel]),
+            montage([stage1, stage2, stage3]),
         )
 
     # ── Final stats ──────────────────────────────────────────────────────────

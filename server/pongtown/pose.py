@@ -300,6 +300,8 @@ def solve_net_pose(
     cfg: dict,
     T_camera_to_world: np.ndarray | None = None,
     world_up_axis: int = 1,
+    net_mask: np.ndarray | None = None,
+    image_shape: tuple[int, int] | None = None,
 ) -> PoseResult:
     """Independently solve the net pose via IPPE on the 4 detected net corners.
 
@@ -308,6 +310,8 @@ def solve_net_pose(
     the net) must point up in world frame.
 
     The returned rvec/tvec express T_net_to_camera in the net-local frame.
+    pnp_iou is the IoU of the reprojected canonical net vs net_mask (if both
+    image_shape and net_mask are supplied; 0.0 otherwise).
     """
     if net_quad_img is None or len(net_quad_img) != 4:
         return PoseResult(None, None, None, 0.0, False)
@@ -323,7 +327,6 @@ def solve_net_pose(
     best_rvecs: list | None = None
     best_tvecs: list | None = None
     best_err = float("inf")
-    best_P = P_net
 
     for rot in range(4):
         P = np.roll(P_net, -rot, axis=0)
@@ -343,7 +346,6 @@ def solve_net_pose(
                 best_ok = True
                 best_rvecs = rvecs
                 best_tvecs = tvecs
-                best_P = P
 
     if not best_ok:
         return PoseResult(None, None, None, 0.0, False)
@@ -367,4 +369,16 @@ def solve_net_pose(
     rvec = best_rvecs[best_idx].reshape(3).astype(np.float64)
     tvec = best_tvecs[best_idx].reshape(3).astype(np.float64)
     T = _make_T(rvec, tvec)
-    return PoseResult(rvec, tvec, T, 0.0, True)
+
+    iou = 0.0
+    if image_shape is not None and net_mask is not None and net_mask.any():
+        reproj = _project_world_to_image(P_net, rvec, tvec, K)
+        h, w = image_shape
+        canvas = np.zeros((h, w), dtype=np.uint8)
+        cv2.fillPoly(canvas, [np.round(reproj).astype(np.int32).reshape(-1, 1, 2)], 1)
+        reproj_mask = canvas.astype(bool)
+        inter = int((reproj_mask & net_mask).sum())
+        uni = int((reproj_mask | net_mask).sum())
+        iou = float(inter) / float(uni) if uni > 0 else 0.0
+
+    return PoseResult(rvec, tvec, T, iou, True)
