@@ -2,7 +2,6 @@ import React, { useRef, useEffect, useState } from 'react'
 
 interface StreamViewerProps {
   title: string
-  badge: string
   blobUrl?: string
   placeholderIcon: string
   placeholderText: string
@@ -13,7 +12,6 @@ interface StreamViewerProps {
 
 const StreamViewer: React.FC<StreamViewerProps> = ({
   title,
-  badge,
   blobUrl,
   placeholderIcon,
   placeholderText,
@@ -82,7 +80,6 @@ const StreamViewer: React.FC<StreamViewerProps> = ({
     <div className="stream-card">
       <div className="stream-header">
         <span className="stream-title">{title}</span>
-        <span className="stream-badge">{badge}</span>
         {headerExtra && <div className="stream-header-extra">{headerExtra}</div>}
       </div>
       <div

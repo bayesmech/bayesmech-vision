@@ -225,6 +225,11 @@ async def transcribe_audio(file: UploadFile = File(...)):
 
 _FILENAME_DATE_RE = re.compile(r"(\d{8}_\d{6})")
 _RECORDING_FOLDER_RE = re.compile(r"^(\d{8}_\d{6})(?:_|$)")
+_RECORDING_SUFFIX_ALIASES = {
+    "segmentation.pb": ("seg.pb",),
+    "motioncap.pb": ("motion.pb",),
+    "motioncap.mp4": ("motion.mp4",),
+}
 
 _RANDOM_ADJECTIVES = [
     "Anxious", "Juicy", "Velvet", "Broken", "Silent", "Crimson", "Hollow",
@@ -353,7 +358,12 @@ def _recording_file_candidates(file_name: str, suffix: str) -> list[Path]:
     timestamp_stem = _recording_file_stem(safe_name)
     if timestamp_stem != safe_name:
         stems.append(timestamp_stem)
-    return [folder / f"{stem}.{suffix}" for stem in stems]
+    suffixes = (suffix, *_RECORDING_SUFFIX_ALIASES.get(suffix, ()))
+    return [
+        folder / f"{stem}.{candidate_suffix}"
+        for candidate_suffix in suffixes
+        for stem in stems
+    ]
 
 
 def _recording_file(file_name: str, suffix: str) -> Path:
@@ -361,12 +371,20 @@ def _recording_file(file_name: str, suffix: str) -> Path:
     for path in candidates:
         if path.exists():
             return path
-    return candidates[-1]
+    safe_name = Path(file_name).name
+    return _recording_dir(safe_name) / f"{_recording_file_stem(safe_name)}.{suffix}"
 
 
 def _safe_recording_stem(file_name: str) -> str:
     safe_name = Path(file_name).name
-    for suffix in (".vis.pb", ".idoslam.pb", ".seg.pb"):
+    for suffix in (
+        ".vis.pb",
+        ".idoslam.pb",
+        ".segmentation.pb",
+        ".seg.pb",
+        ".motioncap.pb",
+        ".motion.pb",
+    ):
         safe_name = safe_name.removesuffix(suffix)
     return safe_name
 
@@ -538,7 +556,7 @@ _ANALYSIS_SPECS: tuple[AnalysisSpec, ...] = (
             AnalysisArtifactSpec(
                 name="proto",
                 title="Segmentation Protobuf",
-                suffix="seg.pb",
+                suffix="segmentation.pb",
                 media_type="application/x-protobuf",
                 kind="protobuf",
                 encoding="length-delimited-protobuf",
@@ -558,7 +576,7 @@ _ANALYSIS_SPECS: tuple[AnalysisSpec, ...] = (
             AnalysisArtifactSpec(
                 name="proto",
                 title="Motion Capture Protobuf",
-                suffix="motion.pb",
+                suffix="motioncap.pb",
                 media_type="application/x-protobuf",
                 kind="protobuf",
                 encoding="length-delimited-protobuf",
@@ -573,7 +591,7 @@ _ANALYSIS_SPECS: tuple[AnalysisSpec, ...] = (
             AnalysisArtifactSpec(
                 name="video",
                 title="Motion Capture Video",
-                suffix="motion.mp4",
+                suffix="motioncap.mp4",
                 media_type="video/mp4",
                 kind="video",
                 encoding="binary",
@@ -987,11 +1005,11 @@ async def list_recordings():
             "title": _parse_title(d.name),
             "size_mb": round(vis.stat().st_size / (1024 ** 2), 2),
             "recorded_at": _parse_recording_timestamp(d.name, d.stat().st_mtime),
-            "has_segmentation": _recording_file(d.name, "seg.pb").exists(),
+            "has_segmentation": _recording_file(d.name, "segmentation.pb").exists(),
             "has_idoslam": _recording_file(d.name, "idoslam.pb").exists(),
             "has_motioncap": (
-                _recording_file(d.name, "motion.pb").exists()
-                or _recording_file(d.name, "motion.mp4").exists()
+                _recording_file(d.name, "motioncap.pb").exists()
+                or _recording_file(d.name, "motioncap.mp4").exists()
             ),
             "available_analyses": available_analyses,
             "analysis_url": f"/api/analysis/recordings/{quote(d.name)}",
@@ -1436,11 +1454,11 @@ async def insightgen_list_recordings(request: Request):
                 pass
         dl = insightgen_pb2.DataList(
             file_name=base_name,
-            is_segmentation_available=_recording_file(base_name, "seg.pb").exists(),
+            is_segmentation_available=_recording_file(base_name, "segmentation.pb").exists(),
             is_genspark_available=genspark_path.exists(),
             is_motioncap_available=(
-                _recording_file(base_name, "motion.pb").exists()
-                or _recording_file(base_name, "motion.mp4").exists()
+                _recording_file(base_name, "motioncap.pb").exists()
+                or _recording_file(base_name, "motioncap.mp4").exists()
             ),
             title=title,
             chat_message_count=chat_count,

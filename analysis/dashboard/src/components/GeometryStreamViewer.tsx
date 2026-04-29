@@ -3,7 +3,6 @@ import type { CameraPose, CameraIntrinsics, InferredGeometry } from '../types'
 
 interface Props {
   title: string
-  badge: string
   placeholderIcon: string
   placeholderText: string
   mode: 'point_cloud' | 'planes'
@@ -147,7 +146,6 @@ function drawPlanes(
 
 const GeometryStreamViewer: React.FC<Props> = ({
   title,
-  badge,
   placeholderIcon,
   placeholderText,
   mode,
@@ -187,7 +185,6 @@ const GeometryStreamViewer: React.FC<Props> = ({
     <div className="stream-card">
       <div className="stream-header">
         <span className="stream-title">{title}</span>
-        <span className="stream-badge">{badge}</span>
       </div>
       <div
         className="stream-viewer"

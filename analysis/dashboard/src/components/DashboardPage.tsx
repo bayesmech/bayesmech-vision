@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useDashboard } from '../context/DashboardContext'
 import StreamViewer from './StreamViewer'
 import GeometryStreamViewer from './GeometryStreamViewer'
@@ -23,31 +23,31 @@ type DashboardTabId =
 const DASHBOARD_TABS: {
   id: DashboardTabId
   label: string
-  badge: string
+  shortcut: string
   description: string
 }[] = [
   {
     id: 'segmentation',
     label: 'Segmentation',
-    badge: 'SEG',
+    shortcut: '1',
     description: 'Overlay masks and object legends for the current frame.',
   },
   {
     id: 'motion-capture',
     label: 'Motion Capture',
-    badge: 'MCAP',
+    shortcut: '2',
     description: 'Review motion heatmaps and tracked object paths without on-frame labels.',
   },
   {
     id: 'sensors',
     label: 'Sensor Data',
-    badge: 'IMU',
+    shortcut: '3',
     description: 'Inspect IMU streams, geometry understanding, and route context.',
   },
   {
     id: 'localization-mapping',
     label: 'Localization + Mapping',
-    badge: 'SLAM',
+    shortcut: '4',
     description: 'Inspect SLAM maps, SIFT road features, and projected road boundaries.',
   },
 ]
@@ -79,7 +79,6 @@ const SegmentationLegend: React.FC<{ legend?: SegmentationLegendEntry[] }> = ({ 
   <div className="stream-card" style={{ display: 'flex', flexDirection: 'column' }}>
     <div className="stream-header">
       <span className="stream-title">Legend</span>
-      <span className="stream-badge">KEY</span>
     </div>
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', overflowY: 'auto' }}>
       {(!legend || legend.length === 0) ? (
@@ -126,6 +125,50 @@ const DashboardPage = () => {
     trajectoryPositions,
   } = useDashboard()
   const [activeTab, setActiveTab] = useState<DashboardTabId>('segmentation')
+  const shortcutArmedRef = useRef(false)
+
+  useEffect(() => {
+    const selectTabByShortcut = (shortcut: string) => {
+      const tab = DASHBOARD_TABS.find((candidate) => candidate.shortcut === shortcut)
+      if (tab) setActiveTab(tab.id)
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const hasModifier = event.ctrlKey || event.metaKey
+      const key = event.key.toLowerCase()
+
+      if (hasModifier && key === 's') {
+        event.preventDefault()
+        shortcutArmedRef.current = true
+        return
+      }
+
+      if (hasModifier && shortcutArmedRef.current && /^[1-4]$/.test(event.key)) {
+        event.preventDefault()
+        selectTabByShortcut(event.key)
+      }
+    }
+
+    const handleKeyUp = (event: KeyboardEvent) => {
+      const key = event.key.toLowerCase()
+      if (key === 's' || key === 'control' || key === 'meta') {
+        shortcutArmedRef.current = false
+      }
+    }
+
+    const handleBlur = () => {
+      shortcutArmedRef.current = false
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    window.addEventListener('keyup', handleKeyUp)
+    window.addEventListener('blur', handleBlur)
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+      window.removeEventListener('keyup', handleKeyUp)
+      window.removeEventListener('blur', handleBlur)
+    }
+  }, [])
 
   const source = displayedFrame?.source ?? 'none'
   const deviceId = displayedFrame?.device_id
@@ -169,7 +212,6 @@ const DashboardPage = () => {
       >
         <StreamViewer
           title="RGB Stream"
-          badge="RGB"
           blobUrl={displayedFrame?.rgbBlobUrl}
           placeholderIcon={'🎥'}
           placeholderText="Waiting for RGB frames..."
@@ -197,7 +239,7 @@ const DashboardPage = () => {
                   className={`dashboard-tab${isActive ? ' is-active' : ''}`}
                   onClick={() => setActiveTab(tab.id)}
                 >
-                  <span className="dashboard-tab-badge">{tab.badge}</span>
+                  <span className="dashboard-tab-shortcut">{tab.shortcut}</span>
                   <span className="dashboard-tab-copy">
                     <span className="dashboard-tab-label">{tab.label}</span>
                     <span className="dashboard-tab-description">{tab.description}</span>
@@ -227,7 +269,6 @@ const DashboardPage = () => {
               <div className="dashboard-segmentation-grid">
                 <StreamViewer
                   title="Segmentation"
-                  badge="SEG"
                   blobUrl={displayedAnnotation?.blobUrl}
                   placeholderIcon={'🧩'}
                   placeholderText="Waiting for segmentation masks..."
@@ -274,7 +315,6 @@ const DashboardPage = () => {
               >
                 <StreamViewer
                   title="Depth Map"
-                  badge="DEPTH"
                   blobUrl={displayedFrame?.depthBlobUrl}
                   placeholderIcon={'🌊'}
                   placeholderText="Waiting for depth frames..."
@@ -282,7 +322,6 @@ const DashboardPage = () => {
 
                 <GeometryStreamViewer
                   title="Point Cloud"
-                  badge="PCD"
                   placeholderIcon={'✦'}
                   placeholderText="Waiting for point cloud data..."
                   mode="point_cloud"
@@ -293,7 +332,6 @@ const DashboardPage = () => {
 
                 <GeometryStreamViewer
                   title="Plane Detection"
-                  badge="PLANE"
                   placeholderIcon={'⬛'}
                   placeholderText="Waiting for plane data..."
                   mode="planes"

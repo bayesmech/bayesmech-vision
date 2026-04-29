@@ -287,12 +287,11 @@ function currentPoseForFrame(poses: SlamPose[], frame: DecodedFrame | null, curr
 
 const SlamMapCanvas: React.FC<{
   title: string
-  badge: string
   poses: SlamPose[]
   sensorData: SensorFrameData[]
   currentPose: SlamPose | null
   showCurrent: boolean
-}> = ({ title, badge, poses, sensorData, currentPose, showCurrent }) => {
+}> = ({ title, poses, sensorData, currentPose, showCurrent }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
   useEffect(() => {
@@ -313,7 +312,6 @@ const SlamMapCanvas: React.FC<{
     <div className="stream-card">
       <div className="stream-header">
         <span className="stream-title">{title}</span>
-        <span className="stream-badge">{badge}</span>
       </div>
       <canvas className="slam-canvas" ref={canvasRef} width={TRACK_PLOT_WIDTH} height={TRACK_PLOT_HEIGHT} />
     </div>
@@ -650,7 +648,6 @@ const SiftCorrespondencePanel: React.FC<{ slam: SlamResponse | null }> = ({ slam
     <div className="stream-card">
       <div className="stream-header">
         <span className="stream-title">SIFT Features + Correspondences</span>
-        <span className="stream-badge">{pair ? `${pair.onRoadCount ?? 0}/${pair.goodMatchCount ?? 0}` : 'SIFT'}</span>
       </div>
       <canvas className="slam-canvas" ref={canvasRef} width={VIDEO_WIDTH} height={VIDEO_HEIGHT} />
     </div>
@@ -1069,7 +1066,6 @@ const RoadProjectionPanels: React.FC<{ slam: SlamResponse | null }> = ({ slam })
       <div className="stream-card">
         <div className="stream-header">
           <span className="stream-title">Road Mask + Edge Estimates</span>
-          <span className="stream-badge">ROAD</span>
         </div>
         <canvas
           className="slam-canvas clickable"
@@ -1082,7 +1078,6 @@ const RoadProjectionPanels: React.FC<{ slam: SlamResponse | null }> = ({ slam })
       <div className="stream-card">
         <div className="stream-header">
           <span className="stream-title">Ground Plane Projection</span>
-          <span className="stream-badge">GROUND</span>
         </div>
         <canvas className="slam-canvas" ref={groundCanvasRef} width={VIDEO_WIDTH} height={VIDEO_HEIGHT} />
       </div>
@@ -1201,10 +1196,9 @@ const CameraAttitudePanel: React.FC<{
   }, [attitude])
 
   return (
-      <div className="stream-card">
-        <div className="stream-header">
+    <div className="stream-card">
+      <div className="stream-header">
         <span className="stream-title">Camera wrt. ground pose</span>
-        <span className="stream-badge">POSE</span>
       </div>
       <canvas className="slam-canvas" ref={canvasRef} width={VIDEO_WIDTH} height={VIDEO_HEIGHT} />
     </div>
@@ -1231,7 +1225,6 @@ const LocalizationMappingTab: React.FC = () => {
       <div className="slam-overview-row">
         <SlamMapCanvas
           title="Pre-GPS Optimization Map"
-          badge="VO"
           poses={idoslamData?.framePoses ?? []}
           sensorData={sensorData}
           currentPose={rawCurrentPose}
@@ -1239,7 +1232,6 @@ const LocalizationMappingTab: React.FC = () => {
         />
         <SlamMapCanvas
           title="Post-GPS Optimization Map"
-          badge="GPS"
           poses={idoslamData?.refinedFramePoses ?? []}
           sensorData={sensorData}
           currentPose={refinedCurrentPose}

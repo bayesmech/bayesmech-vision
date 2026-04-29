@@ -110,8 +110,13 @@ def idoslam_proto_path(recording_path: Path) -> Path:
 
 def seg_path(recording_path: Path) -> Path:
     if recording_path.name.endswith(".vis.pb"):
-        return recording_path.parent / (recording_path.name.removesuffix(".vis.pb") + ".seg.pb")
-    return recording_path.with_suffix(".seg.pb")
+        stem = recording_path.name.removesuffix(".vis.pb")
+        primary = recording_path.parent / f"{stem}.segmentation.pb"
+        legacy = recording_path.parent / f"{stem}.seg.pb"
+    else:
+        primary = recording_path.with_suffix(".segmentation.pb")
+        legacy = recording_path.with_suffix(".seg.pb")
+    return primary if primary.exists() or not legacy.exists() else legacy
 
 
 def iter_messages(path: Path, msg_type) -> Iterator:

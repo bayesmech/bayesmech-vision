@@ -2,19 +2,19 @@
 """
 Unified motion capture: RAFT optical flow + persistent object tracking.
 
-Two pipeline steps, both written to a single .motion.pb output:
+Two pipeline steps, both written to a single .motioncap.pb output:
   Step 1 — RAFT: dense optical flow residuals → per-frame heatmaps
   Step 2 — Tracking: temporal filter + blob detection + nearest-neighbour tracker
 
 Both steps are controlled via config.yaml:
-  pipeline.regenerate_raft: false      → skip RAFT, load heatmaps from existing .motion.pb
-  pipeline.regenerate_tracking: false  → skip tracker, load tracks from existing .motion.pb
+  pipeline.regenerate_raft: false      → skip RAFT, load heatmaps from existing .motioncap.pb
+  pipeline.regenerate_tracking: false  → skip tracker, load tracks from existing .motioncap.pb
 
 Output
 ------
-  <name>.motion.pb   — length-delimited MotionCaptureResponse frames (heatmaps)
+  <name>.motioncap.pb   — length-delimited MotionCaptureResponse frames (heatmaps)
                        followed by one summary record containing all tracks
-  <name>.motion.mp4  — (optional) heatmap overlay on RGB with track visualization
+  <name>.motioncap.mp4  — (optional) heatmap overlay on RGB with track visualization
 
 Usage
 -----
@@ -82,12 +82,26 @@ _TRACK_COLORS = [
 
 def _motion_path(rec: Path) -> Path:
     stem = rec.name.removesuffix(".vis.pb") if rec.name.endswith(".vis.pb") else rec.stem
+    return rec.parent / (stem + ".motioncap.pb")
+
+
+def _legacy_motion_path(rec: Path) -> Path:
+    stem = rec.name.removesuffix(".vis.pb") if rec.name.endswith(".vis.pb") else rec.stem
     return rec.parent / (stem + ".motion.pb")
 
 
+def _existing_motion_path(rec: Path) -> Path:
+    primary = _motion_path(rec)
+    legacy = _legacy_motion_path(rec)
+    return primary if primary.exists() or not legacy.exists() else legacy
+
+
 def _video_path(motion_pb: Path) -> Path:
-    stem = motion_pb.name.removesuffix(".motion.pb")
-    return motion_pb.parent / (stem + ".motion.mp4")
+    if motion_pb.name.endswith(".motioncap.pb"):
+        stem = motion_pb.name.removesuffix(".motioncap.pb")
+    else:
+        stem = motion_pb.name.removesuffix(".motion.pb")
+    return motion_pb.parent / (stem + ".motioncap.mp4")
 
 
 def _color_for(track_id: int) -> tuple[int, int, int]:
@@ -153,13 +167,13 @@ def _decode_tracks_record(
     return tracks
 
 
-# ── Load existing .motion.pb ──────────────────────────────────────────────────
+# ── Load existing .motioncap.pb ────────────────────────────────────────────────
 
 def _load_heatmaps_from_pb(
     motion_path: Path,
 ) -> tuple[list[np.ndarray], list[int], list[int]] | None:
     """
-    Read heatmaps + frame metadata from an existing .motion.pb.
+    Read heatmaps + frame metadata from an existing .motioncap.pb.
     Skips the trailing tracks-summary record.
     Returns (heatmaps, frame_ids, timestamps) or None if file is absent/empty.
     """
@@ -187,7 +201,7 @@ def _load_heatmaps_from_pb(
 
 def _load_tracks_from_pb(motion_path: Path) -> list[Track] | None:
     """
-    Read the tracks-summary record from an existing .motion.pb.
+    Read the tracks-summary record from an existing .motioncap.pb.
     Returns None if no summary record exists.
     """
     if not motion_path.exists():
@@ -207,7 +221,7 @@ def main() -> None:
     parser.add_argument("--max-frames", type=int, default=0,
                         help="Limit to first N frames for testing (0 = all)")
     parser.add_argument("--output-video", action="store_true",
-                        help="Write a .motion.mp4 with heatmap overlay and track visualization")
+                        help="Write a .motioncap.mp4 with heatmap overlay and track visualization")
     args = parser.parse_args()
 
     cfg = _CONFIG
@@ -221,6 +235,7 @@ def main() -> None:
         sys.exit(1)
 
     out_path = _motion_path(rec_path)
+    read_path = _existing_motion_path(rec_path)
 
     # ── Step 1: RAFT heatmaps ─────────────────────────────────────────────────
 
@@ -232,14 +247,14 @@ def main() -> None:
     methods:    list[int]        = []   # method_used per frame
 
     if not regen_raft:
-        loaded = _load_heatmaps_from_pb(out_path)
+        loaded = _load_heatmaps_from_pb(read_path)
         if loaded is not None:
             heatmaps, frame_ids, timestamps = loaded
             if args.max_frames > 0 and len(heatmaps) > args.max_frames:
                 heatmaps   = heatmaps[:args.max_frames]
                 frame_ids  = frame_ids[:args.max_frames]
                 timestamps = timestamps[:args.max_frames]
-            print(f"Loaded {len(heatmaps)} heatmaps from {out_path.name} "
+            print(f"Loaded {len(heatmaps)} heatmaps from {read_path.name} "
                   f"(regenerate_raft=false)")
             # Populate dummy per-frame metadata (not needed for proto re-write)
             max_raws = [1.0] * len(heatmaps)
@@ -470,9 +485,9 @@ def main() -> None:
     tracks: list[Track] | None = None
 
     if not regen_tracking:
-        tracks = _load_tracks_from_pb(out_path)
+        tracks = _load_tracks_from_pb(read_path)
         if tracks is not None:
-            print(f"\nLoaded {len(tracks)} track(s) from {out_path.name} "
+            print(f"\nLoaded {len(tracks)} track(s) from {read_path.name} "
                   f"(regenerate_tracking=false)")
 
     if tracks is None:
@@ -486,7 +501,7 @@ def main() -> None:
             print(f"  Track {t.track_id}: {detected} detected + {interp} interpolated "
                   f"({detected / total:.1%} presence)")
 
-    # ── Write .motion.pb (heatmaps + tracks summary) ──────────────────────────
+    # ── Write .motioncap.pb (heatmaps + tracks summary) ───────────────────────
 
     print(f"\nWriting {out_path.name} …")
     if out_path.exists():

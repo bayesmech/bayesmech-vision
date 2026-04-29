@@ -181,7 +181,13 @@ def get_motioncap_tracks(start_time: float, end_time: float) -> str:
     base = _recording_path.name
     if base.endswith(".vis.pb"):
         base = base[: -len(".vis.pb")]
-    motion_path = _recording_path.parent / f"{base}.motion.pb"
+    primary_motion_path = _recording_path.parent / f"{base}.motioncap.pb"
+    legacy_motion_path = _recording_path.parent / f"{base}.motion.pb"
+    motion_path = (
+        primary_motion_path
+        if primary_motion_path.exists() or not legacy_motion_path.exists()
+        else legacy_motion_path
+    )
     if not motion_path.exists():
         return f"No motion capture file found ({motion_path.name}). Run motioncap first."
     return _format_tracks(motion_path, start_time, end_time)

@@ -1,10 +1,10 @@
 """
 Annotator — annotation store for segmentation results.
 
-Loads pre-computed .seg.pb files (produced by segmentation/main.py) and serves
+Loads pre-computed .segmentation.pb files (produced by segmentation/main.py) and serves
 lookups by (timestamp_ns, frame_number). No live segmentation server connection.
 
-Annotation file: recordings/foo.vis.pb -> recordings/foo.seg.pb
+Annotation file: recordings/foo.vis.pb -> recordings/foo.segmentation.pb
 Format: length-delimited SegmentationResponse protos.
 
 To generate annotations offline:
@@ -42,11 +42,16 @@ def _key(fid: perceiver_pb2.PerceiverFrameIdentifier) -> AnnotationKey:
 
 
 def _seg_path(recording_path: Path) -> Path:
-    """recordings/YYYYMMDD_HHMMSS.vis.pb -> recordings/YYYYMMDD_HHMMSS.seg.pb"""
+    """recordings/YYYYMMDD_HHMMSS.vis.pb -> recordings/YYYYMMDD_HHMMSS.segmentation.pb"""
     name = recording_path.name
     if name.endswith(".vis.pb"):
-        return recording_path.parent / (name.removesuffix(".vis.pb") + ".seg.pb")
-    return recording_path.with_suffix(".seg.pb")
+        stem = name.removesuffix(".vis.pb")
+        primary = recording_path.parent / f"{stem}.segmentation.pb"
+        legacy = recording_path.parent / f"{stem}.seg.pb"
+    else:
+        primary = recording_path.with_suffix(".segmentation.pb")
+        legacy = recording_path.with_suffix(".seg.pb")
+    return primary if primary.exists() or not legacy.exists() else legacy
 
 
 class Annotator:
@@ -54,7 +59,7 @@ class Annotator:
     Pure annotation store — loads and serves pre-computed segmentation results.
 
     No live segmentation server connection. Use segmentation/main.py to generate
-    .seg.pb files offline, then this class loads and serves them.
+    .segmentation.pb files offline, then this class loads and serves them.
     """
 
     def __init__(self, **_kwargs) -> None:
@@ -82,7 +87,7 @@ class Annotator:
         self._annotation_callback = cb
 
     def load_annotations(self, recording_path: Path) -> int:
-        """Load existing .seg.pb file into memory dict. Returns count loaded."""
+        """Load existing .segmentation.pb file into memory dict. Returns count loaded."""
         self._annotations.clear()
         self._by_frame_number.clear()
         self._sorted_fns.clear()

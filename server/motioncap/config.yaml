@@ -3,11 +3,11 @@
 # ── Pipeline control ──────────────────────────────────────────────────────────
 pipeline:
   # regenerate_raft: true  → always run RAFT (slow, GPU)
-  #                  false → load heatmaps from an existing .motion.pb instead
+  #                  false → load heatmaps from an existing .motioncap.pb instead
   regenerate_raft: true
 
   # regenerate_tracking: true  → always re-run the tracker on the heatmaps
-  #                      false → reuse tracks already stored in the .motion.pb
+  #                      false → reuse tracks already stored in the .motioncap.pb
   regenerate_tracking: true
 
 # Used by analysis/homography/main.py (pixel_map / _compute_H in geometry.py)
