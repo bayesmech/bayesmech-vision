@@ -12,11 +12,8 @@ def _mask(offset: int = 0) -> np.ndarray:
     return mask
 
 
-def test_stabilizer_matches_same_label_boundary_after_session_reset() -> None:
-    stabilizer = SegmentationIdStabilizer(
-        boundary_iou_threshold=0.4,
-        boundary_dilation_px=2,
-    )
+def test_stabilizer_matches_same_label_mask_iou_after_session_reset() -> None:
+    stabilizer = SegmentationIdStabilizer(iou_threshold=0.7)
 
     first = stabilizer.stabilize(
         [
@@ -46,10 +43,7 @@ def test_stabilizer_matches_same_label_boundary_after_session_reset() -> None:
 
 
 def test_stabilizer_does_not_match_different_label() -> None:
-    stabilizer = SegmentationIdStabilizer(
-        boundary_iou_threshold=0.4,
-        boundary_dilation_px=2,
-    )
+    stabilizer = SegmentationIdStabilizer(iou_threshold=0.7)
 
     first = stabilizer.stabilize(
         [
@@ -70,6 +64,35 @@ def test_stabilizer_does_not_match_different_label() -> None:
                 label="chair",
                 confidence=0.9,
                 mask=_mask(),
+            )
+        ]
+    )
+
+    assert second[0].stable_object_id != first[0].stable_object_id
+
+
+def test_stabilizer_does_not_match_same_label_below_mask_iou_threshold() -> None:
+    stabilizer = SegmentationIdStabilizer(iou_threshold=0.7)
+
+    first = stabilizer.stabilize(
+        [
+            SegmentationMaskCandidate(
+                raw_object_id=1,
+                label="person",
+                confidence=0.9,
+                mask=_mask(),
+            )
+        ]
+    )
+
+    stabilizer.reset_session()
+    second = stabilizer.stabilize(
+        [
+            SegmentationMaskCandidate(
+                raw_object_id=2,
+                label="person",
+                confidence=0.9,
+                mask=_mask(offset=8),
             )
         ]
     )

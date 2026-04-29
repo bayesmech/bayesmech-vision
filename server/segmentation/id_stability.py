@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-import cv2
 import numpy as np
 
 
@@ -37,39 +36,20 @@ def _normalized_label(label: str) -> str:
     return label.strip().lower()
 
 
-def mask_boundary(mask: np.ndarray, dilation_px: int = 2) -> np.ndarray:
-    """Return a slightly dilated mask boundary for robust boundary IoU."""
-    mask_u8 = mask.astype(np.uint8, copy=False)
-    if mask_u8.size == 0 or not mask_u8.any():
-        return np.zeros_like(mask_u8, dtype=bool)
-
-    kernel = np.ones((3, 3), dtype=np.uint8)
-    eroded = cv2.erode(mask_u8, kernel, iterations=1)
-    boundary = (mask_u8 > 0) & (eroded == 0)
-
-    if dilation_px > 0:
-        k = 2 * int(dilation_px) + 1
-        dilate_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (k, k))
-        boundary = cv2.dilate(boundary.astype(np.uint8), dilate_kernel) > 0
-
-    return boundary
-
-
-def boundary_iou(
+def mask_iou(
     mask_a: np.ndarray,
     mask_b: np.ndarray,
-    dilation_px: int = 2,
 ) -> float:
-    """Compute IoU between dilated object boundaries."""
+    """Compute regular IoU between filled segmentation masks."""
     if mask_a.shape != mask_b.shape:
         return 0.0
 
-    boundary_a = mask_boundary(mask_a, dilation_px=dilation_px)
-    boundary_b = mask_boundary(mask_b, dilation_px=dilation_px)
-    union = np.logical_or(boundary_a, boundary_b).sum()
+    mask_a_bool = mask_a.astype(bool, copy=False)
+    mask_b_bool = mask_b.astype(bool, copy=False)
+    union = np.logical_or(mask_a_bool, mask_b_bool).sum()
     if union == 0:
         return 0.0
-    intersection = np.logical_and(boundary_a, boundary_b).sum()
+    intersection = np.logical_and(mask_a_bool, mask_b_bool).sum()
     return float(intersection / union)
 
 
@@ -78,17 +58,15 @@ class SegmentationIdStabilizer:
 
     Within a single SAM session the model's raw object IDs are trusted. When the
     session resets, raw IDs are intentionally forgotten, and new masks are
-    matched back to previous stable objects by same-label boundary IoU.
+    matched back to previous stable objects by same-label mask IoU.
     """
 
     def __init__(
         self,
         *,
-        boundary_iou_threshold: float = 0.45,
-        boundary_dilation_px: int = 2,
+        iou_threshold: float = 0.7,
     ) -> None:
-        self.boundary_iou_threshold = float(boundary_iou_threshold)
-        self.boundary_dilation_px = int(boundary_dilation_px)
+        self.iou_threshold = float(iou_threshold)
         self._states: dict[int, _StableObjectState] = {}
         self._raw_to_stable: dict[int, int] = {}
         self._next_stable_id = 1
@@ -126,12 +104,11 @@ class SegmentationIdStabilizer:
                     continue
                 if state.normalized_label != cand_label:
                     continue
-                score = boundary_iou(
+                score = mask_iou(
                     candidate.mask,
                     state.mask,
-                    dilation_px=self.boundary_dilation_px,
                 )
-                if score >= self.boundary_iou_threshold:
+                if score >= self.iou_threshold:
                     scored_pairs.append((score, cand_idx, stable_id))
 
         matched_candidate_indices: set[int] = set()

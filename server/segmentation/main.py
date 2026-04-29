@@ -188,8 +188,7 @@ def run_sam3(args, frames: list, out_path: Path, sample_every: int) -> tuple[int
 
     session = _new_session()
     id_stabilizer = SegmentationIdStabilizer(
-        boundary_iou_threshold=stability_cfg.get("boundary_iou_threshold", 0.45),
-        boundary_dilation_px=stability_cfg.get("boundary_dilation_px", 2),
+        iou_threshold=stability_cfg.get("iou_threshold", 0.7),
     )
     frames_in_session = 0
 
