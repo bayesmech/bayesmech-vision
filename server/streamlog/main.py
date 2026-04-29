@@ -1076,31 +1076,45 @@ def _resolve_motioncap_frame_index(
     motion_path: Path,
     *,
     frame_index: int | None,
+    frame_number: int | None,
     timestamp_ns: int | None,
 ) -> int:
-    if frame_index is not None and timestamp_ns is not None:
+    provided = sum(
+        value is not None
+        for value in (frame_index, frame_number, timestamp_ns)
+    )
+    if provided > 1:
         raise HTTPException(
             status_code=400,
-            detail="Provide either frame_index or timestamp_ns, not both",
+            detail="Provide only one of frame_index, frame_number, or timestamp_ns",
         )
-    if frame_index is None and timestamp_ns is None:
+    if provided == 0:
         raise HTTPException(
             status_code=400,
-            detail="Provide either frame_index or timestamp_ns",
+            detail="Provide one of frame_index, frame_number, or timestamp_ns",
         )
     if frame_index is not None:
         if frame_index < 0:
             raise HTTPException(status_code=400, detail="frame_index must be >= 0")
         return frame_index
+    if frame_number is not None and frame_number < 0:
+        raise HTTPException(status_code=400, detail="frame_number must be >= 0")
 
     heatmap_index = 0
     for record in _motion_io.read_file(motion_path):
         if record.tracks:
             continue
-        if int(record.frame_identifier.timestamp_ns) == int(timestamp_ns):
+        if frame_number is not None and int(record.frame_identifier.frame_number) == int(frame_number):
+            return heatmap_index
+        if timestamp_ns is not None and int(record.frame_identifier.timestamp_ns) == int(timestamp_ns):
             return heatmap_index
         heatmap_index += 1
 
+    if frame_number is not None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No motion capture frame found for frame number {frame_number}",
+        )
     raise HTTPException(
         status_code=404,
         detail=f"No motion capture frame found for timestamp {timestamp_ns}",
@@ -1126,6 +1140,7 @@ async def _motioncap_heatmap_response(
     motion_path: Path | None,
     *,
     frame_index: int | None,
+    frame_number: int | None,
     timestamp_ns: int | None,
 ) -> Response:
     if motion_path is None:
@@ -1135,6 +1150,7 @@ async def _motioncap_heatmap_response(
         _resolve_motioncap_frame_index,
         motion_path,
         frame_index=frame_index,
+        frame_number=frame_number,
         timestamp_ns=timestamp_ns,
     )
     png_bytes = await asyncio.to_thread(_motioncap_layer().heatmap_png, motion_path, resolved_index)
@@ -1330,6 +1346,7 @@ async def analysis_playback_motioncap_tracks():
 async def analysis_recording_motioncap_heatmap(
     recording_name: str,
     frame_index: int | None = None,
+    frame_number: int | None = None,
     timestamp_ns: int | None = None,
 ):
     safe_name = _ensure_recording_exists(recording_name)
@@ -1337,6 +1354,7 @@ async def analysis_recording_motioncap_heatmap(
     return await _motioncap_heatmap_response(
         motion_path if motion_path.exists() else None,
         frame_index=frame_index,
+        frame_number=frame_number,
         timestamp_ns=timestamp_ns,
     )
 
@@ -1344,11 +1362,13 @@ async def analysis_recording_motioncap_heatmap(
 @app.get("/api/analysis/playback/analyses/motioncap/views/heatmap")
 async def analysis_playback_motioncap_heatmap(
     frame_index: int | None = None,
+    frame_number: int | None = None,
     timestamp_ns: int | None = None,
 ):
     return await _motioncap_heatmap_response(
         _current_motioncap_path(),
         frame_index=frame_index,
+        frame_number=frame_number,
         timestamp_ns=timestamp_ns,
     )
 
@@ -1649,6 +1669,7 @@ async def playback_motioncap_heatmap(index: int):
     return await _motioncap_heatmap_response(
         _current_motioncap_path(),
         frame_index=index,
+        frame_number=None,
         timestamp_ns=None,
     )
 

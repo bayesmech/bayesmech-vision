@@ -42,16 +42,16 @@ _motion_io = ProtoIO(motioncap_pb2.MotionCaptureResponse)
 # ── Track colours (BGR, matching motioncap/main.py) ───────────────────────────
 
 _TRACK_COLORS = [
-    (0, 165, 255),    # orange
-    (0, 255, 0),      # green
-    (255, 0, 0),      # blue
-    (203, 192, 255),  # pink
-    (255, 255, 0),    # cyan
-    (114, 128, 250),  # salmon
-    (154, 250, 0),    # yellow-green
-    (238, 130, 238),  # violet
-    (245, 206, 135),  # sky-blue
-    (0, 215, 255),    # gold
+    (0,   200, 255),   # orange
+    (50,  255,  50),   # green
+    (255,  80,  80),   # blue
+    (255,  50, 200),   # pink
+    (255, 220,   0),   # cyan
+    (100, 100, 255),   # salmon
+    (0,   255, 200),   # yellow-green
+    (200,   0, 255),   # violet
+    (255, 180,   0),   # sky-blue
+    (0,   128, 255),   # gold
 ]
 
 
@@ -187,6 +187,7 @@ def _build_motioncap_track_legend(
                 "frame_idx": pos.frame_idx,
                 "cx": pos.cx,
                 "cy": pos.cy,
+                "interpolated": pos.interpolated,
             }
             for pos in track.positions
         ]

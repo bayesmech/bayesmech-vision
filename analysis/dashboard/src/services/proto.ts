@@ -13,7 +13,7 @@
 import pako from 'pako'
 import { bayesmech } from '../proto/bundle'
 
-const { PerceiverDataFrame, SegmentationResponse, IdoSlamResponse } = bayesmech.vision
+const { PerceiverDataFrame, SegmentationResponse, IdoSlamResponse, MotionCaptureResponse } = bayesmech.vision
 
 export const PREFIX_FRAME = 0x01
 export const PREFIX_ANNOTATION = 0x02
@@ -46,6 +46,10 @@ export function decodeFrames(payload: Uint8Array): bayesmech.vision.PerceiverDat
 
 export function decodeAnnotations(payload: Uint8Array): bayesmech.vision.SegmentationResponse[] {
   return readDelimited(payload, (b) => SegmentationResponse.decode(b))
+}
+
+export function decodeMotioncapRecords(payload: Uint8Array): bayesmech.vision.MotionCaptureResponse[] {
+  return readDelimited(payload, (b) => MotionCaptureResponse.decode(b))
 }
 
 export function decodeIdoSlamResponse(payload: Uint8Array): bayesmech.vision.IdoSlamResponse {
@@ -81,6 +85,30 @@ export function decodeMask(maskData: Uint8Array): { height: number; width: numbe
     mask[i] = (packed[byteIdx] >> bitIdx) & 1
   }
   return { height, width, mask }
+}
+
+/**
+ * Decode a compressed motion heatmap: [H:u32le][W:u32le][zlib(uint8 heatmap)].
+ * Returns the full-resolution flat uint8 heatmap without expanding other frames.
+ */
+export function decodeMotionHeatmapData(
+  heatmapData: Uint8Array,
+): { height: number; width: number; values: Uint8Array } {
+  if (heatmapData.length < 8) {
+    throw new Error('Motion heatmap payload is too small')
+  }
+
+  const view = new DataView(heatmapData.buffer, heatmapData.byteOffset, heatmapData.byteLength)
+  const height = view.getUint32(0, true)
+  const width = view.getUint32(4, true)
+  const total = height * width
+  const values = pako.inflate(heatmapData.subarray(8))
+
+  if (values.length < total) {
+    throw new Error(`Motion heatmap payload has ${values.length} pixels, expected ${total}`)
+  }
+
+  return { height, width, values: values.subarray(0, total) }
 }
 
 // Object colors matching annotate_direct.py (RGBA)

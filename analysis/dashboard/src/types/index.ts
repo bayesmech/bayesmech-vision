@@ -198,6 +198,8 @@ export interface MotioncapTrackPosition {
   frame_idx: number
   cx: number
   cy: number
+  area?: number
+  interpolated?: boolean
 }
 
 export interface MotioncapTrackLegendItem {
@@ -207,4 +209,18 @@ export interface MotioncapTrackLegendItem {
   total_positions: number
   presence_fraction: number
   positions: MotioncapTrackPosition[]
+}
+
+export interface MotioncapFrameRecord {
+  heatmapIndex: number
+  frameNumber: number
+  timestampNs: number
+  heatmapData: Uint8Array
+}
+
+export interface MotioncapData {
+  frames: MotioncapFrameRecord[]
+  byFrameNumber: Map<number, MotioncapFrameRecord>
+  byHeatmapIndex: Map<number, MotioncapFrameRecord>
+  tracks: MotioncapTrackLegendItem[]
 }

@@ -5019,6 +5019,1543 @@ export const bayesmech = $root.bayesmech = (() => {
             return SegmentationRequest;
         })();
 
+        vision.MotionCaptureRequest = (function() {
+
+            /**
+             * Properties of a MotionCaptureRequest.
+             * @memberof bayesmech.vision
+             * @interface IMotionCaptureRequest
+             * @property {bayesmech.vision.IPerceiverFrameIdentifier|null} [frameIdentifier] MotionCaptureRequest frameIdentifier
+             * @property {bayesmech.vision.IImageFrame|null} [currentFrame] MotionCaptureRequest currentFrame
+             * @property {bayesmech.vision.IImageFrame|null} [referenceFrame] MotionCaptureRequest referenceFrame
+             */
+
+            /**
+             * Constructs a new MotionCaptureRequest.
+             * @memberof bayesmech.vision
+             * @classdesc Represents a MotionCaptureRequest.
+             * @implements IMotionCaptureRequest
+             * @constructor
+             * @param {bayesmech.vision.IMotionCaptureRequest=} [properties] Properties to set
+             */
+            function MotionCaptureRequest(properties) {
+                if (properties)
+                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null)
+                            this[keys[i]] = properties[keys[i]];
+            }
+
+            /**
+             * MotionCaptureRequest frameIdentifier.
+             * @member {bayesmech.vision.IPerceiverFrameIdentifier|null|undefined} frameIdentifier
+             * @memberof bayesmech.vision.MotionCaptureRequest
+             * @instance
+             */
+            MotionCaptureRequest.prototype.frameIdentifier = null;
+
+            /**
+             * MotionCaptureRequest currentFrame.
+             * @member {bayesmech.vision.IImageFrame|null|undefined} currentFrame
+             * @memberof bayesmech.vision.MotionCaptureRequest
+             * @instance
+             */
+            MotionCaptureRequest.prototype.currentFrame = null;
+
+            /**
+             * MotionCaptureRequest referenceFrame.
+             * @member {bayesmech.vision.IImageFrame|null|undefined} referenceFrame
+             * @memberof bayesmech.vision.MotionCaptureRequest
+             * @instance
+             */
+            MotionCaptureRequest.prototype.referenceFrame = null;
+
+            /**
+             * Creates a new MotionCaptureRequest instance using the specified properties.
+             * @function create
+             * @memberof bayesmech.vision.MotionCaptureRequest
+             * @static
+             * @param {bayesmech.vision.IMotionCaptureRequest=} [properties] Properties to set
+             * @returns {bayesmech.vision.MotionCaptureRequest} MotionCaptureRequest instance
+             */
+            MotionCaptureRequest.create = function create(properties) {
+                return new MotionCaptureRequest(properties);
+            };
+
+            /**
+             * Encodes the specified MotionCaptureRequest message. Does not implicitly {@link bayesmech.vision.MotionCaptureRequest.verify|verify} messages.
+             * @function encode
+             * @memberof bayesmech.vision.MotionCaptureRequest
+             * @static
+             * @param {bayesmech.vision.IMotionCaptureRequest} message MotionCaptureRequest message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            MotionCaptureRequest.encode = function encode(message, writer) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (message.frameIdentifier != null && Object.hasOwnProperty.call(message, "frameIdentifier"))
+                    $root.bayesmech.vision.PerceiverFrameIdentifier.encode(message.frameIdentifier, writer.uint32(/* id 1, wireType 2 =*/10).fork()).ldelim();
+                if (message.currentFrame != null && Object.hasOwnProperty.call(message, "currentFrame"))
+                    $root.bayesmech.vision.ImageFrame.encode(message.currentFrame, writer.uint32(/* id 2, wireType 2 =*/18).fork()).ldelim();
+                if (message.referenceFrame != null && Object.hasOwnProperty.call(message, "referenceFrame"))
+                    $root.bayesmech.vision.ImageFrame.encode(message.referenceFrame, writer.uint32(/* id 3, wireType 2 =*/26).fork()).ldelim();
+                return writer;
+            };
+
+            /**
+             * Encodes the specified MotionCaptureRequest message, length delimited. Does not implicitly {@link bayesmech.vision.MotionCaptureRequest.verify|verify} messages.
+             * @function encodeDelimited
+             * @memberof bayesmech.vision.MotionCaptureRequest
+             * @static
+             * @param {bayesmech.vision.IMotionCaptureRequest} message MotionCaptureRequest message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            MotionCaptureRequest.encodeDelimited = function encodeDelimited(message, writer) {
+                return this.encode(message, writer).ldelim();
+            };
+
+            /**
+             * Decodes a MotionCaptureRequest message from the specified reader or buffer.
+             * @function decode
+             * @memberof bayesmech.vision.MotionCaptureRequest
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {bayesmech.vision.MotionCaptureRequest} MotionCaptureRequest
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            MotionCaptureRequest.decode = function decode(reader, length, error) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.MotionCaptureRequest();
+                while (reader.pos < end) {
+                    let tag = reader.uint32();
+                    if (tag === error)
+                        break;
+                    switch (tag >>> 3) {
+                    case 1: {
+                            message.frameIdentifier = $root.bayesmech.vision.PerceiverFrameIdentifier.decode(reader, reader.uint32());
+                            break;
+                        }
+                    case 2: {
+                            message.currentFrame = $root.bayesmech.vision.ImageFrame.decode(reader, reader.uint32());
+                            break;
+                        }
+                    case 3: {
+                            message.referenceFrame = $root.bayesmech.vision.ImageFrame.decode(reader, reader.uint32());
+                            break;
+                        }
+                    default:
+                        reader.skipType(tag & 7);
+                        break;
+                    }
+                }
+                return message;
+            };
+
+            /**
+             * Decodes a MotionCaptureRequest message from the specified reader or buffer, length delimited.
+             * @function decodeDelimited
+             * @memberof bayesmech.vision.MotionCaptureRequest
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @returns {bayesmech.vision.MotionCaptureRequest} MotionCaptureRequest
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            MotionCaptureRequest.decodeDelimited = function decodeDelimited(reader) {
+                if (!(reader instanceof $Reader))
+                    reader = new $Reader(reader);
+                return this.decode(reader, reader.uint32());
+            };
+
+            /**
+             * Verifies a MotionCaptureRequest message.
+             * @function verify
+             * @memberof bayesmech.vision.MotionCaptureRequest
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            MotionCaptureRequest.verify = function verify(message) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (message.frameIdentifier != null && message.hasOwnProperty("frameIdentifier")) {
+                    let error = $root.bayesmech.vision.PerceiverFrameIdentifier.verify(message.frameIdentifier);
+                    if (error)
+                        return "frameIdentifier." + error;
+                }
+                if (message.currentFrame != null && message.hasOwnProperty("currentFrame")) {
+                    let error = $root.bayesmech.vision.ImageFrame.verify(message.currentFrame);
+                    if (error)
+                        return "currentFrame." + error;
+                }
+                if (message.referenceFrame != null && message.hasOwnProperty("referenceFrame")) {
+                    let error = $root.bayesmech.vision.ImageFrame.verify(message.referenceFrame);
+                    if (error)
+                        return "referenceFrame." + error;
+                }
+                return null;
+            };
+
+            /**
+             * Creates a MotionCaptureRequest message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof bayesmech.vision.MotionCaptureRequest
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {bayesmech.vision.MotionCaptureRequest} MotionCaptureRequest
+             */
+            MotionCaptureRequest.fromObject = function fromObject(object) {
+                if (object instanceof $root.bayesmech.vision.MotionCaptureRequest)
+                    return object;
+                let message = new $root.bayesmech.vision.MotionCaptureRequest();
+                if (object.frameIdentifier != null) {
+                    if (typeof object.frameIdentifier !== "object")
+                        throw TypeError(".bayesmech.vision.MotionCaptureRequest.frameIdentifier: object expected");
+                    message.frameIdentifier = $root.bayesmech.vision.PerceiverFrameIdentifier.fromObject(object.frameIdentifier);
+                }
+                if (object.currentFrame != null) {
+                    if (typeof object.currentFrame !== "object")
+                        throw TypeError(".bayesmech.vision.MotionCaptureRequest.currentFrame: object expected");
+                    message.currentFrame = $root.bayesmech.vision.ImageFrame.fromObject(object.currentFrame);
+                }
+                if (object.referenceFrame != null) {
+                    if (typeof object.referenceFrame !== "object")
+                        throw TypeError(".bayesmech.vision.MotionCaptureRequest.referenceFrame: object expected");
+                    message.referenceFrame = $root.bayesmech.vision.ImageFrame.fromObject(object.referenceFrame);
+                }
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a MotionCaptureRequest message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof bayesmech.vision.MotionCaptureRequest
+             * @static
+             * @param {bayesmech.vision.MotionCaptureRequest} message MotionCaptureRequest
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            MotionCaptureRequest.toObject = function toObject(message, options) {
+                if (!options)
+                    options = {};
+                let object = {};
+                if (options.defaults) {
+                    object.frameIdentifier = null;
+                    object.currentFrame = null;
+                    object.referenceFrame = null;
+                }
+                if (message.frameIdentifier != null && message.hasOwnProperty("frameIdentifier"))
+                    object.frameIdentifier = $root.bayesmech.vision.PerceiverFrameIdentifier.toObject(message.frameIdentifier, options);
+                if (message.currentFrame != null && message.hasOwnProperty("currentFrame"))
+                    object.currentFrame = $root.bayesmech.vision.ImageFrame.toObject(message.currentFrame, options);
+                if (message.referenceFrame != null && message.hasOwnProperty("referenceFrame"))
+                    object.referenceFrame = $root.bayesmech.vision.ImageFrame.toObject(message.referenceFrame, options);
+                return object;
+            };
+
+            /**
+             * Converts this MotionCaptureRequest to JSON.
+             * @function toJSON
+             * @memberof bayesmech.vision.MotionCaptureRequest
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            MotionCaptureRequest.prototype.toJSON = function toJSON() {
+                return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the default type url for MotionCaptureRequest
+             * @function getTypeUrl
+             * @memberof bayesmech.vision.MotionCaptureRequest
+             * @static
+             * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns {string} The default type url
+             */
+            MotionCaptureRequest.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+                if (typeUrlPrefix === undefined) {
+                    typeUrlPrefix = "type.googleapis.com";
+                }
+                return typeUrlPrefix + "/bayesmech.vision.MotionCaptureRequest";
+            };
+
+            return MotionCaptureRequest;
+        })();
+
+        vision.MotionCaptureResponse = (function() {
+
+            /**
+             * Properties of a MotionCaptureResponse.
+             * @memberof bayesmech.vision
+             * @interface IMotionCaptureResponse
+             * @property {bayesmech.vision.IPerceiverFrameIdentifier|null} [frameIdentifier] MotionCaptureResponse frameIdentifier
+             * @property {bayesmech.vision.MotionCaptureResponse.IMotionHeatmap|null} [heatmap] MotionCaptureResponse heatmap
+             * @property {bayesmech.vision.MotionCaptureResponse.StabilizationMethod|null} [methodUsed] MotionCaptureResponse methodUsed
+             * @property {number|null} [stabilizationConfidence] MotionCaptureResponse stabilizationConfidence
+             * @property {Array.<bayesmech.vision.IMotionTrack>|null} [tracks] MotionCaptureResponse tracks
+             * @property {number|null} [totalFrames] MotionCaptureResponse totalFrames
+             */
+
+            /**
+             * Constructs a new MotionCaptureResponse.
+             * @memberof bayesmech.vision
+             * @classdesc Represents a MotionCaptureResponse.
+             * @implements IMotionCaptureResponse
+             * @constructor
+             * @param {bayesmech.vision.IMotionCaptureResponse=} [properties] Properties to set
+             */
+            function MotionCaptureResponse(properties) {
+                this.tracks = [];
+                if (properties)
+                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null)
+                            this[keys[i]] = properties[keys[i]];
+            }
+
+            /**
+             * MotionCaptureResponse frameIdentifier.
+             * @member {bayesmech.vision.IPerceiverFrameIdentifier|null|undefined} frameIdentifier
+             * @memberof bayesmech.vision.MotionCaptureResponse
+             * @instance
+             */
+            MotionCaptureResponse.prototype.frameIdentifier = null;
+
+            /**
+             * MotionCaptureResponse heatmap.
+             * @member {bayesmech.vision.MotionCaptureResponse.IMotionHeatmap|null|undefined} heatmap
+             * @memberof bayesmech.vision.MotionCaptureResponse
+             * @instance
+             */
+            MotionCaptureResponse.prototype.heatmap = null;
+
+            /**
+             * MotionCaptureResponse methodUsed.
+             * @member {bayesmech.vision.MotionCaptureResponse.StabilizationMethod} methodUsed
+             * @memberof bayesmech.vision.MotionCaptureResponse
+             * @instance
+             */
+            MotionCaptureResponse.prototype.methodUsed = 0;
+
+            /**
+             * MotionCaptureResponse stabilizationConfidence.
+             * @member {number} stabilizationConfidence
+             * @memberof bayesmech.vision.MotionCaptureResponse
+             * @instance
+             */
+            MotionCaptureResponse.prototype.stabilizationConfidence = 0;
+
+            /**
+             * MotionCaptureResponse tracks.
+             * @member {Array.<bayesmech.vision.IMotionTrack>} tracks
+             * @memberof bayesmech.vision.MotionCaptureResponse
+             * @instance
+             */
+            MotionCaptureResponse.prototype.tracks = $util.emptyArray;
+
+            /**
+             * MotionCaptureResponse totalFrames.
+             * @member {number} totalFrames
+             * @memberof bayesmech.vision.MotionCaptureResponse
+             * @instance
+             */
+            MotionCaptureResponse.prototype.totalFrames = 0;
+
+            /**
+             * Creates a new MotionCaptureResponse instance using the specified properties.
+             * @function create
+             * @memberof bayesmech.vision.MotionCaptureResponse
+             * @static
+             * @param {bayesmech.vision.IMotionCaptureResponse=} [properties] Properties to set
+             * @returns {bayesmech.vision.MotionCaptureResponse} MotionCaptureResponse instance
+             */
+            MotionCaptureResponse.create = function create(properties) {
+                return new MotionCaptureResponse(properties);
+            };
+
+            /**
+             * Encodes the specified MotionCaptureResponse message. Does not implicitly {@link bayesmech.vision.MotionCaptureResponse.verify|verify} messages.
+             * @function encode
+             * @memberof bayesmech.vision.MotionCaptureResponse
+             * @static
+             * @param {bayesmech.vision.IMotionCaptureResponse} message MotionCaptureResponse message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            MotionCaptureResponse.encode = function encode(message, writer) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (message.frameIdentifier != null && Object.hasOwnProperty.call(message, "frameIdentifier"))
+                    $root.bayesmech.vision.PerceiverFrameIdentifier.encode(message.frameIdentifier, writer.uint32(/* id 1, wireType 2 =*/10).fork()).ldelim();
+                if (message.heatmap != null && Object.hasOwnProperty.call(message, "heatmap"))
+                    $root.bayesmech.vision.MotionCaptureResponse.MotionHeatmap.encode(message.heatmap, writer.uint32(/* id 2, wireType 2 =*/18).fork()).ldelim();
+                if (message.methodUsed != null && Object.hasOwnProperty.call(message, "methodUsed"))
+                    writer.uint32(/* id 3, wireType 0 =*/24).int32(message.methodUsed);
+                if (message.stabilizationConfidence != null && Object.hasOwnProperty.call(message, "stabilizationConfidence"))
+                    writer.uint32(/* id 4, wireType 5 =*/37).float(message.stabilizationConfidence);
+                if (message.tracks != null && message.tracks.length)
+                    for (let i = 0; i < message.tracks.length; ++i)
+                        $root.bayesmech.vision.MotionTrack.encode(message.tracks[i], writer.uint32(/* id 5, wireType 2 =*/42).fork()).ldelim();
+                if (message.totalFrames != null && Object.hasOwnProperty.call(message, "totalFrames"))
+                    writer.uint32(/* id 6, wireType 0 =*/48).uint32(message.totalFrames);
+                return writer;
+            };
+
+            /**
+             * Encodes the specified MotionCaptureResponse message, length delimited. Does not implicitly {@link bayesmech.vision.MotionCaptureResponse.verify|verify} messages.
+             * @function encodeDelimited
+             * @memberof bayesmech.vision.MotionCaptureResponse
+             * @static
+             * @param {bayesmech.vision.IMotionCaptureResponse} message MotionCaptureResponse message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            MotionCaptureResponse.encodeDelimited = function encodeDelimited(message, writer) {
+                return this.encode(message, writer).ldelim();
+            };
+
+            /**
+             * Decodes a MotionCaptureResponse message from the specified reader or buffer.
+             * @function decode
+             * @memberof bayesmech.vision.MotionCaptureResponse
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {bayesmech.vision.MotionCaptureResponse} MotionCaptureResponse
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            MotionCaptureResponse.decode = function decode(reader, length, error) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.MotionCaptureResponse();
+                while (reader.pos < end) {
+                    let tag = reader.uint32();
+                    if (tag === error)
+                        break;
+                    switch (tag >>> 3) {
+                    case 1: {
+                            message.frameIdentifier = $root.bayesmech.vision.PerceiverFrameIdentifier.decode(reader, reader.uint32());
+                            break;
+                        }
+                    case 2: {
+                            message.heatmap = $root.bayesmech.vision.MotionCaptureResponse.MotionHeatmap.decode(reader, reader.uint32());
+                            break;
+                        }
+                    case 3: {
+                            message.methodUsed = reader.int32();
+                            break;
+                        }
+                    case 4: {
+                            message.stabilizationConfidence = reader.float();
+                            break;
+                        }
+                    case 5: {
+                            if (!(message.tracks && message.tracks.length))
+                                message.tracks = [];
+                            message.tracks.push($root.bayesmech.vision.MotionTrack.decode(reader, reader.uint32()));
+                            break;
+                        }
+                    case 6: {
+                            message.totalFrames = reader.uint32();
+                            break;
+                        }
+                    default:
+                        reader.skipType(tag & 7);
+                        break;
+                    }
+                }
+                return message;
+            };
+
+            /**
+             * Decodes a MotionCaptureResponse message from the specified reader or buffer, length delimited.
+             * @function decodeDelimited
+             * @memberof bayesmech.vision.MotionCaptureResponse
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @returns {bayesmech.vision.MotionCaptureResponse} MotionCaptureResponse
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            MotionCaptureResponse.decodeDelimited = function decodeDelimited(reader) {
+                if (!(reader instanceof $Reader))
+                    reader = new $Reader(reader);
+                return this.decode(reader, reader.uint32());
+            };
+
+            /**
+             * Verifies a MotionCaptureResponse message.
+             * @function verify
+             * @memberof bayesmech.vision.MotionCaptureResponse
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            MotionCaptureResponse.verify = function verify(message) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (message.frameIdentifier != null && message.hasOwnProperty("frameIdentifier")) {
+                    let error = $root.bayesmech.vision.PerceiverFrameIdentifier.verify(message.frameIdentifier);
+                    if (error)
+                        return "frameIdentifier." + error;
+                }
+                if (message.heatmap != null && message.hasOwnProperty("heatmap")) {
+                    let error = $root.bayesmech.vision.MotionCaptureResponse.MotionHeatmap.verify(message.heatmap);
+                    if (error)
+                        return "heatmap." + error;
+                }
+                if (message.methodUsed != null && message.hasOwnProperty("methodUsed"))
+                    switch (message.methodUsed) {
+                    default:
+                        return "methodUsed: enum value expected";
+                    case 0:
+                    case 1:
+                    case 2:
+                    case 3:
+                    case 4:
+                    case 5:
+                        break;
+                    }
+                if (message.stabilizationConfidence != null && message.hasOwnProperty("stabilizationConfidence"))
+                    if (typeof message.stabilizationConfidence !== "number")
+                        return "stabilizationConfidence: number expected";
+                if (message.tracks != null && message.hasOwnProperty("tracks")) {
+                    if (!Array.isArray(message.tracks))
+                        return "tracks: array expected";
+                    for (let i = 0; i < message.tracks.length; ++i) {
+                        let error = $root.bayesmech.vision.MotionTrack.verify(message.tracks[i]);
+                        if (error)
+                            return "tracks." + error;
+                    }
+                }
+                if (message.totalFrames != null && message.hasOwnProperty("totalFrames"))
+                    if (!$util.isInteger(message.totalFrames))
+                        return "totalFrames: integer expected";
+                return null;
+            };
+
+            /**
+             * Creates a MotionCaptureResponse message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof bayesmech.vision.MotionCaptureResponse
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {bayesmech.vision.MotionCaptureResponse} MotionCaptureResponse
+             */
+            MotionCaptureResponse.fromObject = function fromObject(object) {
+                if (object instanceof $root.bayesmech.vision.MotionCaptureResponse)
+                    return object;
+                let message = new $root.bayesmech.vision.MotionCaptureResponse();
+                if (object.frameIdentifier != null) {
+                    if (typeof object.frameIdentifier !== "object")
+                        throw TypeError(".bayesmech.vision.MotionCaptureResponse.frameIdentifier: object expected");
+                    message.frameIdentifier = $root.bayesmech.vision.PerceiverFrameIdentifier.fromObject(object.frameIdentifier);
+                }
+                if (object.heatmap != null) {
+                    if (typeof object.heatmap !== "object")
+                        throw TypeError(".bayesmech.vision.MotionCaptureResponse.heatmap: object expected");
+                    message.heatmap = $root.bayesmech.vision.MotionCaptureResponse.MotionHeatmap.fromObject(object.heatmap);
+                }
+                switch (object.methodUsed) {
+                default:
+                    if (typeof object.methodUsed === "number") {
+                        message.methodUsed = object.methodUsed;
+                        break;
+                    }
+                    break;
+                case "STABILIZATION_UNKNOWN":
+                case 0:
+                    message.methodUsed = 0;
+                    break;
+                case "DEPTH_WARP":
+                case 1:
+                    message.methodUsed = 1;
+                    break;
+                case "PLANE_HOMO":
+                case 2:
+                    message.methodUsed = 2;
+                    break;
+                case "POINT_RANSAC":
+                case 3:
+                    message.methodUsed = 3;
+                    break;
+                case "POSE_APPROX":
+                case 4:
+                    message.methodUsed = 4;
+                    break;
+                case "OPTICAL_FLOW":
+                case 5:
+                    message.methodUsed = 5;
+                    break;
+                }
+                if (object.stabilizationConfidence != null)
+                    message.stabilizationConfidence = Number(object.stabilizationConfidence);
+                if (object.tracks) {
+                    if (!Array.isArray(object.tracks))
+                        throw TypeError(".bayesmech.vision.MotionCaptureResponse.tracks: array expected");
+                    message.tracks = [];
+                    for (let i = 0; i < object.tracks.length; ++i) {
+                        if (typeof object.tracks[i] !== "object")
+                            throw TypeError(".bayesmech.vision.MotionCaptureResponse.tracks: object expected");
+                        message.tracks[i] = $root.bayesmech.vision.MotionTrack.fromObject(object.tracks[i]);
+                    }
+                }
+                if (object.totalFrames != null)
+                    message.totalFrames = object.totalFrames >>> 0;
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a MotionCaptureResponse message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof bayesmech.vision.MotionCaptureResponse
+             * @static
+             * @param {bayesmech.vision.MotionCaptureResponse} message MotionCaptureResponse
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            MotionCaptureResponse.toObject = function toObject(message, options) {
+                if (!options)
+                    options = {};
+                let object = {};
+                if (options.arrays || options.defaults)
+                    object.tracks = [];
+                if (options.defaults) {
+                    object.frameIdentifier = null;
+                    object.heatmap = null;
+                    object.methodUsed = options.enums === String ? "STABILIZATION_UNKNOWN" : 0;
+                    object.stabilizationConfidence = 0;
+                    object.totalFrames = 0;
+                }
+                if (message.frameIdentifier != null && message.hasOwnProperty("frameIdentifier"))
+                    object.frameIdentifier = $root.bayesmech.vision.PerceiverFrameIdentifier.toObject(message.frameIdentifier, options);
+                if (message.heatmap != null && message.hasOwnProperty("heatmap"))
+                    object.heatmap = $root.bayesmech.vision.MotionCaptureResponse.MotionHeatmap.toObject(message.heatmap, options);
+                if (message.methodUsed != null && message.hasOwnProperty("methodUsed"))
+                    object.methodUsed = options.enums === String ? $root.bayesmech.vision.MotionCaptureResponse.StabilizationMethod[message.methodUsed] === undefined ? message.methodUsed : $root.bayesmech.vision.MotionCaptureResponse.StabilizationMethod[message.methodUsed] : message.methodUsed;
+                if (message.stabilizationConfidence != null && message.hasOwnProperty("stabilizationConfidence"))
+                    object.stabilizationConfidence = options.json && !isFinite(message.stabilizationConfidence) ? String(message.stabilizationConfidence) : message.stabilizationConfidence;
+                if (message.tracks && message.tracks.length) {
+                    object.tracks = [];
+                    for (let j = 0; j < message.tracks.length; ++j)
+                        object.tracks[j] = $root.bayesmech.vision.MotionTrack.toObject(message.tracks[j], options);
+                }
+                if (message.totalFrames != null && message.hasOwnProperty("totalFrames"))
+                    object.totalFrames = message.totalFrames;
+                return object;
+            };
+
+            /**
+             * Converts this MotionCaptureResponse to JSON.
+             * @function toJSON
+             * @memberof bayesmech.vision.MotionCaptureResponse
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            MotionCaptureResponse.prototype.toJSON = function toJSON() {
+                return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the default type url for MotionCaptureResponse
+             * @function getTypeUrl
+             * @memberof bayesmech.vision.MotionCaptureResponse
+             * @static
+             * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns {string} The default type url
+             */
+            MotionCaptureResponse.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+                if (typeUrlPrefix === undefined) {
+                    typeUrlPrefix = "type.googleapis.com";
+                }
+                return typeUrlPrefix + "/bayesmech.vision.MotionCaptureResponse";
+            };
+
+            MotionCaptureResponse.MotionHeatmap = (function() {
+
+                /**
+                 * Properties of a MotionHeatmap.
+                 * @memberof bayesmech.vision.MotionCaptureResponse
+                 * @interface IMotionHeatmap
+                 * @property {Uint8Array|null} [heatmapData] MotionHeatmap heatmapData
+                 * @property {number|null} [maxMotionRaw] MotionHeatmap maxMotionRaw
+                 */
+
+                /**
+                 * Constructs a new MotionHeatmap.
+                 * @memberof bayesmech.vision.MotionCaptureResponse
+                 * @classdesc Represents a MotionHeatmap.
+                 * @implements IMotionHeatmap
+                 * @constructor
+                 * @param {bayesmech.vision.MotionCaptureResponse.IMotionHeatmap=} [properties] Properties to set
+                 */
+                function MotionHeatmap(properties) {
+                    if (properties)
+                        for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                            if (properties[keys[i]] != null)
+                                this[keys[i]] = properties[keys[i]];
+                }
+
+                /**
+                 * MotionHeatmap heatmapData.
+                 * @member {Uint8Array} heatmapData
+                 * @memberof bayesmech.vision.MotionCaptureResponse.MotionHeatmap
+                 * @instance
+                 */
+                MotionHeatmap.prototype.heatmapData = $util.newBuffer([]);
+
+                /**
+                 * MotionHeatmap maxMotionRaw.
+                 * @member {number} maxMotionRaw
+                 * @memberof bayesmech.vision.MotionCaptureResponse.MotionHeatmap
+                 * @instance
+                 */
+                MotionHeatmap.prototype.maxMotionRaw = 0;
+
+                /**
+                 * Creates a new MotionHeatmap instance using the specified properties.
+                 * @function create
+                 * @memberof bayesmech.vision.MotionCaptureResponse.MotionHeatmap
+                 * @static
+                 * @param {bayesmech.vision.MotionCaptureResponse.IMotionHeatmap=} [properties] Properties to set
+                 * @returns {bayesmech.vision.MotionCaptureResponse.MotionHeatmap} MotionHeatmap instance
+                 */
+                MotionHeatmap.create = function create(properties) {
+                    return new MotionHeatmap(properties);
+                };
+
+                /**
+                 * Encodes the specified MotionHeatmap message. Does not implicitly {@link bayesmech.vision.MotionCaptureResponse.MotionHeatmap.verify|verify} messages.
+                 * @function encode
+                 * @memberof bayesmech.vision.MotionCaptureResponse.MotionHeatmap
+                 * @static
+                 * @param {bayesmech.vision.MotionCaptureResponse.IMotionHeatmap} message MotionHeatmap message or plain object to encode
+                 * @param {$protobuf.Writer} [writer] Writer to encode to
+                 * @returns {$protobuf.Writer} Writer
+                 */
+                MotionHeatmap.encode = function encode(message, writer) {
+                    if (!writer)
+                        writer = $Writer.create();
+                    if (message.heatmapData != null && Object.hasOwnProperty.call(message, "heatmapData"))
+                        writer.uint32(/* id 1, wireType 2 =*/10).bytes(message.heatmapData);
+                    if (message.maxMotionRaw != null && Object.hasOwnProperty.call(message, "maxMotionRaw"))
+                        writer.uint32(/* id 2, wireType 5 =*/21).float(message.maxMotionRaw);
+                    return writer;
+                };
+
+                /**
+                 * Encodes the specified MotionHeatmap message, length delimited. Does not implicitly {@link bayesmech.vision.MotionCaptureResponse.MotionHeatmap.verify|verify} messages.
+                 * @function encodeDelimited
+                 * @memberof bayesmech.vision.MotionCaptureResponse.MotionHeatmap
+                 * @static
+                 * @param {bayesmech.vision.MotionCaptureResponse.IMotionHeatmap} message MotionHeatmap message or plain object to encode
+                 * @param {$protobuf.Writer} [writer] Writer to encode to
+                 * @returns {$protobuf.Writer} Writer
+                 */
+                MotionHeatmap.encodeDelimited = function encodeDelimited(message, writer) {
+                    return this.encode(message, writer).ldelim();
+                };
+
+                /**
+                 * Decodes a MotionHeatmap message from the specified reader or buffer.
+                 * @function decode
+                 * @memberof bayesmech.vision.MotionCaptureResponse.MotionHeatmap
+                 * @static
+                 * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+                 * @param {number} [length] Message length if known beforehand
+                 * @returns {bayesmech.vision.MotionCaptureResponse.MotionHeatmap} MotionHeatmap
+                 * @throws {Error} If the payload is not a reader or valid buffer
+                 * @throws {$protobuf.util.ProtocolError} If required fields are missing
+                 */
+                MotionHeatmap.decode = function decode(reader, length, error) {
+                    if (!(reader instanceof $Reader))
+                        reader = $Reader.create(reader);
+                    let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.MotionCaptureResponse.MotionHeatmap();
+                    while (reader.pos < end) {
+                        let tag = reader.uint32();
+                        if (tag === error)
+                            break;
+                        switch (tag >>> 3) {
+                        case 1: {
+                                message.heatmapData = reader.bytes();
+                                break;
+                            }
+                        case 2: {
+                                message.maxMotionRaw = reader.float();
+                                break;
+                            }
+                        default:
+                            reader.skipType(tag & 7);
+                            break;
+                        }
+                    }
+                    return message;
+                };
+
+                /**
+                 * Decodes a MotionHeatmap message from the specified reader or buffer, length delimited.
+                 * @function decodeDelimited
+                 * @memberof bayesmech.vision.MotionCaptureResponse.MotionHeatmap
+                 * @static
+                 * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+                 * @returns {bayesmech.vision.MotionCaptureResponse.MotionHeatmap} MotionHeatmap
+                 * @throws {Error} If the payload is not a reader or valid buffer
+                 * @throws {$protobuf.util.ProtocolError} If required fields are missing
+                 */
+                MotionHeatmap.decodeDelimited = function decodeDelimited(reader) {
+                    if (!(reader instanceof $Reader))
+                        reader = new $Reader(reader);
+                    return this.decode(reader, reader.uint32());
+                };
+
+                /**
+                 * Verifies a MotionHeatmap message.
+                 * @function verify
+                 * @memberof bayesmech.vision.MotionCaptureResponse.MotionHeatmap
+                 * @static
+                 * @param {Object.<string,*>} message Plain object to verify
+                 * @returns {string|null} `null` if valid, otherwise the reason why it is not
+                 */
+                MotionHeatmap.verify = function verify(message) {
+                    if (typeof message !== "object" || message === null)
+                        return "object expected";
+                    if (message.heatmapData != null && message.hasOwnProperty("heatmapData"))
+                        if (!(message.heatmapData && typeof message.heatmapData.length === "number" || $util.isString(message.heatmapData)))
+                            return "heatmapData: buffer expected";
+                    if (message.maxMotionRaw != null && message.hasOwnProperty("maxMotionRaw"))
+                        if (typeof message.maxMotionRaw !== "number")
+                            return "maxMotionRaw: number expected";
+                    return null;
+                };
+
+                /**
+                 * Creates a MotionHeatmap message from a plain object. Also converts values to their respective internal types.
+                 * @function fromObject
+                 * @memberof bayesmech.vision.MotionCaptureResponse.MotionHeatmap
+                 * @static
+                 * @param {Object.<string,*>} object Plain object
+                 * @returns {bayesmech.vision.MotionCaptureResponse.MotionHeatmap} MotionHeatmap
+                 */
+                MotionHeatmap.fromObject = function fromObject(object) {
+                    if (object instanceof $root.bayesmech.vision.MotionCaptureResponse.MotionHeatmap)
+                        return object;
+                    let message = new $root.bayesmech.vision.MotionCaptureResponse.MotionHeatmap();
+                    if (object.heatmapData != null)
+                        if (typeof object.heatmapData === "string")
+                            $util.base64.decode(object.heatmapData, message.heatmapData = $util.newBuffer($util.base64.length(object.heatmapData)), 0);
+                        else if (object.heatmapData.length >= 0)
+                            message.heatmapData = object.heatmapData;
+                    if (object.maxMotionRaw != null)
+                        message.maxMotionRaw = Number(object.maxMotionRaw);
+                    return message;
+                };
+
+                /**
+                 * Creates a plain object from a MotionHeatmap message. Also converts values to other types if specified.
+                 * @function toObject
+                 * @memberof bayesmech.vision.MotionCaptureResponse.MotionHeatmap
+                 * @static
+                 * @param {bayesmech.vision.MotionCaptureResponse.MotionHeatmap} message MotionHeatmap
+                 * @param {$protobuf.IConversionOptions} [options] Conversion options
+                 * @returns {Object.<string,*>} Plain object
+                 */
+                MotionHeatmap.toObject = function toObject(message, options) {
+                    if (!options)
+                        options = {};
+                    let object = {};
+                    if (options.defaults) {
+                        if (options.bytes === String)
+                            object.heatmapData = "";
+                        else {
+                            object.heatmapData = [];
+                            if (options.bytes !== Array)
+                                object.heatmapData = $util.newBuffer(object.heatmapData);
+                        }
+                        object.maxMotionRaw = 0;
+                    }
+                    if (message.heatmapData != null && message.hasOwnProperty("heatmapData"))
+                        object.heatmapData = options.bytes === String ? $util.base64.encode(message.heatmapData, 0, message.heatmapData.length) : options.bytes === Array ? Array.prototype.slice.call(message.heatmapData) : message.heatmapData;
+                    if (message.maxMotionRaw != null && message.hasOwnProperty("maxMotionRaw"))
+                        object.maxMotionRaw = options.json && !isFinite(message.maxMotionRaw) ? String(message.maxMotionRaw) : message.maxMotionRaw;
+                    return object;
+                };
+
+                /**
+                 * Converts this MotionHeatmap to JSON.
+                 * @function toJSON
+                 * @memberof bayesmech.vision.MotionCaptureResponse.MotionHeatmap
+                 * @instance
+                 * @returns {Object.<string,*>} JSON object
+                 */
+                MotionHeatmap.prototype.toJSON = function toJSON() {
+                    return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+                };
+
+                /**
+                 * Gets the default type url for MotionHeatmap
+                 * @function getTypeUrl
+                 * @memberof bayesmech.vision.MotionCaptureResponse.MotionHeatmap
+                 * @static
+                 * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+                 * @returns {string} The default type url
+                 */
+                MotionHeatmap.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+                    if (typeUrlPrefix === undefined) {
+                        typeUrlPrefix = "type.googleapis.com";
+                    }
+                    return typeUrlPrefix + "/bayesmech.vision.MotionCaptureResponse.MotionHeatmap";
+                };
+
+                return MotionHeatmap;
+            })();
+
+            /**
+             * StabilizationMethod enum.
+             * @name bayesmech.vision.MotionCaptureResponse.StabilizationMethod
+             * @enum {number}
+             * @property {number} STABILIZATION_UNKNOWN=0 STABILIZATION_UNKNOWN value
+             * @property {number} DEPTH_WARP=1 DEPTH_WARP value
+             * @property {number} PLANE_HOMO=2 PLANE_HOMO value
+             * @property {number} POINT_RANSAC=3 POINT_RANSAC value
+             * @property {number} POSE_APPROX=4 POSE_APPROX value
+             * @property {number} OPTICAL_FLOW=5 OPTICAL_FLOW value
+             */
+            MotionCaptureResponse.StabilizationMethod = (function() {
+                const valuesById = {}, values = Object.create(valuesById);
+                values[valuesById[0] = "STABILIZATION_UNKNOWN"] = 0;
+                values[valuesById[1] = "DEPTH_WARP"] = 1;
+                values[valuesById[2] = "PLANE_HOMO"] = 2;
+                values[valuesById[3] = "POINT_RANSAC"] = 3;
+                values[valuesById[4] = "POSE_APPROX"] = 4;
+                values[valuesById[5] = "OPTICAL_FLOW"] = 5;
+                return values;
+            })();
+
+            return MotionCaptureResponse;
+        })();
+
+        vision.MotionTrackPoint = (function() {
+
+            /**
+             * Properties of a MotionTrackPoint.
+             * @memberof bayesmech.vision
+             * @interface IMotionTrackPoint
+             * @property {number|null} [frameIdx] MotionTrackPoint frameIdx
+             * @property {number|null} [cx] MotionTrackPoint cx
+             * @property {number|null} [cy] MotionTrackPoint cy
+             * @property {number|null} [area] MotionTrackPoint area
+             * @property {boolean|null} [interpolated] MotionTrackPoint interpolated
+             */
+
+            /**
+             * Constructs a new MotionTrackPoint.
+             * @memberof bayesmech.vision
+             * @classdesc Represents a MotionTrackPoint.
+             * @implements IMotionTrackPoint
+             * @constructor
+             * @param {bayesmech.vision.IMotionTrackPoint=} [properties] Properties to set
+             */
+            function MotionTrackPoint(properties) {
+                if (properties)
+                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null)
+                            this[keys[i]] = properties[keys[i]];
+            }
+
+            /**
+             * MotionTrackPoint frameIdx.
+             * @member {number} frameIdx
+             * @memberof bayesmech.vision.MotionTrackPoint
+             * @instance
+             */
+            MotionTrackPoint.prototype.frameIdx = 0;
+
+            /**
+             * MotionTrackPoint cx.
+             * @member {number} cx
+             * @memberof bayesmech.vision.MotionTrackPoint
+             * @instance
+             */
+            MotionTrackPoint.prototype.cx = 0;
+
+            /**
+             * MotionTrackPoint cy.
+             * @member {number} cy
+             * @memberof bayesmech.vision.MotionTrackPoint
+             * @instance
+             */
+            MotionTrackPoint.prototype.cy = 0;
+
+            /**
+             * MotionTrackPoint area.
+             * @member {number} area
+             * @memberof bayesmech.vision.MotionTrackPoint
+             * @instance
+             */
+            MotionTrackPoint.prototype.area = 0;
+
+            /**
+             * MotionTrackPoint interpolated.
+             * @member {boolean} interpolated
+             * @memberof bayesmech.vision.MotionTrackPoint
+             * @instance
+             */
+            MotionTrackPoint.prototype.interpolated = false;
+
+            /**
+             * Creates a new MotionTrackPoint instance using the specified properties.
+             * @function create
+             * @memberof bayesmech.vision.MotionTrackPoint
+             * @static
+             * @param {bayesmech.vision.IMotionTrackPoint=} [properties] Properties to set
+             * @returns {bayesmech.vision.MotionTrackPoint} MotionTrackPoint instance
+             */
+            MotionTrackPoint.create = function create(properties) {
+                return new MotionTrackPoint(properties);
+            };
+
+            /**
+             * Encodes the specified MotionTrackPoint message. Does not implicitly {@link bayesmech.vision.MotionTrackPoint.verify|verify} messages.
+             * @function encode
+             * @memberof bayesmech.vision.MotionTrackPoint
+             * @static
+             * @param {bayesmech.vision.IMotionTrackPoint} message MotionTrackPoint message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            MotionTrackPoint.encode = function encode(message, writer) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (message.frameIdx != null && Object.hasOwnProperty.call(message, "frameIdx"))
+                    writer.uint32(/* id 1, wireType 0 =*/8).uint32(message.frameIdx);
+                if (message.cx != null && Object.hasOwnProperty.call(message, "cx"))
+                    writer.uint32(/* id 2, wireType 5 =*/21).float(message.cx);
+                if (message.cy != null && Object.hasOwnProperty.call(message, "cy"))
+                    writer.uint32(/* id 3, wireType 5 =*/29).float(message.cy);
+                if (message.area != null && Object.hasOwnProperty.call(message, "area"))
+                    writer.uint32(/* id 4, wireType 0 =*/32).uint32(message.area);
+                if (message.interpolated != null && Object.hasOwnProperty.call(message, "interpolated"))
+                    writer.uint32(/* id 5, wireType 0 =*/40).bool(message.interpolated);
+                return writer;
+            };
+
+            /**
+             * Encodes the specified MotionTrackPoint message, length delimited. Does not implicitly {@link bayesmech.vision.MotionTrackPoint.verify|verify} messages.
+             * @function encodeDelimited
+             * @memberof bayesmech.vision.MotionTrackPoint
+             * @static
+             * @param {bayesmech.vision.IMotionTrackPoint} message MotionTrackPoint message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            MotionTrackPoint.encodeDelimited = function encodeDelimited(message, writer) {
+                return this.encode(message, writer).ldelim();
+            };
+
+            /**
+             * Decodes a MotionTrackPoint message from the specified reader or buffer.
+             * @function decode
+             * @memberof bayesmech.vision.MotionTrackPoint
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {bayesmech.vision.MotionTrackPoint} MotionTrackPoint
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            MotionTrackPoint.decode = function decode(reader, length, error) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.MotionTrackPoint();
+                while (reader.pos < end) {
+                    let tag = reader.uint32();
+                    if (tag === error)
+                        break;
+                    switch (tag >>> 3) {
+                    case 1: {
+                            message.frameIdx = reader.uint32();
+                            break;
+                        }
+                    case 2: {
+                            message.cx = reader.float();
+                            break;
+                        }
+                    case 3: {
+                            message.cy = reader.float();
+                            break;
+                        }
+                    case 4: {
+                            message.area = reader.uint32();
+                            break;
+                        }
+                    case 5: {
+                            message.interpolated = reader.bool();
+                            break;
+                        }
+                    default:
+                        reader.skipType(tag & 7);
+                        break;
+                    }
+                }
+                return message;
+            };
+
+            /**
+             * Decodes a MotionTrackPoint message from the specified reader or buffer, length delimited.
+             * @function decodeDelimited
+             * @memberof bayesmech.vision.MotionTrackPoint
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @returns {bayesmech.vision.MotionTrackPoint} MotionTrackPoint
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            MotionTrackPoint.decodeDelimited = function decodeDelimited(reader) {
+                if (!(reader instanceof $Reader))
+                    reader = new $Reader(reader);
+                return this.decode(reader, reader.uint32());
+            };
+
+            /**
+             * Verifies a MotionTrackPoint message.
+             * @function verify
+             * @memberof bayesmech.vision.MotionTrackPoint
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            MotionTrackPoint.verify = function verify(message) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (message.frameIdx != null && message.hasOwnProperty("frameIdx"))
+                    if (!$util.isInteger(message.frameIdx))
+                        return "frameIdx: integer expected";
+                if (message.cx != null && message.hasOwnProperty("cx"))
+                    if (typeof message.cx !== "number")
+                        return "cx: number expected";
+                if (message.cy != null && message.hasOwnProperty("cy"))
+                    if (typeof message.cy !== "number")
+                        return "cy: number expected";
+                if (message.area != null && message.hasOwnProperty("area"))
+                    if (!$util.isInteger(message.area))
+                        return "area: integer expected";
+                if (message.interpolated != null && message.hasOwnProperty("interpolated"))
+                    if (typeof message.interpolated !== "boolean")
+                        return "interpolated: boolean expected";
+                return null;
+            };
+
+            /**
+             * Creates a MotionTrackPoint message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof bayesmech.vision.MotionTrackPoint
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {bayesmech.vision.MotionTrackPoint} MotionTrackPoint
+             */
+            MotionTrackPoint.fromObject = function fromObject(object) {
+                if (object instanceof $root.bayesmech.vision.MotionTrackPoint)
+                    return object;
+                let message = new $root.bayesmech.vision.MotionTrackPoint();
+                if (object.frameIdx != null)
+                    message.frameIdx = object.frameIdx >>> 0;
+                if (object.cx != null)
+                    message.cx = Number(object.cx);
+                if (object.cy != null)
+                    message.cy = Number(object.cy);
+                if (object.area != null)
+                    message.area = object.area >>> 0;
+                if (object.interpolated != null)
+                    message.interpolated = Boolean(object.interpolated);
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a MotionTrackPoint message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof bayesmech.vision.MotionTrackPoint
+             * @static
+             * @param {bayesmech.vision.MotionTrackPoint} message MotionTrackPoint
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            MotionTrackPoint.toObject = function toObject(message, options) {
+                if (!options)
+                    options = {};
+                let object = {};
+                if (options.defaults) {
+                    object.frameIdx = 0;
+                    object.cx = 0;
+                    object.cy = 0;
+                    object.area = 0;
+                    object.interpolated = false;
+                }
+                if (message.frameIdx != null && message.hasOwnProperty("frameIdx"))
+                    object.frameIdx = message.frameIdx;
+                if (message.cx != null && message.hasOwnProperty("cx"))
+                    object.cx = options.json && !isFinite(message.cx) ? String(message.cx) : message.cx;
+                if (message.cy != null && message.hasOwnProperty("cy"))
+                    object.cy = options.json && !isFinite(message.cy) ? String(message.cy) : message.cy;
+                if (message.area != null && message.hasOwnProperty("area"))
+                    object.area = message.area;
+                if (message.interpolated != null && message.hasOwnProperty("interpolated"))
+                    object.interpolated = message.interpolated;
+                return object;
+            };
+
+            /**
+             * Converts this MotionTrackPoint to JSON.
+             * @function toJSON
+             * @memberof bayesmech.vision.MotionTrackPoint
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            MotionTrackPoint.prototype.toJSON = function toJSON() {
+                return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the default type url for MotionTrackPoint
+             * @function getTypeUrl
+             * @memberof bayesmech.vision.MotionTrackPoint
+             * @static
+             * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns {string} The default type url
+             */
+            MotionTrackPoint.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+                if (typeUrlPrefix === undefined) {
+                    typeUrlPrefix = "type.googleapis.com";
+                }
+                return typeUrlPrefix + "/bayesmech.vision.MotionTrackPoint";
+            };
+
+            return MotionTrackPoint;
+        })();
+
+        vision.MotionTrack = (function() {
+
+            /**
+             * Properties of a MotionTrack.
+             * @memberof bayesmech.vision
+             * @interface IMotionTrack
+             * @property {number|null} [trackId] MotionTrack trackId
+             * @property {number|null} [detectedFrames] MotionTrack detectedFrames
+             * @property {number|null} [totalPositions] MotionTrack totalPositions
+             * @property {number|null} [presenceFraction] MotionTrack presenceFraction
+             * @property {Array.<bayesmech.vision.IMotionTrackPoint>|null} [positions] MotionTrack positions
+             */
+
+            /**
+             * Constructs a new MotionTrack.
+             * @memberof bayesmech.vision
+             * @classdesc Represents a MotionTrack.
+             * @implements IMotionTrack
+             * @constructor
+             * @param {bayesmech.vision.IMotionTrack=} [properties] Properties to set
+             */
+            function MotionTrack(properties) {
+                this.positions = [];
+                if (properties)
+                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null)
+                            this[keys[i]] = properties[keys[i]];
+            }
+
+            /**
+             * MotionTrack trackId.
+             * @member {number} trackId
+             * @memberof bayesmech.vision.MotionTrack
+             * @instance
+             */
+            MotionTrack.prototype.trackId = 0;
+
+            /**
+             * MotionTrack detectedFrames.
+             * @member {number} detectedFrames
+             * @memberof bayesmech.vision.MotionTrack
+             * @instance
+             */
+            MotionTrack.prototype.detectedFrames = 0;
+
+            /**
+             * MotionTrack totalPositions.
+             * @member {number} totalPositions
+             * @memberof bayesmech.vision.MotionTrack
+             * @instance
+             */
+            MotionTrack.prototype.totalPositions = 0;
+
+            /**
+             * MotionTrack presenceFraction.
+             * @member {number} presenceFraction
+             * @memberof bayesmech.vision.MotionTrack
+             * @instance
+             */
+            MotionTrack.prototype.presenceFraction = 0;
+
+            /**
+             * MotionTrack positions.
+             * @member {Array.<bayesmech.vision.IMotionTrackPoint>} positions
+             * @memberof bayesmech.vision.MotionTrack
+             * @instance
+             */
+            MotionTrack.prototype.positions = $util.emptyArray;
+
+            /**
+             * Creates a new MotionTrack instance using the specified properties.
+             * @function create
+             * @memberof bayesmech.vision.MotionTrack
+             * @static
+             * @param {bayesmech.vision.IMotionTrack=} [properties] Properties to set
+             * @returns {bayesmech.vision.MotionTrack} MotionTrack instance
+             */
+            MotionTrack.create = function create(properties) {
+                return new MotionTrack(properties);
+            };
+
+            /**
+             * Encodes the specified MotionTrack message. Does not implicitly {@link bayesmech.vision.MotionTrack.verify|verify} messages.
+             * @function encode
+             * @memberof bayesmech.vision.MotionTrack
+             * @static
+             * @param {bayesmech.vision.IMotionTrack} message MotionTrack message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            MotionTrack.encode = function encode(message, writer) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (message.trackId != null && Object.hasOwnProperty.call(message, "trackId"))
+                    writer.uint32(/* id 1, wireType 0 =*/8).uint32(message.trackId);
+                if (message.detectedFrames != null && Object.hasOwnProperty.call(message, "detectedFrames"))
+                    writer.uint32(/* id 2, wireType 0 =*/16).uint32(message.detectedFrames);
+                if (message.totalPositions != null && Object.hasOwnProperty.call(message, "totalPositions"))
+                    writer.uint32(/* id 3, wireType 0 =*/24).uint32(message.totalPositions);
+                if (message.presenceFraction != null && Object.hasOwnProperty.call(message, "presenceFraction"))
+                    writer.uint32(/* id 4, wireType 5 =*/37).float(message.presenceFraction);
+                if (message.positions != null && message.positions.length)
+                    for (let i = 0; i < message.positions.length; ++i)
+                        $root.bayesmech.vision.MotionTrackPoint.encode(message.positions[i], writer.uint32(/* id 5, wireType 2 =*/42).fork()).ldelim();
+                return writer;
+            };
+
+            /**
+             * Encodes the specified MotionTrack message, length delimited. Does not implicitly {@link bayesmech.vision.MotionTrack.verify|verify} messages.
+             * @function encodeDelimited
+             * @memberof bayesmech.vision.MotionTrack
+             * @static
+             * @param {bayesmech.vision.IMotionTrack} message MotionTrack message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            MotionTrack.encodeDelimited = function encodeDelimited(message, writer) {
+                return this.encode(message, writer).ldelim();
+            };
+
+            /**
+             * Decodes a MotionTrack message from the specified reader or buffer.
+             * @function decode
+             * @memberof bayesmech.vision.MotionTrack
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {bayesmech.vision.MotionTrack} MotionTrack
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            MotionTrack.decode = function decode(reader, length, error) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.MotionTrack();
+                while (reader.pos < end) {
+                    let tag = reader.uint32();
+                    if (tag === error)
+                        break;
+                    switch (tag >>> 3) {
+                    case 1: {
+                            message.trackId = reader.uint32();
+                            break;
+                        }
+                    case 2: {
+                            message.detectedFrames = reader.uint32();
+                            break;
+                        }
+                    case 3: {
+                            message.totalPositions = reader.uint32();
+                            break;
+                        }
+                    case 4: {
+                            message.presenceFraction = reader.float();
+                            break;
+                        }
+                    case 5: {
+                            if (!(message.positions && message.positions.length))
+                                message.positions = [];
+                            message.positions.push($root.bayesmech.vision.MotionTrackPoint.decode(reader, reader.uint32()));
+                            break;
+                        }
+                    default:
+                        reader.skipType(tag & 7);
+                        break;
+                    }
+                }
+                return message;
+            };
+
+            /**
+             * Decodes a MotionTrack message from the specified reader or buffer, length delimited.
+             * @function decodeDelimited
+             * @memberof bayesmech.vision.MotionTrack
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @returns {bayesmech.vision.MotionTrack} MotionTrack
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            MotionTrack.decodeDelimited = function decodeDelimited(reader) {
+                if (!(reader instanceof $Reader))
+                    reader = new $Reader(reader);
+                return this.decode(reader, reader.uint32());
+            };
+
+            /**
+             * Verifies a MotionTrack message.
+             * @function verify
+             * @memberof bayesmech.vision.MotionTrack
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            MotionTrack.verify = function verify(message) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (message.trackId != null && message.hasOwnProperty("trackId"))
+                    if (!$util.isInteger(message.trackId))
+                        return "trackId: integer expected";
+                if (message.detectedFrames != null && message.hasOwnProperty("detectedFrames"))
+                    if (!$util.isInteger(message.detectedFrames))
+                        return "detectedFrames: integer expected";
+                if (message.totalPositions != null && message.hasOwnProperty("totalPositions"))
+                    if (!$util.isInteger(message.totalPositions))
+                        return "totalPositions: integer expected";
+                if (message.presenceFraction != null && message.hasOwnProperty("presenceFraction"))
+                    if (typeof message.presenceFraction !== "number")
+                        return "presenceFraction: number expected";
+                if (message.positions != null && message.hasOwnProperty("positions")) {
+                    if (!Array.isArray(message.positions))
+                        return "positions: array expected";
+                    for (let i = 0; i < message.positions.length; ++i) {
+                        let error = $root.bayesmech.vision.MotionTrackPoint.verify(message.positions[i]);
+                        if (error)
+                            return "positions." + error;
+                    }
+                }
+                return null;
+            };
+
+            /**
+             * Creates a MotionTrack message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof bayesmech.vision.MotionTrack
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {bayesmech.vision.MotionTrack} MotionTrack
+             */
+            MotionTrack.fromObject = function fromObject(object) {
+                if (object instanceof $root.bayesmech.vision.MotionTrack)
+                    return object;
+                let message = new $root.bayesmech.vision.MotionTrack();
+                if (object.trackId != null)
+                    message.trackId = object.trackId >>> 0;
+                if (object.detectedFrames != null)
+                    message.detectedFrames = object.detectedFrames >>> 0;
+                if (object.totalPositions != null)
+                    message.totalPositions = object.totalPositions >>> 0;
+                if (object.presenceFraction != null)
+                    message.presenceFraction = Number(object.presenceFraction);
+                if (object.positions) {
+                    if (!Array.isArray(object.positions))
+                        throw TypeError(".bayesmech.vision.MotionTrack.positions: array expected");
+                    message.positions = [];
+                    for (let i = 0; i < object.positions.length; ++i) {
+                        if (typeof object.positions[i] !== "object")
+                            throw TypeError(".bayesmech.vision.MotionTrack.positions: object expected");
+                        message.positions[i] = $root.bayesmech.vision.MotionTrackPoint.fromObject(object.positions[i]);
+                    }
+                }
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a MotionTrack message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof bayesmech.vision.MotionTrack
+             * @static
+             * @param {bayesmech.vision.MotionTrack} message MotionTrack
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            MotionTrack.toObject = function toObject(message, options) {
+                if (!options)
+                    options = {};
+                let object = {};
+                if (options.arrays || options.defaults)
+                    object.positions = [];
+                if (options.defaults) {
+                    object.trackId = 0;
+                    object.detectedFrames = 0;
+                    object.totalPositions = 0;
+                    object.presenceFraction = 0;
+                }
+                if (message.trackId != null && message.hasOwnProperty("trackId"))
+                    object.trackId = message.trackId;
+                if (message.detectedFrames != null && message.hasOwnProperty("detectedFrames"))
+                    object.detectedFrames = message.detectedFrames;
+                if (message.totalPositions != null && message.hasOwnProperty("totalPositions"))
+                    object.totalPositions = message.totalPositions;
+                if (message.presenceFraction != null && message.hasOwnProperty("presenceFraction"))
+                    object.presenceFraction = options.json && !isFinite(message.presenceFraction) ? String(message.presenceFraction) : message.presenceFraction;
+                if (message.positions && message.positions.length) {
+                    object.positions = [];
+                    for (let j = 0; j < message.positions.length; ++j)
+                        object.positions[j] = $root.bayesmech.vision.MotionTrackPoint.toObject(message.positions[j], options);
+                }
+                return object;
+            };
+
+            /**
+             * Converts this MotionTrack to JSON.
+             * @function toJSON
+             * @memberof bayesmech.vision.MotionTrack
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            MotionTrack.prototype.toJSON = function toJSON() {
+                return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the default type url for MotionTrack
+             * @function getTypeUrl
+             * @memberof bayesmech.vision.MotionTrack
+             * @static
+             * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns {string} The default type url
+             */
+            MotionTrack.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+                if (typeUrlPrefix === undefined) {
+                    typeUrlPrefix = "type.googleapis.com";
+                }
+                return typeUrlPrefix + "/bayesmech.vision.MotionTrack";
+            };
+
+            return MotionTrack;
+        })();
+
         vision.IdoSlamFramePose = (function() {
 
             /**

@@ -1931,6 +1931,600 @@ export namespace bayesmech {
             public static getTypeUrl(typeUrlPrefix?: string): string;
         }
 
+        /** Properties of a MotionCaptureRequest. */
+        interface IMotionCaptureRequest {
+
+            /** MotionCaptureRequest frameIdentifier */
+            frameIdentifier?: (bayesmech.vision.IPerceiverFrameIdentifier|null);
+
+            /** MotionCaptureRequest currentFrame */
+            currentFrame?: (bayesmech.vision.IImageFrame|null);
+
+            /** MotionCaptureRequest referenceFrame */
+            referenceFrame?: (bayesmech.vision.IImageFrame|null);
+        }
+
+        /** Represents a MotionCaptureRequest. */
+        class MotionCaptureRequest implements IMotionCaptureRequest {
+
+            /**
+             * Constructs a new MotionCaptureRequest.
+             * @param [properties] Properties to set
+             */
+            constructor(properties?: bayesmech.vision.IMotionCaptureRequest);
+
+            /** MotionCaptureRequest frameIdentifier. */
+            public frameIdentifier?: (bayesmech.vision.IPerceiverFrameIdentifier|null);
+
+            /** MotionCaptureRequest currentFrame. */
+            public currentFrame?: (bayesmech.vision.IImageFrame|null);
+
+            /** MotionCaptureRequest referenceFrame. */
+            public referenceFrame?: (bayesmech.vision.IImageFrame|null);
+
+            /**
+             * Creates a new MotionCaptureRequest instance using the specified properties.
+             * @param [properties] Properties to set
+             * @returns MotionCaptureRequest instance
+             */
+            public static create(properties?: bayesmech.vision.IMotionCaptureRequest): bayesmech.vision.MotionCaptureRequest;
+
+            /**
+             * Encodes the specified MotionCaptureRequest message. Does not implicitly {@link bayesmech.vision.MotionCaptureRequest.verify|verify} messages.
+             * @param message MotionCaptureRequest message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encode(message: bayesmech.vision.IMotionCaptureRequest, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Encodes the specified MotionCaptureRequest message, length delimited. Does not implicitly {@link bayesmech.vision.MotionCaptureRequest.verify|verify} messages.
+             * @param message MotionCaptureRequest message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encodeDelimited(message: bayesmech.vision.IMotionCaptureRequest, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Decodes a MotionCaptureRequest message from the specified reader or buffer.
+             * @param reader Reader or buffer to decode from
+             * @param [length] Message length if known beforehand
+             * @returns MotionCaptureRequest
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): bayesmech.vision.MotionCaptureRequest;
+
+            /**
+             * Decodes a MotionCaptureRequest message from the specified reader or buffer, length delimited.
+             * @param reader Reader or buffer to decode from
+             * @returns MotionCaptureRequest
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): bayesmech.vision.MotionCaptureRequest;
+
+            /**
+             * Verifies a MotionCaptureRequest message.
+             * @param message Plain object to verify
+             * @returns `null` if valid, otherwise the reason why it is not
+             */
+            public static verify(message: { [k: string]: any }): (string|null);
+
+            /**
+             * Creates a MotionCaptureRequest message from a plain object. Also converts values to their respective internal types.
+             * @param object Plain object
+             * @returns MotionCaptureRequest
+             */
+            public static fromObject(object: { [k: string]: any }): bayesmech.vision.MotionCaptureRequest;
+
+            /**
+             * Creates a plain object from a MotionCaptureRequest message. Also converts values to other types if specified.
+             * @param message MotionCaptureRequest
+             * @param [options] Conversion options
+             * @returns Plain object
+             */
+            public static toObject(message: bayesmech.vision.MotionCaptureRequest, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+            /**
+             * Converts this MotionCaptureRequest to JSON.
+             * @returns JSON object
+             */
+            public toJSON(): { [k: string]: any };
+
+            /**
+             * Gets the default type url for MotionCaptureRequest
+             * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns The default type url
+             */
+            public static getTypeUrl(typeUrlPrefix?: string): string;
+        }
+
+        /** Properties of a MotionCaptureResponse. */
+        interface IMotionCaptureResponse {
+
+            /** MotionCaptureResponse frameIdentifier */
+            frameIdentifier?: (bayesmech.vision.IPerceiverFrameIdentifier|null);
+
+            /** MotionCaptureResponse heatmap */
+            heatmap?: (bayesmech.vision.MotionCaptureResponse.IMotionHeatmap|null);
+
+            /** MotionCaptureResponse methodUsed */
+            methodUsed?: (bayesmech.vision.MotionCaptureResponse.StabilizationMethod|null);
+
+            /** MotionCaptureResponse stabilizationConfidence */
+            stabilizationConfidence?: (number|null);
+
+            /** MotionCaptureResponse tracks */
+            tracks?: (bayesmech.vision.IMotionTrack[]|null);
+
+            /** MotionCaptureResponse totalFrames */
+            totalFrames?: (number|null);
+        }
+
+        /** Represents a MotionCaptureResponse. */
+        class MotionCaptureResponse implements IMotionCaptureResponse {
+
+            /**
+             * Constructs a new MotionCaptureResponse.
+             * @param [properties] Properties to set
+             */
+            constructor(properties?: bayesmech.vision.IMotionCaptureResponse);
+
+            /** MotionCaptureResponse frameIdentifier. */
+            public frameIdentifier?: (bayesmech.vision.IPerceiverFrameIdentifier|null);
+
+            /** MotionCaptureResponse heatmap. */
+            public heatmap?: (bayesmech.vision.MotionCaptureResponse.IMotionHeatmap|null);
+
+            /** MotionCaptureResponse methodUsed. */
+            public methodUsed: bayesmech.vision.MotionCaptureResponse.StabilizationMethod;
+
+            /** MotionCaptureResponse stabilizationConfidence. */
+            public stabilizationConfidence: number;
+
+            /** MotionCaptureResponse tracks. */
+            public tracks: bayesmech.vision.IMotionTrack[];
+
+            /** MotionCaptureResponse totalFrames. */
+            public totalFrames: number;
+
+            /**
+             * Creates a new MotionCaptureResponse instance using the specified properties.
+             * @param [properties] Properties to set
+             * @returns MotionCaptureResponse instance
+             */
+            public static create(properties?: bayesmech.vision.IMotionCaptureResponse): bayesmech.vision.MotionCaptureResponse;
+
+            /**
+             * Encodes the specified MotionCaptureResponse message. Does not implicitly {@link bayesmech.vision.MotionCaptureResponse.verify|verify} messages.
+             * @param message MotionCaptureResponse message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encode(message: bayesmech.vision.IMotionCaptureResponse, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Encodes the specified MotionCaptureResponse message, length delimited. Does not implicitly {@link bayesmech.vision.MotionCaptureResponse.verify|verify} messages.
+             * @param message MotionCaptureResponse message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encodeDelimited(message: bayesmech.vision.IMotionCaptureResponse, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Decodes a MotionCaptureResponse message from the specified reader or buffer.
+             * @param reader Reader or buffer to decode from
+             * @param [length] Message length if known beforehand
+             * @returns MotionCaptureResponse
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): bayesmech.vision.MotionCaptureResponse;
+
+            /**
+             * Decodes a MotionCaptureResponse message from the specified reader or buffer, length delimited.
+             * @param reader Reader or buffer to decode from
+             * @returns MotionCaptureResponse
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): bayesmech.vision.MotionCaptureResponse;
+
+            /**
+             * Verifies a MotionCaptureResponse message.
+             * @param message Plain object to verify
+             * @returns `null` if valid, otherwise the reason why it is not
+             */
+            public static verify(message: { [k: string]: any }): (string|null);
+
+            /**
+             * Creates a MotionCaptureResponse message from a plain object. Also converts values to their respective internal types.
+             * @param object Plain object
+             * @returns MotionCaptureResponse
+             */
+            public static fromObject(object: { [k: string]: any }): bayesmech.vision.MotionCaptureResponse;
+
+            /**
+             * Creates a plain object from a MotionCaptureResponse message. Also converts values to other types if specified.
+             * @param message MotionCaptureResponse
+             * @param [options] Conversion options
+             * @returns Plain object
+             */
+            public static toObject(message: bayesmech.vision.MotionCaptureResponse, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+            /**
+             * Converts this MotionCaptureResponse to JSON.
+             * @returns JSON object
+             */
+            public toJSON(): { [k: string]: any };
+
+            /**
+             * Gets the default type url for MotionCaptureResponse
+             * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns The default type url
+             */
+            public static getTypeUrl(typeUrlPrefix?: string): string;
+        }
+
+        namespace MotionCaptureResponse {
+
+            /** Properties of a MotionHeatmap. */
+            interface IMotionHeatmap {
+
+                /** MotionHeatmap heatmapData */
+                heatmapData?: (Uint8Array|null);
+
+                /** MotionHeatmap maxMotionRaw */
+                maxMotionRaw?: (number|null);
+            }
+
+            /** Represents a MotionHeatmap. */
+            class MotionHeatmap implements IMotionHeatmap {
+
+                /**
+                 * Constructs a new MotionHeatmap.
+                 * @param [properties] Properties to set
+                 */
+                constructor(properties?: bayesmech.vision.MotionCaptureResponse.IMotionHeatmap);
+
+                /** MotionHeatmap heatmapData. */
+                public heatmapData: Uint8Array;
+
+                /** MotionHeatmap maxMotionRaw. */
+                public maxMotionRaw: number;
+
+                /**
+                 * Creates a new MotionHeatmap instance using the specified properties.
+                 * @param [properties] Properties to set
+                 * @returns MotionHeatmap instance
+                 */
+                public static create(properties?: bayesmech.vision.MotionCaptureResponse.IMotionHeatmap): bayesmech.vision.MotionCaptureResponse.MotionHeatmap;
+
+                /**
+                 * Encodes the specified MotionHeatmap message. Does not implicitly {@link bayesmech.vision.MotionCaptureResponse.MotionHeatmap.verify|verify} messages.
+                 * @param message MotionHeatmap message or plain object to encode
+                 * @param [writer] Writer to encode to
+                 * @returns Writer
+                 */
+                public static encode(message: bayesmech.vision.MotionCaptureResponse.IMotionHeatmap, writer?: $protobuf.Writer): $protobuf.Writer;
+
+                /**
+                 * Encodes the specified MotionHeatmap message, length delimited. Does not implicitly {@link bayesmech.vision.MotionCaptureResponse.MotionHeatmap.verify|verify} messages.
+                 * @param message MotionHeatmap message or plain object to encode
+                 * @param [writer] Writer to encode to
+                 * @returns Writer
+                 */
+                public static encodeDelimited(message: bayesmech.vision.MotionCaptureResponse.IMotionHeatmap, writer?: $protobuf.Writer): $protobuf.Writer;
+
+                /**
+                 * Decodes a MotionHeatmap message from the specified reader or buffer.
+                 * @param reader Reader or buffer to decode from
+                 * @param [length] Message length if known beforehand
+                 * @returns MotionHeatmap
+                 * @throws {Error} If the payload is not a reader or valid buffer
+                 * @throws {$protobuf.util.ProtocolError} If required fields are missing
+                 */
+                public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): bayesmech.vision.MotionCaptureResponse.MotionHeatmap;
+
+                /**
+                 * Decodes a MotionHeatmap message from the specified reader or buffer, length delimited.
+                 * @param reader Reader or buffer to decode from
+                 * @returns MotionHeatmap
+                 * @throws {Error} If the payload is not a reader or valid buffer
+                 * @throws {$protobuf.util.ProtocolError} If required fields are missing
+                 */
+                public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): bayesmech.vision.MotionCaptureResponse.MotionHeatmap;
+
+                /**
+                 * Verifies a MotionHeatmap message.
+                 * @param message Plain object to verify
+                 * @returns `null` if valid, otherwise the reason why it is not
+                 */
+                public static verify(message: { [k: string]: any }): (string|null);
+
+                /**
+                 * Creates a MotionHeatmap message from a plain object. Also converts values to their respective internal types.
+                 * @param object Plain object
+                 * @returns MotionHeatmap
+                 */
+                public static fromObject(object: { [k: string]: any }): bayesmech.vision.MotionCaptureResponse.MotionHeatmap;
+
+                /**
+                 * Creates a plain object from a MotionHeatmap message. Also converts values to other types if specified.
+                 * @param message MotionHeatmap
+                 * @param [options] Conversion options
+                 * @returns Plain object
+                 */
+                public static toObject(message: bayesmech.vision.MotionCaptureResponse.MotionHeatmap, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+                /**
+                 * Converts this MotionHeatmap to JSON.
+                 * @returns JSON object
+                 */
+                public toJSON(): { [k: string]: any };
+
+                /**
+                 * Gets the default type url for MotionHeatmap
+                 * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+                 * @returns The default type url
+                 */
+                public static getTypeUrl(typeUrlPrefix?: string): string;
+            }
+
+            /** StabilizationMethod enum. */
+            enum StabilizationMethod {
+                STABILIZATION_UNKNOWN = 0,
+                DEPTH_WARP = 1,
+                PLANE_HOMO = 2,
+                POINT_RANSAC = 3,
+                POSE_APPROX = 4,
+                OPTICAL_FLOW = 5
+            }
+        }
+
+        /** Properties of a MotionTrackPoint. */
+        interface IMotionTrackPoint {
+
+            /** MotionTrackPoint frameIdx */
+            frameIdx?: (number|null);
+
+            /** MotionTrackPoint cx */
+            cx?: (number|null);
+
+            /** MotionTrackPoint cy */
+            cy?: (number|null);
+
+            /** MotionTrackPoint area */
+            area?: (number|null);
+
+            /** MotionTrackPoint interpolated */
+            interpolated?: (boolean|null);
+        }
+
+        /** Represents a MotionTrackPoint. */
+        class MotionTrackPoint implements IMotionTrackPoint {
+
+            /**
+             * Constructs a new MotionTrackPoint.
+             * @param [properties] Properties to set
+             */
+            constructor(properties?: bayesmech.vision.IMotionTrackPoint);
+
+            /** MotionTrackPoint frameIdx. */
+            public frameIdx: number;
+
+            /** MotionTrackPoint cx. */
+            public cx: number;
+
+            /** MotionTrackPoint cy. */
+            public cy: number;
+
+            /** MotionTrackPoint area. */
+            public area: number;
+
+            /** MotionTrackPoint interpolated. */
+            public interpolated: boolean;
+
+            /**
+             * Creates a new MotionTrackPoint instance using the specified properties.
+             * @param [properties] Properties to set
+             * @returns MotionTrackPoint instance
+             */
+            public static create(properties?: bayesmech.vision.IMotionTrackPoint): bayesmech.vision.MotionTrackPoint;
+
+            /**
+             * Encodes the specified MotionTrackPoint message. Does not implicitly {@link bayesmech.vision.MotionTrackPoint.verify|verify} messages.
+             * @param message MotionTrackPoint message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encode(message: bayesmech.vision.IMotionTrackPoint, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Encodes the specified MotionTrackPoint message, length delimited. Does not implicitly {@link bayesmech.vision.MotionTrackPoint.verify|verify} messages.
+             * @param message MotionTrackPoint message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encodeDelimited(message: bayesmech.vision.IMotionTrackPoint, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Decodes a MotionTrackPoint message from the specified reader or buffer.
+             * @param reader Reader or buffer to decode from
+             * @param [length] Message length if known beforehand
+             * @returns MotionTrackPoint
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): bayesmech.vision.MotionTrackPoint;
+
+            /**
+             * Decodes a MotionTrackPoint message from the specified reader or buffer, length delimited.
+             * @param reader Reader or buffer to decode from
+             * @returns MotionTrackPoint
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): bayesmech.vision.MotionTrackPoint;
+
+            /**
+             * Verifies a MotionTrackPoint message.
+             * @param message Plain object to verify
+             * @returns `null` if valid, otherwise the reason why it is not
+             */
+            public static verify(message: { [k: string]: any }): (string|null);
+
+            /**
+             * Creates a MotionTrackPoint message from a plain object. Also converts values to their respective internal types.
+             * @param object Plain object
+             * @returns MotionTrackPoint
+             */
+            public static fromObject(object: { [k: string]: any }): bayesmech.vision.MotionTrackPoint;
+
+            /**
+             * Creates a plain object from a MotionTrackPoint message. Also converts values to other types if specified.
+             * @param message MotionTrackPoint
+             * @param [options] Conversion options
+             * @returns Plain object
+             */
+            public static toObject(message: bayesmech.vision.MotionTrackPoint, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+            /**
+             * Converts this MotionTrackPoint to JSON.
+             * @returns JSON object
+             */
+            public toJSON(): { [k: string]: any };
+
+            /**
+             * Gets the default type url for MotionTrackPoint
+             * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns The default type url
+             */
+            public static getTypeUrl(typeUrlPrefix?: string): string;
+        }
+
+        /** Properties of a MotionTrack. */
+        interface IMotionTrack {
+
+            /** MotionTrack trackId */
+            trackId?: (number|null);
+
+            /** MotionTrack detectedFrames */
+            detectedFrames?: (number|null);
+
+            /** MotionTrack totalPositions */
+            totalPositions?: (number|null);
+
+            /** MotionTrack presenceFraction */
+            presenceFraction?: (number|null);
+
+            /** MotionTrack positions */
+            positions?: (bayesmech.vision.IMotionTrackPoint[]|null);
+        }
+
+        /** Represents a MotionTrack. */
+        class MotionTrack implements IMotionTrack {
+
+            /**
+             * Constructs a new MotionTrack.
+             * @param [properties] Properties to set
+             */
+            constructor(properties?: bayesmech.vision.IMotionTrack);
+
+            /** MotionTrack trackId. */
+            public trackId: number;
+
+            /** MotionTrack detectedFrames. */
+            public detectedFrames: number;
+
+            /** MotionTrack totalPositions. */
+            public totalPositions: number;
+
+            /** MotionTrack presenceFraction. */
+            public presenceFraction: number;
+
+            /** MotionTrack positions. */
+            public positions: bayesmech.vision.IMotionTrackPoint[];
+
+            /**
+             * Creates a new MotionTrack instance using the specified properties.
+             * @param [properties] Properties to set
+             * @returns MotionTrack instance
+             */
+            public static create(properties?: bayesmech.vision.IMotionTrack): bayesmech.vision.MotionTrack;
+
+            /**
+             * Encodes the specified MotionTrack message. Does not implicitly {@link bayesmech.vision.MotionTrack.verify|verify} messages.
+             * @param message MotionTrack message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encode(message: bayesmech.vision.IMotionTrack, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Encodes the specified MotionTrack message, length delimited. Does not implicitly {@link bayesmech.vision.MotionTrack.verify|verify} messages.
+             * @param message MotionTrack message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encodeDelimited(message: bayesmech.vision.IMotionTrack, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Decodes a MotionTrack message from the specified reader or buffer.
+             * @param reader Reader or buffer to decode from
+             * @param [length] Message length if known beforehand
+             * @returns MotionTrack
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): bayesmech.vision.MotionTrack;
+
+            /**
+             * Decodes a MotionTrack message from the specified reader or buffer, length delimited.
+             * @param reader Reader or buffer to decode from
+             * @returns MotionTrack
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): bayesmech.vision.MotionTrack;
+
+            /**
+             * Verifies a MotionTrack message.
+             * @param message Plain object to verify
+             * @returns `null` if valid, otherwise the reason why it is not
+             */
+            public static verify(message: { [k: string]: any }): (string|null);
+
+            /**
+             * Creates a MotionTrack message from a plain object. Also converts values to their respective internal types.
+             * @param object Plain object
+             * @returns MotionTrack
+             */
+            public static fromObject(object: { [k: string]: any }): bayesmech.vision.MotionTrack;
+
+            /**
+             * Creates a plain object from a MotionTrack message. Also converts values to other types if specified.
+             * @param message MotionTrack
+             * @param [options] Conversion options
+             * @returns Plain object
+             */
+            public static toObject(message: bayesmech.vision.MotionTrack, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+            /**
+             * Converts this MotionTrack to JSON.
+             * @returns JSON object
+             */
+            public toJSON(): { [k: string]: any };
+
+            /**
+             * Gets the default type url for MotionTrack
+             * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns The default type url
+             */
+            public static getTypeUrl(typeUrlPrefix?: string): string;
+        }
+
         /** Properties of an IdoSlamFramePose. */
         interface IIdoSlamFramePose {
 
