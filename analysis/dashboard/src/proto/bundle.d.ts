@@ -3949,5 +3949,793 @@ export namespace bayesmech {
              */
             public static getTypeUrl(typeUrlPrefix?: string): string;
         }
+
+        /** Properties of a PongtownResponse. */
+        interface IPongtownResponse {
+
+            /** PongtownResponse frameIdentifier */
+            frameIdentifier?: (bayesmech.vision.IPerceiverFrameIdentifier|null);
+
+            /** PongtownResponse tablePose */
+            tablePose?: (bayesmech.vision.PongtownResponse.ITablePose|null);
+
+            /** PongtownResponse pnpFrameDebug */
+            pnpFrameDebug?: (bayesmech.vision.PongtownResponse.IPnpFrameDebug[]|null);
+
+            /** PongtownResponse frameOutput */
+            frameOutput?: (bayesmech.vision.PongtownResponse.IFrameOutput|null);
+
+            /** PongtownResponse globalTablePose */
+            globalTablePose?: (bayesmech.vision.PongtownResponse.IGlobalTablePose|null);
+
+            /** PongtownResponse tableWidthMm */
+            tableWidthMm?: (number|null);
+
+            /** PongtownResponse tableHeightMm */
+            tableHeightMm?: (number|null);
+
+            /** PongtownResponse netOverhangMm */
+            netOverhangMm?: (number|null);
+
+            /** PongtownResponse netHeightMm */
+            netHeightMm?: (number|null);
+        }
+
+        /** Represents a PongtownResponse. */
+        class PongtownResponse implements IPongtownResponse {
+
+            /**
+             * Constructs a new PongtownResponse.
+             * @param [properties] Properties to set
+             */
+            constructor(properties?: bayesmech.vision.IPongtownResponse);
+
+            /** PongtownResponse frameIdentifier. */
+            public frameIdentifier?: (bayesmech.vision.IPerceiverFrameIdentifier|null);
+
+            /** PongtownResponse tablePose. */
+            public tablePose?: (bayesmech.vision.PongtownResponse.ITablePose|null);
+
+            /** PongtownResponse pnpFrameDebug. */
+            public pnpFrameDebug: bayesmech.vision.PongtownResponse.IPnpFrameDebug[];
+
+            /** PongtownResponse frameOutput. */
+            public frameOutput?: (bayesmech.vision.PongtownResponse.IFrameOutput|null);
+
+            /** PongtownResponse globalTablePose. */
+            public globalTablePose?: (bayesmech.vision.PongtownResponse.IGlobalTablePose|null);
+
+            /** PongtownResponse tableWidthMm. */
+            public tableWidthMm: number;
+
+            /** PongtownResponse tableHeightMm. */
+            public tableHeightMm: number;
+
+            /** PongtownResponse netOverhangMm. */
+            public netOverhangMm: number;
+
+            /** PongtownResponse netHeightMm. */
+            public netHeightMm: number;
+
+            /**
+             * Creates a new PongtownResponse instance using the specified properties.
+             * @param [properties] Properties to set
+             * @returns PongtownResponse instance
+             */
+            public static create(properties?: bayesmech.vision.IPongtownResponse): bayesmech.vision.PongtownResponse;
+
+            /**
+             * Encodes the specified PongtownResponse message. Does not implicitly {@link bayesmech.vision.PongtownResponse.verify|verify} messages.
+             * @param message PongtownResponse message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encode(message: bayesmech.vision.IPongtownResponse, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Encodes the specified PongtownResponse message, length delimited. Does not implicitly {@link bayesmech.vision.PongtownResponse.verify|verify} messages.
+             * @param message PongtownResponse message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encodeDelimited(message: bayesmech.vision.IPongtownResponse, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Decodes a PongtownResponse message from the specified reader or buffer.
+             * @param reader Reader or buffer to decode from
+             * @param [length] Message length if known beforehand
+             * @returns PongtownResponse
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): bayesmech.vision.PongtownResponse;
+
+            /**
+             * Decodes a PongtownResponse message from the specified reader or buffer, length delimited.
+             * @param reader Reader or buffer to decode from
+             * @returns PongtownResponse
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): bayesmech.vision.PongtownResponse;
+
+            /**
+             * Verifies a PongtownResponse message.
+             * @param message Plain object to verify
+             * @returns `null` if valid, otherwise the reason why it is not
+             */
+            public static verify(message: { [k: string]: any }): (string|null);
+
+            /**
+             * Creates a PongtownResponse message from a plain object. Also converts values to their respective internal types.
+             * @param object Plain object
+             * @returns PongtownResponse
+             */
+            public static fromObject(object: { [k: string]: any }): bayesmech.vision.PongtownResponse;
+
+            /**
+             * Creates a plain object from a PongtownResponse message. Also converts values to other types if specified.
+             * @param message PongtownResponse
+             * @param [options] Conversion options
+             * @returns Plain object
+             */
+            public static toObject(message: bayesmech.vision.PongtownResponse, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+            /**
+             * Converts this PongtownResponse to JSON.
+             * @returns JSON object
+             */
+            public toJSON(): { [k: string]: any };
+
+            /**
+             * Gets the default type url for PongtownResponse
+             * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns The default type url
+             */
+            public static getTypeUrl(typeUrlPrefix?: string): string;
+        }
+
+        namespace PongtownResponse {
+
+            /** Properties of a TablePose. */
+            interface ITablePose {
+
+                /** TablePose method */
+                method?: (bayesmech.vision.PongtownResponse.TablePose.Method|null);
+
+                /** TablePose quadQuality */
+                quadQuality?: (number|null);
+
+                /** TablePose pnpIou */
+                pnpIou?: (number|null);
+
+                /** TablePose quadImg */
+                quadImg?: (number[]|null);
+
+                /** TablePose midlineImg */
+                midlineImg?: (number[]|null);
+
+                /** TablePose TTableToCamera */
+                TTableToCamera?: (number[]|null);
+
+                /** TablePose quadImgGlobal */
+                quadImgGlobal?: (number[]|null);
+
+                /** TablePose globalIou */
+                globalIou?: (number|null);
+            }
+
+            /** Represents a TablePose. */
+            class TablePose implements ITablePose {
+
+                /**
+                 * Constructs a new TablePose.
+                 * @param [properties] Properties to set
+                 */
+                constructor(properties?: bayesmech.vision.PongtownResponse.ITablePose);
+
+                /** TablePose method. */
+                public method: bayesmech.vision.PongtownResponse.TablePose.Method;
+
+                /** TablePose quadQuality. */
+                public quadQuality: number;
+
+                /** TablePose pnpIou. */
+                public pnpIou: number;
+
+                /** TablePose quadImg. */
+                public quadImg: number[];
+
+                /** TablePose midlineImg. */
+                public midlineImg: number[];
+
+                /** TablePose TTableToCamera. */
+                public TTableToCamera: number[];
+
+                /** TablePose quadImgGlobal. */
+                public quadImgGlobal: number[];
+
+                /** TablePose globalIou. */
+                public globalIou: number;
+
+                /**
+                 * Creates a new TablePose instance using the specified properties.
+                 * @param [properties] Properties to set
+                 * @returns TablePose instance
+                 */
+                public static create(properties?: bayesmech.vision.PongtownResponse.ITablePose): bayesmech.vision.PongtownResponse.TablePose;
+
+                /**
+                 * Encodes the specified TablePose message. Does not implicitly {@link bayesmech.vision.PongtownResponse.TablePose.verify|verify} messages.
+                 * @param message TablePose message or plain object to encode
+                 * @param [writer] Writer to encode to
+                 * @returns Writer
+                 */
+                public static encode(message: bayesmech.vision.PongtownResponse.ITablePose, writer?: $protobuf.Writer): $protobuf.Writer;
+
+                /**
+                 * Encodes the specified TablePose message, length delimited. Does not implicitly {@link bayesmech.vision.PongtownResponse.TablePose.verify|verify} messages.
+                 * @param message TablePose message or plain object to encode
+                 * @param [writer] Writer to encode to
+                 * @returns Writer
+                 */
+                public static encodeDelimited(message: bayesmech.vision.PongtownResponse.ITablePose, writer?: $protobuf.Writer): $protobuf.Writer;
+
+                /**
+                 * Decodes a TablePose message from the specified reader or buffer.
+                 * @param reader Reader or buffer to decode from
+                 * @param [length] Message length if known beforehand
+                 * @returns TablePose
+                 * @throws {Error} If the payload is not a reader or valid buffer
+                 * @throws {$protobuf.util.ProtocolError} If required fields are missing
+                 */
+                public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): bayesmech.vision.PongtownResponse.TablePose;
+
+                /**
+                 * Decodes a TablePose message from the specified reader or buffer, length delimited.
+                 * @param reader Reader or buffer to decode from
+                 * @returns TablePose
+                 * @throws {Error} If the payload is not a reader or valid buffer
+                 * @throws {$protobuf.util.ProtocolError} If required fields are missing
+                 */
+                public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): bayesmech.vision.PongtownResponse.TablePose;
+
+                /**
+                 * Verifies a TablePose message.
+                 * @param message Plain object to verify
+                 * @returns `null` if valid, otherwise the reason why it is not
+                 */
+                public static verify(message: { [k: string]: any }): (string|null);
+
+                /**
+                 * Creates a TablePose message from a plain object. Also converts values to their respective internal types.
+                 * @param object Plain object
+                 * @returns TablePose
+                 */
+                public static fromObject(object: { [k: string]: any }): bayesmech.vision.PongtownResponse.TablePose;
+
+                /**
+                 * Creates a plain object from a TablePose message. Also converts values to other types if specified.
+                 * @param message TablePose
+                 * @param [options] Conversion options
+                 * @returns Plain object
+                 */
+                public static toObject(message: bayesmech.vision.PongtownResponse.TablePose, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+                /**
+                 * Converts this TablePose to JSON.
+                 * @returns JSON object
+                 */
+                public toJSON(): { [k: string]: any };
+
+                /**
+                 * Gets the default type url for TablePose
+                 * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+                 * @returns The default type url
+                 */
+                public static getTypeUrl(typeUrlPrefix?: string): string;
+            }
+
+            namespace TablePose {
+
+                /** Method enum. */
+                enum Method {
+                    UNKNOWN = 0,
+                    QUAD_FULL = 1,
+                    QUAD_FROM_MIDLINE = 2,
+                    QUAD_FAILED = 3,
+                    OFF_SCREEN = 4
+                }
+            }
+
+            /** Properties of a PnpFrameDebug. */
+            interface IPnpFrameDebug {
+
+                /** PnpFrameDebug frameIdx */
+                frameIdx?: (number|null);
+
+                /** PnpFrameDebug cameraIntrinsics */
+                cameraIntrinsics?: (bayesmech.vision.ICameraIntrinsics|null);
+
+                /** PnpFrameDebug cameraMatrix */
+                cameraMatrix?: (number[]|null);
+
+                /** PnpFrameDebug imagePlaneMethod */
+                imagePlaneMethod?: (bayesmech.vision.PongtownResponse.TablePose.Method|null);
+
+                /** PnpFrameDebug imagePlaneQuadQuality */
+                imagePlaneQuadQuality?: (number|null);
+
+                /** PnpFrameDebug imagePlaneTableQuadImg */
+                imagePlaneTableQuadImg?: (number[]|null);
+
+                /** PnpFrameDebug imagePlaneHalfTableQuadImg */
+                imagePlaneHalfTableQuadImg?: (number[]|null);
+
+                /** PnpFrameDebug imagePlaneMidlineImg */
+                imagePlaneMidlineImg?: (number[]|null);
+
+                /** PnpFrameDebug imagePlaneNetQuadImg */
+                imagePlaneNetQuadImg?: (number[]|null);
+
+                /** PnpFrameDebug pnpTableSuccess */
+                pnpTableSuccess?: (boolean|null);
+
+                /** PnpFrameDebug pnpTableIou */
+                pnpTableIou?: (number|null);
+
+                /** PnpFrameDebug pnpTableQuadImg */
+                pnpTableQuadImg?: (number[]|null);
+
+                /** PnpFrameDebug pnp_TTableToCamera */
+                pnp_TTableToCamera?: (number[]|null);
+
+                /** PnpFrameDebug pnpNetSuccess */
+                pnpNetSuccess?: (boolean|null);
+
+                /** PnpFrameDebug pnpNetIou */
+                pnpNetIou?: (number|null);
+
+                /** PnpFrameDebug pnpNetQuadImg */
+                pnpNetQuadImg?: (number[]|null);
+
+                /** PnpFrameDebug pnp_TNetToCamera */
+                pnp_TNetToCamera?: (number[]|null);
+
+                /** PnpFrameDebug pnpOverlayNetQuadImg */
+                pnpOverlayNetQuadImg?: (number[]|null);
+            }
+
+            /** Represents a PnpFrameDebug. */
+            class PnpFrameDebug implements IPnpFrameDebug {
+
+                /**
+                 * Constructs a new PnpFrameDebug.
+                 * @param [properties] Properties to set
+                 */
+                constructor(properties?: bayesmech.vision.PongtownResponse.IPnpFrameDebug);
+
+                /** PnpFrameDebug frameIdx. */
+                public frameIdx: number;
+
+                /** PnpFrameDebug cameraIntrinsics. */
+                public cameraIntrinsics?: (bayesmech.vision.ICameraIntrinsics|null);
+
+                /** PnpFrameDebug cameraMatrix. */
+                public cameraMatrix: number[];
+
+                /** PnpFrameDebug imagePlaneMethod. */
+                public imagePlaneMethod: bayesmech.vision.PongtownResponse.TablePose.Method;
+
+                /** PnpFrameDebug imagePlaneQuadQuality. */
+                public imagePlaneQuadQuality: number;
+
+                /** PnpFrameDebug imagePlaneTableQuadImg. */
+                public imagePlaneTableQuadImg: number[];
+
+                /** PnpFrameDebug imagePlaneHalfTableQuadImg. */
+                public imagePlaneHalfTableQuadImg: number[];
+
+                /** PnpFrameDebug imagePlaneMidlineImg. */
+                public imagePlaneMidlineImg: number[];
+
+                /** PnpFrameDebug imagePlaneNetQuadImg. */
+                public imagePlaneNetQuadImg: number[];
+
+                /** PnpFrameDebug pnpTableSuccess. */
+                public pnpTableSuccess: boolean;
+
+                /** PnpFrameDebug pnpTableIou. */
+                public pnpTableIou: number;
+
+                /** PnpFrameDebug pnpTableQuadImg. */
+                public pnpTableQuadImg: number[];
+
+                /** PnpFrameDebug pnp_TTableToCamera. */
+                public pnp_TTableToCamera: number[];
+
+                /** PnpFrameDebug pnpNetSuccess. */
+                public pnpNetSuccess: boolean;
+
+                /** PnpFrameDebug pnpNetIou. */
+                public pnpNetIou: number;
+
+                /** PnpFrameDebug pnpNetQuadImg. */
+                public pnpNetQuadImg: number[];
+
+                /** PnpFrameDebug pnp_TNetToCamera. */
+                public pnp_TNetToCamera: number[];
+
+                /** PnpFrameDebug pnpOverlayNetQuadImg. */
+                public pnpOverlayNetQuadImg: number[];
+
+                /**
+                 * Creates a new PnpFrameDebug instance using the specified properties.
+                 * @param [properties] Properties to set
+                 * @returns PnpFrameDebug instance
+                 */
+                public static create(properties?: bayesmech.vision.PongtownResponse.IPnpFrameDebug): bayesmech.vision.PongtownResponse.PnpFrameDebug;
+
+                /**
+                 * Encodes the specified PnpFrameDebug message. Does not implicitly {@link bayesmech.vision.PongtownResponse.PnpFrameDebug.verify|verify} messages.
+                 * @param message PnpFrameDebug message or plain object to encode
+                 * @param [writer] Writer to encode to
+                 * @returns Writer
+                 */
+                public static encode(message: bayesmech.vision.PongtownResponse.IPnpFrameDebug, writer?: $protobuf.Writer): $protobuf.Writer;
+
+                /**
+                 * Encodes the specified PnpFrameDebug message, length delimited. Does not implicitly {@link bayesmech.vision.PongtownResponse.PnpFrameDebug.verify|verify} messages.
+                 * @param message PnpFrameDebug message or plain object to encode
+                 * @param [writer] Writer to encode to
+                 * @returns Writer
+                 */
+                public static encodeDelimited(message: bayesmech.vision.PongtownResponse.IPnpFrameDebug, writer?: $protobuf.Writer): $protobuf.Writer;
+
+                /**
+                 * Decodes a PnpFrameDebug message from the specified reader or buffer.
+                 * @param reader Reader or buffer to decode from
+                 * @param [length] Message length if known beforehand
+                 * @returns PnpFrameDebug
+                 * @throws {Error} If the payload is not a reader or valid buffer
+                 * @throws {$protobuf.util.ProtocolError} If required fields are missing
+                 */
+                public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): bayesmech.vision.PongtownResponse.PnpFrameDebug;
+
+                /**
+                 * Decodes a PnpFrameDebug message from the specified reader or buffer, length delimited.
+                 * @param reader Reader or buffer to decode from
+                 * @returns PnpFrameDebug
+                 * @throws {Error} If the payload is not a reader or valid buffer
+                 * @throws {$protobuf.util.ProtocolError} If required fields are missing
+                 */
+                public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): bayesmech.vision.PongtownResponse.PnpFrameDebug;
+
+                /**
+                 * Verifies a PnpFrameDebug message.
+                 * @param message Plain object to verify
+                 * @returns `null` if valid, otherwise the reason why it is not
+                 */
+                public static verify(message: { [k: string]: any }): (string|null);
+
+                /**
+                 * Creates a PnpFrameDebug message from a plain object. Also converts values to their respective internal types.
+                 * @param object Plain object
+                 * @returns PnpFrameDebug
+                 */
+                public static fromObject(object: { [k: string]: any }): bayesmech.vision.PongtownResponse.PnpFrameDebug;
+
+                /**
+                 * Creates a plain object from a PnpFrameDebug message. Also converts values to other types if specified.
+                 * @param message PnpFrameDebug
+                 * @param [options] Conversion options
+                 * @returns Plain object
+                 */
+                public static toObject(message: bayesmech.vision.PongtownResponse.PnpFrameDebug, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+                /**
+                 * Converts this PnpFrameDebug to JSON.
+                 * @returns JSON object
+                 */
+                public toJSON(): { [k: string]: any };
+
+                /**
+                 * Gets the default type url for PnpFrameDebug
+                 * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+                 * @returns The default type url
+                 */
+                public static getTypeUrl(typeUrlPrefix?: string): string;
+            }
+
+            /** Properties of a FrameOutput. */
+            interface IFrameOutput {
+
+                /** FrameOutput frameIdx */
+                frameIdx?: (number|null);
+
+                /** FrameOutput hasPose */
+                hasPose?: (boolean|null);
+
+                /** FrameOutput offScreen */
+                offScreen?: (boolean|null);
+
+                /** FrameOutput globalIou */
+                globalIou?: (number|null);
+
+                /** FrameOutput TTableToCamera */
+                TTableToCamera?: (number[]|null);
+
+                /** FrameOutput tableQuadImg */
+                tableQuadImg?: (number[]|null);
+
+                /** FrameOutput netQuadImg */
+                netQuadImg?: (number[]|null);
+
+                /** FrameOutput hasNetPose */
+                hasNetPose?: (boolean|null);
+
+                /** FrameOutput TNetToCamera */
+                TNetToCamera?: (number[]|null);
+            }
+
+            /** Represents a FrameOutput. */
+            class FrameOutput implements IFrameOutput {
+
+                /**
+                 * Constructs a new FrameOutput.
+                 * @param [properties] Properties to set
+                 */
+                constructor(properties?: bayesmech.vision.PongtownResponse.IFrameOutput);
+
+                /** FrameOutput frameIdx. */
+                public frameIdx: number;
+
+                /** FrameOutput hasPose. */
+                public hasPose: boolean;
+
+                /** FrameOutput offScreen. */
+                public offScreen: boolean;
+
+                /** FrameOutput globalIou. */
+                public globalIou: number;
+
+                /** FrameOutput TTableToCamera. */
+                public TTableToCamera: number[];
+
+                /** FrameOutput tableQuadImg. */
+                public tableQuadImg: number[];
+
+                /** FrameOutput netQuadImg. */
+                public netQuadImg: number[];
+
+                /** FrameOutput hasNetPose. */
+                public hasNetPose: boolean;
+
+                /** FrameOutput TNetToCamera. */
+                public TNetToCamera: number[];
+
+                /**
+                 * Creates a new FrameOutput instance using the specified properties.
+                 * @param [properties] Properties to set
+                 * @returns FrameOutput instance
+                 */
+                public static create(properties?: bayesmech.vision.PongtownResponse.IFrameOutput): bayesmech.vision.PongtownResponse.FrameOutput;
+
+                /**
+                 * Encodes the specified FrameOutput message. Does not implicitly {@link bayesmech.vision.PongtownResponse.FrameOutput.verify|verify} messages.
+                 * @param message FrameOutput message or plain object to encode
+                 * @param [writer] Writer to encode to
+                 * @returns Writer
+                 */
+                public static encode(message: bayesmech.vision.PongtownResponse.IFrameOutput, writer?: $protobuf.Writer): $protobuf.Writer;
+
+                /**
+                 * Encodes the specified FrameOutput message, length delimited. Does not implicitly {@link bayesmech.vision.PongtownResponse.FrameOutput.verify|verify} messages.
+                 * @param message FrameOutput message or plain object to encode
+                 * @param [writer] Writer to encode to
+                 * @returns Writer
+                 */
+                public static encodeDelimited(message: bayesmech.vision.PongtownResponse.IFrameOutput, writer?: $protobuf.Writer): $protobuf.Writer;
+
+                /**
+                 * Decodes a FrameOutput message from the specified reader or buffer.
+                 * @param reader Reader or buffer to decode from
+                 * @param [length] Message length if known beforehand
+                 * @returns FrameOutput
+                 * @throws {Error} If the payload is not a reader or valid buffer
+                 * @throws {$protobuf.util.ProtocolError} If required fields are missing
+                 */
+                public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): bayesmech.vision.PongtownResponse.FrameOutput;
+
+                /**
+                 * Decodes a FrameOutput message from the specified reader or buffer, length delimited.
+                 * @param reader Reader or buffer to decode from
+                 * @returns FrameOutput
+                 * @throws {Error} If the payload is not a reader or valid buffer
+                 * @throws {$protobuf.util.ProtocolError} If required fields are missing
+                 */
+                public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): bayesmech.vision.PongtownResponse.FrameOutput;
+
+                /**
+                 * Verifies a FrameOutput message.
+                 * @param message Plain object to verify
+                 * @returns `null` if valid, otherwise the reason why it is not
+                 */
+                public static verify(message: { [k: string]: any }): (string|null);
+
+                /**
+                 * Creates a FrameOutput message from a plain object. Also converts values to their respective internal types.
+                 * @param object Plain object
+                 * @returns FrameOutput
+                 */
+                public static fromObject(object: { [k: string]: any }): bayesmech.vision.PongtownResponse.FrameOutput;
+
+                /**
+                 * Creates a plain object from a FrameOutput message. Also converts values to other types if specified.
+                 * @param message FrameOutput
+                 * @param [options] Conversion options
+                 * @returns Plain object
+                 */
+                public static toObject(message: bayesmech.vision.PongtownResponse.FrameOutput, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+                /**
+                 * Converts this FrameOutput to JSON.
+                 * @returns JSON object
+                 */
+                public toJSON(): { [k: string]: any };
+
+                /**
+                 * Gets the default type url for FrameOutput
+                 * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+                 * @returns The default type url
+                 */
+                public static getTypeUrl(typeUrlPrefix?: string): string;
+            }
+
+            /** Properties of a GlobalTablePose. */
+            interface IGlobalTablePose {
+
+                /** GlobalTablePose hasPose */
+                hasPose?: (boolean|null);
+
+                /** GlobalTablePose TTableToWorld */
+                TTableToWorld?: (number[]|null);
+
+                /** GlobalTablePose refinedCost */
+                refinedCost?: (number|null);
+
+                /** GlobalTablePose framesUsed */
+                framesUsed?: (number|null);
+
+                /** GlobalTablePose meanIou */
+                meanIou?: (number|null);
+
+                /** GlobalTablePose p10Iou */
+                p10Iou?: (number|null);
+
+                /** GlobalTablePose p90Iou */
+                p90Iou?: (number|null);
+
+                /** GlobalTablePose hasNetPose */
+                hasNetPose?: (boolean|null);
+
+                /** GlobalTablePose TNetToWorld */
+                TNetToWorld?: (number[]|null);
+            }
+
+            /** Represents a GlobalTablePose. */
+            class GlobalTablePose implements IGlobalTablePose {
+
+                /**
+                 * Constructs a new GlobalTablePose.
+                 * @param [properties] Properties to set
+                 */
+                constructor(properties?: bayesmech.vision.PongtownResponse.IGlobalTablePose);
+
+                /** GlobalTablePose hasPose. */
+                public hasPose: boolean;
+
+                /** GlobalTablePose TTableToWorld. */
+                public TTableToWorld: number[];
+
+                /** GlobalTablePose refinedCost. */
+                public refinedCost: number;
+
+                /** GlobalTablePose framesUsed. */
+                public framesUsed: number;
+
+                /** GlobalTablePose meanIou. */
+                public meanIou: number;
+
+                /** GlobalTablePose p10Iou. */
+                public p10Iou: number;
+
+                /** GlobalTablePose p90Iou. */
+                public p90Iou: number;
+
+                /** GlobalTablePose hasNetPose. */
+                public hasNetPose: boolean;
+
+                /** GlobalTablePose TNetToWorld. */
+                public TNetToWorld: number[];
+
+                /**
+                 * Creates a new GlobalTablePose instance using the specified properties.
+                 * @param [properties] Properties to set
+                 * @returns GlobalTablePose instance
+                 */
+                public static create(properties?: bayesmech.vision.PongtownResponse.IGlobalTablePose): bayesmech.vision.PongtownResponse.GlobalTablePose;
+
+                /**
+                 * Encodes the specified GlobalTablePose message. Does not implicitly {@link bayesmech.vision.PongtownResponse.GlobalTablePose.verify|verify} messages.
+                 * @param message GlobalTablePose message or plain object to encode
+                 * @param [writer] Writer to encode to
+                 * @returns Writer
+                 */
+                public static encode(message: bayesmech.vision.PongtownResponse.IGlobalTablePose, writer?: $protobuf.Writer): $protobuf.Writer;
+
+                /**
+                 * Encodes the specified GlobalTablePose message, length delimited. Does not implicitly {@link bayesmech.vision.PongtownResponse.GlobalTablePose.verify|verify} messages.
+                 * @param message GlobalTablePose message or plain object to encode
+                 * @param [writer] Writer to encode to
+                 * @returns Writer
+                 */
+                public static encodeDelimited(message: bayesmech.vision.PongtownResponse.IGlobalTablePose, writer?: $protobuf.Writer): $protobuf.Writer;
+
+                /**
+                 * Decodes a GlobalTablePose message from the specified reader or buffer.
+                 * @param reader Reader or buffer to decode from
+                 * @param [length] Message length if known beforehand
+                 * @returns GlobalTablePose
+                 * @throws {Error} If the payload is not a reader or valid buffer
+                 * @throws {$protobuf.util.ProtocolError} If required fields are missing
+                 */
+                public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): bayesmech.vision.PongtownResponse.GlobalTablePose;
+
+                /**
+                 * Decodes a GlobalTablePose message from the specified reader or buffer, length delimited.
+                 * @param reader Reader or buffer to decode from
+                 * @returns GlobalTablePose
+                 * @throws {Error} If the payload is not a reader or valid buffer
+                 * @throws {$protobuf.util.ProtocolError} If required fields are missing
+                 */
+                public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): bayesmech.vision.PongtownResponse.GlobalTablePose;
+
+                /**
+                 * Verifies a GlobalTablePose message.
+                 * @param message Plain object to verify
+                 * @returns `null` if valid, otherwise the reason why it is not
+                 */
+                public static verify(message: { [k: string]: any }): (string|null);
+
+                /**
+                 * Creates a GlobalTablePose message from a plain object. Also converts values to their respective internal types.
+                 * @param object Plain object
+                 * @returns GlobalTablePose
+                 */
+                public static fromObject(object: { [k: string]: any }): bayesmech.vision.PongtownResponse.GlobalTablePose;
+
+                /**
+                 * Creates a plain object from a GlobalTablePose message. Also converts values to other types if specified.
+                 * @param message GlobalTablePose
+                 * @param [options] Conversion options
+                 * @returns Plain object
+                 */
+                public static toObject(message: bayesmech.vision.PongtownResponse.GlobalTablePose, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+                /**
+                 * Converts this GlobalTablePose to JSON.
+                 * @returns JSON object
+                 */
+                public toJSON(): { [k: string]: any };
+
+                /**
+                 * Gets the default type url for GlobalTablePose
+                 * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+                 * @returns The default type url
+                 */
+                public static getTypeUrl(typeUrlPrefix?: string): string;
+            }
+        }
     }
 }

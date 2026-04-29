@@ -22,9 +22,17 @@ sys.path.insert(0, str(_project_root))
 sys.path.insert(0, str(_project_root / "proto"))
 sys.path.insert(0, str(_server_root))
 
+from proto import pongtown_pb2
 from pongtown.iou_scorer import IoUScorer, summarise
 from pongtown.loader import iter_bundles
-from pongtown.pose import PoseResult, canonical_corners_mm, solve_net_pose, solve_table_pose
+from pongtown.pose import (
+    PoseResult,
+    canonical_corners_mm,
+    canonical_net_local_mm,
+    canonical_net_strip_mm,
+    solve_net_pose,
+    solve_table_pose,
+)
 from pongtown.quad_fit import (
     METHOD_QUAD_FAILED,
     fit_net_quadrilateral,
@@ -35,9 +43,11 @@ from pongtown.render import (
     render_pose_panel,
     render_stage1_panel,
 )
+from streamlog.protoio import ProtoIO
 
 
 log = logging.getLogger("pongtown")
+_pong_io = ProtoIO(pongtown_pb2.PongtownResponse)
 
 
 def parse_args() -> argparse.Namespace:
@@ -63,6 +73,227 @@ def _debug_dir(vis: Path) -> Path:
 def _pongtown_pb_path(vis: Path) -> Path:
     stem = vis.name.removesuffix(".vis.pb")
     return vis.parent / f"{stem}.pongtown.pb"
+
+
+def _flatten(arr: np.ndarray | None) -> list[float]:
+    if arr is None:
+        return []
+    return [float(v) for v in np.asarray(arr).reshape(-1)]
+
+
+def _extend_floats(field, arr: np.ndarray | None) -> None:
+    vals = _flatten(arr)
+    if vals:
+        field.extend(vals)
+
+
+def _copy_frame_identifier(resp: pongtown_pb2.PongtownResponse, bundle) -> None:
+    if bundle.raw_frame is not None:
+        resp.frame_identifier.CopyFrom(bundle.raw_frame.frame_identifier)
+    resp.frame_identifier.frame_number = int(bundle.frame_number)
+    if resp.frame_identifier.timestamp_ns == 0:
+        resp.frame_identifier.timestamp_ns = int(bundle.timestamp_ns)
+
+
+def _fill_intrinsics(msg, K: np.ndarray, image_shape: tuple[int, int]) -> None:
+    h, w = image_shape
+    msg.fx = float(K[0, 0])
+    msg.fy = float(K[1, 1])
+    msg.cx = float(K[0, 2])
+    msg.cy = float(K[1, 2])
+    msg.image_width = float(w)
+    msg.image_height = float(h)
+
+
+def _project_points(
+    points_mm: np.ndarray,
+    rvec: np.ndarray | None,
+    tvec: np.ndarray | None,
+    K: np.ndarray,
+) -> np.ndarray | None:
+    if rvec is None or tvec is None:
+        return None
+    proj, _ = cv2.projectPoints(points_mm, rvec, tvec, K, None)
+    return proj.reshape(-1, 2)
+
+
+def _project_pose_quad(
+    result: PoseResult,
+    points_mm: np.ndarray,
+    K: np.ndarray,
+) -> np.ndarray | None:
+    if not result.success:
+        return None
+    return _project_points(points_mm, result.rvec, result.tvec, K)
+
+
+def _net_points_local(cfg: dict) -> np.ndarray:
+    t_cfg = cfg["table"]
+    width = float(t_cfg["height_mm"]) + 2.0 * float(t_cfg["net_overhang_mm"])
+    return canonical_net_local_mm(width, float(t_cfg["net_height_mm"]))
+
+
+def _net_points_table(cfg: dict) -> np.ndarray:
+    t_cfg = cfg["table"]
+    width = float(t_cfg["height_mm"]) + 2.0 * float(t_cfg["net_overhang_mm"])
+    return canonical_net_strip_mm(width, float(t_cfg["net_height_mm"]))
+
+
+def _stage2_table_quad(result: dict, cfg: dict) -> np.ndarray | None:
+    cached = result.get("quad_pnp")
+    if cached is not None:
+        return cached
+    b = result["bundle"]
+    P = canonical_corners_mm(cfg["table"]["width_mm"], cfg["table"]["height_mm"])
+    return _project_pose_quad(result["pres"], P, b.intrinsics)
+
+
+def _stage2_net_quad(result: dict, cfg: dict) -> np.ndarray | None:
+    cached = result.get("quad_net_pnp")
+    if cached is not None:
+        return cached
+    b = result["bundle"]
+    return _project_pose_quad(result["nres"], _net_points_local(cfg), b.intrinsics)
+
+
+def _stage2_overlay_net_quad(result: dict, cfg: dict) -> np.ndarray | None:
+    cached = result.get("quad_net_overlay_pnp")
+    if cached is not None:
+        return cached
+    b = result["bundle"]
+    net_quad = _stage2_net_quad(result, cfg)
+    if net_quad is not None:
+        return net_quad
+    return _project_pose_quad(result["pres"], _net_points_table(cfg), b.intrinsics)
+
+
+def _is_off_screen(quad: np.ndarray | None, image_shape: tuple[int, int]) -> bool:
+    if quad is None:
+        return False
+    h, w = image_shape
+    return bool(
+        (quad[:, 0] < 0).all()
+        or (quad[:, 0] >= w).all()
+        or (quad[:, 1] < 0).all()
+        or (quad[:, 1] >= h).all()
+    )
+
+
+def _populate_pnp_debug(resp: pongtown_pb2.PongtownResponse, result: dict, cfg: dict) -> None:
+    b = result["bundle"]
+    qres = result["qres"]
+    pres = result["pres"]
+    nres = result["nres"]
+
+    dbg = resp.pnp_frame_debug.add()
+    dbg.frame_idx = int(b.frame_idx)
+    _fill_intrinsics(dbg.camera_intrinsics, b.intrinsics, b.rgb.shape[:2])
+    _extend_floats(dbg.camera_matrix, b.intrinsics)
+
+    dbg.image_plane_method = int(qres.method)
+    dbg.image_plane_quad_quality = float(qres.quality)
+    _extend_floats(dbg.image_plane_table_quad_img, qres.quad_img)
+    _extend_floats(dbg.image_plane_half_table_quad_img, qres.half_quad_img)
+    _extend_floats(dbg.image_plane_midline_img, qres.midline_img)
+    _extend_floats(dbg.image_plane_net_quad_img, result["net_quad_img"])
+
+    dbg.pnp_table_success = bool(pres.success)
+    dbg.pnp_table_iou = float(pres.pnp_iou)
+    _extend_floats(dbg.pnp_table_quad_img, _stage2_table_quad(result, cfg))
+    _extend_floats(dbg.pnp_T_table_to_camera, pres.T_table_to_camera)
+
+    dbg.pnp_net_success = bool(nres.success)
+    dbg.pnp_net_iou = float(nres.pnp_iou)
+    _extend_floats(dbg.pnp_net_quad_img, _stage2_net_quad(result, cfg))
+    _extend_floats(dbg.pnp_T_net_to_camera, nres.T_table_to_camera)
+    _extend_floats(dbg.pnp_overlay_net_quad_img, _stage2_overlay_net_quad(result, cfg))
+
+
+def _write_pongtown_pb(
+    out_path: Path,
+    results: list[dict],
+    cfg: dict,
+    *,
+    T_global_world: np.ndarray | None,
+    T_global_net_world: np.ndarray | None,
+    frames_used: int,
+    refined_cost: float = 0.0,
+) -> None:
+    if out_path.exists():
+        out_path.unlink()
+
+    batch: list[pongtown_pb2.PongtownResponse] = []
+    for result in results:
+        b = result["bundle"]
+        qres = result["qres"]
+        pres = result["pres"]
+        rec = pongtown_pb2.PongtownResponse()
+        _copy_frame_identifier(rec, b)
+
+        tp = rec.table_pose
+        final_off_screen = bool(result.get("final_off_screen", False))
+        tp.method = (
+            pongtown_pb2.PongtownResponse.TablePose.OFF_SCREEN
+            if final_off_screen
+            else int(qres.method)
+        )
+        tp.quad_quality = float(qres.quality)
+        tp.pnp_iou = float(pres.pnp_iou)
+        _extend_floats(tp.quad_img, qres.quad_img)
+        _extend_floats(tp.midline_img, qres.midline_img)
+        _extend_floats(tp.T_table_to_camera, pres.T_table_to_camera)
+        _extend_floats(tp.quad_img_global, result.get("quad_global"))
+        if "final_score" in result:
+            tp.global_iou = float(result["final_score"].iou)
+
+        _populate_pnp_debug(rec, result, cfg)
+
+        out = rec.frame_output
+        out.frame_idx = int(b.frame_idx)
+        out.has_pose = result.get("T_final_table_to_camera") is not None
+        out.off_screen = final_off_screen
+        if "final_score" in result:
+            out.global_iou = float(result["final_score"].iou)
+        _extend_floats(out.T_table_to_camera, result.get("T_final_table_to_camera"))
+        _extend_floats(out.table_quad_img, result.get("quad_global"))
+        _extend_floats(out.net_quad_img, result.get("quad_net_global"))
+        out.has_net_pose = result.get("T_final_net_to_camera") is not None
+        _extend_floats(out.T_net_to_camera, result.get("T_final_net_to_camera"))
+
+        batch.append(rec)
+        if len(batch) >= 50:
+            _pong_io.write_file(out_path, batch)
+            batch.clear()
+
+    if batch:
+        _pong_io.write_file(out_path, batch)
+
+    summary = pongtown_pb2.PongtownResponse()
+    summary.global_table_pose.has_pose = T_global_world is not None
+    _extend_floats(summary.global_table_pose.T_table_to_world, T_global_world)
+    summary.global_table_pose.refined_cost = float(refined_cost)
+    summary.global_table_pose.frames_used = int(frames_used)
+
+    ious = np.array(
+        [
+            float(r["final_score"].iou)
+            for r in results
+            if "final_score" in r and r["final_score"].target_pixels > 0
+        ],
+        dtype=np.float64,
+    )
+    if ious.size:
+        summary.global_table_pose.mean_iou = float(ious.mean())
+        summary.global_table_pose.p10_iou = float(np.percentile(ious, 10))
+        summary.global_table_pose.p90_iou = float(np.percentile(ious, 90))
+    summary.global_table_pose.has_net_pose = T_global_net_world is not None
+    _extend_floats(summary.global_table_pose.T_net_to_world, T_global_net_world)
+
+    summary.table_width_mm = float(cfg["table"]["width_mm"])
+    summary.table_height_mm = float(cfg["table"]["height_mm"])
+    summary.net_overhang_mm = float(cfg["table"]["net_overhang_mm"])
+    summary.net_height_mm = float(cfg["table"]["net_height_mm"])
+    _pong_io.write_file(out_path, [summary])
 
 
 def _lift_to_world(T_table_to_camera: np.ndarray, T_camera_to_world: np.ndarray) -> np.ndarray:
@@ -317,82 +548,86 @@ def main() -> None:
         if args.stop_after == 2:
             return
 
-    # ── Stage 3: weighted RANSAC over per-frame poses lifted to world ────────
-    # Select top 10% of valid frames by Stage 2 PnP IoU.  Using pnp_iou as
-    # the filter (not Stage 1 quality) ensures RANSAC sees only frames where
-    # the per-frame pose is actually good, not just frames where the quad fit
-    # was good.
-    top_pct = float(cfg.get("world", {}).get("ransac_top_pct", 0.10))
-    iou_thresh = float(np.percentile([r["pres"].pnp_iou for r in valid], 100 * (1 - top_pct)))
-    eligible = [r for r in valid if r["pres"].pnp_iou >= iou_thresh]
-    if not eligible:
-        log.warning("No frames in top %.0f%% IoU; falling back to all valid", top_pct * 100)
-        eligible = valid
-    log.info(
-        "Stage 3 candidates: %d / %d frames in top %.0f%% by PnP IoU (thresh=%.3f)",
-        len(eligible), len(valid), top_pct * 100, iou_thresh,
-    )
-    poses_T = []
-    weights = []
-    for r in eligible:
-        T_world = _lift_to_world(r["pres"].T_table_to_camera, r["bundle"].T_camera_to_world)
-        poses_T.append(T_world)
-        weights.append(0.5 * r["qres"].quality + 0.5 * r["pres"].pnp_iou)
-    poses_T = np.stack(poses_T, axis=0)
-    weights = np.array(weights)
-    if poses_T.shape[0] == 0:
-        log.warning("No valid poses for Stage 3")
-        return
-
-    T_global_world, inlier_mask = _weighted_ransac_pose(
-        poses_T, weights,
-        pos_inlier_thresh_m=cfg.get("world", {}).get("ransac_pos_inlier_m", 0.20),
-        rot_inlier_thresh_rad=math.radians(
-            cfg.get("world", {}).get("ransac_yaw_inlier_deg", 8.0)
-        ),
-    )
-
-    # ── Stage 3 net: independent RANSAC over per-frame net poses ─────────────
-    net_valid = [r for r in results if r["nres"].success]
     T_global_net_world: np.ndarray | None = None
-    if net_valid:
-        net_iou_thresh = float(
-            np.percentile([r["nres"].pnp_iou for r in net_valid], 100 * (1 - top_pct))
+    T_global_world: np.ndarray | None = None
+    inlier_mask = np.zeros(0, dtype=bool)
+
+    if not valid:
+        log.warning("No valid Stage 2 poses; writing Pongtown proto with Stage 1/2 debug only")
+    else:
+        # ── Final global pose: weighted RANSAC over per-frame poses ─────────
+        # Select top frames by Stage 2 PnP IoU.  Using pnp_iou as the filter
+        # ensures RANSAC sees only frames where the per-frame pose is good, not
+        # just frames where the Stage 1 quad fit looked plausible.
+        top_pct = float(cfg.get("world", {}).get("ransac_top_pct", 0.10))
+        iou_thresh = float(
+            np.percentile([r["pres"].pnp_iou for r in valid], 100 * (1 - top_pct))
         )
-        net_eligible = [r for r in net_valid if r["nres"].pnp_iou >= net_iou_thresh]
-        if not net_eligible:
-            net_eligible = net_valid
+        eligible = [r for r in valid if r["pres"].pnp_iou >= iou_thresh]
+        if not eligible:
+            log.warning("No frames in top %.0f%% IoU; falling back to all valid", top_pct * 100)
+            eligible = valid
         log.info(
-            "Stage 3 net candidates: %d / %d frames in top %.0f%% by net IoU (thresh=%.3f)",
-            len(net_eligible), len(net_valid), top_pct * 100, net_iou_thresh,
+            "Final pose candidates: %d / %d frames in top %.0f%% by PnP IoU (thresh=%.3f)",
+            len(eligible), len(valid), top_pct * 100, iou_thresh,
         )
-        net_poses_T = np.stack(
-            [_lift_to_world(r["nres"].T_table_to_camera, r["bundle"].T_camera_to_world)
-             for r in net_eligible], axis=0,
-        )
-        net_weights = np.array([r["nres"].pnp_iou for r in net_eligible])
-        net_weights = np.where(net_weights > 0, net_weights, 1.0)
-        T_global_net_world, net_inlier_mask = _weighted_ransac_pose(
-            net_poses_T, net_weights,
+        poses_T = []
+        weights = []
+        for r in eligible:
+            T_world = _lift_to_world(r["pres"].T_table_to_camera, r["bundle"].T_camera_to_world)
+            poses_T.append(T_world)
+            weights.append(0.5 * r["qres"].quality + 0.5 * r["pres"].pnp_iou)
+        poses_T = np.stack(poses_T, axis=0)
+        weights = np.array(weights)
+
+        T_global_world, inlier_mask = _weighted_ransac_pose(
+            poses_T, weights,
             pos_inlier_thresh_m=cfg.get("world", {}).get("ransac_pos_inlier_m", 0.20),
             rot_inlier_thresh_rad=math.radians(
                 cfg.get("world", {}).get("ransac_yaw_inlier_deg", 8.0)
             ),
         )
-        t_net = T_global_net_world[:3, 3]
+        t = T_global_world[:3, 3]
         log.info(
-            "Stage 3 net RANSAC: inliers %d/%d, t=(%.3f, %.3f, %.3f) m",
-            int(net_inlier_mask.sum()), len(net_inlier_mask),
-            t_net[0] / 1000, t_net[1] / 1000, t_net[2] / 1000,
+            "Final pose RANSAC: inliers %d/%d, t=(%.3f, %.3f, %.3f) m",
+            int(inlier_mask.sum()), len(inlier_mask),
+            t[0] / 1000, t[1] / 1000, t[2] / 1000,
         )
-    else:
-        log.warning("Stage 3 net: no valid net poses, net rectangle will use table pose fallback")
-    t = T_global_world[:3, 3]
-    log.info(
-        "Stage 3 RANSAC: inliers %d/%d, t=(%.3f, %.3f, %.3f) m",
-        int(inlier_mask.sum()), len(inlier_mask),
-        t[0] / 1000, t[1] / 1000, t[2] / 1000,
-    )
+
+        # ── Final net pose: independent RANSAC over per-frame net poses ─────
+        net_valid = [r for r in results if r["nres"].success]
+        if net_valid:
+            net_iou_thresh = float(
+                np.percentile([r["nres"].pnp_iou for r in net_valid], 100 * (1 - top_pct))
+            )
+            net_eligible = [r for r in net_valid if r["nres"].pnp_iou >= net_iou_thresh]
+            if not net_eligible:
+                net_eligible = net_valid
+            log.info(
+                "Final net candidates: %d / %d frames in top %.0f%% by net IoU (thresh=%.3f)",
+                len(net_eligible), len(net_valid), top_pct * 100, net_iou_thresh,
+            )
+            net_poses_T = np.stack(
+                [_lift_to_world(r["nres"].T_table_to_camera, r["bundle"].T_camera_to_world)
+                 for r in net_eligible], axis=0,
+            )
+            net_weights = np.array([r["nres"].pnp_iou for r in net_eligible])
+            net_weights = np.where(net_weights > 0, net_weights, 1.0)
+            T_global_net_world, net_inlier_mask = _weighted_ransac_pose(
+                net_poses_T, net_weights,
+                pos_inlier_thresh_m=cfg.get("world", {}).get("ransac_pos_inlier_m", 0.20),
+                rot_inlier_thresh_rad=math.radians(
+                    cfg.get("world", {}).get("ransac_yaw_inlier_deg", 8.0)
+                ),
+            )
+            t_net = T_global_net_world[:3, 3]
+            log.info(
+                "Final net RANSAC: inliers %d/%d, t=(%.3f, %.3f, %.3f) m",
+                int(net_inlier_mask.sum()), len(net_inlier_mask),
+                t_net[0] / 1000, t_net[1] / 1000, t_net[2] / 1000,
+            )
+        else:
+            log.warning("Final net pose: no valid net poses, net rectangle will use table pose fallback")
 
     # Reproject the global pose into every frame, score IoU, optionally render.
     scorer = IoUScorer()
@@ -401,7 +636,7 @@ def main() -> None:
     )
     stage1_scores = []
     stage2_scores = []
-    stage3_scores = []
+    final_scores = []
     for r in results:
         b = r["bundle"]
         # Stage 1: the detected/extended quad in image space.
@@ -413,13 +648,10 @@ def main() -> None:
         )
         stage1_scores.append(s1)
         # Stage 2: reproject canonical rect from this frame's PnP pose.
-        if r["pres"].success:
-            proj_c2, _ = cv2.projectPoints(
-                P_corners_mm, r["pres"].rvec, r["pres"].tvec, b.intrinsics, None
-            )
-            quad_pnp = proj_c2.reshape(-1, 2)
-        else:
-            quad_pnp = None
+        quad_pnp = _stage2_table_quad(r, cfg)
+        r["quad_pnp"] = quad_pnp
+        r["quad_net_pnp"] = _stage2_net_quad(r, cfg)
+        r["quad_net_overlay_pnp"] = _stage2_overlay_net_quad(r, cfg)
         s2 = scorer.score(
             quad_img=quad_pnp,
             image_shape=b.rgb.shape[:2],
@@ -427,7 +659,23 @@ def main() -> None:
             person_mask=b.person_mask, bat_mask=b.bat_mask,
         )
         stage2_scores.append(s2)
-        # Stage 3: reproject canonical rect from the global pose.
+        r["stage1_score"] = s1
+        r["stage2_score"] = s2
+
+        if T_global_world is None:
+            score = scorer.score(
+                quad_img=None,
+                image_shape=b.rgb.shape[:2],
+                table_top_mask=b.table_top_mask,
+                net_mask=b.net_mask,
+                person_mask=b.person_mask,
+                bat_mask=b.bat_mask,
+            )
+            final_scores.append(score)
+            r["final_score"] = score
+            continue
+
+        # Final output: reproject canonical rect from the global pose.
         T_camera_to_world = b.T_camera_to_world
         T_world_to_camera = np.linalg.inv(T_camera_to_world)
         T_table_to_camera = T_world_to_camera @ T_global_world
@@ -444,7 +692,28 @@ def main() -> None:
             person_mask=b.person_mask,
             bat_mask=b.bat_mask,
         )
-        stage3_scores.append(score)
+        final_scores.append(score)
+        r["T_final_table_to_camera"] = T_table_to_camera
+        r["quad_global"] = quad_global
+        r["final_score"] = score
+        r["final_off_screen"] = _is_off_screen(quad_global, b.rgb.shape[:2])
+
+        # Global net pose projected back to this frame's camera. If the
+        # independent net pose is unavailable, match the renderer fallback by
+        # projecting the canonical net strip from the global table pose.
+        net_rv_s3 = net_tv_s3 = None
+        if T_global_net_world is not None:
+            T_net_cam = T_world_to_camera @ T_global_net_world
+            r["T_final_net_to_camera"] = T_net_cam
+            net_rv_s3, _ = cv2.Rodrigues(T_net_cam[:3, :3])
+            net_tv_s3 = T_net_cam[:3, 3]
+            r["quad_net_global"] = _project_points(
+                _net_points_local(cfg), net_rv_s3, net_tv_s3, b.intrinsics
+            )
+        else:
+            r["quad_net_global"] = _project_points(
+                _net_points_table(cfg), rv, tv, b.intrinsics
+            )
 
         if not (debug and odir is not None and (b.frame_idx % every) == 0):
             continue
@@ -454,15 +723,9 @@ def main() -> None:
             "net": b.net_mask,
             "person": b.person_mask,
         }
-        # Global net pose projected back to this frame's camera.
-        net_rv_s3 = net_tv_s3 = None
-        if T_global_net_world is not None:
-            T_net_cam = T_world_to_camera @ T_global_net_world
-            net_rv_s3, _ = cv2.Rodrigues(T_net_cam[:3, :3])
-            net_tv_s3 = T_net_cam[:3, 3]
-        stage3 = render_pose_panel(
+        final_panel = render_pose_panel(
             b.rgb, rv, tv, b.intrinsics, score.iou,
-            f"f{b.frame_idx} stage3 global",
+            f"f{b.frame_idx} final global",
             mask_overlays=mask_overlay,
             quad_thickness=3,
             net_rvec=net_rv_s3, net_tvec=net_tv_s3,
@@ -482,14 +745,14 @@ def main() -> None:
         )
         cv2.imwrite(
             str(odir / f"frame_{b.frame_idx:06d}.png"),
-            montage([stage1, stage2, stage3]),
+            montage([stage1, stage2, final_panel]),
         )
 
     # ── Final stats ──────────────────────────────────────────────────────────
     for label, scores in (
         ("Stage 1", stage1_scores),
         ("Stage 2", stage2_scores),
-        ("Stage 3", stage3_scores),
+        ("Final", final_scores),
     ):
         s = summarise(scores)
         if s.get("n", 0) == 0:
@@ -501,6 +764,17 @@ def main() -> None:
         )
         deciles = " ".join(f"p{q}={s[f'p{q}']:.3f}" for q in range(10, 100, 10))
         log.info("%s IoU deciles: %s", label, deciles)
+
+    out_pb = _pongtown_pb_path(vis_path)
+    _write_pongtown_pb(
+        out_pb,
+        results,
+        cfg,
+        T_global_world=T_global_world,
+        T_global_net_world=T_global_net_world,
+        frames_used=int(inlier_mask.sum()),
+    )
+    log.info("Wrote %s (%d frames + 1 summary)", out_pb.name, len(results))
 
 
 if __name__ == "__main__":

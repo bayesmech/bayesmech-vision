@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useRef, useCallb
 import type {
   ConnectionStatus, DecodedFrame, DecodedAnnotation, CoverageStats,
   TrajectoryPoint, CameraPose, CameraIntrinsics, ImuData, Vec3, SensorFrameData,
-  DecodedMask,
+  DecodedMask, PongtownFrameRecord,
 } from '../types'
 import { dashboardWs } from '../services/websocket'
 import { fetchIdoSlam, startPlayback, switchToLive as apiSwitchToLive } from '../services/api'
@@ -16,6 +16,12 @@ import { bayesmech } from '../proto/bundle'
 const ImageFormat = bayesmech.vision.ImageFrame.ImageFormat
 
 const DepthFormat = bayesmech.vision.DepthFrame.DepthFormat
+
+const numberFromLong = (value: number | { toNumber?: () => number } | null | undefined): number => {
+  if (typeof value === 'number') return value
+  if (value && typeof value.toNumber === 'function') return value.toNumber()
+  return Number(value ?? 0)
+}
 
 class FrameDecoder {
   private cachedIntrinsics: CameraIntrinsics | null = null
@@ -479,6 +485,65 @@ class AnnotationBuffer {
 }
 
 // =====================================================================
+// Pongtown buffer — ring buffer keyed by frame_number
+// =====================================================================
+
+const PONGTOWN_BUFFER_CAPACITY = 500
+
+class PongtownBuffer {
+  private records = new Map<number, PongtownFrameRecord>()
+  private insertionOrder: number[] = []
+  readonly capacity: number
+
+  constructor(capacity = PONGTOWN_BUFFER_CAPACITY) {
+    this.capacity = capacity
+  }
+
+  set(record: PongtownFrameRecord): void {
+    const key = record.frameNumber
+    if (this.records.has(key)) {
+      this.records.set(key, record)
+      return
+    }
+    if (this.insertionOrder.length >= this.capacity) {
+      const oldest = this.insertionOrder.shift()!
+      this.records.delete(oldest)
+    }
+    this.insertionOrder.push(key)
+    this.records.set(key, record)
+  }
+
+  get(frameNumber: number): PongtownFrameRecord | null {
+    return this.records.get(frameNumber) ?? null
+  }
+
+  has(frameNumber: number): boolean {
+    return this.records.has(frameNumber)
+  }
+
+  destroy(): void {
+    this.records.clear()
+    this.insertionOrder = []
+  }
+}
+
+const decodePongtownFrameRecord = (
+  proto: bayesmech.vision.PongtownResponse,
+  fallbackIndex: number,
+): PongtownFrameRecord | null => {
+  if (!proto.frameIdentifier) return null
+  const debug = proto.pnpFrameDebug?.[0]
+  const output = proto.frameOutput
+  const frameIndex = debug?.frameIdx ?? output?.frameIdx ?? fallbackIndex
+  return {
+    frameIndex,
+    frameNumber: proto.frameIdentifier.frameNumber ?? frameIndex,
+    timestampNs: numberFromLong(proto.frameIdentifier.timestampNs),
+    record: proto,
+  }
+}
+
+// =====================================================================
 // Coverage tracker — rolling window of frame signal presence
 // =====================================================================
 
@@ -558,6 +623,7 @@ interface DashboardState {
   connectionStatus: ConnectionStatus
   displayedFrame: DecodedFrame | null
   displayedAnnotation: DecodedAnnotation | null
+  displayedPongtownFrame: PongtownFrameRecord | null
   frameCount: number
   fps: number
   coverageStats: CoverageStats
@@ -575,8 +641,10 @@ interface DashboardState {
   // Buffer access
   getFrame: (frameNumber: number) => DecodedFrame | null
   getAnnotation: (frameNumber: number) => DecodedAnnotation | null
+  getPongtownFrame: (frameNumber: number) => PongtownFrameRecord | null
   requestFrame: (frameNumber: number) => void
   requestAnnotation: (frameNumber: number) => void
+  requestPongtownFrame: (frameNumber: number) => void
   // Playback
   currentIndex: number
   totalFrames: number
@@ -599,6 +667,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('Disconnected')
   const [displayedFrame, setDisplayedFrame] = useState<DecodedFrame | null>(null)
   const [displayedAnnotation, setDisplayedAnnotation] = useState<DecodedAnnotation | null>(null)
+  const [displayedPongtownFrame, setDisplayedPongtownFrame] = useState<PongtownFrameRecord | null>(null)
   const [frameCount, setFrameCount] = useState(0)
   const [fps, setFps] = useState(0)
   const [isLive, setIsLive] = useState(false)
@@ -626,6 +695,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const frameTimestamps = useRef<number[]>([])
   const frameBuffer = useRef(new FrameBuffer())
   const annotationBuffer = useRef(new AnnotationBuffer())
+  const pongtownBuffer = useRef(new PongtownBuffer())
   const decoder = useRef(new FrameDecoder())
   const coverageTracker = useRef(new CoverageTracker())
 
@@ -651,8 +721,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     if (frame) {
       const ann = annotationBuffer.current.get(frame.frame_number)
       setDisplayedAnnotation(ann)
+      setDisplayedPongtownFrame(pongtownBuffer.current.get(frame.frame_number))
     } else {
       setDisplayedAnnotation(null)
+      setDisplayedPongtownFrame(null)
     }
   }, [])
 
@@ -724,6 +796,17 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   }, [])
 
+  const handlePongtownRecords = useCallback((records: bayesmech.vision.PongtownResponse[]) => {
+    records.forEach((proto, index) => {
+      const record = decodePongtownFrameRecord(proto, index)
+      if (record) pongtownBuffer.current.set(record)
+    })
+    const current = displayedFrameRef.current
+    if (current) {
+      setDisplayedPongtownFrame(pongtownBuffer.current.get(current.frame_number))
+    }
+  }, [])
+
   const handleStats = useCallback((stats: Record<string, unknown>) => {
     const bf = stats.buffered_frames as number | undefined
     const rfps = stats.recording_fps as number | undefined
@@ -764,6 +847,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     return annotationBuffer.current.get(frameNumber)
   }, [])
 
+  const getPongtownFrame = useCallback((frameNumber: number): PongtownFrameRecord | null => {
+    return pongtownBuffer.current.get(frameNumber)
+  }, [])
+
   const requestFrame = useCallback((frameNumber: number): void => {
     if (!frameBuffer.current.has(frameNumber)) {
       dashboardWs.seek(frameNumber, frameNumber + 1)
@@ -773,6 +860,12 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const requestAnnotation = useCallback((frameNumber: number): void => {
     if (!annotationBuffer.current.has(frameNumber)) {
       dashboardWs.getAnnotationForFrame(frameNumber)
+    }
+  }, [])
+
+  const requestPongtownFrame = useCallback((frameNumber: number): void => {
+    if (!pongtownBuffer.current.has(frameNumber)) {
+      dashboardWs.getPongtownForFrame(frameNumber)
     }
   }, [])
 
@@ -830,6 +923,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     frameBuffer.current = new FrameBuffer()
     annotationBuffer.current.destroy()
     annotationBuffer.current = new AnnotationBuffer()
+    pongtownBuffer.current.destroy()
+    pongtownBuffer.current = new PongtownBuffer()
     coverageTracker.current.destroy()
     coverageTracker.current = new CoverageTracker()
     frameCountRef.current = 0
@@ -843,6 +938,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setFps(0)
     setDisplayedFrame(null)
     setDisplayedAnnotation(null)
+    setDisplayedPongtownFrame(null)
     setTrajectoryPositions([])
     setFirstTimestampNs(0)
     setLastTimestampNs(0)
@@ -881,6 +977,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     frameBuffer.current = new FrameBuffer()
     annotationBuffer.current.destroy()
     annotationBuffer.current = new AnnotationBuffer()
+    pongtownBuffer.current.destroy()
+    pongtownBuffer.current = new PongtownBuffer()
     coverageTracker.current.destroy()
     coverageTracker.current = new CoverageTracker()
     frameCountRef.current = 0
@@ -894,6 +992,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setFps(0)
     setDisplayedFrame(null)
     setDisplayedAnnotation(null)
+    setDisplayedPongtownFrame(null)
     setTrajectoryPositions([])
     setFirstTimestampNs(0)
     setLastTimestampNs(0)
@@ -960,6 +1059,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     dashboardWs.connect()
     const unsubFrames = dashboardWs.addFrameListener(handleFrames)
     const unsubAnnotations = dashboardWs.addAnnotationListener(handleAnnotations)
+    const unsubPongtown = dashboardWs.addPongtownListener(handlePongtownRecords)
     const unsubStatus = dashboardWs.addStatusListener(setConnectionStatus)
     const unsubStats = dashboardWs.addStatsListener(handleStats)
     const unsubTrajectory = dashboardWs.addTrajectoryListener(handleTrajectory)
@@ -970,6 +1070,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     return () => {
       unsubFrames()
       unsubAnnotations()
+      unsubPongtown()
       unsubStatus()
       unsubStats()
       unsubTrajectory()
@@ -977,17 +1078,18 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       dashboardWs.disconnect()
       frameBuffer.current.destroy()
       annotationBuffer.current.destroy()
+      pongtownBuffer.current.destroy()
       coverageTracker.current.destroy()
       if (playIntervalRef.current) clearInterval(playIntervalRef.current)
     }
-  }, [handleFrames, handleAnnotations, handleStats, handleTrajectory, handleSensorData])
+  }, [handleFrames, handleAnnotations, handlePongtownRecords, handleStats, handleTrajectory, handleSensorData])
 
   return (
     <DashboardContext.Provider value={{
-      connectionStatus, displayedFrame, displayedAnnotation, frameCount, fps, coverageStats,
+      connectionStatus, displayedFrame, displayedAnnotation, displayedPongtownFrame, frameCount, fps, coverageStats,
       isLive, currentRecordingName, trajectoryPositions, firstTimestampNs, lastTimestampNs, sensorData,
       idoslamData, idoslamError,
-      getFrame, getAnnotation, requestFrame, requestAnnotation,
+      getFrame, getAnnotation, getPongtownFrame, requestFrame, requestAnnotation, requestPongtownFrame,
       currentIndex, totalFrames, isPlaying, serverFps,
       play, pause, seekTo, skipForward, skipBackward, loadRecording, switchToLive,
     }}>

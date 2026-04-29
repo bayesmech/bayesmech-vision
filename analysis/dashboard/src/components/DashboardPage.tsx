@@ -10,6 +10,7 @@ import GpsMapViewer from './GpsMapViewer'
 import CoveragePanel from './CoveragePanel'
 import MotioncapPanel from './MotioncapPanel'
 import LocalizationMappingTab from './LocalizationMappingTab'
+import SportUnderstandingPanel from './SportUnderstandingPanel'
 import type { GpsLocation, ImuData, SegmentationLegendEntry, SensorFrameData } from '../types'
 
 const XYZ = ['X', 'Y', 'Z']
@@ -17,6 +18,7 @@ const XYZ = ['X', 'Y', 'Z']
 type DashboardTabId =
   | 'segmentation'
   | 'motion-capture'
+  | 'sport-understanding'
   | 'sensors'
   | 'localization-mapping'
 
@@ -39,15 +41,21 @@ const DASHBOARD_TABS: {
     description: 'Review motion heatmaps and tracked object paths without on-frame labels.',
   },
   {
+    id: 'sport-understanding',
+    label: 'Sport Understanding',
+    shortcut: '3',
+    description: 'Inspect table surface pose overlays from Pongtown.',
+  },
+  {
     id: 'sensors',
     label: 'Sensor Data',
-    shortcut: '3',
+    shortcut: '4',
     description: 'Inspect IMU streams, geometry understanding, and route context.',
   },
   {
     id: 'localization-mapping',
     label: 'Localization + Mapping',
-    shortcut: '4',
+    shortcut: '5',
     description: 'Inspect SLAM maps, SIFT road features, and projected road boundaries.',
   },
 ]
@@ -143,7 +151,7 @@ const DashboardPage = () => {
         return
       }
 
-      if (hasModifier && shortcutArmedRef.current && /^[1-4]$/.test(event.key)) {
+      if (hasModifier && shortcutArmedRef.current && /^[1-5]$/.test(event.key)) {
         event.preventDefault()
         selectTabByShortcut(event.key)
       }
@@ -376,6 +384,10 @@ const DashboardPage = () => {
 
           {activeTab === 'motion-capture' && (
             <MotioncapPanel key={currentRecordingName ?? (isLive ? 'live' : 'idle')} />
+          )}
+
+          {activeTab === 'sport-understanding' && (
+            <SportUnderstandingPanel key={currentRecordingName ?? (isLive ? 'live' : 'idle')} />
           )}
 
           {activeTab === 'localization-mapping' && (

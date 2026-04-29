@@ -1,6 +1,13 @@
-import type { MotioncapData, MotioncapFrameRecord, StreamStats, RecordingInfo } from '../types'
+import type {
+  MotioncapData,
+  MotioncapFrameRecord,
+  PongtownData,
+  PongtownFrameRecord,
+  StreamStats,
+  RecordingInfo,
+} from '../types'
 import type { bayesmech } from '../proto/bundle'
-import { decodeIdoSlamResponse, decodeMotioncapRecords } from './proto'
+import { decodeIdoSlamResponse, decodeMotioncapRecords, decodePongtownRecords } from './proto'
 
 const MOTIONCAP_TRACK_COLORS: [number, number, number][] = [
   [255, 200, 0],
@@ -130,4 +137,46 @@ export async function fetchRecordingMotioncapData(recordingName: string): Promis
     })
 
   return { frames, byFrameNumber, byHeatmapIndex, tracks }
+}
+
+export async function fetchRecordingPongtownData(recordingName: string): Promise<PongtownData | null> {
+  const res = await fetch(
+    `/api/analysis/recordings/${encodeURIComponent(recordingName)}/analyses/pongtown/records?include_summary=true`,
+  )
+  if (res.status === 404) return null
+  if (!res.ok) throw new Error(`Failed to fetch Pongtown records: ${res.status}`)
+
+  const records = decodePongtownRecords(new Uint8Array(await res.arrayBuffer()))
+  const frames: PongtownFrameRecord[] = []
+  let summary: bayesmech.vision.PongtownResponse | undefined
+
+  for (const record of records) {
+    const hasFrameIdentifier = !!record.frameIdentifier
+    if (!hasFrameIdentifier) {
+      summary = record
+      continue
+    }
+
+    const debug = record.pnpFrameDebug?.[0]
+    const output = record.frameOutput
+    const fallbackIndex = frames.length
+    const frameIndex = debug?.frameIdx ?? output?.frameIdx ?? fallbackIndex
+    frames.push({
+      frameIndex,
+      frameNumber: record.frameIdentifier?.frameNumber ?? frameIndex,
+      timestampNs: numberFromLong(record.frameIdentifier?.timestampNs),
+      record,
+    })
+  }
+
+  if (frames.length === 0 && !summary) return null
+
+  const byFrameNumber = new Map<number, PongtownFrameRecord>()
+  const byFrameIndex = new Map<number, PongtownFrameRecord>()
+  for (const frame of frames) {
+    byFrameNumber.set(frame.frameNumber, frame)
+    byFrameIndex.set(frame.frameIndex, frame)
+  }
+
+  return { frames, byFrameNumber, byFrameIndex, summary }
 }

@@ -5,6 +5,7 @@
  *   Binary: 1-byte prefix + length-delimited protobuf(s)
  *     0x01 = PerceiverDataFrame(s)
  *     0x02 = SegmentationResponse(s)
+ *     0x03 = PongtownResponse(s)
  *   Text (JSON): stats / control responses
  *
  * Length-delimited: [uint32 BE = N] [N bytes of proto] repeated
@@ -13,10 +14,17 @@
 import pako from 'pako'
 import { bayesmech } from '../proto/bundle'
 
-const { PerceiverDataFrame, SegmentationResponse, IdoSlamResponse, MotionCaptureResponse } = bayesmech.vision
+const {
+  PerceiverDataFrame,
+  SegmentationResponse,
+  IdoSlamResponse,
+  MotionCaptureResponse,
+  PongtownResponse,
+} = bayesmech.vision
 
 export const PREFIX_FRAME = 0x01
 export const PREFIX_ANNOTATION = 0x02
+export const PREFIX_PONGTOWN = 0x03
 
 /**
  * Decode all length-delimited messages from a buffer (after the prefix byte).
@@ -50,6 +58,10 @@ export function decodeAnnotations(payload: Uint8Array): bayesmech.vision.Segment
 
 export function decodeMotioncapRecords(payload: Uint8Array): bayesmech.vision.MotionCaptureResponse[] {
   return readDelimited(payload, (b) => MotionCaptureResponse.decode(b))
+}
+
+export function decodePongtownRecords(payload: Uint8Array): bayesmech.vision.PongtownResponse[] {
+  return readDelimited(payload, (b) => PongtownResponse.decode(b))
 }
 
 export function decodeIdoSlamResponse(payload: Uint8Array): bayesmech.vision.IdoSlamResponse {

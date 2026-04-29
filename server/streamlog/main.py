@@ -59,6 +59,7 @@ from proto import motioncap_pb2
 from proto import reconstruction_pb2
 from proto import segmentation_pb2
 from proto import snookestown_pb2
+from proto import pongtown_pb2
 
 from streamlog.frame_store import FrameStore
 from streamlog.annotator import Annotator
@@ -107,6 +108,7 @@ _seg_io = ProtoIO(segmentation_pb2.SegmentationResponse)
 _motion_io = ProtoIO(motioncap_pb2.MotionCaptureResponse)
 _recon_io = ProtoIO(reconstruction_pb2.ReconstructionResponse)
 _snook_io = ProtoIO(snookestown_pb2.SnookerResponse)
+_pong_io = ProtoIO(pongtown_pb2.PongtownResponse)
 
 # Wire: annotation results -> broadcast to dashboards
 annotator.set_annotation_callback(bridge.broadcast_annotation)
@@ -384,6 +386,7 @@ def _safe_recording_stem(file_name: str) -> str:
         ".seg.pb",
         ".motioncap.pb",
         ".motion.pb",
+        ".pongtown.pb",
     ):
         safe_name = safe_name.removesuffix(suffix)
     return safe_name
@@ -508,6 +511,10 @@ def _has_motioncap_summary(message: motioncap_pb2.MotionCaptureResponse) -> bool
 
 def _has_snook_summary(message: snookestown_pb2.SnookerResponse) -> bool:
     return bool(message.tracks) or int(message.total_frames) > 0
+
+
+def _has_pongtown_summary(message: pongtown_pb2.PongtownResponse) -> bool:
+    return not message.HasField("frame_identifier")
 
 
 @dataclass(frozen=True)
@@ -746,6 +753,28 @@ _ANALYSIS_SPECS: tuple[AnalysisSpec, ...] = (
             ),
         ),
         aliases=("snooker",),
+    ),
+    AnalysisSpec(
+        name="pongtown",
+        title="Pongtown",
+        artifacts=(
+            AnalysisArtifactSpec(
+                name="proto",
+                title="Pongtown Protobuf",
+                suffix="pongtown.pb",
+                media_type="application/x-protobuf",
+                kind="protobuf",
+                encoding="length-delimited-protobuf",
+                aliases=("pb",),
+                proto_message_type="bayesmech.vision.PongtownResponse",
+                proto_io=_pong_io,
+                sliceable=True,
+                timestamp_getter=_frame_timestamp_ns,
+                frame_number_getter=_frame_number,
+                summary_predicate=_has_pongtown_summary,
+            ),
+        ),
+        aliases=("table_tennis", "ping_pong", "sport_understanding"),
     ),
 )
 
@@ -1011,6 +1040,7 @@ async def list_recordings():
                 _recording_file(d.name, "motioncap.pb").exists()
                 or _recording_file(d.name, "motioncap.mp4").exists()
             ),
+            "has_pongtown": _recording_file(d.name, "pongtown.pb").exists(),
             "available_analyses": available_analyses,
             "analysis_url": f"/api/analysis/recordings/{quote(d.name)}",
         })

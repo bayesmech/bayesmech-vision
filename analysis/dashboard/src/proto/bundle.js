@@ -10825,6 +10825,2763 @@ export const bayesmech = $root.bayesmech = (() => {
             return IdoSlamResponse;
         })();
 
+        vision.PongtownResponse = (function() {
+
+            /**
+             * Properties of a PongtownResponse.
+             * @memberof bayesmech.vision
+             * @interface IPongtownResponse
+             * @property {bayesmech.vision.IPerceiverFrameIdentifier|null} [frameIdentifier] PongtownResponse frameIdentifier
+             * @property {bayesmech.vision.PongtownResponse.ITablePose|null} [tablePose] PongtownResponse tablePose
+             * @property {Array.<bayesmech.vision.PongtownResponse.IPnpFrameDebug>|null} [pnpFrameDebug] PongtownResponse pnpFrameDebug
+             * @property {bayesmech.vision.PongtownResponse.IFrameOutput|null} [frameOutput] PongtownResponse frameOutput
+             * @property {bayesmech.vision.PongtownResponse.IGlobalTablePose|null} [globalTablePose] PongtownResponse globalTablePose
+             * @property {number|null} [tableWidthMm] PongtownResponse tableWidthMm
+             * @property {number|null} [tableHeightMm] PongtownResponse tableHeightMm
+             * @property {number|null} [netOverhangMm] PongtownResponse netOverhangMm
+             * @property {number|null} [netHeightMm] PongtownResponse netHeightMm
+             */
+
+            /**
+             * Constructs a new PongtownResponse.
+             * @memberof bayesmech.vision
+             * @classdesc Represents a PongtownResponse.
+             * @implements IPongtownResponse
+             * @constructor
+             * @param {bayesmech.vision.IPongtownResponse=} [properties] Properties to set
+             */
+            function PongtownResponse(properties) {
+                this.pnpFrameDebug = [];
+                if (properties)
+                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null)
+                            this[keys[i]] = properties[keys[i]];
+            }
+
+            /**
+             * PongtownResponse frameIdentifier.
+             * @member {bayesmech.vision.IPerceiverFrameIdentifier|null|undefined} frameIdentifier
+             * @memberof bayesmech.vision.PongtownResponse
+             * @instance
+             */
+            PongtownResponse.prototype.frameIdentifier = null;
+
+            /**
+             * PongtownResponse tablePose.
+             * @member {bayesmech.vision.PongtownResponse.ITablePose|null|undefined} tablePose
+             * @memberof bayesmech.vision.PongtownResponse
+             * @instance
+             */
+            PongtownResponse.prototype.tablePose = null;
+
+            /**
+             * PongtownResponse pnpFrameDebug.
+             * @member {Array.<bayesmech.vision.PongtownResponse.IPnpFrameDebug>} pnpFrameDebug
+             * @memberof bayesmech.vision.PongtownResponse
+             * @instance
+             */
+            PongtownResponse.prototype.pnpFrameDebug = $util.emptyArray;
+
+            /**
+             * PongtownResponse frameOutput.
+             * @member {bayesmech.vision.PongtownResponse.IFrameOutput|null|undefined} frameOutput
+             * @memberof bayesmech.vision.PongtownResponse
+             * @instance
+             */
+            PongtownResponse.prototype.frameOutput = null;
+
+            /**
+             * PongtownResponse globalTablePose.
+             * @member {bayesmech.vision.PongtownResponse.IGlobalTablePose|null|undefined} globalTablePose
+             * @memberof bayesmech.vision.PongtownResponse
+             * @instance
+             */
+            PongtownResponse.prototype.globalTablePose = null;
+
+            /**
+             * PongtownResponse tableWidthMm.
+             * @member {number} tableWidthMm
+             * @memberof bayesmech.vision.PongtownResponse
+             * @instance
+             */
+            PongtownResponse.prototype.tableWidthMm = 0;
+
+            /**
+             * PongtownResponse tableHeightMm.
+             * @member {number} tableHeightMm
+             * @memberof bayesmech.vision.PongtownResponse
+             * @instance
+             */
+            PongtownResponse.prototype.tableHeightMm = 0;
+
+            /**
+             * PongtownResponse netOverhangMm.
+             * @member {number} netOverhangMm
+             * @memberof bayesmech.vision.PongtownResponse
+             * @instance
+             */
+            PongtownResponse.prototype.netOverhangMm = 0;
+
+            /**
+             * PongtownResponse netHeightMm.
+             * @member {number} netHeightMm
+             * @memberof bayesmech.vision.PongtownResponse
+             * @instance
+             */
+            PongtownResponse.prototype.netHeightMm = 0;
+
+            /**
+             * Creates a new PongtownResponse instance using the specified properties.
+             * @function create
+             * @memberof bayesmech.vision.PongtownResponse
+             * @static
+             * @param {bayesmech.vision.IPongtownResponse=} [properties] Properties to set
+             * @returns {bayesmech.vision.PongtownResponse} PongtownResponse instance
+             */
+            PongtownResponse.create = function create(properties) {
+                return new PongtownResponse(properties);
+            };
+
+            /**
+             * Encodes the specified PongtownResponse message. Does not implicitly {@link bayesmech.vision.PongtownResponse.verify|verify} messages.
+             * @function encode
+             * @memberof bayesmech.vision.PongtownResponse
+             * @static
+             * @param {bayesmech.vision.IPongtownResponse} message PongtownResponse message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            PongtownResponse.encode = function encode(message, writer) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (message.frameIdentifier != null && Object.hasOwnProperty.call(message, "frameIdentifier"))
+                    $root.bayesmech.vision.PerceiverFrameIdentifier.encode(message.frameIdentifier, writer.uint32(/* id 1, wireType 2 =*/10).fork()).ldelim();
+                if (message.tablePose != null && Object.hasOwnProperty.call(message, "tablePose"))
+                    $root.bayesmech.vision.PongtownResponse.TablePose.encode(message.tablePose, writer.uint32(/* id 2, wireType 2 =*/18).fork()).ldelim();
+                if (message.globalTablePose != null && Object.hasOwnProperty.call(message, "globalTablePose"))
+                    $root.bayesmech.vision.PongtownResponse.GlobalTablePose.encode(message.globalTablePose, writer.uint32(/* id 3, wireType 2 =*/26).fork()).ldelim();
+                if (message.tableWidthMm != null && Object.hasOwnProperty.call(message, "tableWidthMm"))
+                    writer.uint32(/* id 4, wireType 5 =*/37).float(message.tableWidthMm);
+                if (message.tableHeightMm != null && Object.hasOwnProperty.call(message, "tableHeightMm"))
+                    writer.uint32(/* id 5, wireType 5 =*/45).float(message.tableHeightMm);
+                if (message.netOverhangMm != null && Object.hasOwnProperty.call(message, "netOverhangMm"))
+                    writer.uint32(/* id 6, wireType 5 =*/53).float(message.netOverhangMm);
+                if (message.netHeightMm != null && Object.hasOwnProperty.call(message, "netHeightMm"))
+                    writer.uint32(/* id 7, wireType 5 =*/61).float(message.netHeightMm);
+                if (message.pnpFrameDebug != null && message.pnpFrameDebug.length)
+                    for (let i = 0; i < message.pnpFrameDebug.length; ++i)
+                        $root.bayesmech.vision.PongtownResponse.PnpFrameDebug.encode(message.pnpFrameDebug[i], writer.uint32(/* id 8, wireType 2 =*/66).fork()).ldelim();
+                if (message.frameOutput != null && Object.hasOwnProperty.call(message, "frameOutput"))
+                    $root.bayesmech.vision.PongtownResponse.FrameOutput.encode(message.frameOutput, writer.uint32(/* id 9, wireType 2 =*/74).fork()).ldelim();
+                return writer;
+            };
+
+            /**
+             * Encodes the specified PongtownResponse message, length delimited. Does not implicitly {@link bayesmech.vision.PongtownResponse.verify|verify} messages.
+             * @function encodeDelimited
+             * @memberof bayesmech.vision.PongtownResponse
+             * @static
+             * @param {bayesmech.vision.IPongtownResponse} message PongtownResponse message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            PongtownResponse.encodeDelimited = function encodeDelimited(message, writer) {
+                return this.encode(message, writer).ldelim();
+            };
+
+            /**
+             * Decodes a PongtownResponse message from the specified reader or buffer.
+             * @function decode
+             * @memberof bayesmech.vision.PongtownResponse
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {bayesmech.vision.PongtownResponse} PongtownResponse
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            PongtownResponse.decode = function decode(reader, length, error) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.PongtownResponse();
+                while (reader.pos < end) {
+                    let tag = reader.uint32();
+                    if (tag === error)
+                        break;
+                    switch (tag >>> 3) {
+                    case 1: {
+                            message.frameIdentifier = $root.bayesmech.vision.PerceiverFrameIdentifier.decode(reader, reader.uint32());
+                            break;
+                        }
+                    case 2: {
+                            message.tablePose = $root.bayesmech.vision.PongtownResponse.TablePose.decode(reader, reader.uint32());
+                            break;
+                        }
+                    case 8: {
+                            if (!(message.pnpFrameDebug && message.pnpFrameDebug.length))
+                                message.pnpFrameDebug = [];
+                            message.pnpFrameDebug.push($root.bayesmech.vision.PongtownResponse.PnpFrameDebug.decode(reader, reader.uint32()));
+                            break;
+                        }
+                    case 9: {
+                            message.frameOutput = $root.bayesmech.vision.PongtownResponse.FrameOutput.decode(reader, reader.uint32());
+                            break;
+                        }
+                    case 3: {
+                            message.globalTablePose = $root.bayesmech.vision.PongtownResponse.GlobalTablePose.decode(reader, reader.uint32());
+                            break;
+                        }
+                    case 4: {
+                            message.tableWidthMm = reader.float();
+                            break;
+                        }
+                    case 5: {
+                            message.tableHeightMm = reader.float();
+                            break;
+                        }
+                    case 6: {
+                            message.netOverhangMm = reader.float();
+                            break;
+                        }
+                    case 7: {
+                            message.netHeightMm = reader.float();
+                            break;
+                        }
+                    default:
+                        reader.skipType(tag & 7);
+                        break;
+                    }
+                }
+                return message;
+            };
+
+            /**
+             * Decodes a PongtownResponse message from the specified reader or buffer, length delimited.
+             * @function decodeDelimited
+             * @memberof bayesmech.vision.PongtownResponse
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @returns {bayesmech.vision.PongtownResponse} PongtownResponse
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            PongtownResponse.decodeDelimited = function decodeDelimited(reader) {
+                if (!(reader instanceof $Reader))
+                    reader = new $Reader(reader);
+                return this.decode(reader, reader.uint32());
+            };
+
+            /**
+             * Verifies a PongtownResponse message.
+             * @function verify
+             * @memberof bayesmech.vision.PongtownResponse
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            PongtownResponse.verify = function verify(message) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (message.frameIdentifier != null && message.hasOwnProperty("frameIdentifier")) {
+                    let error = $root.bayesmech.vision.PerceiverFrameIdentifier.verify(message.frameIdentifier);
+                    if (error)
+                        return "frameIdentifier." + error;
+                }
+                if (message.tablePose != null && message.hasOwnProperty("tablePose")) {
+                    let error = $root.bayesmech.vision.PongtownResponse.TablePose.verify(message.tablePose);
+                    if (error)
+                        return "tablePose." + error;
+                }
+                if (message.pnpFrameDebug != null && message.hasOwnProperty("pnpFrameDebug")) {
+                    if (!Array.isArray(message.pnpFrameDebug))
+                        return "pnpFrameDebug: array expected";
+                    for (let i = 0; i < message.pnpFrameDebug.length; ++i) {
+                        let error = $root.bayesmech.vision.PongtownResponse.PnpFrameDebug.verify(message.pnpFrameDebug[i]);
+                        if (error)
+                            return "pnpFrameDebug." + error;
+                    }
+                }
+                if (message.frameOutput != null && message.hasOwnProperty("frameOutput")) {
+                    let error = $root.bayesmech.vision.PongtownResponse.FrameOutput.verify(message.frameOutput);
+                    if (error)
+                        return "frameOutput." + error;
+                }
+                if (message.globalTablePose != null && message.hasOwnProperty("globalTablePose")) {
+                    let error = $root.bayesmech.vision.PongtownResponse.GlobalTablePose.verify(message.globalTablePose);
+                    if (error)
+                        return "globalTablePose." + error;
+                }
+                if (message.tableWidthMm != null && message.hasOwnProperty("tableWidthMm"))
+                    if (typeof message.tableWidthMm !== "number")
+                        return "tableWidthMm: number expected";
+                if (message.tableHeightMm != null && message.hasOwnProperty("tableHeightMm"))
+                    if (typeof message.tableHeightMm !== "number")
+                        return "tableHeightMm: number expected";
+                if (message.netOverhangMm != null && message.hasOwnProperty("netOverhangMm"))
+                    if (typeof message.netOverhangMm !== "number")
+                        return "netOverhangMm: number expected";
+                if (message.netHeightMm != null && message.hasOwnProperty("netHeightMm"))
+                    if (typeof message.netHeightMm !== "number")
+                        return "netHeightMm: number expected";
+                return null;
+            };
+
+            /**
+             * Creates a PongtownResponse message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof bayesmech.vision.PongtownResponse
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {bayesmech.vision.PongtownResponse} PongtownResponse
+             */
+            PongtownResponse.fromObject = function fromObject(object) {
+                if (object instanceof $root.bayesmech.vision.PongtownResponse)
+                    return object;
+                let message = new $root.bayesmech.vision.PongtownResponse();
+                if (object.frameIdentifier != null) {
+                    if (typeof object.frameIdentifier !== "object")
+                        throw TypeError(".bayesmech.vision.PongtownResponse.frameIdentifier: object expected");
+                    message.frameIdentifier = $root.bayesmech.vision.PerceiverFrameIdentifier.fromObject(object.frameIdentifier);
+                }
+                if (object.tablePose != null) {
+                    if (typeof object.tablePose !== "object")
+                        throw TypeError(".bayesmech.vision.PongtownResponse.tablePose: object expected");
+                    message.tablePose = $root.bayesmech.vision.PongtownResponse.TablePose.fromObject(object.tablePose);
+                }
+                if (object.pnpFrameDebug) {
+                    if (!Array.isArray(object.pnpFrameDebug))
+                        throw TypeError(".bayesmech.vision.PongtownResponse.pnpFrameDebug: array expected");
+                    message.pnpFrameDebug = [];
+                    for (let i = 0; i < object.pnpFrameDebug.length; ++i) {
+                        if (typeof object.pnpFrameDebug[i] !== "object")
+                            throw TypeError(".bayesmech.vision.PongtownResponse.pnpFrameDebug: object expected");
+                        message.pnpFrameDebug[i] = $root.bayesmech.vision.PongtownResponse.PnpFrameDebug.fromObject(object.pnpFrameDebug[i]);
+                    }
+                }
+                if (object.frameOutput != null) {
+                    if (typeof object.frameOutput !== "object")
+                        throw TypeError(".bayesmech.vision.PongtownResponse.frameOutput: object expected");
+                    message.frameOutput = $root.bayesmech.vision.PongtownResponse.FrameOutput.fromObject(object.frameOutput);
+                }
+                if (object.globalTablePose != null) {
+                    if (typeof object.globalTablePose !== "object")
+                        throw TypeError(".bayesmech.vision.PongtownResponse.globalTablePose: object expected");
+                    message.globalTablePose = $root.bayesmech.vision.PongtownResponse.GlobalTablePose.fromObject(object.globalTablePose);
+                }
+                if (object.tableWidthMm != null)
+                    message.tableWidthMm = Number(object.tableWidthMm);
+                if (object.tableHeightMm != null)
+                    message.tableHeightMm = Number(object.tableHeightMm);
+                if (object.netOverhangMm != null)
+                    message.netOverhangMm = Number(object.netOverhangMm);
+                if (object.netHeightMm != null)
+                    message.netHeightMm = Number(object.netHeightMm);
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a PongtownResponse message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof bayesmech.vision.PongtownResponse
+             * @static
+             * @param {bayesmech.vision.PongtownResponse} message PongtownResponse
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            PongtownResponse.toObject = function toObject(message, options) {
+                if (!options)
+                    options = {};
+                let object = {};
+                if (options.arrays || options.defaults)
+                    object.pnpFrameDebug = [];
+                if (options.defaults) {
+                    object.frameIdentifier = null;
+                    object.tablePose = null;
+                    object.globalTablePose = null;
+                    object.tableWidthMm = 0;
+                    object.tableHeightMm = 0;
+                    object.netOverhangMm = 0;
+                    object.netHeightMm = 0;
+                    object.frameOutput = null;
+                }
+                if (message.frameIdentifier != null && message.hasOwnProperty("frameIdentifier"))
+                    object.frameIdentifier = $root.bayesmech.vision.PerceiverFrameIdentifier.toObject(message.frameIdentifier, options);
+                if (message.tablePose != null && message.hasOwnProperty("tablePose"))
+                    object.tablePose = $root.bayesmech.vision.PongtownResponse.TablePose.toObject(message.tablePose, options);
+                if (message.globalTablePose != null && message.hasOwnProperty("globalTablePose"))
+                    object.globalTablePose = $root.bayesmech.vision.PongtownResponse.GlobalTablePose.toObject(message.globalTablePose, options);
+                if (message.tableWidthMm != null && message.hasOwnProperty("tableWidthMm"))
+                    object.tableWidthMm = options.json && !isFinite(message.tableWidthMm) ? String(message.tableWidthMm) : message.tableWidthMm;
+                if (message.tableHeightMm != null && message.hasOwnProperty("tableHeightMm"))
+                    object.tableHeightMm = options.json && !isFinite(message.tableHeightMm) ? String(message.tableHeightMm) : message.tableHeightMm;
+                if (message.netOverhangMm != null && message.hasOwnProperty("netOverhangMm"))
+                    object.netOverhangMm = options.json && !isFinite(message.netOverhangMm) ? String(message.netOverhangMm) : message.netOverhangMm;
+                if (message.netHeightMm != null && message.hasOwnProperty("netHeightMm"))
+                    object.netHeightMm = options.json && !isFinite(message.netHeightMm) ? String(message.netHeightMm) : message.netHeightMm;
+                if (message.pnpFrameDebug && message.pnpFrameDebug.length) {
+                    object.pnpFrameDebug = [];
+                    for (let j = 0; j < message.pnpFrameDebug.length; ++j)
+                        object.pnpFrameDebug[j] = $root.bayesmech.vision.PongtownResponse.PnpFrameDebug.toObject(message.pnpFrameDebug[j], options);
+                }
+                if (message.frameOutput != null && message.hasOwnProperty("frameOutput"))
+                    object.frameOutput = $root.bayesmech.vision.PongtownResponse.FrameOutput.toObject(message.frameOutput, options);
+                return object;
+            };
+
+            /**
+             * Converts this PongtownResponse to JSON.
+             * @function toJSON
+             * @memberof bayesmech.vision.PongtownResponse
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            PongtownResponse.prototype.toJSON = function toJSON() {
+                return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the default type url for PongtownResponse
+             * @function getTypeUrl
+             * @memberof bayesmech.vision.PongtownResponse
+             * @static
+             * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns {string} The default type url
+             */
+            PongtownResponse.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+                if (typeUrlPrefix === undefined) {
+                    typeUrlPrefix = "type.googleapis.com";
+                }
+                return typeUrlPrefix + "/bayesmech.vision.PongtownResponse";
+            };
+
+            PongtownResponse.TablePose = (function() {
+
+                /**
+                 * Properties of a TablePose.
+                 * @memberof bayesmech.vision.PongtownResponse
+                 * @interface ITablePose
+                 * @property {bayesmech.vision.PongtownResponse.TablePose.Method|null} [method] TablePose method
+                 * @property {number|null} [quadQuality] TablePose quadQuality
+                 * @property {number|null} [pnpIou] TablePose pnpIou
+                 * @property {Array.<number>|null} [quadImg] TablePose quadImg
+                 * @property {Array.<number>|null} [midlineImg] TablePose midlineImg
+                 * @property {Array.<number>|null} [TTableToCamera] TablePose TTableToCamera
+                 * @property {Array.<number>|null} [quadImgGlobal] TablePose quadImgGlobal
+                 * @property {number|null} [globalIou] TablePose globalIou
+                 */
+
+                /**
+                 * Constructs a new TablePose.
+                 * @memberof bayesmech.vision.PongtownResponse
+                 * @classdesc Represents a TablePose.
+                 * @implements ITablePose
+                 * @constructor
+                 * @param {bayesmech.vision.PongtownResponse.ITablePose=} [properties] Properties to set
+                 */
+                function TablePose(properties) {
+                    this.quadImg = [];
+                    this.midlineImg = [];
+                    this.TTableToCamera = [];
+                    this.quadImgGlobal = [];
+                    if (properties)
+                        for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                            if (properties[keys[i]] != null)
+                                this[keys[i]] = properties[keys[i]];
+                }
+
+                /**
+                 * TablePose method.
+                 * @member {bayesmech.vision.PongtownResponse.TablePose.Method} method
+                 * @memberof bayesmech.vision.PongtownResponse.TablePose
+                 * @instance
+                 */
+                TablePose.prototype.method = 0;
+
+                /**
+                 * TablePose quadQuality.
+                 * @member {number} quadQuality
+                 * @memberof bayesmech.vision.PongtownResponse.TablePose
+                 * @instance
+                 */
+                TablePose.prototype.quadQuality = 0;
+
+                /**
+                 * TablePose pnpIou.
+                 * @member {number} pnpIou
+                 * @memberof bayesmech.vision.PongtownResponse.TablePose
+                 * @instance
+                 */
+                TablePose.prototype.pnpIou = 0;
+
+                /**
+                 * TablePose quadImg.
+                 * @member {Array.<number>} quadImg
+                 * @memberof bayesmech.vision.PongtownResponse.TablePose
+                 * @instance
+                 */
+                TablePose.prototype.quadImg = $util.emptyArray;
+
+                /**
+                 * TablePose midlineImg.
+                 * @member {Array.<number>} midlineImg
+                 * @memberof bayesmech.vision.PongtownResponse.TablePose
+                 * @instance
+                 */
+                TablePose.prototype.midlineImg = $util.emptyArray;
+
+                /**
+                 * TablePose TTableToCamera.
+                 * @member {Array.<number>} TTableToCamera
+                 * @memberof bayesmech.vision.PongtownResponse.TablePose
+                 * @instance
+                 */
+                TablePose.prototype.TTableToCamera = $util.emptyArray;
+
+                /**
+                 * TablePose quadImgGlobal.
+                 * @member {Array.<number>} quadImgGlobal
+                 * @memberof bayesmech.vision.PongtownResponse.TablePose
+                 * @instance
+                 */
+                TablePose.prototype.quadImgGlobal = $util.emptyArray;
+
+                /**
+                 * TablePose globalIou.
+                 * @member {number} globalIou
+                 * @memberof bayesmech.vision.PongtownResponse.TablePose
+                 * @instance
+                 */
+                TablePose.prototype.globalIou = 0;
+
+                /**
+                 * Creates a new TablePose instance using the specified properties.
+                 * @function create
+                 * @memberof bayesmech.vision.PongtownResponse.TablePose
+                 * @static
+                 * @param {bayesmech.vision.PongtownResponse.ITablePose=} [properties] Properties to set
+                 * @returns {bayesmech.vision.PongtownResponse.TablePose} TablePose instance
+                 */
+                TablePose.create = function create(properties) {
+                    return new TablePose(properties);
+                };
+
+                /**
+                 * Encodes the specified TablePose message. Does not implicitly {@link bayesmech.vision.PongtownResponse.TablePose.verify|verify} messages.
+                 * @function encode
+                 * @memberof bayesmech.vision.PongtownResponse.TablePose
+                 * @static
+                 * @param {bayesmech.vision.PongtownResponse.ITablePose} message TablePose message or plain object to encode
+                 * @param {$protobuf.Writer} [writer] Writer to encode to
+                 * @returns {$protobuf.Writer} Writer
+                 */
+                TablePose.encode = function encode(message, writer) {
+                    if (!writer)
+                        writer = $Writer.create();
+                    if (message.method != null && Object.hasOwnProperty.call(message, "method"))
+                        writer.uint32(/* id 1, wireType 0 =*/8).int32(message.method);
+                    if (message.quadQuality != null && Object.hasOwnProperty.call(message, "quadQuality"))
+                        writer.uint32(/* id 2, wireType 5 =*/21).float(message.quadQuality);
+                    if (message.pnpIou != null && Object.hasOwnProperty.call(message, "pnpIou"))
+                        writer.uint32(/* id 3, wireType 5 =*/29).float(message.pnpIou);
+                    if (message.quadImg != null && message.quadImg.length) {
+                        writer.uint32(/* id 4, wireType 2 =*/34).fork();
+                        for (let i = 0; i < message.quadImg.length; ++i)
+                            writer.float(message.quadImg[i]);
+                        writer.ldelim();
+                    }
+                    if (message.midlineImg != null && message.midlineImg.length) {
+                        writer.uint32(/* id 5, wireType 2 =*/42).fork();
+                        for (let i = 0; i < message.midlineImg.length; ++i)
+                            writer.float(message.midlineImg[i]);
+                        writer.ldelim();
+                    }
+                    if (message.TTableToCamera != null && message.TTableToCamera.length) {
+                        writer.uint32(/* id 6, wireType 2 =*/50).fork();
+                        for (let i = 0; i < message.TTableToCamera.length; ++i)
+                            writer.float(message.TTableToCamera[i]);
+                        writer.ldelim();
+                    }
+                    if (message.quadImgGlobal != null && message.quadImgGlobal.length) {
+                        writer.uint32(/* id 7, wireType 2 =*/58).fork();
+                        for (let i = 0; i < message.quadImgGlobal.length; ++i)
+                            writer.float(message.quadImgGlobal[i]);
+                        writer.ldelim();
+                    }
+                    if (message.globalIou != null && Object.hasOwnProperty.call(message, "globalIou"))
+                        writer.uint32(/* id 8, wireType 5 =*/69).float(message.globalIou);
+                    return writer;
+                };
+
+                /**
+                 * Encodes the specified TablePose message, length delimited. Does not implicitly {@link bayesmech.vision.PongtownResponse.TablePose.verify|verify} messages.
+                 * @function encodeDelimited
+                 * @memberof bayesmech.vision.PongtownResponse.TablePose
+                 * @static
+                 * @param {bayesmech.vision.PongtownResponse.ITablePose} message TablePose message or plain object to encode
+                 * @param {$protobuf.Writer} [writer] Writer to encode to
+                 * @returns {$protobuf.Writer} Writer
+                 */
+                TablePose.encodeDelimited = function encodeDelimited(message, writer) {
+                    return this.encode(message, writer).ldelim();
+                };
+
+                /**
+                 * Decodes a TablePose message from the specified reader or buffer.
+                 * @function decode
+                 * @memberof bayesmech.vision.PongtownResponse.TablePose
+                 * @static
+                 * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+                 * @param {number} [length] Message length if known beforehand
+                 * @returns {bayesmech.vision.PongtownResponse.TablePose} TablePose
+                 * @throws {Error} If the payload is not a reader or valid buffer
+                 * @throws {$protobuf.util.ProtocolError} If required fields are missing
+                 */
+                TablePose.decode = function decode(reader, length, error) {
+                    if (!(reader instanceof $Reader))
+                        reader = $Reader.create(reader);
+                    let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.PongtownResponse.TablePose();
+                    while (reader.pos < end) {
+                        let tag = reader.uint32();
+                        if (tag === error)
+                            break;
+                        switch (tag >>> 3) {
+                        case 1: {
+                                message.method = reader.int32();
+                                break;
+                            }
+                        case 2: {
+                                message.quadQuality = reader.float();
+                                break;
+                            }
+                        case 3: {
+                                message.pnpIou = reader.float();
+                                break;
+                            }
+                        case 4: {
+                                if (!(message.quadImg && message.quadImg.length))
+                                    message.quadImg = [];
+                                if ((tag & 7) === 2) {
+                                    let end2 = reader.uint32() + reader.pos;
+                                    while (reader.pos < end2)
+                                        message.quadImg.push(reader.float());
+                                } else
+                                    message.quadImg.push(reader.float());
+                                break;
+                            }
+                        case 5: {
+                                if (!(message.midlineImg && message.midlineImg.length))
+                                    message.midlineImg = [];
+                                if ((tag & 7) === 2) {
+                                    let end2 = reader.uint32() + reader.pos;
+                                    while (reader.pos < end2)
+                                        message.midlineImg.push(reader.float());
+                                } else
+                                    message.midlineImg.push(reader.float());
+                                break;
+                            }
+                        case 6: {
+                                if (!(message.TTableToCamera && message.TTableToCamera.length))
+                                    message.TTableToCamera = [];
+                                if ((tag & 7) === 2) {
+                                    let end2 = reader.uint32() + reader.pos;
+                                    while (reader.pos < end2)
+                                        message.TTableToCamera.push(reader.float());
+                                } else
+                                    message.TTableToCamera.push(reader.float());
+                                break;
+                            }
+                        case 7: {
+                                if (!(message.quadImgGlobal && message.quadImgGlobal.length))
+                                    message.quadImgGlobal = [];
+                                if ((tag & 7) === 2) {
+                                    let end2 = reader.uint32() + reader.pos;
+                                    while (reader.pos < end2)
+                                        message.quadImgGlobal.push(reader.float());
+                                } else
+                                    message.quadImgGlobal.push(reader.float());
+                                break;
+                            }
+                        case 8: {
+                                message.globalIou = reader.float();
+                                break;
+                            }
+                        default:
+                            reader.skipType(tag & 7);
+                            break;
+                        }
+                    }
+                    return message;
+                };
+
+                /**
+                 * Decodes a TablePose message from the specified reader or buffer, length delimited.
+                 * @function decodeDelimited
+                 * @memberof bayesmech.vision.PongtownResponse.TablePose
+                 * @static
+                 * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+                 * @returns {bayesmech.vision.PongtownResponse.TablePose} TablePose
+                 * @throws {Error} If the payload is not a reader or valid buffer
+                 * @throws {$protobuf.util.ProtocolError} If required fields are missing
+                 */
+                TablePose.decodeDelimited = function decodeDelimited(reader) {
+                    if (!(reader instanceof $Reader))
+                        reader = new $Reader(reader);
+                    return this.decode(reader, reader.uint32());
+                };
+
+                /**
+                 * Verifies a TablePose message.
+                 * @function verify
+                 * @memberof bayesmech.vision.PongtownResponse.TablePose
+                 * @static
+                 * @param {Object.<string,*>} message Plain object to verify
+                 * @returns {string|null} `null` if valid, otherwise the reason why it is not
+                 */
+                TablePose.verify = function verify(message) {
+                    if (typeof message !== "object" || message === null)
+                        return "object expected";
+                    if (message.method != null && message.hasOwnProperty("method"))
+                        switch (message.method) {
+                        default:
+                            return "method: enum value expected";
+                        case 0:
+                        case 1:
+                        case 2:
+                        case 3:
+                        case 4:
+                            break;
+                        }
+                    if (message.quadQuality != null && message.hasOwnProperty("quadQuality"))
+                        if (typeof message.quadQuality !== "number")
+                            return "quadQuality: number expected";
+                    if (message.pnpIou != null && message.hasOwnProperty("pnpIou"))
+                        if (typeof message.pnpIou !== "number")
+                            return "pnpIou: number expected";
+                    if (message.quadImg != null && message.hasOwnProperty("quadImg")) {
+                        if (!Array.isArray(message.quadImg))
+                            return "quadImg: array expected";
+                        for (let i = 0; i < message.quadImg.length; ++i)
+                            if (typeof message.quadImg[i] !== "number")
+                                return "quadImg: number[] expected";
+                    }
+                    if (message.midlineImg != null && message.hasOwnProperty("midlineImg")) {
+                        if (!Array.isArray(message.midlineImg))
+                            return "midlineImg: array expected";
+                        for (let i = 0; i < message.midlineImg.length; ++i)
+                            if (typeof message.midlineImg[i] !== "number")
+                                return "midlineImg: number[] expected";
+                    }
+                    if (message.TTableToCamera != null && message.hasOwnProperty("TTableToCamera")) {
+                        if (!Array.isArray(message.TTableToCamera))
+                            return "TTableToCamera: array expected";
+                        for (let i = 0; i < message.TTableToCamera.length; ++i)
+                            if (typeof message.TTableToCamera[i] !== "number")
+                                return "TTableToCamera: number[] expected";
+                    }
+                    if (message.quadImgGlobal != null && message.hasOwnProperty("quadImgGlobal")) {
+                        if (!Array.isArray(message.quadImgGlobal))
+                            return "quadImgGlobal: array expected";
+                        for (let i = 0; i < message.quadImgGlobal.length; ++i)
+                            if (typeof message.quadImgGlobal[i] !== "number")
+                                return "quadImgGlobal: number[] expected";
+                    }
+                    if (message.globalIou != null && message.hasOwnProperty("globalIou"))
+                        if (typeof message.globalIou !== "number")
+                            return "globalIou: number expected";
+                    return null;
+                };
+
+                /**
+                 * Creates a TablePose message from a plain object. Also converts values to their respective internal types.
+                 * @function fromObject
+                 * @memberof bayesmech.vision.PongtownResponse.TablePose
+                 * @static
+                 * @param {Object.<string,*>} object Plain object
+                 * @returns {bayesmech.vision.PongtownResponse.TablePose} TablePose
+                 */
+                TablePose.fromObject = function fromObject(object) {
+                    if (object instanceof $root.bayesmech.vision.PongtownResponse.TablePose)
+                        return object;
+                    let message = new $root.bayesmech.vision.PongtownResponse.TablePose();
+                    switch (object.method) {
+                    default:
+                        if (typeof object.method === "number") {
+                            message.method = object.method;
+                            break;
+                        }
+                        break;
+                    case "UNKNOWN":
+                    case 0:
+                        message.method = 0;
+                        break;
+                    case "QUAD_FULL":
+                    case 1:
+                        message.method = 1;
+                        break;
+                    case "QUAD_FROM_MIDLINE":
+                    case 2:
+                        message.method = 2;
+                        break;
+                    case "QUAD_FAILED":
+                    case 3:
+                        message.method = 3;
+                        break;
+                    case "OFF_SCREEN":
+                    case 4:
+                        message.method = 4;
+                        break;
+                    }
+                    if (object.quadQuality != null)
+                        message.quadQuality = Number(object.quadQuality);
+                    if (object.pnpIou != null)
+                        message.pnpIou = Number(object.pnpIou);
+                    if (object.quadImg) {
+                        if (!Array.isArray(object.quadImg))
+                            throw TypeError(".bayesmech.vision.PongtownResponse.TablePose.quadImg: array expected");
+                        message.quadImg = [];
+                        for (let i = 0; i < object.quadImg.length; ++i)
+                            message.quadImg[i] = Number(object.quadImg[i]);
+                    }
+                    if (object.midlineImg) {
+                        if (!Array.isArray(object.midlineImg))
+                            throw TypeError(".bayesmech.vision.PongtownResponse.TablePose.midlineImg: array expected");
+                        message.midlineImg = [];
+                        for (let i = 0; i < object.midlineImg.length; ++i)
+                            message.midlineImg[i] = Number(object.midlineImg[i]);
+                    }
+                    if (object.TTableToCamera) {
+                        if (!Array.isArray(object.TTableToCamera))
+                            throw TypeError(".bayesmech.vision.PongtownResponse.TablePose.TTableToCamera: array expected");
+                        message.TTableToCamera = [];
+                        for (let i = 0; i < object.TTableToCamera.length; ++i)
+                            message.TTableToCamera[i] = Number(object.TTableToCamera[i]);
+                    }
+                    if (object.quadImgGlobal) {
+                        if (!Array.isArray(object.quadImgGlobal))
+                            throw TypeError(".bayesmech.vision.PongtownResponse.TablePose.quadImgGlobal: array expected");
+                        message.quadImgGlobal = [];
+                        for (let i = 0; i < object.quadImgGlobal.length; ++i)
+                            message.quadImgGlobal[i] = Number(object.quadImgGlobal[i]);
+                    }
+                    if (object.globalIou != null)
+                        message.globalIou = Number(object.globalIou);
+                    return message;
+                };
+
+                /**
+                 * Creates a plain object from a TablePose message. Also converts values to other types if specified.
+                 * @function toObject
+                 * @memberof bayesmech.vision.PongtownResponse.TablePose
+                 * @static
+                 * @param {bayesmech.vision.PongtownResponse.TablePose} message TablePose
+                 * @param {$protobuf.IConversionOptions} [options] Conversion options
+                 * @returns {Object.<string,*>} Plain object
+                 */
+                TablePose.toObject = function toObject(message, options) {
+                    if (!options)
+                        options = {};
+                    let object = {};
+                    if (options.arrays || options.defaults) {
+                        object.quadImg = [];
+                        object.midlineImg = [];
+                        object.TTableToCamera = [];
+                        object.quadImgGlobal = [];
+                    }
+                    if (options.defaults) {
+                        object.method = options.enums === String ? "UNKNOWN" : 0;
+                        object.quadQuality = 0;
+                        object.pnpIou = 0;
+                        object.globalIou = 0;
+                    }
+                    if (message.method != null && message.hasOwnProperty("method"))
+                        object.method = options.enums === String ? $root.bayesmech.vision.PongtownResponse.TablePose.Method[message.method] === undefined ? message.method : $root.bayesmech.vision.PongtownResponse.TablePose.Method[message.method] : message.method;
+                    if (message.quadQuality != null && message.hasOwnProperty("quadQuality"))
+                        object.quadQuality = options.json && !isFinite(message.quadQuality) ? String(message.quadQuality) : message.quadQuality;
+                    if (message.pnpIou != null && message.hasOwnProperty("pnpIou"))
+                        object.pnpIou = options.json && !isFinite(message.pnpIou) ? String(message.pnpIou) : message.pnpIou;
+                    if (message.quadImg && message.quadImg.length) {
+                        object.quadImg = [];
+                        for (let j = 0; j < message.quadImg.length; ++j)
+                            object.quadImg[j] = options.json && !isFinite(message.quadImg[j]) ? String(message.quadImg[j]) : message.quadImg[j];
+                    }
+                    if (message.midlineImg && message.midlineImg.length) {
+                        object.midlineImg = [];
+                        for (let j = 0; j < message.midlineImg.length; ++j)
+                            object.midlineImg[j] = options.json && !isFinite(message.midlineImg[j]) ? String(message.midlineImg[j]) : message.midlineImg[j];
+                    }
+                    if (message.TTableToCamera && message.TTableToCamera.length) {
+                        object.TTableToCamera = [];
+                        for (let j = 0; j < message.TTableToCamera.length; ++j)
+                            object.TTableToCamera[j] = options.json && !isFinite(message.TTableToCamera[j]) ? String(message.TTableToCamera[j]) : message.TTableToCamera[j];
+                    }
+                    if (message.quadImgGlobal && message.quadImgGlobal.length) {
+                        object.quadImgGlobal = [];
+                        for (let j = 0; j < message.quadImgGlobal.length; ++j)
+                            object.quadImgGlobal[j] = options.json && !isFinite(message.quadImgGlobal[j]) ? String(message.quadImgGlobal[j]) : message.quadImgGlobal[j];
+                    }
+                    if (message.globalIou != null && message.hasOwnProperty("globalIou"))
+                        object.globalIou = options.json && !isFinite(message.globalIou) ? String(message.globalIou) : message.globalIou;
+                    return object;
+                };
+
+                /**
+                 * Converts this TablePose to JSON.
+                 * @function toJSON
+                 * @memberof bayesmech.vision.PongtownResponse.TablePose
+                 * @instance
+                 * @returns {Object.<string,*>} JSON object
+                 */
+                TablePose.prototype.toJSON = function toJSON() {
+                    return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+                };
+
+                /**
+                 * Gets the default type url for TablePose
+                 * @function getTypeUrl
+                 * @memberof bayesmech.vision.PongtownResponse.TablePose
+                 * @static
+                 * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+                 * @returns {string} The default type url
+                 */
+                TablePose.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+                    if (typeUrlPrefix === undefined) {
+                        typeUrlPrefix = "type.googleapis.com";
+                    }
+                    return typeUrlPrefix + "/bayesmech.vision.PongtownResponse.TablePose";
+                };
+
+                /**
+                 * Method enum.
+                 * @name bayesmech.vision.PongtownResponse.TablePose.Method
+                 * @enum {number}
+                 * @property {number} UNKNOWN=0 UNKNOWN value
+                 * @property {number} QUAD_FULL=1 QUAD_FULL value
+                 * @property {number} QUAD_FROM_MIDLINE=2 QUAD_FROM_MIDLINE value
+                 * @property {number} QUAD_FAILED=3 QUAD_FAILED value
+                 * @property {number} OFF_SCREEN=4 OFF_SCREEN value
+                 */
+                TablePose.Method = (function() {
+                    const valuesById = {}, values = Object.create(valuesById);
+                    values[valuesById[0] = "UNKNOWN"] = 0;
+                    values[valuesById[1] = "QUAD_FULL"] = 1;
+                    values[valuesById[2] = "QUAD_FROM_MIDLINE"] = 2;
+                    values[valuesById[3] = "QUAD_FAILED"] = 3;
+                    values[valuesById[4] = "OFF_SCREEN"] = 4;
+                    return values;
+                })();
+
+                return TablePose;
+            })();
+
+            PongtownResponse.PnpFrameDebug = (function() {
+
+                /**
+                 * Properties of a PnpFrameDebug.
+                 * @memberof bayesmech.vision.PongtownResponse
+                 * @interface IPnpFrameDebug
+                 * @property {number|null} [frameIdx] PnpFrameDebug frameIdx
+                 * @property {bayesmech.vision.ICameraIntrinsics|null} [cameraIntrinsics] PnpFrameDebug cameraIntrinsics
+                 * @property {Array.<number>|null} [cameraMatrix] PnpFrameDebug cameraMatrix
+                 * @property {bayesmech.vision.PongtownResponse.TablePose.Method|null} [imagePlaneMethod] PnpFrameDebug imagePlaneMethod
+                 * @property {number|null} [imagePlaneQuadQuality] PnpFrameDebug imagePlaneQuadQuality
+                 * @property {Array.<number>|null} [imagePlaneTableQuadImg] PnpFrameDebug imagePlaneTableQuadImg
+                 * @property {Array.<number>|null} [imagePlaneHalfTableQuadImg] PnpFrameDebug imagePlaneHalfTableQuadImg
+                 * @property {Array.<number>|null} [imagePlaneMidlineImg] PnpFrameDebug imagePlaneMidlineImg
+                 * @property {Array.<number>|null} [imagePlaneNetQuadImg] PnpFrameDebug imagePlaneNetQuadImg
+                 * @property {boolean|null} [pnpTableSuccess] PnpFrameDebug pnpTableSuccess
+                 * @property {number|null} [pnpTableIou] PnpFrameDebug pnpTableIou
+                 * @property {Array.<number>|null} [pnpTableQuadImg] PnpFrameDebug pnpTableQuadImg
+                 * @property {Array.<number>|null} [pnp_TTableToCamera] PnpFrameDebug pnp_TTableToCamera
+                 * @property {boolean|null} [pnpNetSuccess] PnpFrameDebug pnpNetSuccess
+                 * @property {number|null} [pnpNetIou] PnpFrameDebug pnpNetIou
+                 * @property {Array.<number>|null} [pnpNetQuadImg] PnpFrameDebug pnpNetQuadImg
+                 * @property {Array.<number>|null} [pnp_TNetToCamera] PnpFrameDebug pnp_TNetToCamera
+                 * @property {Array.<number>|null} [pnpOverlayNetQuadImg] PnpFrameDebug pnpOverlayNetQuadImg
+                 */
+
+                /**
+                 * Constructs a new PnpFrameDebug.
+                 * @memberof bayesmech.vision.PongtownResponse
+                 * @classdesc Represents a PnpFrameDebug.
+                 * @implements IPnpFrameDebug
+                 * @constructor
+                 * @param {bayesmech.vision.PongtownResponse.IPnpFrameDebug=} [properties] Properties to set
+                 */
+                function PnpFrameDebug(properties) {
+                    this.cameraMatrix = [];
+                    this.imagePlaneTableQuadImg = [];
+                    this.imagePlaneHalfTableQuadImg = [];
+                    this.imagePlaneMidlineImg = [];
+                    this.imagePlaneNetQuadImg = [];
+                    this.pnpTableQuadImg = [];
+                    this.pnp_TTableToCamera = [];
+                    this.pnpNetQuadImg = [];
+                    this.pnp_TNetToCamera = [];
+                    this.pnpOverlayNetQuadImg = [];
+                    if (properties)
+                        for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                            if (properties[keys[i]] != null)
+                                this[keys[i]] = properties[keys[i]];
+                }
+
+                /**
+                 * PnpFrameDebug frameIdx.
+                 * @member {number} frameIdx
+                 * @memberof bayesmech.vision.PongtownResponse.PnpFrameDebug
+                 * @instance
+                 */
+                PnpFrameDebug.prototype.frameIdx = 0;
+
+                /**
+                 * PnpFrameDebug cameraIntrinsics.
+                 * @member {bayesmech.vision.ICameraIntrinsics|null|undefined} cameraIntrinsics
+                 * @memberof bayesmech.vision.PongtownResponse.PnpFrameDebug
+                 * @instance
+                 */
+                PnpFrameDebug.prototype.cameraIntrinsics = null;
+
+                /**
+                 * PnpFrameDebug cameraMatrix.
+                 * @member {Array.<number>} cameraMatrix
+                 * @memberof bayesmech.vision.PongtownResponse.PnpFrameDebug
+                 * @instance
+                 */
+                PnpFrameDebug.prototype.cameraMatrix = $util.emptyArray;
+
+                /**
+                 * PnpFrameDebug imagePlaneMethod.
+                 * @member {bayesmech.vision.PongtownResponse.TablePose.Method} imagePlaneMethod
+                 * @memberof bayesmech.vision.PongtownResponse.PnpFrameDebug
+                 * @instance
+                 */
+                PnpFrameDebug.prototype.imagePlaneMethod = 0;
+
+                /**
+                 * PnpFrameDebug imagePlaneQuadQuality.
+                 * @member {number} imagePlaneQuadQuality
+                 * @memberof bayesmech.vision.PongtownResponse.PnpFrameDebug
+                 * @instance
+                 */
+                PnpFrameDebug.prototype.imagePlaneQuadQuality = 0;
+
+                /**
+                 * PnpFrameDebug imagePlaneTableQuadImg.
+                 * @member {Array.<number>} imagePlaneTableQuadImg
+                 * @memberof bayesmech.vision.PongtownResponse.PnpFrameDebug
+                 * @instance
+                 */
+                PnpFrameDebug.prototype.imagePlaneTableQuadImg = $util.emptyArray;
+
+                /**
+                 * PnpFrameDebug imagePlaneHalfTableQuadImg.
+                 * @member {Array.<number>} imagePlaneHalfTableQuadImg
+                 * @memberof bayesmech.vision.PongtownResponse.PnpFrameDebug
+                 * @instance
+                 */
+                PnpFrameDebug.prototype.imagePlaneHalfTableQuadImg = $util.emptyArray;
+
+                /**
+                 * PnpFrameDebug imagePlaneMidlineImg.
+                 * @member {Array.<number>} imagePlaneMidlineImg
+                 * @memberof bayesmech.vision.PongtownResponse.PnpFrameDebug
+                 * @instance
+                 */
+                PnpFrameDebug.prototype.imagePlaneMidlineImg = $util.emptyArray;
+
+                /**
+                 * PnpFrameDebug imagePlaneNetQuadImg.
+                 * @member {Array.<number>} imagePlaneNetQuadImg
+                 * @memberof bayesmech.vision.PongtownResponse.PnpFrameDebug
+                 * @instance
+                 */
+                PnpFrameDebug.prototype.imagePlaneNetQuadImg = $util.emptyArray;
+
+                /**
+                 * PnpFrameDebug pnpTableSuccess.
+                 * @member {boolean} pnpTableSuccess
+                 * @memberof bayesmech.vision.PongtownResponse.PnpFrameDebug
+                 * @instance
+                 */
+                PnpFrameDebug.prototype.pnpTableSuccess = false;
+
+                /**
+                 * PnpFrameDebug pnpTableIou.
+                 * @member {number} pnpTableIou
+                 * @memberof bayesmech.vision.PongtownResponse.PnpFrameDebug
+                 * @instance
+                 */
+                PnpFrameDebug.prototype.pnpTableIou = 0;
+
+                /**
+                 * PnpFrameDebug pnpTableQuadImg.
+                 * @member {Array.<number>} pnpTableQuadImg
+                 * @memberof bayesmech.vision.PongtownResponse.PnpFrameDebug
+                 * @instance
+                 */
+                PnpFrameDebug.prototype.pnpTableQuadImg = $util.emptyArray;
+
+                /**
+                 * PnpFrameDebug pnp_TTableToCamera.
+                 * @member {Array.<number>} pnp_TTableToCamera
+                 * @memberof bayesmech.vision.PongtownResponse.PnpFrameDebug
+                 * @instance
+                 */
+                PnpFrameDebug.prototype.pnp_TTableToCamera = $util.emptyArray;
+
+                /**
+                 * PnpFrameDebug pnpNetSuccess.
+                 * @member {boolean} pnpNetSuccess
+                 * @memberof bayesmech.vision.PongtownResponse.PnpFrameDebug
+                 * @instance
+                 */
+                PnpFrameDebug.prototype.pnpNetSuccess = false;
+
+                /**
+                 * PnpFrameDebug pnpNetIou.
+                 * @member {number} pnpNetIou
+                 * @memberof bayesmech.vision.PongtownResponse.PnpFrameDebug
+                 * @instance
+                 */
+                PnpFrameDebug.prototype.pnpNetIou = 0;
+
+                /**
+                 * PnpFrameDebug pnpNetQuadImg.
+                 * @member {Array.<number>} pnpNetQuadImg
+                 * @memberof bayesmech.vision.PongtownResponse.PnpFrameDebug
+                 * @instance
+                 */
+                PnpFrameDebug.prototype.pnpNetQuadImg = $util.emptyArray;
+
+                /**
+                 * PnpFrameDebug pnp_TNetToCamera.
+                 * @member {Array.<number>} pnp_TNetToCamera
+                 * @memberof bayesmech.vision.PongtownResponse.PnpFrameDebug
+                 * @instance
+                 */
+                PnpFrameDebug.prototype.pnp_TNetToCamera = $util.emptyArray;
+
+                /**
+                 * PnpFrameDebug pnpOverlayNetQuadImg.
+                 * @member {Array.<number>} pnpOverlayNetQuadImg
+                 * @memberof bayesmech.vision.PongtownResponse.PnpFrameDebug
+                 * @instance
+                 */
+                PnpFrameDebug.prototype.pnpOverlayNetQuadImg = $util.emptyArray;
+
+                /**
+                 * Creates a new PnpFrameDebug instance using the specified properties.
+                 * @function create
+                 * @memberof bayesmech.vision.PongtownResponse.PnpFrameDebug
+                 * @static
+                 * @param {bayesmech.vision.PongtownResponse.IPnpFrameDebug=} [properties] Properties to set
+                 * @returns {bayesmech.vision.PongtownResponse.PnpFrameDebug} PnpFrameDebug instance
+                 */
+                PnpFrameDebug.create = function create(properties) {
+                    return new PnpFrameDebug(properties);
+                };
+
+                /**
+                 * Encodes the specified PnpFrameDebug message. Does not implicitly {@link bayesmech.vision.PongtownResponse.PnpFrameDebug.verify|verify} messages.
+                 * @function encode
+                 * @memberof bayesmech.vision.PongtownResponse.PnpFrameDebug
+                 * @static
+                 * @param {bayesmech.vision.PongtownResponse.IPnpFrameDebug} message PnpFrameDebug message or plain object to encode
+                 * @param {$protobuf.Writer} [writer] Writer to encode to
+                 * @returns {$protobuf.Writer} Writer
+                 */
+                PnpFrameDebug.encode = function encode(message, writer) {
+                    if (!writer)
+                        writer = $Writer.create();
+                    if (message.frameIdx != null && Object.hasOwnProperty.call(message, "frameIdx"))
+                        writer.uint32(/* id 1, wireType 0 =*/8).uint32(message.frameIdx);
+                    if (message.cameraIntrinsics != null && Object.hasOwnProperty.call(message, "cameraIntrinsics"))
+                        $root.bayesmech.vision.CameraIntrinsics.encode(message.cameraIntrinsics, writer.uint32(/* id 2, wireType 2 =*/18).fork()).ldelim();
+                    if (message.cameraMatrix != null && message.cameraMatrix.length) {
+                        writer.uint32(/* id 3, wireType 2 =*/26).fork();
+                        for (let i = 0; i < message.cameraMatrix.length; ++i)
+                            writer.float(message.cameraMatrix[i]);
+                        writer.ldelim();
+                    }
+                    if (message.imagePlaneMethod != null && Object.hasOwnProperty.call(message, "imagePlaneMethod"))
+                        writer.uint32(/* id 4, wireType 0 =*/32).int32(message.imagePlaneMethod);
+                    if (message.imagePlaneQuadQuality != null && Object.hasOwnProperty.call(message, "imagePlaneQuadQuality"))
+                        writer.uint32(/* id 5, wireType 5 =*/45).float(message.imagePlaneQuadQuality);
+                    if (message.imagePlaneTableQuadImg != null && message.imagePlaneTableQuadImg.length) {
+                        writer.uint32(/* id 6, wireType 2 =*/50).fork();
+                        for (let i = 0; i < message.imagePlaneTableQuadImg.length; ++i)
+                            writer.float(message.imagePlaneTableQuadImg[i]);
+                        writer.ldelim();
+                    }
+                    if (message.imagePlaneHalfTableQuadImg != null && message.imagePlaneHalfTableQuadImg.length) {
+                        writer.uint32(/* id 7, wireType 2 =*/58).fork();
+                        for (let i = 0; i < message.imagePlaneHalfTableQuadImg.length; ++i)
+                            writer.float(message.imagePlaneHalfTableQuadImg[i]);
+                        writer.ldelim();
+                    }
+                    if (message.imagePlaneMidlineImg != null && message.imagePlaneMidlineImg.length) {
+                        writer.uint32(/* id 8, wireType 2 =*/66).fork();
+                        for (let i = 0; i < message.imagePlaneMidlineImg.length; ++i)
+                            writer.float(message.imagePlaneMidlineImg[i]);
+                        writer.ldelim();
+                    }
+                    if (message.imagePlaneNetQuadImg != null && message.imagePlaneNetQuadImg.length) {
+                        writer.uint32(/* id 9, wireType 2 =*/74).fork();
+                        for (let i = 0; i < message.imagePlaneNetQuadImg.length; ++i)
+                            writer.float(message.imagePlaneNetQuadImg[i]);
+                        writer.ldelim();
+                    }
+                    if (message.pnpTableSuccess != null && Object.hasOwnProperty.call(message, "pnpTableSuccess"))
+                        writer.uint32(/* id 10, wireType 0 =*/80).bool(message.pnpTableSuccess);
+                    if (message.pnpTableIou != null && Object.hasOwnProperty.call(message, "pnpTableIou"))
+                        writer.uint32(/* id 11, wireType 5 =*/93).float(message.pnpTableIou);
+                    if (message.pnpTableQuadImg != null && message.pnpTableQuadImg.length) {
+                        writer.uint32(/* id 12, wireType 2 =*/98).fork();
+                        for (let i = 0; i < message.pnpTableQuadImg.length; ++i)
+                            writer.float(message.pnpTableQuadImg[i]);
+                        writer.ldelim();
+                    }
+                    if (message.pnp_TTableToCamera != null && message.pnp_TTableToCamera.length) {
+                        writer.uint32(/* id 13, wireType 2 =*/106).fork();
+                        for (let i = 0; i < message.pnp_TTableToCamera.length; ++i)
+                            writer.float(message.pnp_TTableToCamera[i]);
+                        writer.ldelim();
+                    }
+                    if (message.pnpNetSuccess != null && Object.hasOwnProperty.call(message, "pnpNetSuccess"))
+                        writer.uint32(/* id 14, wireType 0 =*/112).bool(message.pnpNetSuccess);
+                    if (message.pnpNetIou != null && Object.hasOwnProperty.call(message, "pnpNetIou"))
+                        writer.uint32(/* id 15, wireType 5 =*/125).float(message.pnpNetIou);
+                    if (message.pnpNetQuadImg != null && message.pnpNetQuadImg.length) {
+                        writer.uint32(/* id 16, wireType 2 =*/130).fork();
+                        for (let i = 0; i < message.pnpNetQuadImg.length; ++i)
+                            writer.float(message.pnpNetQuadImg[i]);
+                        writer.ldelim();
+                    }
+                    if (message.pnp_TNetToCamera != null && message.pnp_TNetToCamera.length) {
+                        writer.uint32(/* id 17, wireType 2 =*/138).fork();
+                        for (let i = 0; i < message.pnp_TNetToCamera.length; ++i)
+                            writer.float(message.pnp_TNetToCamera[i]);
+                        writer.ldelim();
+                    }
+                    if (message.pnpOverlayNetQuadImg != null && message.pnpOverlayNetQuadImg.length) {
+                        writer.uint32(/* id 18, wireType 2 =*/146).fork();
+                        for (let i = 0; i < message.pnpOverlayNetQuadImg.length; ++i)
+                            writer.float(message.pnpOverlayNetQuadImg[i]);
+                        writer.ldelim();
+                    }
+                    return writer;
+                };
+
+                /**
+                 * Encodes the specified PnpFrameDebug message, length delimited. Does not implicitly {@link bayesmech.vision.PongtownResponse.PnpFrameDebug.verify|verify} messages.
+                 * @function encodeDelimited
+                 * @memberof bayesmech.vision.PongtownResponse.PnpFrameDebug
+                 * @static
+                 * @param {bayesmech.vision.PongtownResponse.IPnpFrameDebug} message PnpFrameDebug message or plain object to encode
+                 * @param {$protobuf.Writer} [writer] Writer to encode to
+                 * @returns {$protobuf.Writer} Writer
+                 */
+                PnpFrameDebug.encodeDelimited = function encodeDelimited(message, writer) {
+                    return this.encode(message, writer).ldelim();
+                };
+
+                /**
+                 * Decodes a PnpFrameDebug message from the specified reader or buffer.
+                 * @function decode
+                 * @memberof bayesmech.vision.PongtownResponse.PnpFrameDebug
+                 * @static
+                 * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+                 * @param {number} [length] Message length if known beforehand
+                 * @returns {bayesmech.vision.PongtownResponse.PnpFrameDebug} PnpFrameDebug
+                 * @throws {Error} If the payload is not a reader or valid buffer
+                 * @throws {$protobuf.util.ProtocolError} If required fields are missing
+                 */
+                PnpFrameDebug.decode = function decode(reader, length, error) {
+                    if (!(reader instanceof $Reader))
+                        reader = $Reader.create(reader);
+                    let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.PongtownResponse.PnpFrameDebug();
+                    while (reader.pos < end) {
+                        let tag = reader.uint32();
+                        if (tag === error)
+                            break;
+                        switch (tag >>> 3) {
+                        case 1: {
+                                message.frameIdx = reader.uint32();
+                                break;
+                            }
+                        case 2: {
+                                message.cameraIntrinsics = $root.bayesmech.vision.CameraIntrinsics.decode(reader, reader.uint32());
+                                break;
+                            }
+                        case 3: {
+                                if (!(message.cameraMatrix && message.cameraMatrix.length))
+                                    message.cameraMatrix = [];
+                                if ((tag & 7) === 2) {
+                                    let end2 = reader.uint32() + reader.pos;
+                                    while (reader.pos < end2)
+                                        message.cameraMatrix.push(reader.float());
+                                } else
+                                    message.cameraMatrix.push(reader.float());
+                                break;
+                            }
+                        case 4: {
+                                message.imagePlaneMethod = reader.int32();
+                                break;
+                            }
+                        case 5: {
+                                message.imagePlaneQuadQuality = reader.float();
+                                break;
+                            }
+                        case 6: {
+                                if (!(message.imagePlaneTableQuadImg && message.imagePlaneTableQuadImg.length))
+                                    message.imagePlaneTableQuadImg = [];
+                                if ((tag & 7) === 2) {
+                                    let end2 = reader.uint32() + reader.pos;
+                                    while (reader.pos < end2)
+                                        message.imagePlaneTableQuadImg.push(reader.float());
+                                } else
+                                    message.imagePlaneTableQuadImg.push(reader.float());
+                                break;
+                            }
+                        case 7: {
+                                if (!(message.imagePlaneHalfTableQuadImg && message.imagePlaneHalfTableQuadImg.length))
+                                    message.imagePlaneHalfTableQuadImg = [];
+                                if ((tag & 7) === 2) {
+                                    let end2 = reader.uint32() + reader.pos;
+                                    while (reader.pos < end2)
+                                        message.imagePlaneHalfTableQuadImg.push(reader.float());
+                                } else
+                                    message.imagePlaneHalfTableQuadImg.push(reader.float());
+                                break;
+                            }
+                        case 8: {
+                                if (!(message.imagePlaneMidlineImg && message.imagePlaneMidlineImg.length))
+                                    message.imagePlaneMidlineImg = [];
+                                if ((tag & 7) === 2) {
+                                    let end2 = reader.uint32() + reader.pos;
+                                    while (reader.pos < end2)
+                                        message.imagePlaneMidlineImg.push(reader.float());
+                                } else
+                                    message.imagePlaneMidlineImg.push(reader.float());
+                                break;
+                            }
+                        case 9: {
+                                if (!(message.imagePlaneNetQuadImg && message.imagePlaneNetQuadImg.length))
+                                    message.imagePlaneNetQuadImg = [];
+                                if ((tag & 7) === 2) {
+                                    let end2 = reader.uint32() + reader.pos;
+                                    while (reader.pos < end2)
+                                        message.imagePlaneNetQuadImg.push(reader.float());
+                                } else
+                                    message.imagePlaneNetQuadImg.push(reader.float());
+                                break;
+                            }
+                        case 10: {
+                                message.pnpTableSuccess = reader.bool();
+                                break;
+                            }
+                        case 11: {
+                                message.pnpTableIou = reader.float();
+                                break;
+                            }
+                        case 12: {
+                                if (!(message.pnpTableQuadImg && message.pnpTableQuadImg.length))
+                                    message.pnpTableQuadImg = [];
+                                if ((tag & 7) === 2) {
+                                    let end2 = reader.uint32() + reader.pos;
+                                    while (reader.pos < end2)
+                                        message.pnpTableQuadImg.push(reader.float());
+                                } else
+                                    message.pnpTableQuadImg.push(reader.float());
+                                break;
+                            }
+                        case 13: {
+                                if (!(message.pnp_TTableToCamera && message.pnp_TTableToCamera.length))
+                                    message.pnp_TTableToCamera = [];
+                                if ((tag & 7) === 2) {
+                                    let end2 = reader.uint32() + reader.pos;
+                                    while (reader.pos < end2)
+                                        message.pnp_TTableToCamera.push(reader.float());
+                                } else
+                                    message.pnp_TTableToCamera.push(reader.float());
+                                break;
+                            }
+                        case 14: {
+                                message.pnpNetSuccess = reader.bool();
+                                break;
+                            }
+                        case 15: {
+                                message.pnpNetIou = reader.float();
+                                break;
+                            }
+                        case 16: {
+                                if (!(message.pnpNetQuadImg && message.pnpNetQuadImg.length))
+                                    message.pnpNetQuadImg = [];
+                                if ((tag & 7) === 2) {
+                                    let end2 = reader.uint32() + reader.pos;
+                                    while (reader.pos < end2)
+                                        message.pnpNetQuadImg.push(reader.float());
+                                } else
+                                    message.pnpNetQuadImg.push(reader.float());
+                                break;
+                            }
+                        case 17: {
+                                if (!(message.pnp_TNetToCamera && message.pnp_TNetToCamera.length))
+                                    message.pnp_TNetToCamera = [];
+                                if ((tag & 7) === 2) {
+                                    let end2 = reader.uint32() + reader.pos;
+                                    while (reader.pos < end2)
+                                        message.pnp_TNetToCamera.push(reader.float());
+                                } else
+                                    message.pnp_TNetToCamera.push(reader.float());
+                                break;
+                            }
+                        case 18: {
+                                if (!(message.pnpOverlayNetQuadImg && message.pnpOverlayNetQuadImg.length))
+                                    message.pnpOverlayNetQuadImg = [];
+                                if ((tag & 7) === 2) {
+                                    let end2 = reader.uint32() + reader.pos;
+                                    while (reader.pos < end2)
+                                        message.pnpOverlayNetQuadImg.push(reader.float());
+                                } else
+                                    message.pnpOverlayNetQuadImg.push(reader.float());
+                                break;
+                            }
+                        default:
+                            reader.skipType(tag & 7);
+                            break;
+                        }
+                    }
+                    return message;
+                };
+
+                /**
+                 * Decodes a PnpFrameDebug message from the specified reader or buffer, length delimited.
+                 * @function decodeDelimited
+                 * @memberof bayesmech.vision.PongtownResponse.PnpFrameDebug
+                 * @static
+                 * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+                 * @returns {bayesmech.vision.PongtownResponse.PnpFrameDebug} PnpFrameDebug
+                 * @throws {Error} If the payload is not a reader or valid buffer
+                 * @throws {$protobuf.util.ProtocolError} If required fields are missing
+                 */
+                PnpFrameDebug.decodeDelimited = function decodeDelimited(reader) {
+                    if (!(reader instanceof $Reader))
+                        reader = new $Reader(reader);
+                    return this.decode(reader, reader.uint32());
+                };
+
+                /**
+                 * Verifies a PnpFrameDebug message.
+                 * @function verify
+                 * @memberof bayesmech.vision.PongtownResponse.PnpFrameDebug
+                 * @static
+                 * @param {Object.<string,*>} message Plain object to verify
+                 * @returns {string|null} `null` if valid, otherwise the reason why it is not
+                 */
+                PnpFrameDebug.verify = function verify(message) {
+                    if (typeof message !== "object" || message === null)
+                        return "object expected";
+                    if (message.frameIdx != null && message.hasOwnProperty("frameIdx"))
+                        if (!$util.isInteger(message.frameIdx))
+                            return "frameIdx: integer expected";
+                    if (message.cameraIntrinsics != null && message.hasOwnProperty("cameraIntrinsics")) {
+                        let error = $root.bayesmech.vision.CameraIntrinsics.verify(message.cameraIntrinsics);
+                        if (error)
+                            return "cameraIntrinsics." + error;
+                    }
+                    if (message.cameraMatrix != null && message.hasOwnProperty("cameraMatrix")) {
+                        if (!Array.isArray(message.cameraMatrix))
+                            return "cameraMatrix: array expected";
+                        for (let i = 0; i < message.cameraMatrix.length; ++i)
+                            if (typeof message.cameraMatrix[i] !== "number")
+                                return "cameraMatrix: number[] expected";
+                    }
+                    if (message.imagePlaneMethod != null && message.hasOwnProperty("imagePlaneMethod"))
+                        switch (message.imagePlaneMethod) {
+                        default:
+                            return "imagePlaneMethod: enum value expected";
+                        case 0:
+                        case 1:
+                        case 2:
+                        case 3:
+                        case 4:
+                            break;
+                        }
+                    if (message.imagePlaneQuadQuality != null && message.hasOwnProperty("imagePlaneQuadQuality"))
+                        if (typeof message.imagePlaneQuadQuality !== "number")
+                            return "imagePlaneQuadQuality: number expected";
+                    if (message.imagePlaneTableQuadImg != null && message.hasOwnProperty("imagePlaneTableQuadImg")) {
+                        if (!Array.isArray(message.imagePlaneTableQuadImg))
+                            return "imagePlaneTableQuadImg: array expected";
+                        for (let i = 0; i < message.imagePlaneTableQuadImg.length; ++i)
+                            if (typeof message.imagePlaneTableQuadImg[i] !== "number")
+                                return "imagePlaneTableQuadImg: number[] expected";
+                    }
+                    if (message.imagePlaneHalfTableQuadImg != null && message.hasOwnProperty("imagePlaneHalfTableQuadImg")) {
+                        if (!Array.isArray(message.imagePlaneHalfTableQuadImg))
+                            return "imagePlaneHalfTableQuadImg: array expected";
+                        for (let i = 0; i < message.imagePlaneHalfTableQuadImg.length; ++i)
+                            if (typeof message.imagePlaneHalfTableQuadImg[i] !== "number")
+                                return "imagePlaneHalfTableQuadImg: number[] expected";
+                    }
+                    if (message.imagePlaneMidlineImg != null && message.hasOwnProperty("imagePlaneMidlineImg")) {
+                        if (!Array.isArray(message.imagePlaneMidlineImg))
+                            return "imagePlaneMidlineImg: array expected";
+                        for (let i = 0; i < message.imagePlaneMidlineImg.length; ++i)
+                            if (typeof message.imagePlaneMidlineImg[i] !== "number")
+                                return "imagePlaneMidlineImg: number[] expected";
+                    }
+                    if (message.imagePlaneNetQuadImg != null && message.hasOwnProperty("imagePlaneNetQuadImg")) {
+                        if (!Array.isArray(message.imagePlaneNetQuadImg))
+                            return "imagePlaneNetQuadImg: array expected";
+                        for (let i = 0; i < message.imagePlaneNetQuadImg.length; ++i)
+                            if (typeof message.imagePlaneNetQuadImg[i] !== "number")
+                                return "imagePlaneNetQuadImg: number[] expected";
+                    }
+                    if (message.pnpTableSuccess != null && message.hasOwnProperty("pnpTableSuccess"))
+                        if (typeof message.pnpTableSuccess !== "boolean")
+                            return "pnpTableSuccess: boolean expected";
+                    if (message.pnpTableIou != null && message.hasOwnProperty("pnpTableIou"))
+                        if (typeof message.pnpTableIou !== "number")
+                            return "pnpTableIou: number expected";
+                    if (message.pnpTableQuadImg != null && message.hasOwnProperty("pnpTableQuadImg")) {
+                        if (!Array.isArray(message.pnpTableQuadImg))
+                            return "pnpTableQuadImg: array expected";
+                        for (let i = 0; i < message.pnpTableQuadImg.length; ++i)
+                            if (typeof message.pnpTableQuadImg[i] !== "number")
+                                return "pnpTableQuadImg: number[] expected";
+                    }
+                    if (message.pnp_TTableToCamera != null && message.hasOwnProperty("pnp_TTableToCamera")) {
+                        if (!Array.isArray(message.pnp_TTableToCamera))
+                            return "pnp_TTableToCamera: array expected";
+                        for (let i = 0; i < message.pnp_TTableToCamera.length; ++i)
+                            if (typeof message.pnp_TTableToCamera[i] !== "number")
+                                return "pnp_TTableToCamera: number[] expected";
+                    }
+                    if (message.pnpNetSuccess != null && message.hasOwnProperty("pnpNetSuccess"))
+                        if (typeof message.pnpNetSuccess !== "boolean")
+                            return "pnpNetSuccess: boolean expected";
+                    if (message.pnpNetIou != null && message.hasOwnProperty("pnpNetIou"))
+                        if (typeof message.pnpNetIou !== "number")
+                            return "pnpNetIou: number expected";
+                    if (message.pnpNetQuadImg != null && message.hasOwnProperty("pnpNetQuadImg")) {
+                        if (!Array.isArray(message.pnpNetQuadImg))
+                            return "pnpNetQuadImg: array expected";
+                        for (let i = 0; i < message.pnpNetQuadImg.length; ++i)
+                            if (typeof message.pnpNetQuadImg[i] !== "number")
+                                return "pnpNetQuadImg: number[] expected";
+                    }
+                    if (message.pnp_TNetToCamera != null && message.hasOwnProperty("pnp_TNetToCamera")) {
+                        if (!Array.isArray(message.pnp_TNetToCamera))
+                            return "pnp_TNetToCamera: array expected";
+                        for (let i = 0; i < message.pnp_TNetToCamera.length; ++i)
+                            if (typeof message.pnp_TNetToCamera[i] !== "number")
+                                return "pnp_TNetToCamera: number[] expected";
+                    }
+                    if (message.pnpOverlayNetQuadImg != null && message.hasOwnProperty("pnpOverlayNetQuadImg")) {
+                        if (!Array.isArray(message.pnpOverlayNetQuadImg))
+                            return "pnpOverlayNetQuadImg: array expected";
+                        for (let i = 0; i < message.pnpOverlayNetQuadImg.length; ++i)
+                            if (typeof message.pnpOverlayNetQuadImg[i] !== "number")
+                                return "pnpOverlayNetQuadImg: number[] expected";
+                    }
+                    return null;
+                };
+
+                /**
+                 * Creates a PnpFrameDebug message from a plain object. Also converts values to their respective internal types.
+                 * @function fromObject
+                 * @memberof bayesmech.vision.PongtownResponse.PnpFrameDebug
+                 * @static
+                 * @param {Object.<string,*>} object Plain object
+                 * @returns {bayesmech.vision.PongtownResponse.PnpFrameDebug} PnpFrameDebug
+                 */
+                PnpFrameDebug.fromObject = function fromObject(object) {
+                    if (object instanceof $root.bayesmech.vision.PongtownResponse.PnpFrameDebug)
+                        return object;
+                    let message = new $root.bayesmech.vision.PongtownResponse.PnpFrameDebug();
+                    if (object.frameIdx != null)
+                        message.frameIdx = object.frameIdx >>> 0;
+                    if (object.cameraIntrinsics != null) {
+                        if (typeof object.cameraIntrinsics !== "object")
+                            throw TypeError(".bayesmech.vision.PongtownResponse.PnpFrameDebug.cameraIntrinsics: object expected");
+                        message.cameraIntrinsics = $root.bayesmech.vision.CameraIntrinsics.fromObject(object.cameraIntrinsics);
+                    }
+                    if (object.cameraMatrix) {
+                        if (!Array.isArray(object.cameraMatrix))
+                            throw TypeError(".bayesmech.vision.PongtownResponse.PnpFrameDebug.cameraMatrix: array expected");
+                        message.cameraMatrix = [];
+                        for (let i = 0; i < object.cameraMatrix.length; ++i)
+                            message.cameraMatrix[i] = Number(object.cameraMatrix[i]);
+                    }
+                    switch (object.imagePlaneMethod) {
+                    default:
+                        if (typeof object.imagePlaneMethod === "number") {
+                            message.imagePlaneMethod = object.imagePlaneMethod;
+                            break;
+                        }
+                        break;
+                    case "UNKNOWN":
+                    case 0:
+                        message.imagePlaneMethod = 0;
+                        break;
+                    case "QUAD_FULL":
+                    case 1:
+                        message.imagePlaneMethod = 1;
+                        break;
+                    case "QUAD_FROM_MIDLINE":
+                    case 2:
+                        message.imagePlaneMethod = 2;
+                        break;
+                    case "QUAD_FAILED":
+                    case 3:
+                        message.imagePlaneMethod = 3;
+                        break;
+                    case "OFF_SCREEN":
+                    case 4:
+                        message.imagePlaneMethod = 4;
+                        break;
+                    }
+                    if (object.imagePlaneQuadQuality != null)
+                        message.imagePlaneQuadQuality = Number(object.imagePlaneQuadQuality);
+                    if (object.imagePlaneTableQuadImg) {
+                        if (!Array.isArray(object.imagePlaneTableQuadImg))
+                            throw TypeError(".bayesmech.vision.PongtownResponse.PnpFrameDebug.imagePlaneTableQuadImg: array expected");
+                        message.imagePlaneTableQuadImg = [];
+                        for (let i = 0; i < object.imagePlaneTableQuadImg.length; ++i)
+                            message.imagePlaneTableQuadImg[i] = Number(object.imagePlaneTableQuadImg[i]);
+                    }
+                    if (object.imagePlaneHalfTableQuadImg) {
+                        if (!Array.isArray(object.imagePlaneHalfTableQuadImg))
+                            throw TypeError(".bayesmech.vision.PongtownResponse.PnpFrameDebug.imagePlaneHalfTableQuadImg: array expected");
+                        message.imagePlaneHalfTableQuadImg = [];
+                        for (let i = 0; i < object.imagePlaneHalfTableQuadImg.length; ++i)
+                            message.imagePlaneHalfTableQuadImg[i] = Number(object.imagePlaneHalfTableQuadImg[i]);
+                    }
+                    if (object.imagePlaneMidlineImg) {
+                        if (!Array.isArray(object.imagePlaneMidlineImg))
+                            throw TypeError(".bayesmech.vision.PongtownResponse.PnpFrameDebug.imagePlaneMidlineImg: array expected");
+                        message.imagePlaneMidlineImg = [];
+                        for (let i = 0; i < object.imagePlaneMidlineImg.length; ++i)
+                            message.imagePlaneMidlineImg[i] = Number(object.imagePlaneMidlineImg[i]);
+                    }
+                    if (object.imagePlaneNetQuadImg) {
+                        if (!Array.isArray(object.imagePlaneNetQuadImg))
+                            throw TypeError(".bayesmech.vision.PongtownResponse.PnpFrameDebug.imagePlaneNetQuadImg: array expected");
+                        message.imagePlaneNetQuadImg = [];
+                        for (let i = 0; i < object.imagePlaneNetQuadImg.length; ++i)
+                            message.imagePlaneNetQuadImg[i] = Number(object.imagePlaneNetQuadImg[i]);
+                    }
+                    if (object.pnpTableSuccess != null)
+                        message.pnpTableSuccess = Boolean(object.pnpTableSuccess);
+                    if (object.pnpTableIou != null)
+                        message.pnpTableIou = Number(object.pnpTableIou);
+                    if (object.pnpTableQuadImg) {
+                        if (!Array.isArray(object.pnpTableQuadImg))
+                            throw TypeError(".bayesmech.vision.PongtownResponse.PnpFrameDebug.pnpTableQuadImg: array expected");
+                        message.pnpTableQuadImg = [];
+                        for (let i = 0; i < object.pnpTableQuadImg.length; ++i)
+                            message.pnpTableQuadImg[i] = Number(object.pnpTableQuadImg[i]);
+                    }
+                    if (object.pnp_TTableToCamera) {
+                        if (!Array.isArray(object.pnp_TTableToCamera))
+                            throw TypeError(".bayesmech.vision.PongtownResponse.PnpFrameDebug.pnp_TTableToCamera: array expected");
+                        message.pnp_TTableToCamera = [];
+                        for (let i = 0; i < object.pnp_TTableToCamera.length; ++i)
+                            message.pnp_TTableToCamera[i] = Number(object.pnp_TTableToCamera[i]);
+                    }
+                    if (object.pnpNetSuccess != null)
+                        message.pnpNetSuccess = Boolean(object.pnpNetSuccess);
+                    if (object.pnpNetIou != null)
+                        message.pnpNetIou = Number(object.pnpNetIou);
+                    if (object.pnpNetQuadImg) {
+                        if (!Array.isArray(object.pnpNetQuadImg))
+                            throw TypeError(".bayesmech.vision.PongtownResponse.PnpFrameDebug.pnpNetQuadImg: array expected");
+                        message.pnpNetQuadImg = [];
+                        for (let i = 0; i < object.pnpNetQuadImg.length; ++i)
+                            message.pnpNetQuadImg[i] = Number(object.pnpNetQuadImg[i]);
+                    }
+                    if (object.pnp_TNetToCamera) {
+                        if (!Array.isArray(object.pnp_TNetToCamera))
+                            throw TypeError(".bayesmech.vision.PongtownResponse.PnpFrameDebug.pnp_TNetToCamera: array expected");
+                        message.pnp_TNetToCamera = [];
+                        for (let i = 0; i < object.pnp_TNetToCamera.length; ++i)
+                            message.pnp_TNetToCamera[i] = Number(object.pnp_TNetToCamera[i]);
+                    }
+                    if (object.pnpOverlayNetQuadImg) {
+                        if (!Array.isArray(object.pnpOverlayNetQuadImg))
+                            throw TypeError(".bayesmech.vision.PongtownResponse.PnpFrameDebug.pnpOverlayNetQuadImg: array expected");
+                        message.pnpOverlayNetQuadImg = [];
+                        for (let i = 0; i < object.pnpOverlayNetQuadImg.length; ++i)
+                            message.pnpOverlayNetQuadImg[i] = Number(object.pnpOverlayNetQuadImg[i]);
+                    }
+                    return message;
+                };
+
+                /**
+                 * Creates a plain object from a PnpFrameDebug message. Also converts values to other types if specified.
+                 * @function toObject
+                 * @memberof bayesmech.vision.PongtownResponse.PnpFrameDebug
+                 * @static
+                 * @param {bayesmech.vision.PongtownResponse.PnpFrameDebug} message PnpFrameDebug
+                 * @param {$protobuf.IConversionOptions} [options] Conversion options
+                 * @returns {Object.<string,*>} Plain object
+                 */
+                PnpFrameDebug.toObject = function toObject(message, options) {
+                    if (!options)
+                        options = {};
+                    let object = {};
+                    if (options.arrays || options.defaults) {
+                        object.cameraMatrix = [];
+                        object.imagePlaneTableQuadImg = [];
+                        object.imagePlaneHalfTableQuadImg = [];
+                        object.imagePlaneMidlineImg = [];
+                        object.imagePlaneNetQuadImg = [];
+                        object.pnpTableQuadImg = [];
+                        object.pnp_TTableToCamera = [];
+                        object.pnpNetQuadImg = [];
+                        object.pnp_TNetToCamera = [];
+                        object.pnpOverlayNetQuadImg = [];
+                    }
+                    if (options.defaults) {
+                        object.frameIdx = 0;
+                        object.cameraIntrinsics = null;
+                        object.imagePlaneMethod = options.enums === String ? "UNKNOWN" : 0;
+                        object.imagePlaneQuadQuality = 0;
+                        object.pnpTableSuccess = false;
+                        object.pnpTableIou = 0;
+                        object.pnpNetSuccess = false;
+                        object.pnpNetIou = 0;
+                    }
+                    if (message.frameIdx != null && message.hasOwnProperty("frameIdx"))
+                        object.frameIdx = message.frameIdx;
+                    if (message.cameraIntrinsics != null && message.hasOwnProperty("cameraIntrinsics"))
+                        object.cameraIntrinsics = $root.bayesmech.vision.CameraIntrinsics.toObject(message.cameraIntrinsics, options);
+                    if (message.cameraMatrix && message.cameraMatrix.length) {
+                        object.cameraMatrix = [];
+                        for (let j = 0; j < message.cameraMatrix.length; ++j)
+                            object.cameraMatrix[j] = options.json && !isFinite(message.cameraMatrix[j]) ? String(message.cameraMatrix[j]) : message.cameraMatrix[j];
+                    }
+                    if (message.imagePlaneMethod != null && message.hasOwnProperty("imagePlaneMethod"))
+                        object.imagePlaneMethod = options.enums === String ? $root.bayesmech.vision.PongtownResponse.TablePose.Method[message.imagePlaneMethod] === undefined ? message.imagePlaneMethod : $root.bayesmech.vision.PongtownResponse.TablePose.Method[message.imagePlaneMethod] : message.imagePlaneMethod;
+                    if (message.imagePlaneQuadQuality != null && message.hasOwnProperty("imagePlaneQuadQuality"))
+                        object.imagePlaneQuadQuality = options.json && !isFinite(message.imagePlaneQuadQuality) ? String(message.imagePlaneQuadQuality) : message.imagePlaneQuadQuality;
+                    if (message.imagePlaneTableQuadImg && message.imagePlaneTableQuadImg.length) {
+                        object.imagePlaneTableQuadImg = [];
+                        for (let j = 0; j < message.imagePlaneTableQuadImg.length; ++j)
+                            object.imagePlaneTableQuadImg[j] = options.json && !isFinite(message.imagePlaneTableQuadImg[j]) ? String(message.imagePlaneTableQuadImg[j]) : message.imagePlaneTableQuadImg[j];
+                    }
+                    if (message.imagePlaneHalfTableQuadImg && message.imagePlaneHalfTableQuadImg.length) {
+                        object.imagePlaneHalfTableQuadImg = [];
+                        for (let j = 0; j < message.imagePlaneHalfTableQuadImg.length; ++j)
+                            object.imagePlaneHalfTableQuadImg[j] = options.json && !isFinite(message.imagePlaneHalfTableQuadImg[j]) ? String(message.imagePlaneHalfTableQuadImg[j]) : message.imagePlaneHalfTableQuadImg[j];
+                    }
+                    if (message.imagePlaneMidlineImg && message.imagePlaneMidlineImg.length) {
+                        object.imagePlaneMidlineImg = [];
+                        for (let j = 0; j < message.imagePlaneMidlineImg.length; ++j)
+                            object.imagePlaneMidlineImg[j] = options.json && !isFinite(message.imagePlaneMidlineImg[j]) ? String(message.imagePlaneMidlineImg[j]) : message.imagePlaneMidlineImg[j];
+                    }
+                    if (message.imagePlaneNetQuadImg && message.imagePlaneNetQuadImg.length) {
+                        object.imagePlaneNetQuadImg = [];
+                        for (let j = 0; j < message.imagePlaneNetQuadImg.length; ++j)
+                            object.imagePlaneNetQuadImg[j] = options.json && !isFinite(message.imagePlaneNetQuadImg[j]) ? String(message.imagePlaneNetQuadImg[j]) : message.imagePlaneNetQuadImg[j];
+                    }
+                    if (message.pnpTableSuccess != null && message.hasOwnProperty("pnpTableSuccess"))
+                        object.pnpTableSuccess = message.pnpTableSuccess;
+                    if (message.pnpTableIou != null && message.hasOwnProperty("pnpTableIou"))
+                        object.pnpTableIou = options.json && !isFinite(message.pnpTableIou) ? String(message.pnpTableIou) : message.pnpTableIou;
+                    if (message.pnpTableQuadImg && message.pnpTableQuadImg.length) {
+                        object.pnpTableQuadImg = [];
+                        for (let j = 0; j < message.pnpTableQuadImg.length; ++j)
+                            object.pnpTableQuadImg[j] = options.json && !isFinite(message.pnpTableQuadImg[j]) ? String(message.pnpTableQuadImg[j]) : message.pnpTableQuadImg[j];
+                    }
+                    if (message.pnp_TTableToCamera && message.pnp_TTableToCamera.length) {
+                        object.pnp_TTableToCamera = [];
+                        for (let j = 0; j < message.pnp_TTableToCamera.length; ++j)
+                            object.pnp_TTableToCamera[j] = options.json && !isFinite(message.pnp_TTableToCamera[j]) ? String(message.pnp_TTableToCamera[j]) : message.pnp_TTableToCamera[j];
+                    }
+                    if (message.pnpNetSuccess != null && message.hasOwnProperty("pnpNetSuccess"))
+                        object.pnpNetSuccess = message.pnpNetSuccess;
+                    if (message.pnpNetIou != null && message.hasOwnProperty("pnpNetIou"))
+                        object.pnpNetIou = options.json && !isFinite(message.pnpNetIou) ? String(message.pnpNetIou) : message.pnpNetIou;
+                    if (message.pnpNetQuadImg && message.pnpNetQuadImg.length) {
+                        object.pnpNetQuadImg = [];
+                        for (let j = 0; j < message.pnpNetQuadImg.length; ++j)
+                            object.pnpNetQuadImg[j] = options.json && !isFinite(message.pnpNetQuadImg[j]) ? String(message.pnpNetQuadImg[j]) : message.pnpNetQuadImg[j];
+                    }
+                    if (message.pnp_TNetToCamera && message.pnp_TNetToCamera.length) {
+                        object.pnp_TNetToCamera = [];
+                        for (let j = 0; j < message.pnp_TNetToCamera.length; ++j)
+                            object.pnp_TNetToCamera[j] = options.json && !isFinite(message.pnp_TNetToCamera[j]) ? String(message.pnp_TNetToCamera[j]) : message.pnp_TNetToCamera[j];
+                    }
+                    if (message.pnpOverlayNetQuadImg && message.pnpOverlayNetQuadImg.length) {
+                        object.pnpOverlayNetQuadImg = [];
+                        for (let j = 0; j < message.pnpOverlayNetQuadImg.length; ++j)
+                            object.pnpOverlayNetQuadImg[j] = options.json && !isFinite(message.pnpOverlayNetQuadImg[j]) ? String(message.pnpOverlayNetQuadImg[j]) : message.pnpOverlayNetQuadImg[j];
+                    }
+                    return object;
+                };
+
+                /**
+                 * Converts this PnpFrameDebug to JSON.
+                 * @function toJSON
+                 * @memberof bayesmech.vision.PongtownResponse.PnpFrameDebug
+                 * @instance
+                 * @returns {Object.<string,*>} JSON object
+                 */
+                PnpFrameDebug.prototype.toJSON = function toJSON() {
+                    return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+                };
+
+                /**
+                 * Gets the default type url for PnpFrameDebug
+                 * @function getTypeUrl
+                 * @memberof bayesmech.vision.PongtownResponse.PnpFrameDebug
+                 * @static
+                 * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+                 * @returns {string} The default type url
+                 */
+                PnpFrameDebug.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+                    if (typeUrlPrefix === undefined) {
+                        typeUrlPrefix = "type.googleapis.com";
+                    }
+                    return typeUrlPrefix + "/bayesmech.vision.PongtownResponse.PnpFrameDebug";
+                };
+
+                return PnpFrameDebug;
+            })();
+
+            PongtownResponse.FrameOutput = (function() {
+
+                /**
+                 * Properties of a FrameOutput.
+                 * @memberof bayesmech.vision.PongtownResponse
+                 * @interface IFrameOutput
+                 * @property {number|null} [frameIdx] FrameOutput frameIdx
+                 * @property {boolean|null} [hasPose] FrameOutput hasPose
+                 * @property {boolean|null} [offScreen] FrameOutput offScreen
+                 * @property {number|null} [globalIou] FrameOutput globalIou
+                 * @property {Array.<number>|null} [TTableToCamera] FrameOutput TTableToCamera
+                 * @property {Array.<number>|null} [tableQuadImg] FrameOutput tableQuadImg
+                 * @property {Array.<number>|null} [netQuadImg] FrameOutput netQuadImg
+                 * @property {boolean|null} [hasNetPose] FrameOutput hasNetPose
+                 * @property {Array.<number>|null} [TNetToCamera] FrameOutput TNetToCamera
+                 */
+
+                /**
+                 * Constructs a new FrameOutput.
+                 * @memberof bayesmech.vision.PongtownResponse
+                 * @classdesc Represents a FrameOutput.
+                 * @implements IFrameOutput
+                 * @constructor
+                 * @param {bayesmech.vision.PongtownResponse.IFrameOutput=} [properties] Properties to set
+                 */
+                function FrameOutput(properties) {
+                    this.TTableToCamera = [];
+                    this.tableQuadImg = [];
+                    this.netQuadImg = [];
+                    this.TNetToCamera = [];
+                    if (properties)
+                        for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                            if (properties[keys[i]] != null)
+                                this[keys[i]] = properties[keys[i]];
+                }
+
+                /**
+                 * FrameOutput frameIdx.
+                 * @member {number} frameIdx
+                 * @memberof bayesmech.vision.PongtownResponse.FrameOutput
+                 * @instance
+                 */
+                FrameOutput.prototype.frameIdx = 0;
+
+                /**
+                 * FrameOutput hasPose.
+                 * @member {boolean} hasPose
+                 * @memberof bayesmech.vision.PongtownResponse.FrameOutput
+                 * @instance
+                 */
+                FrameOutput.prototype.hasPose = false;
+
+                /**
+                 * FrameOutput offScreen.
+                 * @member {boolean} offScreen
+                 * @memberof bayesmech.vision.PongtownResponse.FrameOutput
+                 * @instance
+                 */
+                FrameOutput.prototype.offScreen = false;
+
+                /**
+                 * FrameOutput globalIou.
+                 * @member {number} globalIou
+                 * @memberof bayesmech.vision.PongtownResponse.FrameOutput
+                 * @instance
+                 */
+                FrameOutput.prototype.globalIou = 0;
+
+                /**
+                 * FrameOutput TTableToCamera.
+                 * @member {Array.<number>} TTableToCamera
+                 * @memberof bayesmech.vision.PongtownResponse.FrameOutput
+                 * @instance
+                 */
+                FrameOutput.prototype.TTableToCamera = $util.emptyArray;
+
+                /**
+                 * FrameOutput tableQuadImg.
+                 * @member {Array.<number>} tableQuadImg
+                 * @memberof bayesmech.vision.PongtownResponse.FrameOutput
+                 * @instance
+                 */
+                FrameOutput.prototype.tableQuadImg = $util.emptyArray;
+
+                /**
+                 * FrameOutput netQuadImg.
+                 * @member {Array.<number>} netQuadImg
+                 * @memberof bayesmech.vision.PongtownResponse.FrameOutput
+                 * @instance
+                 */
+                FrameOutput.prototype.netQuadImg = $util.emptyArray;
+
+                /**
+                 * FrameOutput hasNetPose.
+                 * @member {boolean} hasNetPose
+                 * @memberof bayesmech.vision.PongtownResponse.FrameOutput
+                 * @instance
+                 */
+                FrameOutput.prototype.hasNetPose = false;
+
+                /**
+                 * FrameOutput TNetToCamera.
+                 * @member {Array.<number>} TNetToCamera
+                 * @memberof bayesmech.vision.PongtownResponse.FrameOutput
+                 * @instance
+                 */
+                FrameOutput.prototype.TNetToCamera = $util.emptyArray;
+
+                /**
+                 * Creates a new FrameOutput instance using the specified properties.
+                 * @function create
+                 * @memberof bayesmech.vision.PongtownResponse.FrameOutput
+                 * @static
+                 * @param {bayesmech.vision.PongtownResponse.IFrameOutput=} [properties] Properties to set
+                 * @returns {bayesmech.vision.PongtownResponse.FrameOutput} FrameOutput instance
+                 */
+                FrameOutput.create = function create(properties) {
+                    return new FrameOutput(properties);
+                };
+
+                /**
+                 * Encodes the specified FrameOutput message. Does not implicitly {@link bayesmech.vision.PongtownResponse.FrameOutput.verify|verify} messages.
+                 * @function encode
+                 * @memberof bayesmech.vision.PongtownResponse.FrameOutput
+                 * @static
+                 * @param {bayesmech.vision.PongtownResponse.IFrameOutput} message FrameOutput message or plain object to encode
+                 * @param {$protobuf.Writer} [writer] Writer to encode to
+                 * @returns {$protobuf.Writer} Writer
+                 */
+                FrameOutput.encode = function encode(message, writer) {
+                    if (!writer)
+                        writer = $Writer.create();
+                    if (message.frameIdx != null && Object.hasOwnProperty.call(message, "frameIdx"))
+                        writer.uint32(/* id 1, wireType 0 =*/8).uint32(message.frameIdx);
+                    if (message.hasPose != null && Object.hasOwnProperty.call(message, "hasPose"))
+                        writer.uint32(/* id 2, wireType 0 =*/16).bool(message.hasPose);
+                    if (message.offScreen != null && Object.hasOwnProperty.call(message, "offScreen"))
+                        writer.uint32(/* id 3, wireType 0 =*/24).bool(message.offScreen);
+                    if (message.globalIou != null && Object.hasOwnProperty.call(message, "globalIou"))
+                        writer.uint32(/* id 4, wireType 5 =*/37).float(message.globalIou);
+                    if (message.TTableToCamera != null && message.TTableToCamera.length) {
+                        writer.uint32(/* id 5, wireType 2 =*/42).fork();
+                        for (let i = 0; i < message.TTableToCamera.length; ++i)
+                            writer.float(message.TTableToCamera[i]);
+                        writer.ldelim();
+                    }
+                    if (message.tableQuadImg != null && message.tableQuadImg.length) {
+                        writer.uint32(/* id 6, wireType 2 =*/50).fork();
+                        for (let i = 0; i < message.tableQuadImg.length; ++i)
+                            writer.float(message.tableQuadImg[i]);
+                        writer.ldelim();
+                    }
+                    if (message.netQuadImg != null && message.netQuadImg.length) {
+                        writer.uint32(/* id 7, wireType 2 =*/58).fork();
+                        for (let i = 0; i < message.netQuadImg.length; ++i)
+                            writer.float(message.netQuadImg[i]);
+                        writer.ldelim();
+                    }
+                    if (message.hasNetPose != null && Object.hasOwnProperty.call(message, "hasNetPose"))
+                        writer.uint32(/* id 8, wireType 0 =*/64).bool(message.hasNetPose);
+                    if (message.TNetToCamera != null && message.TNetToCamera.length) {
+                        writer.uint32(/* id 9, wireType 2 =*/74).fork();
+                        for (let i = 0; i < message.TNetToCamera.length; ++i)
+                            writer.float(message.TNetToCamera[i]);
+                        writer.ldelim();
+                    }
+                    return writer;
+                };
+
+                /**
+                 * Encodes the specified FrameOutput message, length delimited. Does not implicitly {@link bayesmech.vision.PongtownResponse.FrameOutput.verify|verify} messages.
+                 * @function encodeDelimited
+                 * @memberof bayesmech.vision.PongtownResponse.FrameOutput
+                 * @static
+                 * @param {bayesmech.vision.PongtownResponse.IFrameOutput} message FrameOutput message or plain object to encode
+                 * @param {$protobuf.Writer} [writer] Writer to encode to
+                 * @returns {$protobuf.Writer} Writer
+                 */
+                FrameOutput.encodeDelimited = function encodeDelimited(message, writer) {
+                    return this.encode(message, writer).ldelim();
+                };
+
+                /**
+                 * Decodes a FrameOutput message from the specified reader or buffer.
+                 * @function decode
+                 * @memberof bayesmech.vision.PongtownResponse.FrameOutput
+                 * @static
+                 * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+                 * @param {number} [length] Message length if known beforehand
+                 * @returns {bayesmech.vision.PongtownResponse.FrameOutput} FrameOutput
+                 * @throws {Error} If the payload is not a reader or valid buffer
+                 * @throws {$protobuf.util.ProtocolError} If required fields are missing
+                 */
+                FrameOutput.decode = function decode(reader, length, error) {
+                    if (!(reader instanceof $Reader))
+                        reader = $Reader.create(reader);
+                    let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.PongtownResponse.FrameOutput();
+                    while (reader.pos < end) {
+                        let tag = reader.uint32();
+                        if (tag === error)
+                            break;
+                        switch (tag >>> 3) {
+                        case 1: {
+                                message.frameIdx = reader.uint32();
+                                break;
+                            }
+                        case 2: {
+                                message.hasPose = reader.bool();
+                                break;
+                            }
+                        case 3: {
+                                message.offScreen = reader.bool();
+                                break;
+                            }
+                        case 4: {
+                                message.globalIou = reader.float();
+                                break;
+                            }
+                        case 5: {
+                                if (!(message.TTableToCamera && message.TTableToCamera.length))
+                                    message.TTableToCamera = [];
+                                if ((tag & 7) === 2) {
+                                    let end2 = reader.uint32() + reader.pos;
+                                    while (reader.pos < end2)
+                                        message.TTableToCamera.push(reader.float());
+                                } else
+                                    message.TTableToCamera.push(reader.float());
+                                break;
+                            }
+                        case 6: {
+                                if (!(message.tableQuadImg && message.tableQuadImg.length))
+                                    message.tableQuadImg = [];
+                                if ((tag & 7) === 2) {
+                                    let end2 = reader.uint32() + reader.pos;
+                                    while (reader.pos < end2)
+                                        message.tableQuadImg.push(reader.float());
+                                } else
+                                    message.tableQuadImg.push(reader.float());
+                                break;
+                            }
+                        case 7: {
+                                if (!(message.netQuadImg && message.netQuadImg.length))
+                                    message.netQuadImg = [];
+                                if ((tag & 7) === 2) {
+                                    let end2 = reader.uint32() + reader.pos;
+                                    while (reader.pos < end2)
+                                        message.netQuadImg.push(reader.float());
+                                } else
+                                    message.netQuadImg.push(reader.float());
+                                break;
+                            }
+                        case 8: {
+                                message.hasNetPose = reader.bool();
+                                break;
+                            }
+                        case 9: {
+                                if (!(message.TNetToCamera && message.TNetToCamera.length))
+                                    message.TNetToCamera = [];
+                                if ((tag & 7) === 2) {
+                                    let end2 = reader.uint32() + reader.pos;
+                                    while (reader.pos < end2)
+                                        message.TNetToCamera.push(reader.float());
+                                } else
+                                    message.TNetToCamera.push(reader.float());
+                                break;
+                            }
+                        default:
+                            reader.skipType(tag & 7);
+                            break;
+                        }
+                    }
+                    return message;
+                };
+
+                /**
+                 * Decodes a FrameOutput message from the specified reader or buffer, length delimited.
+                 * @function decodeDelimited
+                 * @memberof bayesmech.vision.PongtownResponse.FrameOutput
+                 * @static
+                 * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+                 * @returns {bayesmech.vision.PongtownResponse.FrameOutput} FrameOutput
+                 * @throws {Error} If the payload is not a reader or valid buffer
+                 * @throws {$protobuf.util.ProtocolError} If required fields are missing
+                 */
+                FrameOutput.decodeDelimited = function decodeDelimited(reader) {
+                    if (!(reader instanceof $Reader))
+                        reader = new $Reader(reader);
+                    return this.decode(reader, reader.uint32());
+                };
+
+                /**
+                 * Verifies a FrameOutput message.
+                 * @function verify
+                 * @memberof bayesmech.vision.PongtownResponse.FrameOutput
+                 * @static
+                 * @param {Object.<string,*>} message Plain object to verify
+                 * @returns {string|null} `null` if valid, otherwise the reason why it is not
+                 */
+                FrameOutput.verify = function verify(message) {
+                    if (typeof message !== "object" || message === null)
+                        return "object expected";
+                    if (message.frameIdx != null && message.hasOwnProperty("frameIdx"))
+                        if (!$util.isInteger(message.frameIdx))
+                            return "frameIdx: integer expected";
+                    if (message.hasPose != null && message.hasOwnProperty("hasPose"))
+                        if (typeof message.hasPose !== "boolean")
+                            return "hasPose: boolean expected";
+                    if (message.offScreen != null && message.hasOwnProperty("offScreen"))
+                        if (typeof message.offScreen !== "boolean")
+                            return "offScreen: boolean expected";
+                    if (message.globalIou != null && message.hasOwnProperty("globalIou"))
+                        if (typeof message.globalIou !== "number")
+                            return "globalIou: number expected";
+                    if (message.TTableToCamera != null && message.hasOwnProperty("TTableToCamera")) {
+                        if (!Array.isArray(message.TTableToCamera))
+                            return "TTableToCamera: array expected";
+                        for (let i = 0; i < message.TTableToCamera.length; ++i)
+                            if (typeof message.TTableToCamera[i] !== "number")
+                                return "TTableToCamera: number[] expected";
+                    }
+                    if (message.tableQuadImg != null && message.hasOwnProperty("tableQuadImg")) {
+                        if (!Array.isArray(message.tableQuadImg))
+                            return "tableQuadImg: array expected";
+                        for (let i = 0; i < message.tableQuadImg.length; ++i)
+                            if (typeof message.tableQuadImg[i] !== "number")
+                                return "tableQuadImg: number[] expected";
+                    }
+                    if (message.netQuadImg != null && message.hasOwnProperty("netQuadImg")) {
+                        if (!Array.isArray(message.netQuadImg))
+                            return "netQuadImg: array expected";
+                        for (let i = 0; i < message.netQuadImg.length; ++i)
+                            if (typeof message.netQuadImg[i] !== "number")
+                                return "netQuadImg: number[] expected";
+                    }
+                    if (message.hasNetPose != null && message.hasOwnProperty("hasNetPose"))
+                        if (typeof message.hasNetPose !== "boolean")
+                            return "hasNetPose: boolean expected";
+                    if (message.TNetToCamera != null && message.hasOwnProperty("TNetToCamera")) {
+                        if (!Array.isArray(message.TNetToCamera))
+                            return "TNetToCamera: array expected";
+                        for (let i = 0; i < message.TNetToCamera.length; ++i)
+                            if (typeof message.TNetToCamera[i] !== "number")
+                                return "TNetToCamera: number[] expected";
+                    }
+                    return null;
+                };
+
+                /**
+                 * Creates a FrameOutput message from a plain object. Also converts values to their respective internal types.
+                 * @function fromObject
+                 * @memberof bayesmech.vision.PongtownResponse.FrameOutput
+                 * @static
+                 * @param {Object.<string,*>} object Plain object
+                 * @returns {bayesmech.vision.PongtownResponse.FrameOutput} FrameOutput
+                 */
+                FrameOutput.fromObject = function fromObject(object) {
+                    if (object instanceof $root.bayesmech.vision.PongtownResponse.FrameOutput)
+                        return object;
+                    let message = new $root.bayesmech.vision.PongtownResponse.FrameOutput();
+                    if (object.frameIdx != null)
+                        message.frameIdx = object.frameIdx >>> 0;
+                    if (object.hasPose != null)
+                        message.hasPose = Boolean(object.hasPose);
+                    if (object.offScreen != null)
+                        message.offScreen = Boolean(object.offScreen);
+                    if (object.globalIou != null)
+                        message.globalIou = Number(object.globalIou);
+                    if (object.TTableToCamera) {
+                        if (!Array.isArray(object.TTableToCamera))
+                            throw TypeError(".bayesmech.vision.PongtownResponse.FrameOutput.TTableToCamera: array expected");
+                        message.TTableToCamera = [];
+                        for (let i = 0; i < object.TTableToCamera.length; ++i)
+                            message.TTableToCamera[i] = Number(object.TTableToCamera[i]);
+                    }
+                    if (object.tableQuadImg) {
+                        if (!Array.isArray(object.tableQuadImg))
+                            throw TypeError(".bayesmech.vision.PongtownResponse.FrameOutput.tableQuadImg: array expected");
+                        message.tableQuadImg = [];
+                        for (let i = 0; i < object.tableQuadImg.length; ++i)
+                            message.tableQuadImg[i] = Number(object.tableQuadImg[i]);
+                    }
+                    if (object.netQuadImg) {
+                        if (!Array.isArray(object.netQuadImg))
+                            throw TypeError(".bayesmech.vision.PongtownResponse.FrameOutput.netQuadImg: array expected");
+                        message.netQuadImg = [];
+                        for (let i = 0; i < object.netQuadImg.length; ++i)
+                            message.netQuadImg[i] = Number(object.netQuadImg[i]);
+                    }
+                    if (object.hasNetPose != null)
+                        message.hasNetPose = Boolean(object.hasNetPose);
+                    if (object.TNetToCamera) {
+                        if (!Array.isArray(object.TNetToCamera))
+                            throw TypeError(".bayesmech.vision.PongtownResponse.FrameOutput.TNetToCamera: array expected");
+                        message.TNetToCamera = [];
+                        for (let i = 0; i < object.TNetToCamera.length; ++i)
+                            message.TNetToCamera[i] = Number(object.TNetToCamera[i]);
+                    }
+                    return message;
+                };
+
+                /**
+                 * Creates a plain object from a FrameOutput message. Also converts values to other types if specified.
+                 * @function toObject
+                 * @memberof bayesmech.vision.PongtownResponse.FrameOutput
+                 * @static
+                 * @param {bayesmech.vision.PongtownResponse.FrameOutput} message FrameOutput
+                 * @param {$protobuf.IConversionOptions} [options] Conversion options
+                 * @returns {Object.<string,*>} Plain object
+                 */
+                FrameOutput.toObject = function toObject(message, options) {
+                    if (!options)
+                        options = {};
+                    let object = {};
+                    if (options.arrays || options.defaults) {
+                        object.TTableToCamera = [];
+                        object.tableQuadImg = [];
+                        object.netQuadImg = [];
+                        object.TNetToCamera = [];
+                    }
+                    if (options.defaults) {
+                        object.frameIdx = 0;
+                        object.hasPose = false;
+                        object.offScreen = false;
+                        object.globalIou = 0;
+                        object.hasNetPose = false;
+                    }
+                    if (message.frameIdx != null && message.hasOwnProperty("frameIdx"))
+                        object.frameIdx = message.frameIdx;
+                    if (message.hasPose != null && message.hasOwnProperty("hasPose"))
+                        object.hasPose = message.hasPose;
+                    if (message.offScreen != null && message.hasOwnProperty("offScreen"))
+                        object.offScreen = message.offScreen;
+                    if (message.globalIou != null && message.hasOwnProperty("globalIou"))
+                        object.globalIou = options.json && !isFinite(message.globalIou) ? String(message.globalIou) : message.globalIou;
+                    if (message.TTableToCamera && message.TTableToCamera.length) {
+                        object.TTableToCamera = [];
+                        for (let j = 0; j < message.TTableToCamera.length; ++j)
+                            object.TTableToCamera[j] = options.json && !isFinite(message.TTableToCamera[j]) ? String(message.TTableToCamera[j]) : message.TTableToCamera[j];
+                    }
+                    if (message.tableQuadImg && message.tableQuadImg.length) {
+                        object.tableQuadImg = [];
+                        for (let j = 0; j < message.tableQuadImg.length; ++j)
+                            object.tableQuadImg[j] = options.json && !isFinite(message.tableQuadImg[j]) ? String(message.tableQuadImg[j]) : message.tableQuadImg[j];
+                    }
+                    if (message.netQuadImg && message.netQuadImg.length) {
+                        object.netQuadImg = [];
+                        for (let j = 0; j < message.netQuadImg.length; ++j)
+                            object.netQuadImg[j] = options.json && !isFinite(message.netQuadImg[j]) ? String(message.netQuadImg[j]) : message.netQuadImg[j];
+                    }
+                    if (message.hasNetPose != null && message.hasOwnProperty("hasNetPose"))
+                        object.hasNetPose = message.hasNetPose;
+                    if (message.TNetToCamera && message.TNetToCamera.length) {
+                        object.TNetToCamera = [];
+                        for (let j = 0; j < message.TNetToCamera.length; ++j)
+                            object.TNetToCamera[j] = options.json && !isFinite(message.TNetToCamera[j]) ? String(message.TNetToCamera[j]) : message.TNetToCamera[j];
+                    }
+                    return object;
+                };
+
+                /**
+                 * Converts this FrameOutput to JSON.
+                 * @function toJSON
+                 * @memberof bayesmech.vision.PongtownResponse.FrameOutput
+                 * @instance
+                 * @returns {Object.<string,*>} JSON object
+                 */
+                FrameOutput.prototype.toJSON = function toJSON() {
+                    return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+                };
+
+                /**
+                 * Gets the default type url for FrameOutput
+                 * @function getTypeUrl
+                 * @memberof bayesmech.vision.PongtownResponse.FrameOutput
+                 * @static
+                 * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+                 * @returns {string} The default type url
+                 */
+                FrameOutput.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+                    if (typeUrlPrefix === undefined) {
+                        typeUrlPrefix = "type.googleapis.com";
+                    }
+                    return typeUrlPrefix + "/bayesmech.vision.PongtownResponse.FrameOutput";
+                };
+
+                return FrameOutput;
+            })();
+
+            PongtownResponse.GlobalTablePose = (function() {
+
+                /**
+                 * Properties of a GlobalTablePose.
+                 * @memberof bayesmech.vision.PongtownResponse
+                 * @interface IGlobalTablePose
+                 * @property {boolean|null} [hasPose] GlobalTablePose hasPose
+                 * @property {Array.<number>|null} [TTableToWorld] GlobalTablePose TTableToWorld
+                 * @property {number|null} [refinedCost] GlobalTablePose refinedCost
+                 * @property {number|null} [framesUsed] GlobalTablePose framesUsed
+                 * @property {number|null} [meanIou] GlobalTablePose meanIou
+                 * @property {number|null} [p10Iou] GlobalTablePose p10Iou
+                 * @property {number|null} [p90Iou] GlobalTablePose p90Iou
+                 * @property {boolean|null} [hasNetPose] GlobalTablePose hasNetPose
+                 * @property {Array.<number>|null} [TNetToWorld] GlobalTablePose TNetToWorld
+                 */
+
+                /**
+                 * Constructs a new GlobalTablePose.
+                 * @memberof bayesmech.vision.PongtownResponse
+                 * @classdesc Represents a GlobalTablePose.
+                 * @implements IGlobalTablePose
+                 * @constructor
+                 * @param {bayesmech.vision.PongtownResponse.IGlobalTablePose=} [properties] Properties to set
+                 */
+                function GlobalTablePose(properties) {
+                    this.TTableToWorld = [];
+                    this.TNetToWorld = [];
+                    if (properties)
+                        for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                            if (properties[keys[i]] != null)
+                                this[keys[i]] = properties[keys[i]];
+                }
+
+                /**
+                 * GlobalTablePose hasPose.
+                 * @member {boolean} hasPose
+                 * @memberof bayesmech.vision.PongtownResponse.GlobalTablePose
+                 * @instance
+                 */
+                GlobalTablePose.prototype.hasPose = false;
+
+                /**
+                 * GlobalTablePose TTableToWorld.
+                 * @member {Array.<number>} TTableToWorld
+                 * @memberof bayesmech.vision.PongtownResponse.GlobalTablePose
+                 * @instance
+                 */
+                GlobalTablePose.prototype.TTableToWorld = $util.emptyArray;
+
+                /**
+                 * GlobalTablePose refinedCost.
+                 * @member {number} refinedCost
+                 * @memberof bayesmech.vision.PongtownResponse.GlobalTablePose
+                 * @instance
+                 */
+                GlobalTablePose.prototype.refinedCost = 0;
+
+                /**
+                 * GlobalTablePose framesUsed.
+                 * @member {number} framesUsed
+                 * @memberof bayesmech.vision.PongtownResponse.GlobalTablePose
+                 * @instance
+                 */
+                GlobalTablePose.prototype.framesUsed = 0;
+
+                /**
+                 * GlobalTablePose meanIou.
+                 * @member {number} meanIou
+                 * @memberof bayesmech.vision.PongtownResponse.GlobalTablePose
+                 * @instance
+                 */
+                GlobalTablePose.prototype.meanIou = 0;
+
+                /**
+                 * GlobalTablePose p10Iou.
+                 * @member {number} p10Iou
+                 * @memberof bayesmech.vision.PongtownResponse.GlobalTablePose
+                 * @instance
+                 */
+                GlobalTablePose.prototype.p10Iou = 0;
+
+                /**
+                 * GlobalTablePose p90Iou.
+                 * @member {number} p90Iou
+                 * @memberof bayesmech.vision.PongtownResponse.GlobalTablePose
+                 * @instance
+                 */
+                GlobalTablePose.prototype.p90Iou = 0;
+
+                /**
+                 * GlobalTablePose hasNetPose.
+                 * @member {boolean} hasNetPose
+                 * @memberof bayesmech.vision.PongtownResponse.GlobalTablePose
+                 * @instance
+                 */
+                GlobalTablePose.prototype.hasNetPose = false;
+
+                /**
+                 * GlobalTablePose TNetToWorld.
+                 * @member {Array.<number>} TNetToWorld
+                 * @memberof bayesmech.vision.PongtownResponse.GlobalTablePose
+                 * @instance
+                 */
+                GlobalTablePose.prototype.TNetToWorld = $util.emptyArray;
+
+                /**
+                 * Creates a new GlobalTablePose instance using the specified properties.
+                 * @function create
+                 * @memberof bayesmech.vision.PongtownResponse.GlobalTablePose
+                 * @static
+                 * @param {bayesmech.vision.PongtownResponse.IGlobalTablePose=} [properties] Properties to set
+                 * @returns {bayesmech.vision.PongtownResponse.GlobalTablePose} GlobalTablePose instance
+                 */
+                GlobalTablePose.create = function create(properties) {
+                    return new GlobalTablePose(properties);
+                };
+
+                /**
+                 * Encodes the specified GlobalTablePose message. Does not implicitly {@link bayesmech.vision.PongtownResponse.GlobalTablePose.verify|verify} messages.
+                 * @function encode
+                 * @memberof bayesmech.vision.PongtownResponse.GlobalTablePose
+                 * @static
+                 * @param {bayesmech.vision.PongtownResponse.IGlobalTablePose} message GlobalTablePose message or plain object to encode
+                 * @param {$protobuf.Writer} [writer] Writer to encode to
+                 * @returns {$protobuf.Writer} Writer
+                 */
+                GlobalTablePose.encode = function encode(message, writer) {
+                    if (!writer)
+                        writer = $Writer.create();
+                    if (message.hasPose != null && Object.hasOwnProperty.call(message, "hasPose"))
+                        writer.uint32(/* id 1, wireType 0 =*/8).bool(message.hasPose);
+                    if (message.TTableToWorld != null && message.TTableToWorld.length) {
+                        writer.uint32(/* id 2, wireType 2 =*/18).fork();
+                        for (let i = 0; i < message.TTableToWorld.length; ++i)
+                            writer.float(message.TTableToWorld[i]);
+                        writer.ldelim();
+                    }
+                    if (message.refinedCost != null && Object.hasOwnProperty.call(message, "refinedCost"))
+                        writer.uint32(/* id 3, wireType 5 =*/29).float(message.refinedCost);
+                    if (message.framesUsed != null && Object.hasOwnProperty.call(message, "framesUsed"))
+                        writer.uint32(/* id 4, wireType 0 =*/32).uint32(message.framesUsed);
+                    if (message.meanIou != null && Object.hasOwnProperty.call(message, "meanIou"))
+                        writer.uint32(/* id 5, wireType 5 =*/45).float(message.meanIou);
+                    if (message.p10Iou != null && Object.hasOwnProperty.call(message, "p10Iou"))
+                        writer.uint32(/* id 6, wireType 5 =*/53).float(message.p10Iou);
+                    if (message.p90Iou != null && Object.hasOwnProperty.call(message, "p90Iou"))
+                        writer.uint32(/* id 7, wireType 5 =*/61).float(message.p90Iou);
+                    if (message.hasNetPose != null && Object.hasOwnProperty.call(message, "hasNetPose"))
+                        writer.uint32(/* id 8, wireType 0 =*/64).bool(message.hasNetPose);
+                    if (message.TNetToWorld != null && message.TNetToWorld.length) {
+                        writer.uint32(/* id 9, wireType 2 =*/74).fork();
+                        for (let i = 0; i < message.TNetToWorld.length; ++i)
+                            writer.float(message.TNetToWorld[i]);
+                        writer.ldelim();
+                    }
+                    return writer;
+                };
+
+                /**
+                 * Encodes the specified GlobalTablePose message, length delimited. Does not implicitly {@link bayesmech.vision.PongtownResponse.GlobalTablePose.verify|verify} messages.
+                 * @function encodeDelimited
+                 * @memberof bayesmech.vision.PongtownResponse.GlobalTablePose
+                 * @static
+                 * @param {bayesmech.vision.PongtownResponse.IGlobalTablePose} message GlobalTablePose message or plain object to encode
+                 * @param {$protobuf.Writer} [writer] Writer to encode to
+                 * @returns {$protobuf.Writer} Writer
+                 */
+                GlobalTablePose.encodeDelimited = function encodeDelimited(message, writer) {
+                    return this.encode(message, writer).ldelim();
+                };
+
+                /**
+                 * Decodes a GlobalTablePose message from the specified reader or buffer.
+                 * @function decode
+                 * @memberof bayesmech.vision.PongtownResponse.GlobalTablePose
+                 * @static
+                 * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+                 * @param {number} [length] Message length if known beforehand
+                 * @returns {bayesmech.vision.PongtownResponse.GlobalTablePose} GlobalTablePose
+                 * @throws {Error} If the payload is not a reader or valid buffer
+                 * @throws {$protobuf.util.ProtocolError} If required fields are missing
+                 */
+                GlobalTablePose.decode = function decode(reader, length, error) {
+                    if (!(reader instanceof $Reader))
+                        reader = $Reader.create(reader);
+                    let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.PongtownResponse.GlobalTablePose();
+                    while (reader.pos < end) {
+                        let tag = reader.uint32();
+                        if (tag === error)
+                            break;
+                        switch (tag >>> 3) {
+                        case 1: {
+                                message.hasPose = reader.bool();
+                                break;
+                            }
+                        case 2: {
+                                if (!(message.TTableToWorld && message.TTableToWorld.length))
+                                    message.TTableToWorld = [];
+                                if ((tag & 7) === 2) {
+                                    let end2 = reader.uint32() + reader.pos;
+                                    while (reader.pos < end2)
+                                        message.TTableToWorld.push(reader.float());
+                                } else
+                                    message.TTableToWorld.push(reader.float());
+                                break;
+                            }
+                        case 3: {
+                                message.refinedCost = reader.float();
+                                break;
+                            }
+                        case 4: {
+                                message.framesUsed = reader.uint32();
+                                break;
+                            }
+                        case 5: {
+                                message.meanIou = reader.float();
+                                break;
+                            }
+                        case 6: {
+                                message.p10Iou = reader.float();
+                                break;
+                            }
+                        case 7: {
+                                message.p90Iou = reader.float();
+                                break;
+                            }
+                        case 8: {
+                                message.hasNetPose = reader.bool();
+                                break;
+                            }
+                        case 9: {
+                                if (!(message.TNetToWorld && message.TNetToWorld.length))
+                                    message.TNetToWorld = [];
+                                if ((tag & 7) === 2) {
+                                    let end2 = reader.uint32() + reader.pos;
+                                    while (reader.pos < end2)
+                                        message.TNetToWorld.push(reader.float());
+                                } else
+                                    message.TNetToWorld.push(reader.float());
+                                break;
+                            }
+                        default:
+                            reader.skipType(tag & 7);
+                            break;
+                        }
+                    }
+                    return message;
+                };
+
+                /**
+                 * Decodes a GlobalTablePose message from the specified reader or buffer, length delimited.
+                 * @function decodeDelimited
+                 * @memberof bayesmech.vision.PongtownResponse.GlobalTablePose
+                 * @static
+                 * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+                 * @returns {bayesmech.vision.PongtownResponse.GlobalTablePose} GlobalTablePose
+                 * @throws {Error} If the payload is not a reader or valid buffer
+                 * @throws {$protobuf.util.ProtocolError} If required fields are missing
+                 */
+                GlobalTablePose.decodeDelimited = function decodeDelimited(reader) {
+                    if (!(reader instanceof $Reader))
+                        reader = new $Reader(reader);
+                    return this.decode(reader, reader.uint32());
+                };
+
+                /**
+                 * Verifies a GlobalTablePose message.
+                 * @function verify
+                 * @memberof bayesmech.vision.PongtownResponse.GlobalTablePose
+                 * @static
+                 * @param {Object.<string,*>} message Plain object to verify
+                 * @returns {string|null} `null` if valid, otherwise the reason why it is not
+                 */
+                GlobalTablePose.verify = function verify(message) {
+                    if (typeof message !== "object" || message === null)
+                        return "object expected";
+                    if (message.hasPose != null && message.hasOwnProperty("hasPose"))
+                        if (typeof message.hasPose !== "boolean")
+                            return "hasPose: boolean expected";
+                    if (message.TTableToWorld != null && message.hasOwnProperty("TTableToWorld")) {
+                        if (!Array.isArray(message.TTableToWorld))
+                            return "TTableToWorld: array expected";
+                        for (let i = 0; i < message.TTableToWorld.length; ++i)
+                            if (typeof message.TTableToWorld[i] !== "number")
+                                return "TTableToWorld: number[] expected";
+                    }
+                    if (message.refinedCost != null && message.hasOwnProperty("refinedCost"))
+                        if (typeof message.refinedCost !== "number")
+                            return "refinedCost: number expected";
+                    if (message.framesUsed != null && message.hasOwnProperty("framesUsed"))
+                        if (!$util.isInteger(message.framesUsed))
+                            return "framesUsed: integer expected";
+                    if (message.meanIou != null && message.hasOwnProperty("meanIou"))
+                        if (typeof message.meanIou !== "number")
+                            return "meanIou: number expected";
+                    if (message.p10Iou != null && message.hasOwnProperty("p10Iou"))
+                        if (typeof message.p10Iou !== "number")
+                            return "p10Iou: number expected";
+                    if (message.p90Iou != null && message.hasOwnProperty("p90Iou"))
+                        if (typeof message.p90Iou !== "number")
+                            return "p90Iou: number expected";
+                    if (message.hasNetPose != null && message.hasOwnProperty("hasNetPose"))
+                        if (typeof message.hasNetPose !== "boolean")
+                            return "hasNetPose: boolean expected";
+                    if (message.TNetToWorld != null && message.hasOwnProperty("TNetToWorld")) {
+                        if (!Array.isArray(message.TNetToWorld))
+                            return "TNetToWorld: array expected";
+                        for (let i = 0; i < message.TNetToWorld.length; ++i)
+                            if (typeof message.TNetToWorld[i] !== "number")
+                                return "TNetToWorld: number[] expected";
+                    }
+                    return null;
+                };
+
+                /**
+                 * Creates a GlobalTablePose message from a plain object. Also converts values to their respective internal types.
+                 * @function fromObject
+                 * @memberof bayesmech.vision.PongtownResponse.GlobalTablePose
+                 * @static
+                 * @param {Object.<string,*>} object Plain object
+                 * @returns {bayesmech.vision.PongtownResponse.GlobalTablePose} GlobalTablePose
+                 */
+                GlobalTablePose.fromObject = function fromObject(object) {
+                    if (object instanceof $root.bayesmech.vision.PongtownResponse.GlobalTablePose)
+                        return object;
+                    let message = new $root.bayesmech.vision.PongtownResponse.GlobalTablePose();
+                    if (object.hasPose != null)
+                        message.hasPose = Boolean(object.hasPose);
+                    if (object.TTableToWorld) {
+                        if (!Array.isArray(object.TTableToWorld))
+                            throw TypeError(".bayesmech.vision.PongtownResponse.GlobalTablePose.TTableToWorld: array expected");
+                        message.TTableToWorld = [];
+                        for (let i = 0; i < object.TTableToWorld.length; ++i)
+                            message.TTableToWorld[i] = Number(object.TTableToWorld[i]);
+                    }
+                    if (object.refinedCost != null)
+                        message.refinedCost = Number(object.refinedCost);
+                    if (object.framesUsed != null)
+                        message.framesUsed = object.framesUsed >>> 0;
+                    if (object.meanIou != null)
+                        message.meanIou = Number(object.meanIou);
+                    if (object.p10Iou != null)
+                        message.p10Iou = Number(object.p10Iou);
+                    if (object.p90Iou != null)
+                        message.p90Iou = Number(object.p90Iou);
+                    if (object.hasNetPose != null)
+                        message.hasNetPose = Boolean(object.hasNetPose);
+                    if (object.TNetToWorld) {
+                        if (!Array.isArray(object.TNetToWorld))
+                            throw TypeError(".bayesmech.vision.PongtownResponse.GlobalTablePose.TNetToWorld: array expected");
+                        message.TNetToWorld = [];
+                        for (let i = 0; i < object.TNetToWorld.length; ++i)
+                            message.TNetToWorld[i] = Number(object.TNetToWorld[i]);
+                    }
+                    return message;
+                };
+
+                /**
+                 * Creates a plain object from a GlobalTablePose message. Also converts values to other types if specified.
+                 * @function toObject
+                 * @memberof bayesmech.vision.PongtownResponse.GlobalTablePose
+                 * @static
+                 * @param {bayesmech.vision.PongtownResponse.GlobalTablePose} message GlobalTablePose
+                 * @param {$protobuf.IConversionOptions} [options] Conversion options
+                 * @returns {Object.<string,*>} Plain object
+                 */
+                GlobalTablePose.toObject = function toObject(message, options) {
+                    if (!options)
+                        options = {};
+                    let object = {};
+                    if (options.arrays || options.defaults) {
+                        object.TTableToWorld = [];
+                        object.TNetToWorld = [];
+                    }
+                    if (options.defaults) {
+                        object.hasPose = false;
+                        object.refinedCost = 0;
+                        object.framesUsed = 0;
+                        object.meanIou = 0;
+                        object.p10Iou = 0;
+                        object.p90Iou = 0;
+                        object.hasNetPose = false;
+                    }
+                    if (message.hasPose != null && message.hasOwnProperty("hasPose"))
+                        object.hasPose = message.hasPose;
+                    if (message.TTableToWorld && message.TTableToWorld.length) {
+                        object.TTableToWorld = [];
+                        for (let j = 0; j < message.TTableToWorld.length; ++j)
+                            object.TTableToWorld[j] = options.json && !isFinite(message.TTableToWorld[j]) ? String(message.TTableToWorld[j]) : message.TTableToWorld[j];
+                    }
+                    if (message.refinedCost != null && message.hasOwnProperty("refinedCost"))
+                        object.refinedCost = options.json && !isFinite(message.refinedCost) ? String(message.refinedCost) : message.refinedCost;
+                    if (message.framesUsed != null && message.hasOwnProperty("framesUsed"))
+                        object.framesUsed = message.framesUsed;
+                    if (message.meanIou != null && message.hasOwnProperty("meanIou"))
+                        object.meanIou = options.json && !isFinite(message.meanIou) ? String(message.meanIou) : message.meanIou;
+                    if (message.p10Iou != null && message.hasOwnProperty("p10Iou"))
+                        object.p10Iou = options.json && !isFinite(message.p10Iou) ? String(message.p10Iou) : message.p10Iou;
+                    if (message.p90Iou != null && message.hasOwnProperty("p90Iou"))
+                        object.p90Iou = options.json && !isFinite(message.p90Iou) ? String(message.p90Iou) : message.p90Iou;
+                    if (message.hasNetPose != null && message.hasOwnProperty("hasNetPose"))
+                        object.hasNetPose = message.hasNetPose;
+                    if (message.TNetToWorld && message.TNetToWorld.length) {
+                        object.TNetToWorld = [];
+                        for (let j = 0; j < message.TNetToWorld.length; ++j)
+                            object.TNetToWorld[j] = options.json && !isFinite(message.TNetToWorld[j]) ? String(message.TNetToWorld[j]) : message.TNetToWorld[j];
+                    }
+                    return object;
+                };
+
+                /**
+                 * Converts this GlobalTablePose to JSON.
+                 * @function toJSON
+                 * @memberof bayesmech.vision.PongtownResponse.GlobalTablePose
+                 * @instance
+                 * @returns {Object.<string,*>} JSON object
+                 */
+                GlobalTablePose.prototype.toJSON = function toJSON() {
+                    return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+                };
+
+                /**
+                 * Gets the default type url for GlobalTablePose
+                 * @function getTypeUrl
+                 * @memberof bayesmech.vision.PongtownResponse.GlobalTablePose
+                 * @static
+                 * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+                 * @returns {string} The default type url
+                 */
+                GlobalTablePose.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+                    if (typeUrlPrefix === undefined) {
+                        typeUrlPrefix = "type.googleapis.com";
+                    }
+                    return typeUrlPrefix + "/bayesmech.vision.PongtownResponse.GlobalTablePose";
+                };
+
+                return GlobalTablePose;
+            })();
+
+            return PongtownResponse;
+        })();
+
         return vision;
     })();
 

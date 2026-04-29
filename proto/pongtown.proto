@@ -27,8 +27,8 @@ message PongtownResponse {
       OFF_SCREEN = 4;           // global pose reprojects entirely outside frame
     }
     Method method = 1;
-    float quad_quality = 2;                            // Stage 1, [0, 1]
-    float pnp_iou = 3;                                 // Stage 2, [0, 1]
+    float quad_quality = 2;                            // image-plane fit, [0, 1]
+    float pnp_iou = 3;                                 // PnP reprojection, [0, 1]
 
     // Image-space quadrilateral, CCW from top-left of mask bbox.
     // Layout: [u0, v0, u1, v1, u2, v2, u3, v3]
@@ -37,15 +37,69 @@ message PongtownResponse {
     // Detected net midline (segment): [u0, v0, u1, v1]
     repeated float midline_img = 5 [packed = true];
 
-    // Per-frame camera-to-table transform (Stage 2). 4x4 row-major.
+    // Per-frame camera-to-table transform from PnP. 4x4 row-major.
     repeated float T_table_to_camera = 6 [packed = true];
 
-    // Reprojection of the GLOBAL pose into this frame (Stage 3).
+    // Reprojection of the final global pose into this frame.
     // Layout matches quad_img.
     repeated float quad_img_global = 7 [packed = true];
     float global_iou = 8;
   }
   TablePose table_pose = 2;
+
+  // Debug payload sufficient to redraw the image-plane and PnP geometry
+  // overlays for this frame when paired with the source RGB/mask inputs.
+  //
+  // The current file format stores one PongtownResponse per frame, so each
+  // per-frame record normally carries exactly one PnpFrameDebug entry. This is
+  // repeated to allow future summary records or batched debug records to carry
+  // multiple frames without changing the schema.
+  message PnpFrameDebug {
+    uint32 frame_idx = 1;                         // zero-based index in input recording
+    CameraIntrinsics camera_intrinsics = 2;
+    repeated float camera_matrix = 3 [packed = true]; // 3x3 row-major K
+
+    TablePose.Method image_plane_method = 4;
+    float image_plane_quad_quality = 5;
+    repeated float image_plane_table_quad_img = 6 [packed = true];      // [u0,v0,...,u3,v3]
+    repeated float image_plane_half_table_quad_img = 7 [packed = true]; // visible half, if known
+    repeated float image_plane_midline_img = 8 [packed = true];         // [u0,v0,u1,v1]
+    repeated float image_plane_net_quad_img = 9 [packed = true];        // [u0,v0,...,u3,v3]
+
+    bool pnp_table_success = 10;
+    float pnp_table_iou = 11;
+    repeated float pnp_table_quad_img = 12 [packed = true];     // table PnP reprojection
+    repeated float pnp_T_table_to_camera = 13 [packed = true];  // 4x4 row-major
+
+    bool pnp_net_success = 14;
+    float pnp_net_iou = 15;
+    repeated float pnp_net_quad_img = 16 [packed = true];       // independent net PnP reprojection
+    repeated float pnp_T_net_to_camera = 17 [packed = true];    // 4x4 row-major
+
+    // Net rectangle actually drawn in the PnP overlay. This is the independent
+    // net PnP reprojection when available, otherwise the fallback net strip
+    // projected from the table PnP pose.
+    repeated float pnp_overlay_net_quad_img = 18 [packed = true];
+  }
+  repeated PnpFrameDebug pnp_frame_debug = 8;
+
+  // The primary per-frame output: the globally-stabilised table pose expressed
+  // in this frame's camera coordinates, plus its image-space reprojections.
+  // These values are intentionally stored even though they can be recomputed
+  // from the summary pose and camera matrix, so overlay consumers do not need
+  // to repeat projection logic.
+  message FrameOutput {
+    uint32 frame_idx = 1;
+    bool has_pose = 2;
+    bool off_screen = 3;
+    float global_iou = 4;
+    repeated float T_table_to_camera = 5 [packed = true]; // 4x4 row-major
+    repeated float table_quad_img = 6 [packed = true];    // [u0,v0,...,u3,v3]
+    repeated float net_quad_img = 7 [packed = true];      // [u0,v0,...,u3,v3]
+    bool has_net_pose = 8;
+    repeated float T_net_to_camera = 9 [packed = true];   // 4x4 row-major, if has_net_pose
+  }
+  FrameOutput frame_output = 9;
 
   // Summary record only.
   message GlobalTablePose {
@@ -56,6 +110,8 @@ message PongtownResponse {
     float mean_iou = 5;
     float p10_iou = 6;
     float p90_iou = 7;
+    bool has_net_pose = 8;
+    repeated float T_net_to_world = 9 [packed = true];      // 4x4 row-major
   }
   GlobalTablePose global_table_pose = 3;
 

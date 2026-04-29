@@ -178,7 +178,7 @@ def iter_bundles(
 
         yield FrameBundle(
             frame_idx=idx,
-            timestamp_ns=frame.device_timestamp_ns,
+            timestamp_ns=int(frame.frame_identifier.timestamp_ns),
             frame_number=frame.frame_identifier.frame_number,
             rgb=rgb,
             intrinsics=cached_K,
