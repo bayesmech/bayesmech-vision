@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import type { PongtownResponse } from '../types'
@@ -15,6 +15,7 @@ interface BounceMarker {
   xM: number
   zM: number
   insideTable: boolean
+  correctionApplied?: boolean
 }
 
 interface SceneState {
@@ -31,6 +32,88 @@ const DEFAULT_TABLE_LENGTH_MM = 2740
 const DEFAULT_TABLE_WIDTH_MM = 1525
 const NET_HEIGHT_M = 0.1525
 const TABLE_THICKNESS_M = 0.07
+const CORRECTION_OUTLIER_TABLE_LENGTHS = 2
+const CORRECTION_MAX_AXIS_NORM = 2
+const CORRECTION_INFLUENCE_POWER = 1.15
+
+const clamp = (value: number, min: number, max: number): number => (
+  Math.min(Math.max(value, min), max)
+)
+
+const distanceOutsideTable = (
+  xM: number,
+  zM: number,
+  halfLengthM: number,
+  halfWidthM: number,
+): number => {
+  const dx = Math.max(0, Math.abs(xM) - halfLengthM)
+  const dz = Math.max(0, Math.abs(zM) - halfWidthM)
+  return Math.hypot(dx, dz)
+}
+
+const correctAxisCoordinate = (
+  valueM: number,
+  halfExtentM: number,
+  maxAbsUsedM: number,
+): number => {
+  if (halfExtentM <= 0 || maxAbsUsedM <= halfExtentM) {
+    return clamp(valueM, -halfExtentM, halfExtentM)
+  }
+
+  const cappedMaxAbsM = Math.min(maxAbsUsedM, halfExtentM * CORRECTION_MAX_AXIS_NORM)
+  const scale = halfExtentM / cappedMaxAbsM
+  const normalized = Math.abs(valueM) / halfExtentM
+  const maxNormalized = cappedMaxAbsM / halfExtentM
+  const influence = Math.pow(
+    clamp(normalized / maxNormalized, 0, 1),
+    CORRECTION_INFLUENCE_POWER,
+  )
+  const adjustedScale = 1 - influence * (1 - scale)
+  return clamp(valueM * adjustedScale, -halfExtentM, halfExtentM)
+}
+
+const applyBouncePoseCorrections = (
+  bounces: BounceMarker[],
+  tableLengthM: number,
+  tableWidthM: number,
+): BounceMarker[] => {
+  if (bounces.length === 0) return bounces
+
+  const halfLengthM = tableLengthM / 2
+  const halfWidthM = tableWidthM / 2
+  const outlierDistanceM = tableLengthM * CORRECTION_OUTLIER_TABLE_LENGTHS
+  const scalingCandidates = bounces.filter((bounce) => (
+    distanceOutsideTable(bounce.xM, bounce.zM, halfLengthM, halfWidthM) <= outlierDistanceM
+  ))
+  const maxAbsUsedXM = Math.max(
+    halfLengthM,
+    ...scalingCandidates.map((bounce) => Math.abs(bounce.xM)),
+  )
+  const maxAbsUsedZM = Math.max(
+    halfWidthM,
+    ...scalingCandidates.map((bounce) => Math.abs(bounce.zM)),
+  )
+
+  return bounces.map((bounce) => {
+    const isOutlier =
+      distanceOutsideTable(bounce.xM, bounce.zM, halfLengthM, halfWidthM) > outlierDistanceM
+    const correctedXM = isOutlier
+      ? clamp(bounce.xM, -halfLengthM, halfLengthM)
+      : correctAxisCoordinate(bounce.xM, halfLengthM, maxAbsUsedXM)
+    const correctedZM = isOutlier
+      ? clamp(bounce.zM, -halfWidthM, halfWidthM)
+      : correctAxisCoordinate(bounce.zM, halfWidthM, maxAbsUsedZM)
+
+    return {
+      ...bounce,
+      xM: correctedXM,
+      zM: correctedZM,
+      insideTable: true,
+      correctionApplied:
+        Math.abs(correctedXM - bounce.xM) > 0.001 || Math.abs(correctedZM - bounce.zM) > 0.001,
+    }
+  })
+}
 
 const numberList = (value: unknown): number[] => {
   if (!value) return []
@@ -156,6 +239,7 @@ const PongtownTable3D: React.FC<PongtownTable3DProps> = ({
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const sceneRef = useRef<SceneState | null>(null)
+  const [applyPoseCorrections, setApplyPoseCorrections] = useState(true)
 
   const tableLengthM = (Number(summary?.tableWidthMm) || DEFAULT_TABLE_LENGTH_MM) / 1000
   const tableWidthM = (Number(summary?.tableHeightMm) || DEFAULT_TABLE_WIDTH_MM) / 1000
@@ -178,13 +262,19 @@ const PongtownTable3D: React.FC<PongtownTable3DProps> = ({
       .sort((a, b) => a.frameIdx - b.frameIdx)
   }, [summary])
 
+  const displayBounces = useMemo(() => (
+    applyPoseCorrections
+      ? applyBouncePoseCorrections(bounces, tableLengthM, tableWidthM)
+      : bounces
+  ), [applyPoseCorrections, bounces, tableLengthM, tableWidthM])
+
   const visibleBounces = useMemo(() => {
-    if (currentFrameNumber !== undefined && bounces.some((bounce) => bounce.frameNumber > 0)) {
-      return bounces.filter((bounce) => bounce.frameNumber <= currentFrameNumber)
+    if (currentFrameNumber !== undefined && displayBounces.some((bounce) => bounce.frameNumber > 0)) {
+      return displayBounces.filter((bounce) => bounce.frameNumber <= currentFrameNumber)
     }
-    if (currentFrameIndex === undefined) return bounces
-    return bounces.filter((bounce) => bounce.frameIdx <= currentFrameIndex)
-  }, [bounces, currentFrameIndex, currentFrameNumber])
+    if (currentFrameIndex === undefined) return displayBounces
+    return displayBounces.filter((bounce) => bounce.frameIdx <= currentFrameIndex)
+  }, [displayBounces, currentFrameIndex, currentFrameNumber])
 
   useEffect(() => {
     const container = containerRef.current
@@ -285,7 +375,13 @@ const PongtownTable3D: React.FC<PongtownTable3DProps> = ({
     for (const bounce of visibleBounces) {
       const marker = new THREE.Group()
       const active = bounce.frameIdx === lastVisibleFrame
-      const markerColor = active ? 0xff5d35 : bounce.insideTable ? 0xffd84d : 0xa7acb2
+      const markerColor = active
+        ? 0xff5d35
+        : bounce.correctionApplied
+          ? 0x5fd1ff
+          : bounce.insideTable
+            ? 0xffd84d
+            : 0xa7acb2
 
       const foot = new THREE.Mesh(
         new THREE.CylinderGeometry(0.062, 0.062, 0.01, 32),
@@ -324,10 +420,20 @@ const PongtownTable3D: React.FC<PongtownTable3DProps> = ({
   return (
     <div className="stream-card table-3d-card">
       <div className="stream-header table-3d-header">
-        <span className="stream-title">3D Bounce Table</span>
-        <span className="table-3d-status">
-          {currentFrameNumber !== undefined ? `Frame ${currentFrameNumber}` : 'Frame N/A'}
-        </span>
+        <span className="stream-title">Trajectory Understanding</span>
+        <div className="table-3d-controls">
+          <button
+            type="button"
+            className={`table-3d-toggle${applyPoseCorrections ? ' is-active' : ''}`}
+            aria-pressed={applyPoseCorrections}
+            onClick={() => setApplyPoseCorrections((value) => !value)}
+          >
+            Apply Pose Corrections
+          </button>
+          <span className="table-3d-status">
+            {currentFrameNumber !== undefined ? `Frame ${currentFrameNumber}` : 'Frame N/A'}
+          </span>
+        </div>
       </div>
       <div className="table-3d-viewer" ref={containerRef} />
       <div className="surface-pose-footer">
