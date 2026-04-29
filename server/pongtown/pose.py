@@ -140,21 +140,24 @@ def solve_table_pose(
     P_mid = canonical_midline_mm(cfg["table"]["height_mm"])
 
     quad = np.ascontiguousarray(quad_img.astype(np.float64))
-    # In half_rectangle mode we don't know whether the half_quad's CCW
-    # orientation in image space matches the canonical CCW orientation in
-    # 3D, because image y is flipped. Try both forward and reversed orderings
-    # and pick the one with the smaller mean IPPE reprojection error. (For
-    # full-rectangle mode the canonical is symmetric and reversing has no
-    # effect, so we can just try forward.)
-    orderings = [(quad, P_corners)]
+    # Try all 4 cyclic rotations of the canonical corners (and both orderings
+    # for half_rectangle). The _ccw_from_top_left ordering of the quad depends
+    # on camera position, so the correct canonical↔image correspondence is not
+    # known a priori. We pick whichever rotation minimises the best-solution
+    # IPPE reprojection error.
+    rotations = [np.roll(P_corners, -r, axis=0) for r in range(4)]
     if half_rectangle:
-        orderings.append((quad[::-1].copy(), P_corners))
+        rotations += [np.roll(P_corners, -r, axis=0) for r in range(4)]
+        quads = [quad] * 4 + [quad[::-1].copy()] * 4
+    else:
+        quads = [quad] * 4
     best_ok = False
     best_rvecs = None
     best_tvecs = None
     best_err = float("inf")
     best_quad = quad
-    for q, P in orderings:
+    best_P_corners = P_corners
+    for q, P in zip(quads, rotations):
         try:
             ok, rvecs, tvecs, _ = cv2.solvePnPGeneric(
                 P, q, K, None, flags=cv2.SOLVEPNP_IPPE
@@ -163,7 +166,7 @@ def solve_table_pose(
             continue
         if not ok or len(rvecs) == 0:
             continue
-        # Mean reprojection error across the IPPE solutions.
+        # Best reprojection error across the two IPPE solutions.
         errs = []
         for rv, tv in zip(rvecs, tvecs):
             re = _project_world_to_image(P, rv, tv, K)
@@ -175,14 +178,21 @@ def solve_table_pose(
             best_rvecs = rvecs
             best_tvecs = tvecs
             best_quad = q
+            best_P_corners = P
     if not best_ok:
         return PoseResult(None, None, None, 0.0, False)
     rvecs, tvecs = best_rvecs, best_tvecs
     quad = best_quad
+    P_corners = best_P_corners
 
     m_endpoints_img: np.ndarray | None = None
     if midline_img is not None and not half_rectangle:
-        m_endpoints_img = intersect_midline_with_table_long_edges(quad, midline_img)
+        # Use midline_img directly: quad_fit already placed these endpoints at
+        # the net-meets-long-edge positions, which are good approximations of
+        # canonical P_mid = [(0,±H/2,0)]. The old intersect_midline_with_table_
+        # long_edges heuristic selected the wrong edge pair after the cyclic-
+        # rotation fix and produced off-screen intersection points.
+        m_endpoints_img = np.asarray(midline_img, dtype=np.float64).reshape(2, 2)
     best_idx = 0
     # Disambiguate IPPE's planar ambiguity. Priority: ARCore world-up (the
     # table normal must point up in world; ARCore poses are reliable enough
