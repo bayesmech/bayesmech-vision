@@ -29,6 +29,8 @@ reference:
 raft:
   variant: "large"          # "large" (21 MB) or "small" (5 MB)
   iters: 20                 # recurrent update iterations (more = slower, more accurate)
+  inference_height: 360     # resize RAFT inputs to this height, then upscale outputs
+                            # Set to null or 0 to use the original frame resolution.
   assumed_depth_m: 1.5      # fallback scene depth when ARCore depth frame is absent
   residual_threshold_px: 2.0  # residual magnitude (px) below this is treated as noise
 

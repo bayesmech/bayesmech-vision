@@ -26,9 +26,14 @@ Usage
 
 import argparse
 import bisect
+import gc
+import os
 import sys
 import time
 from pathlib import Path
+
+# Must be set before torch is imported by motioncap.raft_motion.
+os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
 
 import cv2
 import numpy as np
@@ -123,6 +128,34 @@ def _to_heatmap_u8(
     if scale > 0:
         r = (r / scale * 255.0).clip(0, 255)
     return r.astype(np.uint8)
+
+
+def _clear_cuda_cache(device) -> None:
+    """Drop Python refs and release PyTorch's unused CUDA cache."""
+    gc.collect()
+    if getattr(device, "type", None) == "cuda":
+        import torch
+        torch.cuda.empty_cache()
+
+
+def _resize_for_feature_encoder(
+    rgb: np.ndarray,
+    cfg: dict,
+) -> tuple[np.ndarray, float, float]:
+    """Resize RGB for RAFT's feature encoder and return input/original scales."""
+    inference_height = cfg.get("raft", {}).get("inference_height")
+    h, w = rgb.shape[:2]
+    if (
+        inference_height is None
+        or inference_height <= 0
+        or h <= inference_height
+    ):
+        return rgb, 1.0, 1.0
+
+    feat_h = int(inference_height)
+    feat_w = max(8, int(round(w * feat_h / h)))
+    resized = cv2.resize(rgb, (feat_w, feat_h), interpolation=cv2.INTER_AREA)
+    return resized, feat_w / w, feat_h / h
 
 
 # ── Proto track encoding / decoding ───────────────────────────────────────────
@@ -370,6 +403,7 @@ def main() -> None:
                         methods.append(Method.OPTICAL_FLOW)
                     except Exception as exc:
                         tqdm.write(f"Warning: frame {idx} failed: {exc}")
+                        _clear_cuda_cache(device)
                         raw_residuals.append(np.zeros((h, w), dtype=np.float16))
                         max_raws.append(0.0)
                         methods.append(Method.OPTICAL_FLOW)
@@ -439,11 +473,16 @@ def main() -> None:
                     rich_detections.append([])
                     continue
 
-                # Feature encoder — fast (~10 ms), no full RAFT pass
-                t_rgb, _, _ = _to_tensor(rgb, device)
+                # Feature encoder — use the same inference resolution as RAFT.
+                rgb_feat, feat_scale_x, feat_scale_y = _resize_for_feature_encoder(
+                    rgb, cfg
+                )
+                t_rgb, _, _ = _to_tensor(rgb_feat, device)
                 fmap = model.feature_encoder(t_rgb)       # (1, 256, fH, fW)
                 fmap_np = fmap.squeeze(0).cpu().numpy()   # (256, fH, fW)
                 _, fH, fW = fmap_np.shape
+                del t_rgb, fmap
+                _clear_cuda_cache(device)
 
                 # Flow small for this frame (if available)
                 fs = flow_smalls[fidx] if flow_smalls else None
@@ -451,10 +490,10 @@ def main() -> None:
                 frame_rich: list[RichDetection] = []
                 for det in blobs:
                     r0, c0, r1, c1 = det.bbox
-                    fr0 = max(0, r0 // 8)
-                    fc0 = max(0, c0 // 8)
-                    fr1 = min(fH, max(fr0 + 1, (r1 + 1) // 8 + 1))
-                    fc1 = min(fW, max(fc0 + 1, (c1 + 1) // 8 + 1))
+                    fr0 = max(0, int(r0 * feat_scale_y) // 8)
+                    fc0 = max(0, int(c0 * feat_scale_x) // 8)
+                    fr1 = min(fH, max(fr0 + 1, int((r1 + 1) * feat_scale_y) // 8 + 1))
+                    fc1 = min(fW, max(fc0 + 1, int((c1 + 1) * feat_scale_x) // 8 + 1))
                     patch = fmap_np[:, fr0:fr1, fc0:fc1]   # (256, ph, pw)
                     desc  = patch.mean(axis=(1, 2)).astype(np.float32)
                     norm  = float(np.linalg.norm(desc))
@@ -464,8 +503,9 @@ def main() -> None:
                     flow_vec = None
                     if fs is not None:
                         cy, cx = det.centroid
-                        fcy = min(int(cy) // 8, fH - 1)
-                        fcx = min(int(cx) // 8, fW - 1)
+                        fsH, fsW = fs.shape[:2]
+                        fcy = min(int(cy) // 8, fsH - 1)
+                        fcx = min(int(cx) // 8, fsW - 1)
                         # flow_small stores (dx, dy); flow_vec is (dy, dx) to match (cy,cx)
                         flow_vec = (float(fs[fcy, fcx, 1]),
                                     float(fs[fcy, fcx, 0]))
