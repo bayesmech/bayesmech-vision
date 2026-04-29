@@ -237,12 +237,12 @@ const LoadButton: React.FC = () => {
                   }}>
                     {rec.has_motioncap && (
                       <span style={analysisBadgeStyle('#ffaa00')}>
-                        Motion Capture
+                        MOTIONCAP
                       </span>
                     )}
                     {rec.has_segmentation && (
                       <span style={analysisBadgeStyle('#00ff88')}>
-                        Segmentation
+                        SEGMENTATION
                       </span>
                     )}
                     {rec.has_idoslam && (
