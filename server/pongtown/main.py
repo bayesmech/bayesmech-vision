@@ -302,17 +302,19 @@ def main() -> None:
             return
 
     # ── Stage 3: weighted RANSAC over per-frame poses lifted to world ────────
-    min_quality = float(cfg.get("world", {}).get("ransac_min_quality", 0.0))
-    eligible = [r for r in valid if r["qres"].quality >= min_quality]
+    # Select top 10% of valid frames by Stage 2 PnP IoU.  Using pnp_iou as
+    # the filter (not Stage 1 quality) ensures RANSAC sees only frames where
+    # the per-frame pose is actually good, not just frames where the quad fit
+    # was good.
+    top_pct = float(cfg.get("world", {}).get("ransac_top_pct", 0.10))
+    iou_thresh = float(np.percentile([r["pres"].pnp_iou for r in valid], 100 * (1 - top_pct)))
+    eligible = [r for r in valid if r["pres"].pnp_iou >= iou_thresh]
     if not eligible:
-        log.warning(
-            "No frames meet world.ransac_min_quality=%.2f; falling back to all valid",
-            min_quality,
-        )
+        log.warning("No frames in top %.0f%% IoU; falling back to all valid", top_pct * 100)
         eligible = valid
     log.info(
-        "Stage 3 candidates: %d / %d frames at quality >= %.2f",
-        len(eligible), len(valid), min_quality,
+        "Stage 3 candidates: %d / %d frames in top %.0f%% by PnP IoU (thresh=%.3f)",
+        len(eligible), len(valid), top_pct * 100, iou_thresh,
     )
     poses_T = []
     weights = []

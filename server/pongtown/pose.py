@@ -185,14 +185,10 @@ def solve_table_pose(
     quad = best_quad
     P_corners = best_P_corners
 
+    # Net/midline-based LM refinement is skipped: the net mask detection is
+    # too noisy (~20-30 px endpoint error) and pulls the pose away from the
+    # 4-5 px IPPE solution. The 4-corner cyclic-rotation IPPE is sufficient.
     m_endpoints_img: np.ndarray | None = None
-    if midline_img is not None and not half_rectangle:
-        # Use midline_img directly: quad_fit already placed these endpoints at
-        # the net-meets-long-edge positions, which are good approximations of
-        # canonical P_mid = [(0,±H/2,0)]. The old intersect_midline_with_table_
-        # long_edges heuristic selected the wrong edge pair after the cyclic-
-        # rotation fix and produced off-screen intersection points.
-        m_endpoints_img = np.asarray(midline_img, dtype=np.float64).reshape(2, 2)
     best_idx = 0
     # Disambiguate IPPE's planar ambiguity. Priority: ARCore world-up (the
     # table normal must point up in world; ARCore poses are reliable enough
