@@ -42,7 +42,16 @@ from urllib.parse import quote
 
 import aiohttp
 from dotenv import load_dotenv
-from fastapi import FastAPI, Request, Response, UploadFile, File, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import (
+    FastAPI,
+    Request,
+    Response,
+    UploadFile,
+    File,
+    HTTPException,
+    WebSocket,
+    WebSocketDisconnect,
+)
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -115,6 +124,7 @@ annotator.set_annotation_callback(bridge.broadcast_annotation)
 
 # ── Application ───────────────────────────────────────────────────────────────
 
+
 @asynccontextmanager
 async def _lifespan(app: FastAPI):
     await annotator.connect()
@@ -124,11 +134,15 @@ async def _lifespan(app: FastAPI):
 
 app = FastAPI(title="BayesMech Vision Server", version="3.0.0", lifespan=_lifespan)
 app.add_middleware(
-    CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"],
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 
 # ── WebSocket: AR stream (Android -> server) ─────────────────────────────────
+
 
 @app.websocket("/ar-stream")
 async def ar_stream_ws(websocket: WebSocket):
@@ -155,11 +169,14 @@ async def ar_stream_ws(websocket: WebSocket):
     except Exception as exc:
         logger.error(f"AR stream error ({addr}): {exc}", exc_info=True)
     finally:
-        logger.info(f"AR client disconnected: {addr}  (pushed {store.frame_count} frames)")
+        logger.info(
+            f"AR client disconnected: {addr}  (pushed {store.frame_count} frames)"
+        )
         store.set_source("none")
 
 
 # ── WebSocket: Dashboard (server -> browser) ─────────────────────────────────
+
 
 @app.websocket("/ws/dashboard")
 async def dashboard_ws(websocket: WebSocket):
@@ -167,6 +184,7 @@ async def dashboard_ws(websocket: WebSocket):
 
 
 # ── REST API ──────────────────────────────────────────────────────────────────
+
 
 @app.get("/api/health")
 async def health():
@@ -187,7 +205,9 @@ async def get_stream_stats():
 async def transcribe_audio(file: UploadFile = File(...)):
     api_key = os.environ.get("OPENAI_API_KEY")
     if not api_key:
-        raise HTTPException(status_code=503, detail="OPENAI_API_KEY is not configured on the server")
+        raise HTTPException(
+            status_code=503, detail="OPENAI_API_KEY is not configured on the server"
+        )
 
     audio_bytes = await file.read()
     if not audio_bytes:
@@ -209,18 +229,28 @@ async def transcribe_audio(file: UploadFile = File(...)):
         ) as openai_response:
             response_text = await openai_response.text()
             if openai_response.status >= 400:
-                logger.error("OpenAI transcription failed: %s %s", openai_response.status, response_text)
-                raise HTTPException(status_code=502, detail="OpenAI transcription failed")
+                logger.error(
+                    "OpenAI transcription failed: %s %s",
+                    openai_response.status,
+                    response_text,
+                )
+                raise HTTPException(
+                    status_code=502, detail="OpenAI transcription failed"
+                )
 
     try:
         payload = json.loads(response_text)
     except Exception as exc:
         logger.error("Failed to parse OpenAI transcription response: %s", exc)
-        raise HTTPException(status_code=502, detail="Invalid transcription response from OpenAI") from exc
+        raise HTTPException(
+            status_code=502, detail="Invalid transcription response from OpenAI"
+        ) from exc
 
     transcript = str(payload.get("text") or "").strip()
     if not transcript:
-        raise HTTPException(status_code=502, detail="OpenAI returned an empty transcript")
+        raise HTTPException(
+            status_code=502, detail="OpenAI returned an empty transcript"
+        )
 
     return {"text": transcript}
 
@@ -234,21 +264,74 @@ _RECORDING_SUFFIX_ALIASES = {
 }
 
 _RANDOM_ADJECTIVES = [
-    "Anxious", "Juicy", "Velvet", "Broken", "Silent", "Crimson", "Hollow",
-    "Ancient", "Electric", "Frozen", "Golden", "Neon", "Rusty", "Twisted",
-    "Wild", "Pale", "Vivid", "Bitter", "Calm", "Fierce", "Gentle", "Hungry",
-    "Bright", "Murky", "Sharp", "Soft", "Sour", "Swift", "Dim", "Jagged",
+    "Anxious",
+    "Juicy",
+    "Velvet",
+    "Broken",
+    "Silent",
+    "Crimson",
+    "Hollow",
+    "Ancient",
+    "Electric",
+    "Frozen",
+    "Golden",
+    "Neon",
+    "Rusty",
+    "Twisted",
+    "Wild",
+    "Pale",
+    "Vivid",
+    "Bitter",
+    "Calm",
+    "Fierce",
+    "Gentle",
+    "Hungry",
+    "Bright",
+    "Murky",
+    "Sharp",
+    "Soft",
+    "Sour",
+    "Swift",
+    "Dim",
+    "Jagged",
 ]
 _RANDOM_NOUNS = [
-    "Deer", "Apple", "Falcon", "Glacier", "Lantern", "Mirage", "Phantom",
-    "Raven", "Storm", "Thunder", "Volcano", "Whisper", "Ember", "Feather",
-    "Horizon", "Marble", "Needle", "Pebble", "Shadow", "Thorn", "Arrow",
-    "Beacon", "Crystal", "Dagger", "Forest", "Harbor", "Jungle", "Comet",
-    "Dune", "Viper",
+    "Deer",
+    "Apple",
+    "Falcon",
+    "Glacier",
+    "Lantern",
+    "Mirage",
+    "Phantom",
+    "Raven",
+    "Storm",
+    "Thunder",
+    "Volcano",
+    "Whisper",
+    "Ember",
+    "Feather",
+    "Horizon",
+    "Marble",
+    "Needle",
+    "Pebble",
+    "Shadow",
+    "Thorn",
+    "Arrow",
+    "Beacon",
+    "Crystal",
+    "Dagger",
+    "Forest",
+    "Harbor",
+    "Jungle",
+    "Comet",
+    "Dune",
+    "Viper",
 ]
+
 
 def _generate_random_name(seed: str) -> str:
     import hashlib
+
     h = int(hashlib.md5(seed.encode()).hexdigest(), 16)
     adj = _RANDOM_ADJECTIVES[h % len(_RANDOM_ADJECTIVES)]
     noun = _RANDOM_NOUNS[(h // len(_RANDOM_ADJECTIVES)) % len(_RANDOM_NOUNS)]
@@ -264,6 +347,7 @@ def _parse_recording_timestamp(name: str, fallback_mtime: float) -> float:
         except ValueError:
             pass
     return fallback_mtime
+
 
 def _parse_title(folder_name: str) -> str:
     """Extract human-readable title from a YYYYMMDD_HHMMSS_some_random_text folder name.
@@ -293,10 +377,14 @@ def _format_parameter_tag(param: insightgen_pb2.GensparkParameter) -> str | None
     return f"{name}: {value}{suffix}"
 
 
-_SCENE_CLASSIFIED_RE = re.compile(r"Scene classified as ([a-z][a-z0-9-]+)", re.IGNORECASE)
+_SCENE_CLASSIFIED_RE = re.compile(
+    r"Scene classified as ([a-z][a-z0-9-]+)", re.IGNORECASE
+)
 
 
-def _extract_genspark_metadata(genspark_path: Path) -> tuple[str | None, list[str], str]:
+def _extract_genspark_metadata(
+    genspark_path: Path,
+) -> tuple[str | None, list[str], str]:
     """Returns (title, tags, preview_text)."""
     if not genspark_path.exists():
         return None, [], ""
@@ -305,7 +393,9 @@ def _extract_genspark_metadata(genspark_path: Path) -> tuple[str | None, list[st
         full = insightgen_pb2.GensparkResponse()
         full.ParseFromString(genspark_path.read_bytes())
     except Exception as exc:
-        logger.warning("Failed to parse genspark metadata from %s: %s", genspark_path, exc)
+        logger.warning(
+            "Failed to parse genspark metadata from %s: %s", genspark_path, exc
+        )
         return None, [], ""
 
     title = full.summary.title.strip() or None
@@ -399,7 +489,11 @@ def _idoslam_path_for_request(file_name: str | None) -> Path | None:
     if store.current_file is None:
         return None
     current = store.current_file
-    stem = current.name.removesuffix(".vis.pb") if current.name.endswith(".vis.pb") else current.stem
+    stem = (
+        current.name.removesuffix(".vis.pb")
+        if current.name.endswith(".vis.pb")
+        else current.stem
+    )
     return current.parent / f"{stem}.idoslam.pb"
 
 
@@ -426,7 +520,9 @@ def _thread_created_timestamp_ns(file_name: str, genspark_path: Path) -> int:
     return int(_parse_recording_timestamp(file_name, time.time()) * 1_000_000_000)
 
 
-def _load_chat_history_proto(chat_path: Path, file_name: str) -> insightgen_pb2.ChatHistory:
+def _load_chat_history_proto(
+    chat_path: Path, file_name: str
+) -> insightgen_pb2.ChatHistory:
     history = insightgen_pb2.ChatHistory(file_name=file_name)
     source_path = chat_path
     if not source_path.exists():
@@ -473,7 +569,9 @@ def _build_chat_history_delta(
                     )
                 )
         except Exception as exc:
-            logger.warning("Failed to build initial chat turn for %s: %s", file_name, exc)
+            logger.warning(
+                "Failed to build initial chat turn for %s: %s", file_name, exc
+            )
 
     for turn in persisted.turns:
         if turn.timestamp_ns > since_timestamp_ns:
@@ -506,7 +604,9 @@ def _frame_number(message: Any) -> int | None:
 
 
 def _has_motioncap_summary(message: motioncap_pb2.MotionCaptureResponse) -> bool:
-    return bool(message.tracks)
+    return bool(
+        message.tracks or message.segmentation_trajectories or message.total_frames
+    )
 
 
 def _has_snook_summary(message: snookestown_pb2.SnookerResponse) -> bool:
@@ -816,11 +916,15 @@ def _current_recording_name() -> str | None:
 def _resolve_analysis_spec(analysis_name: str) -> AnalysisSpec:
     spec = _ANALYSIS_BY_KEY.get(_normalize_key(Path(analysis_name).name))
     if spec is None:
-        raise HTTPException(status_code=404, detail=f"Unknown analysis: {analysis_name}")
+        raise HTTPException(
+            status_code=404, detail=f"Unknown analysis: {analysis_name}"
+        )
     return spec
 
 
-def _resolve_artifact_spec(analysis_spec: AnalysisSpec, artifact_name: str) -> AnalysisArtifactSpec:
+def _resolve_artifact_spec(
+    analysis_spec: AnalysisSpec, artifact_name: str
+) -> AnalysisArtifactSpec:
     key = _normalize_key(Path(artifact_name).name)
     for artifact in analysis_spec.artifacts:
         if key == _normalize_key(artifact.name):
@@ -833,7 +937,9 @@ def _resolve_artifact_spec(analysis_spec: AnalysisSpec, artifact_name: str) -> A
     )
 
 
-def _build_view_metadata(scope_prefix: str, analysis_spec: AnalysisSpec) -> list[dict[str, Any]]:
+def _build_view_metadata(
+    scope_prefix: str, analysis_spec: AnalysisSpec
+) -> list[dict[str, Any]]:
     return [
         {
             "name": view.name,
@@ -892,7 +998,9 @@ def _build_analysis_metadata(
     scope_prefix: str,
 ) -> dict[str, Any]:
     artifacts = [
-        _build_artifact_metadata(recording_name, analysis_spec, artifact_spec, scope_prefix)
+        _build_artifact_metadata(
+            recording_name, analysis_spec, artifact_spec, scope_prefix
+        )
         for artifact_spec in analysis_spec.artifacts
     ]
     return {
@@ -904,7 +1012,9 @@ def _build_analysis_metadata(
     }
 
 
-def _build_recording_analysis_index(recording_name: str, *, playback: bool = False) -> dict[str, Any]:
+def _build_recording_analysis_index(
+    recording_name: str, *, playback: bool = False
+) -> dict[str, Any]:
     scope_prefix = _analysis_scope_prefix(None if playback else recording_name)
     analyses = [
         _build_analysis_metadata(recording_name, analysis_spec, scope_prefix)
@@ -955,13 +1065,21 @@ def _encode_record_slice(
             else None
         )
 
-        if start_timestamp_ns is not None and (timestamp_ns is None or timestamp_ns < start_timestamp_ns):
+        if start_timestamp_ns is not None and (
+            timestamp_ns is None or timestamp_ns < start_timestamp_ns
+        ):
             continue
-        if end_timestamp_ns is not None and (timestamp_ns is None or timestamp_ns > end_timestamp_ns):
+        if end_timestamp_ns is not None and (
+            timestamp_ns is None or timestamp_ns > end_timestamp_ns
+        ):
             continue
-        if start_frame_number is not None and (frame_number is None or frame_number < start_frame_number):
+        if start_frame_number is not None and (
+            frame_number is None or frame_number < start_frame_number
+        ):
             continue
-        if end_frame_number is not None and (frame_number is None or frame_number > end_frame_number):
+        if end_frame_number is not None and (
+            frame_number is None or frame_number > end_frame_number
+        ):
             continue
 
         selected.append(record)
@@ -972,6 +1090,7 @@ def _encode_record_slice(
         selected.extend(summaries)
 
     return artifact_spec.proto_io.encode(selected), len(selected)
+
 
 def _extract_thumbnail(pb_path: Path) -> bytes | None:
     """Return RGB bytes of the frame at ~20 s into the recording (best-effort)."""
@@ -996,7 +1115,9 @@ def _extract_thumbnail(pb_path: Path) -> bytes | None:
                     frame.ParseFromString(data)
                 except Exception:
                     continue
-                if not frame.HasField("frame_identifier") or not frame.HasField("rgb_frame"):
+                if not frame.HasField("frame_identifier") or not frame.HasField(
+                    "rgb_frame"
+                ):
                     continue
                 ts = frame.frame_identifier.timestamp_ns
                 if start_ns is None:
@@ -1029,21 +1150,23 @@ async def list_recordings():
                 for artifact_spec in analysis_spec.artifacts
             )
         ]
-        recordings.append({
-            "name": d.name,
-            "title": _parse_title(d.name),
-            "size_mb": round(vis.stat().st_size / (1024 ** 2), 2),
-            "recorded_at": _parse_recording_timestamp(d.name, d.stat().st_mtime),
-            "has_segmentation": _recording_file(d.name, "segmentation.pb").exists(),
-            "has_idoslam": _recording_file(d.name, "idoslam.pb").exists(),
-            "has_motioncap": (
-                _recording_file(d.name, "motioncap.pb").exists()
-                or _recording_file(d.name, "motioncap.mp4").exists()
-            ),
-            "has_pongtown": _recording_file(d.name, "pongtown.pb").exists(),
-            "available_analyses": available_analyses,
-            "analysis_url": f"/api/analysis/recordings/{quote(d.name)}",
-        })
+        recordings.append(
+            {
+                "name": d.name,
+                "title": _parse_title(d.name),
+                "size_mb": round(vis.stat().st_size / (1024**2), 2),
+                "recorded_at": _parse_recording_timestamp(d.name, d.stat().st_mtime),
+                "has_segmentation": _recording_file(d.name, "segmentation.pb").exists(),
+                "has_idoslam": _recording_file(d.name, "idoslam.pb").exists(),
+                "has_motioncap": (
+                    _recording_file(d.name, "motioncap.pb").exists()
+                    or _recording_file(d.name, "motioncap.mp4").exists()
+                ),
+                "has_pongtown": _recording_file(d.name, "pongtown.pb").exists(),
+                "available_analyses": available_analyses,
+                "analysis_url": f"/api/analysis/recordings/{quote(d.name)}",
+            }
+        )
     return {"recordings": recordings}
 
 
@@ -1090,7 +1213,9 @@ def _resolve_recording_artifact(
     analysis_name: str,
     artifact_name: str,
 ) -> tuple[str, AnalysisSpec, AnalysisArtifactSpec, Path]:
-    safe_name, analysis_spec = _resolve_recording_analysis(recording_name, analysis_name)
+    safe_name, analysis_spec = _resolve_recording_analysis(
+        recording_name, analysis_name
+    )
     artifact_spec = _resolve_artifact_spec(analysis_spec, artifact_name)
     path = artifact_spec.path_for(safe_name)
     if not path.exists():
@@ -1132,7 +1257,9 @@ def _resolve_playback_artifact(
     return recording_name, analysis_spec, artifact_spec, path
 
 
-def _download_artifact_response(path: Path, artifact_spec: AnalysisArtifactSpec) -> FileResponse:
+def _download_artifact_response(
+    path: Path, artifact_spec: AnalysisArtifactSpec
+) -> FileResponse:
     if artifact_spec.is_directory:
         raise HTTPException(
             status_code=400,
@@ -1156,8 +1283,7 @@ def _resolve_motioncap_frame_index(
     timestamp_ns: int | None,
 ) -> int:
     provided = sum(
-        value is not None
-        for value in (frame_index, frame_number, timestamp_ns)
+        value is not None for value in (frame_index, frame_number, timestamp_ns)
     )
     if provided > 1:
         raise HTTPException(
@@ -1178,11 +1304,15 @@ def _resolve_motioncap_frame_index(
 
     heatmap_index = 0
     for record in _motion_io.read_file(motion_path):
-        if record.tracks:
+        if _has_motioncap_summary(record):
             continue
-        if frame_number is not None and int(record.frame_identifier.frame_number) == int(frame_number):
+        if frame_number is not None and int(
+            record.frame_identifier.frame_number
+        ) == int(frame_number):
             return heatmap_index
-        if timestamp_ns is not None and int(record.frame_identifier.timestamp_ns) == int(timestamp_ns):
+        if timestamp_ns is not None and int(
+            record.frame_identifier.timestamp_ns
+        ) == int(timestamp_ns):
             return heatmap_index
         heatmap_index += 1
 
@@ -1207,9 +1337,18 @@ def _motioncap_layer() -> MotioncapVideoLayer:
 
 async def _motioncap_tracks_response(motion_path: Path | None) -> dict[str, Any]:
     if motion_path is None:
-        return {"available": False, "tracks": []}
-    tracks = await asyncio.to_thread(_motioncap_layer().track_legend, motion_path)
-    return {"available": True, "tracks": tracks}
+        return {"available": False, "tracks": [], "segmentation_trajectories": []}
+    layer = _motioncap_layer()
+    tracks = await asyncio.to_thread(layer.track_legend, motion_path)
+    segmentation_trajectories = await asyncio.to_thread(
+        layer.segmentation_trajectory_legend,
+        motion_path,
+    )
+    return {
+        "available": True,
+        "tracks": tracks,
+        "segmentation_trajectories": segmentation_trajectories,
+    }
 
 
 async def _motioncap_heatmap_response(
@@ -1229,7 +1368,9 @@ async def _motioncap_heatmap_response(
         frame_number=frame_number,
         timestamp_ns=timestamp_ns,
     )
-    png_bytes = await asyncio.to_thread(_motioncap_layer().heatmap_png, motion_path, resolved_index)
+    png_bytes = await asyncio.to_thread(
+        _motioncap_layer().heatmap_png, motion_path, resolved_index
+    )
     if png_bytes is None:
         raise HTTPException(
             status_code=404,
@@ -1260,7 +1401,9 @@ async def analysis_playback_index():
 
 @app.get("/api/analysis/recordings/{recording_name}/analyses/{analysis_name}")
 async def analysis_recording_detail(recording_name: str, analysis_name: str):
-    safe_name, analysis_spec = _resolve_recording_analysis(recording_name, analysis_name)
+    safe_name, analysis_spec = _resolve_recording_analysis(
+        recording_name, analysis_name
+    )
     return _build_analysis_metadata(
         safe_name,
         analysis_spec,
@@ -1278,13 +1421,17 @@ async def analysis_playback_detail(analysis_name: str):
     )
 
 
-@app.get("/api/analysis/recordings/{recording_name}/analyses/{analysis_name}/artifacts/{artifact_name}")
+@app.get(
+    "/api/analysis/recordings/{recording_name}/analyses/{analysis_name}/artifacts/{artifact_name}"
+)
 async def analysis_recording_artifact_download(
     recording_name: str,
     analysis_name: str,
     artifact_name: str,
 ):
-    _, _, artifact_spec, path = _resolve_recording_artifact(recording_name, analysis_name, artifact_name)
+    _, _, artifact_spec, path = _resolve_recording_artifact(
+        recording_name, analysis_name, artifact_name
+    )
     return _download_artifact_response(path, artifact_spec)
 
 
@@ -1309,7 +1456,9 @@ async def analysis_recording_records(
     limit: int | None = None,
     include_summary: bool = False,
 ):
-    _, _, artifact_spec, path = _resolve_recording_artifact(recording_name, analysis_name, artifact)
+    _, _, artifact_spec, path = _resolve_recording_artifact(
+        recording_name, analysis_name, artifact
+    )
     if limit is not None and limit < 1:
         raise HTTPException(status_code=400, detail="limit must be >= 1")
     if (
@@ -1409,8 +1558,12 @@ async def analysis_playback_records(
 @app.get("/api/analysis/recordings/{recording_name}/analyses/motioncap/views/tracks")
 async def analysis_recording_motioncap_tracks(recording_name: str):
     safe_name = _ensure_recording_exists(recording_name)
-    motion_path = _resolve_artifact_spec(_resolve_analysis_spec("motioncap"), "proto").path_for(safe_name)
-    return await _motioncap_tracks_response(motion_path if motion_path.exists() else None)
+    motion_path = _resolve_artifact_spec(
+        _resolve_analysis_spec("motioncap"), "proto"
+    ).path_for(safe_name)
+    return await _motioncap_tracks_response(
+        motion_path if motion_path.exists() else None
+    )
 
 
 @app.get("/api/analysis/playback/analyses/motioncap/views/tracks")
@@ -1426,7 +1579,9 @@ async def analysis_recording_motioncap_heatmap(
     timestamp_ns: int | None = None,
 ):
     safe_name = _ensure_recording_exists(recording_name)
-    motion_path = _resolve_artifact_spec(_resolve_analysis_spec("motioncap"), "proto").path_for(safe_name)
+    motion_path = _resolve_artifact_spec(
+        _resolve_analysis_spec("motioncap"), "proto"
+    ).path_for(safe_name)
     return await _motioncap_heatmap_response(
         motion_path if motion_path.exists() else None,
         frame_index=frame_index,
@@ -1472,9 +1627,13 @@ async def insightgen_list_recordings(request: Request):
         thumb = _extract_thumbnail(vis)
         genspark_path = _recording_file(base_name, "genspark.pb")
         chat_path = _recording_file(base_name, "chat.pb")
-        genspark_title, genspark_tags, preview_text = _extract_genspark_metadata(genspark_path)
+        genspark_title, genspark_tags, preview_text = _extract_genspark_metadata(
+            genspark_path
+        )
         parsed = _parse_title(base_name)
-        title = genspark_title or (parsed if parsed != base_name else _generate_random_name(base_name))
+        title = genspark_title or (
+            parsed if parsed != base_name else _generate_random_name(base_name)
+        )
         chat_count = 0
         if chat_path.exists():
             try:
@@ -1484,7 +1643,9 @@ async def insightgen_list_recordings(request: Request):
                 pass
         dl = insightgen_pb2.DataList(
             file_name=base_name,
-            is_segmentation_available=_recording_file(base_name, "segmentation.pb").exists(),
+            is_segmentation_available=_recording_file(
+                base_name, "segmentation.pb"
+            ).exists(),
             is_genspark_available=genspark_path.exists(),
             is_motioncap_available=(
                 _recording_file(base_name, "motioncap.pb").exists()
@@ -1503,7 +1664,9 @@ async def insightgen_list_recordings(request: Request):
     resp.recordings.extend(
         sorted(recordings_map.values(), key=lambda r: r.file_name, reverse=True)
     )
-    return Response(content=resp.SerializeToString(), media_type="application/x-protobuf")
+    return Response(
+        content=resp.SerializeToString(), media_type="application/x-protobuf"
+    )
 
 
 @app.get("/api/insightgen/insight")
@@ -1567,6 +1730,7 @@ async def insightgen_video(file: str, layer: str = "raw"):
         # Determine which frames to include
         from streamlog.protoio import ProtoIO
         from proto import perceiver_pb2 as _pb2
+
         _vis_io = ProtoIO(_pb2.PerceiverDataFrame)
         vis_frames = await asyncio.get_event_loop().run_in_executor(
             None, _vis_io.read_file, vis_path
@@ -1599,23 +1763,31 @@ async def insightgen_video(file: str, layer: str = "raw"):
 
         rendered = await asyncio.get_event_loop().run_in_executor(
             None,
-            lambda: layer_obj.render_frames(vis_path, frame_indices, jpeg_quality, max_width),
+            lambda: layer_obj.render_frames(
+                vis_path, frame_indices, jpeg_quality, max_width
+            ),
         )
 
         # Build response proto
         resp = insightgen_pb2.InsightVideoResponse(fps=fps)
         for ts, jpeg in rendered:
-            resp.frames.append(insightgen_pb2.VideoFrame(timestamp_ns=ts, jpeg_data=jpeg))
+            resp.frames.append(
+                insightgen_pb2.VideoFrame(timestamp_ns=ts, jpeg_data=jpeg)
+            )
         resp.segments.extend(highlights)
 
         logger.info(
             f"insightgen_video: {safe_name} layer={layer_key} "
             f"frames={len(rendered)} fps={fps} highlights={len(highlights)}"
         )
-        return Response(content=resp.SerializeToString(), media_type="application/x-protobuf")
+        return Response(
+            content=resp.SerializeToString(), media_type="application/x-protobuf"
+        )
 
     except Exception as exc:
-        logger.error(f"insightgen_video error ({safe_name}, {layer}): {exc}", exc_info=True)
+        logger.error(
+            f"insightgen_video error ({safe_name}, {layer}): {exc}", exc_info=True
+        )
         return Response(status_code=500)
 
 
@@ -1625,8 +1797,12 @@ async def insightgen_chat_history(file: str, since_timestamp_ns: int = 0):
     safe_name = Path(file).name
     genspark_path = _recording_file(safe_name, "genspark.pb")
     chat_path = _recording_file(safe_name, "chat.pb")
-    history = _build_chat_history_delta(safe_name, genspark_path, chat_path, since_timestamp_ns)
-    return Response(content=history.SerializeToString(), media_type="application/x-protobuf")
+    history = _build_chat_history_delta(
+        safe_name, genspark_path, chat_path, since_timestamp_ns
+    )
+    return Response(
+        content=history.SerializeToString(), media_type="application/x-protobuf"
+    )
 
 
 @app.post("/api/insightgen/chat")
@@ -1648,10 +1824,17 @@ async def insightgen_chat(request: Request):
     safe_name = Path(file_name).name
     genspark_path = _recording_file(safe_name, "genspark.pb")
     if not genspark_path.exists():
-        raise HTTPException(status_code=404, detail="No analysis found for this recording")
+        raise HTTPException(
+            status_code=404, detail="No analysis found for this recording"
+        )
 
     try:
-        response_text, session_id, user_turn, model_turn = await asyncio.get_event_loop().run_in_executor(
+        (
+            response_text,
+            session_id,
+            user_turn,
+            model_turn,
+        ) = await asyncio.get_event_loop().run_in_executor(
             None,
             lambda: chat_manager.handle_message(
                 genspark_path,
@@ -1695,7 +1878,10 @@ async def start_playback(request: dict):
             f"DIAG frame[0] key: ts={sample_frame.timestamp_ns} fn={sample_frame.frame_number} | "
             f"annotation[0] key: ts={sample_ann_key[0]} fn={sample_ann_key[1]}"
         )
-        frame_keys = {(f.frame_identifier.timestamp_ns, f.frame_identifier.frame_number) for f in frames}
+        frame_keys = {
+            (f.frame_identifier.timestamp_ns, f.frame_identifier.frame_number)
+            for f in frames
+        }
         ann_keys = set(annotator._annotations.keys())
         overlap = frame_keys & ann_keys
         logger.info(
@@ -1737,7 +1923,9 @@ def _current_motioncap_path() -> Path | None:
     recording_name = _current_recording_name()
     if recording_name is None:
         return None
-    motion_path = _resolve_artifact_spec(_resolve_analysis_spec("motioncap"), "proto").path_for(recording_name)
+    motion_path = _resolve_artifact_spec(
+        _resolve_analysis_spec("motioncap"), "proto"
+    ).path_for(recording_name)
     return motion_path if motion_path.exists() else None
 
 
@@ -1779,7 +1967,10 @@ async def upload_recording(file: UploadFile = File(...)):
             f"DIAG frame[0] key: ts={sample_frame.timestamp_ns} fn={sample_frame.frame_number} | "
             f"annotation[0] key: ts={sample_ann_key[0]} fn={sample_ann_key[1]}"
         )
-        frame_keys = {(f.frame_identifier.timestamp_ns, f.frame_identifier.frame_number) for f in frames}
+        frame_keys = {
+            (f.frame_identifier.timestamp_ns, f.frame_identifier.frame_number)
+            for f in frames
+        }
         ann_keys = set(annotator._annotations.keys())
         overlap = frame_keys & ann_keys
         logger.info(
@@ -1790,21 +1981,31 @@ async def upload_recording(file: UploadFile = File(...)):
 
     annotator.annotate_recording(frames)
 
-    return {"status": "uploaded_and_playing", "name": recording_name, "size": len(content), "frames": count}
+    return {
+        "status": "uploaded_and_playing",
+        "name": recording_name,
+        "size": len(content),
+        "frames": count,
+    }
 
 
 # ── Static files ──────────────────────────────────────────────────────────────
 
 _dashboard_dist = _project_root / "analysis" / "dashboard" / "dist"
 if _dashboard_dist.exists():
-    app.mount("/", StaticFiles(directory=str(_dashboard_dist), html=True), name="dashboard")
+    app.mount(
+        "/", StaticFiles(directory=str(_dashboard_dist), html=True), name="dashboard"
+    )
 else:
-    logger.warning(f"Dashboard build not found at {_dashboard_dist}. Run 'npm run build' in dashboard/")
+    logger.warning(
+        f"Dashboard build not found at {_dashboard_dist}. Run 'npm run build' in dashboard/"
+    )
 
 # ── Entry point ───────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(
         app,
         host=config["server"]["host"],

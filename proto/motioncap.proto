@@ -43,9 +43,11 @@ message MotionCaptureResponse {
   float stabilization_confidence = 4;  // 0.0–1.0: quality of background removal
 
   // Track summary — populated in a single trailing record appended after all heatmap
-  // frames.  Heatmap is absent in this record; detect via len(tracks) > 0.
+  // frames. Heatmap is absent in this record; detect via tracks,
+  // segmentation_trajectories, or total_frames.
   repeated MotionTrack tracks = 5;
   uint32 total_frames = 6;  // total heatmap frames (only set in tracks summary record)
+  repeated MotionTrack segmentation_trajectories = 7;
 }
 
 // A single centroid observation for one track at one frame.
@@ -64,4 +66,5 @@ message MotionTrack {
   uint32 total_positions = 3;
   float presence_fraction = 4;
   repeated MotionTrackPoint positions = 5;
+  string label = 6;
 }

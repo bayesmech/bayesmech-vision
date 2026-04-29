@@ -45,6 +45,10 @@ from PIL import Image
 from tqdm import tqdm
 
 from proto import segmentation_pb2, perceiver_pb2
+from segmentation.id_stability import (
+    SegmentationIdStabilizer,
+    SegmentationMaskCandidate,
+)
 from streamlog.protoio import ProtoIO
 
 _frame_io = ProtoIO(perceiver_pb2.PerceiverDataFrame)
@@ -110,6 +114,7 @@ def encode_mask_compressed(mask: np.ndarray) -> bytes:
 def run_sam3(args, frames: list, out_path: Path, sample_every: int) -> tuple[int, int]:
     """Run SAM3 streaming annotation. Returns (total_results, total_masks)."""
     sam3_cfg = _CONFIG.get("sam3", {})
+    stability_cfg = _CONFIG.get("id_stability", {})
     dtype_str = sam3_cfg.get("dtype", "bfloat16")
     dtype = torch.bfloat16 if dtype_str == "bfloat16" else torch.float32
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -182,6 +187,10 @@ def run_sam3(args, frames: list, out_path: Path, sample_every: int) -> tuple[int
         return sess
 
     session = _new_session()
+    id_stabilizer = SegmentationIdStabilizer(
+        boundary_iou_threshold=stability_cfg.get("boundary_iou_threshold", 0.45),
+        boundary_dilation_px=stability_cfg.get("boundary_dilation_px", 2),
+    )
     frames_in_session = 0
 
     total_results = 0
@@ -197,6 +206,7 @@ def run_sam3(args, frames: list, out_path: Path, sample_every: int) -> tuple[int
                 if torch.cuda.is_available():
                     torch.cuda.empty_cache()
                 session = _new_session()
+                id_stabilizer.reset_session()
                 frames_in_session = 0
 
             rgb = decode_frame_rgb(proto_frame)
@@ -241,6 +251,7 @@ def run_sam3(args, frames: list, out_path: Path, sample_every: int) -> tuple[int
                 for oid in oids
             }
 
+            candidates: list[SegmentationMaskCandidate] = []
             for i, obj_id in enumerate(obj_ids):
                 score = float(scores[i])
                 if score < args.score_thresh:
@@ -248,12 +259,23 @@ def run_sam3(args, frames: list, out_path: Path, sample_every: int) -> tuple[int
                 mask = masks[i].cpu().numpy().astype(bool)
                 if not mask.any():
                     continue
+                label = obj_id_to_label.get(int(obj_id), "")
+                candidates.append(
+                    SegmentationMaskCandidate(
+                        raw_object_id=int(obj_id),
+                        label=label,
+                        confidence=score,
+                        mask=mask,
+                    )
+                )
+
+            for stable in id_stabilizer.stabilize(candidates):
                 m = resp.masks.add()
-                m.object_id = int(obj_id)
-                m.pixel_count = int(mask.sum())
-                m.confidence = score
-                m.mask_data = encode_mask_compressed(mask)
-                m.label = obj_id_to_label.get(int(obj_id), "")
+                m.object_id = int(stable.stable_object_id)
+                m.pixel_count = int(stable.mask.sum())
+                m.confidence = stable.confidence
+                m.mask_data = encode_mask_compressed(stable.mask)
+                m.label = stable.label
 
             if resp.masks:
                 batch.append(resp)
