@@ -123,11 +123,39 @@ export function decodeMotionHeatmapData(
   return { height, width, values: values.subarray(0, total) }
 }
 
-// Object colors matching annotate_direct.py (RGBA)
-export const MASK_COLORS = [
+export type MaskColor = readonly [number, number, number, number]
+
+// Label-stable mask colors (RGBA). The color index is derived from the
+// normalized mask label, falling back to object_id only for unlabeled masks.
+export const MASK_COLORS: readonly MaskColor[] = [
   [255, 0, 0, 128], [0, 255, 0, 128], [0, 0, 255, 128],
   [255, 255, 0, 128], [255, 0, 255, 128], [0, 255, 255, 128],
+  [255, 128, 0, 128], [128, 0, 255, 128], [0, 160, 255, 128],
+  [160, 255, 0, 128], [255, 0, 128, 128], [128, 255, 128, 128],
 ]
+
+function colorIndexForKey(key: string): number {
+  let hash = 2166136261
+  const bytes = new TextEncoder().encode(key)
+  for (const byte of bytes) {
+    hash ^= byte
+    hash = Math.imul(hash, 16777619)
+  }
+  return (hash >>> 0) % MASK_COLORS.length
+}
+
+export function segmentationMaskColorKey(
+  mask: bayesmech.vision.SegmentationResponse.ISegmentationMask,
+): string {
+  const label = (mask.label ?? '').trim().toLowerCase()
+  return label || `object:${mask.objectId ?? 0}`
+}
+
+export function colorForSegmentationMask(
+  mask: bayesmech.vision.SegmentationResponse.ISegmentationMask,
+): MaskColor {
+  return MASK_COLORS[colorIndexForKey(segmentationMaskColorKey(mask))]
+}
 
 /**
  * Composite all masks from a SegmentationResponse into a single RGBA overlay.
@@ -137,14 +165,14 @@ export function compositeMasksToDataUrl(
   masks: bayesmech.vision.SegmentationResponse.ISegmentationMask[],
 ): string | null {
   let width = 0, height = 0
-  const decoded: { objId: number; mask: Uint8Array }[] = []
+  const decoded: { color: MaskColor; mask: Uint8Array }[] = []
 
   for (const m of masks) {
     if (!m.maskData || m.maskData.length < 9) continue
     const d = decodeMask(m.maskData as Uint8Array)
     width = d.width
     height = d.height
-    decoded.push({ objId: m.objectId ?? 0, mask: d.mask })
+    decoded.push({ color: colorForSegmentationMask(m), mask: d.mask })
   }
 
   if (decoded.length === 0 || width === 0 || height === 0) return null
@@ -159,8 +187,7 @@ export function compositeMasksToDataUrl(
   const px = imageData.data
   const n = width * height
 
-  for (const { objId, mask } of decoded) {
-    const color = MASK_COLORS[((objId % MASK_COLORS.length) + MASK_COLORS.length) % MASK_COLORS.length]
+  for (const { color, mask } of decoded) {
     for (let i = 0; i < n; i++) {
       if (mask[i]) {
         const off = i * 4

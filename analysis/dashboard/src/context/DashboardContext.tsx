@@ -6,7 +6,13 @@ import type {
 } from '../types'
 import { dashboardWs } from '../services/websocket'
 import { fetchIdoSlam, startPlayback, switchToLive as apiSwitchToLive } from '../services/api'
-import { bytesToBlobUrl, compositeMasksToDataUrl, decodeMask, MASK_COLORS } from '../services/proto'
+import {
+  bytesToBlobUrl,
+  colorForSegmentationMask,
+  compositeMasksToDataUrl,
+  decodeMask,
+  segmentationMaskColorKey,
+} from '../services/proto'
 import { bayesmech } from '../proto/bundle'
 
 // =====================================================================
@@ -310,8 +316,9 @@ class FrameDecoder {
     const dataUrl = compositeMasksToDataUrl(masks)
     if (!dataUrl) return null
 
-    // Deduplicate by objectId — one legend entry per tracked object
-    const seen = new Set<number>()
+    // Deduplicate by label color key so masks keep the same color even if
+    // segmentation object IDs change between frames.
+    const seen = new Set<string>()
     const legend: import('../types').SegmentationLegendEntry[] = []
     const decodedMasks: DecodedMask[] = []
     for (const m of masks) {
@@ -325,10 +332,11 @@ class FrameDecoder {
           mask: decoded.mask,
         })
       }
+      const colorKey = segmentationMaskColorKey(m)
+      if (seen.has(colorKey)) continue
+      seen.add(colorKey)
       const objId = m.objectId ?? 0
-      if (seen.has(objId)) continue
-      seen.add(objId)
-      const c = MASK_COLORS[((objId % MASK_COLORS.length) + MASK_COLORS.length) % MASK_COLORS.length]
+      const c = colorForSegmentationMask(m)
       legend.push({ objectId: objId, label: m.label || 'UNDEFINED', color: [c[0], c[1], c[2]] })
     }
 
