@@ -5298,6 +5298,7 @@ export const bayesmech = $root.bayesmech = (() => {
              * @property {number|null} [stabilizationConfidence] MotionCaptureResponse stabilizationConfidence
              * @property {Array.<bayesmech.vision.IMotionTrack>|null} [tracks] MotionCaptureResponse tracks
              * @property {number|null} [totalFrames] MotionCaptureResponse totalFrames
+             * @property {Array.<bayesmech.vision.IMotionTrack>|null} [segmentationTrajectories] MotionCaptureResponse segmentationTrajectories
              */
 
             /**
@@ -5310,6 +5311,7 @@ export const bayesmech = $root.bayesmech = (() => {
              */
             function MotionCaptureResponse(properties) {
                 this.tracks = [];
+                this.segmentationTrajectories = [];
                 if (properties)
                     for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
                         if (properties[keys[i]] != null)
@@ -5365,6 +5367,14 @@ export const bayesmech = $root.bayesmech = (() => {
             MotionCaptureResponse.prototype.totalFrames = 0;
 
             /**
+             * MotionCaptureResponse segmentationTrajectories.
+             * @member {Array.<bayesmech.vision.IMotionTrack>} segmentationTrajectories
+             * @memberof bayesmech.vision.MotionCaptureResponse
+             * @instance
+             */
+            MotionCaptureResponse.prototype.segmentationTrajectories = $util.emptyArray;
+
+            /**
              * Creates a new MotionCaptureResponse instance using the specified properties.
              * @function create
              * @memberof bayesmech.vision.MotionCaptureResponse
@@ -5401,6 +5411,9 @@ export const bayesmech = $root.bayesmech = (() => {
                         $root.bayesmech.vision.MotionTrack.encode(message.tracks[i], writer.uint32(/* id 5, wireType 2 =*/42).fork()).ldelim();
                 if (message.totalFrames != null && Object.hasOwnProperty.call(message, "totalFrames"))
                     writer.uint32(/* id 6, wireType 0 =*/48).uint32(message.totalFrames);
+                if (message.segmentationTrajectories != null && message.segmentationTrajectories.length)
+                    for (let i = 0; i < message.segmentationTrajectories.length; ++i)
+                        $root.bayesmech.vision.MotionTrack.encode(message.segmentationTrajectories[i], writer.uint32(/* id 7, wireType 2 =*/58).fork()).ldelim();
                 return writer;
             };
 
@@ -5461,6 +5474,12 @@ export const bayesmech = $root.bayesmech = (() => {
                         }
                     case 6: {
                             message.totalFrames = reader.uint32();
+                            break;
+                        }
+                    case 7: {
+                            if (!(message.segmentationTrajectories && message.segmentationTrajectories.length))
+                                message.segmentationTrajectories = [];
+                            message.segmentationTrajectories.push($root.bayesmech.vision.MotionTrack.decode(reader, reader.uint32()));
                             break;
                         }
                     default:
@@ -5535,6 +5554,15 @@ export const bayesmech = $root.bayesmech = (() => {
                 if (message.totalFrames != null && message.hasOwnProperty("totalFrames"))
                     if (!$util.isInteger(message.totalFrames))
                         return "totalFrames: integer expected";
+                if (message.segmentationTrajectories != null && message.hasOwnProperty("segmentationTrajectories")) {
+                    if (!Array.isArray(message.segmentationTrajectories))
+                        return "segmentationTrajectories: array expected";
+                    for (let i = 0; i < message.segmentationTrajectories.length; ++i) {
+                        let error = $root.bayesmech.vision.MotionTrack.verify(message.segmentationTrajectories[i]);
+                        if (error)
+                            return "segmentationTrajectories." + error;
+                    }
+                }
                 return null;
             };
 
@@ -5606,6 +5634,16 @@ export const bayesmech = $root.bayesmech = (() => {
                 }
                 if (object.totalFrames != null)
                     message.totalFrames = object.totalFrames >>> 0;
+                if (object.segmentationTrajectories) {
+                    if (!Array.isArray(object.segmentationTrajectories))
+                        throw TypeError(".bayesmech.vision.MotionCaptureResponse.segmentationTrajectories: array expected");
+                    message.segmentationTrajectories = [];
+                    for (let i = 0; i < object.segmentationTrajectories.length; ++i) {
+                        if (typeof object.segmentationTrajectories[i] !== "object")
+                            throw TypeError(".bayesmech.vision.MotionCaptureResponse.segmentationTrajectories: object expected");
+                        message.segmentationTrajectories[i] = $root.bayesmech.vision.MotionTrack.fromObject(object.segmentationTrajectories[i]);
+                    }
+                }
                 return message;
             };
 
@@ -5622,8 +5660,10 @@ export const bayesmech = $root.bayesmech = (() => {
                 if (!options)
                     options = {};
                 let object = {};
-                if (options.arrays || options.defaults)
+                if (options.arrays || options.defaults) {
                     object.tracks = [];
+                    object.segmentationTrajectories = [];
+                }
                 if (options.defaults) {
                     object.frameIdentifier = null;
                     object.heatmap = null;
@@ -5646,6 +5686,11 @@ export const bayesmech = $root.bayesmech = (() => {
                 }
                 if (message.totalFrames != null && message.hasOwnProperty("totalFrames"))
                     object.totalFrames = message.totalFrames;
+                if (message.segmentationTrajectories && message.segmentationTrajectories.length) {
+                    object.segmentationTrajectories = [];
+                    for (let j = 0; j < message.segmentationTrajectories.length; ++j)
+                        object.segmentationTrajectories[j] = $root.bayesmech.vision.MotionTrack.toObject(message.segmentationTrajectories[j], options);
+                }
                 return object;
             };
 
@@ -6247,6 +6292,7 @@ export const bayesmech = $root.bayesmech = (() => {
              * @property {number|null} [totalPositions] MotionTrack totalPositions
              * @property {number|null} [presenceFraction] MotionTrack presenceFraction
              * @property {Array.<bayesmech.vision.IMotionTrackPoint>|null} [positions] MotionTrack positions
+             * @property {string|null} [label] MotionTrack label
              */
 
             /**
@@ -6306,6 +6352,14 @@ export const bayesmech = $root.bayesmech = (() => {
             MotionTrack.prototype.positions = $util.emptyArray;
 
             /**
+             * MotionTrack label.
+             * @member {string} label
+             * @memberof bayesmech.vision.MotionTrack
+             * @instance
+             */
+            MotionTrack.prototype.label = "";
+
+            /**
              * Creates a new MotionTrack instance using the specified properties.
              * @function create
              * @memberof bayesmech.vision.MotionTrack
@@ -6340,6 +6394,8 @@ export const bayesmech = $root.bayesmech = (() => {
                 if (message.positions != null && message.positions.length)
                     for (let i = 0; i < message.positions.length; ++i)
                         $root.bayesmech.vision.MotionTrackPoint.encode(message.positions[i], writer.uint32(/* id 5, wireType 2 =*/42).fork()).ldelim();
+                if (message.label != null && Object.hasOwnProperty.call(message, "label"))
+                    writer.uint32(/* id 6, wireType 2 =*/50).string(message.label);
                 return writer;
             };
 
@@ -6398,6 +6454,10 @@ export const bayesmech = $root.bayesmech = (() => {
                             message.positions.push($root.bayesmech.vision.MotionTrackPoint.decode(reader, reader.uint32()));
                             break;
                         }
+                    case 6: {
+                            message.label = reader.string();
+                            break;
+                        }
                     default:
                         reader.skipType(tag & 7);
                         break;
@@ -6454,6 +6514,9 @@ export const bayesmech = $root.bayesmech = (() => {
                             return "positions." + error;
                     }
                 }
+                if (message.label != null && message.hasOwnProperty("label"))
+                    if (!$util.isString(message.label))
+                        return "label: string expected";
                 return null;
             };
 
@@ -6487,6 +6550,8 @@ export const bayesmech = $root.bayesmech = (() => {
                         message.positions[i] = $root.bayesmech.vision.MotionTrackPoint.fromObject(object.positions[i]);
                     }
                 }
+                if (object.label != null)
+                    message.label = String(object.label);
                 return message;
             };
 
@@ -6510,6 +6575,7 @@ export const bayesmech = $root.bayesmech = (() => {
                     object.detectedFrames = 0;
                     object.totalPositions = 0;
                     object.presenceFraction = 0;
+                    object.label = "";
                 }
                 if (message.trackId != null && message.hasOwnProperty("trackId"))
                     object.trackId = message.trackId;
@@ -6524,6 +6590,8 @@ export const bayesmech = $root.bayesmech = (() => {
                     for (let j = 0; j < message.positions.length; ++j)
                         object.positions[j] = $root.bayesmech.vision.MotionTrackPoint.toObject(message.positions[j], options);
                 }
+                if (message.label != null && message.hasOwnProperty("label"))
+                    object.label = message.label;
                 return object;
             };
 

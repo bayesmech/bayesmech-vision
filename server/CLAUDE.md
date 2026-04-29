@@ -21,8 +21,8 @@ uv run python segmentation/main.py ../recordings/<name>/<name>.vis.pb --text "ob
 
 # Motion capture: RAFT heatmaps + tracking (unified)
 uv run python motioncap/main.py ../recordings/<name>/<name>.vis.pb
-uv run python motioncap/main.py ../recordings/<name>/<name>.vis.pb --output-video
-uv run python motioncap/main.py ../recordings/<name>/<name>.vis.pb --max-frames 200 --output-video
+uv run python motioncap/main.py ../recordings/<name>/<name>.vis.pb --debug-render-video
+uv run python motioncap/main.py ../recordings/<name>/<name>.vis.pb --max-frames 200 --debug-render-video
 
 # Re-run only tracking (set regenerate_raft: false in motioncap/config.yaml first)
 uv run python motioncap/main.py ../recordings/<name>/<name>.vis.pb

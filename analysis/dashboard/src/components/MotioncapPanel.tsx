@@ -7,6 +7,13 @@ import type { MotioncapData, MotioncapFrameRecord, MotioncapTrackLegendItem } fr
 const MOTIONCAP_TAIL_LENGTH = 30
 const MAX_RENDERED_HEATMAP_CACHE_SIZE = 12
 
+type MotioncapTrajectoryMode = 'raft' | 'segmentation'
+
+const TRAJECTORY_MODE_OPTIONS: { id: MotioncapTrajectoryMode; label: string }[] = [
+  { id: 'raft', label: 'RAFT' },
+  { id: 'segmentation', label: 'Segmentation' },
+]
+
 interface RenderedHeatmap {
   width: number
   height: number
@@ -88,13 +95,14 @@ function drawHeatmapToCanvas(canvas: HTMLCanvasElement, heatmap: RenderedHeatmap
 
 const MotioncapLegend: React.FC<{
   tracks: MotioncapTrackLegendItem[]
+  mode: MotioncapTrajectoryMode
   available: boolean | null
   hasRecording: boolean
   isLive: boolean
-}> = ({ tracks, available, hasRecording, isLive }) => (
+}> = ({ tracks, mode, available, hasRecording, isLive }) => (
   <div className="stream-card" style={{ display: 'flex', flexDirection: 'column' }}>
     <div className="stream-header">
-      <span className="stream-title">Tracks</span>
+      <span className="stream-title">{mode === 'raft' ? 'RAFT Tracks' : 'Segmentation Tracks'}</span>
     </div>
     <div className="motioncap-legend-list">
       {isLive && (
@@ -114,16 +122,22 @@ const MotioncapLegend: React.FC<{
       )}
       {!isLive && hasRecording && available === true && tracks.length === 0 && (
         <div className="motioncap-empty-state">
-          No motion tracks detected.
+          {mode === 'raft' ? 'No RAFT tracks detected.' : 'No segmentation tracks detected.'}
         </div>
       )}
       {!isLive && hasRecording && available === true && tracks.map((track) => (
-        <div key={track.track_id} className="motioncap-legend-row">
+        <div key={`${mode}-${track.track_id}`} className="motioncap-legend-row">
           <span
             className="motioncap-legend-swatch"
             style={{ background: colorToCss(track.color), boxShadow: `0 0 0 1px ${colorToCss(track.color, 0.35)}` }}
           />
-          <span className="motioncap-legend-label">Track {track.track_id}</span>
+          <span className="motioncap-legend-label">
+            {mode === 'raft'
+              ? `Track ${track.track_id}`
+              : track.label
+                ? `Seg ${track.track_id} - ${track.label}`
+                : `Seg ${track.track_id}`}
+          </span>
           <span className="motioncap-legend-meta">
             {(track.presence_fraction * 100).toFixed(0)}%
           </span>
@@ -147,6 +161,7 @@ const MotioncapPanel: React.FC = () => {
   const [hasBaseFrame, setHasBaseFrame] = useState(false)
   const [hasHeatmap, setHasHeatmap] = useState(false)
   const [heatmapSize, setHeatmapSize] = useState<{ width: number; height: number } | null>(null)
+  const [trajectoryMode, setTrajectoryMode] = useState<MotioncapTrajectoryMode>('raft')
   const baseCanvasRef = useRef<HTMLCanvasElement>(null)
   const heatmapCanvasRef = useRef<HTMLCanvasElement>(null)
   const heatmapCacheRef = useRef<Map<number, RenderedHeatmap>>(new Map())
@@ -250,14 +265,16 @@ const MotioncapPanel: React.FC = () => {
   }, [currentMotionFrame, motioncapAvailable])
 
   const tracks = motioncapData?.tracks ?? []
+  const segmentationTrajectories = motioncapData?.segmentation_trajectories ?? []
+  const activeTracks = trajectoryMode === 'raft' ? tracks : segmentationTrajectories
   const frameWidth = displayedFrame?.rgb_width ?? heatmapSize?.width ?? 1920
   const frameHeight = displayedFrame?.rgb_height ?? heatmapSize?.height ?? 1080
   const motionFrameIndex = currentMotionFrame?.heatmapIndex ?? currentIndex
 
-  const visibleTracks = useMemo(() => {
+  const visibleTrajectories = useMemo(() => {
     if (!currentMotionFrame) return []
     const tailStart = Math.max(0, motionFrameIndex - MOTIONCAP_TAIL_LENGTH)
-    return tracks
+    return activeTracks
       .map((track) => ({
         ...track,
         visiblePositions: track.positions
@@ -265,7 +282,7 @@ const MotioncapPanel: React.FC = () => {
           .sort((a, b) => a.frame_idx - b.frame_idx),
       }))
       .filter((track) => track.visiblePositions.length > 0)
-  }, [currentMotionFrame, motionFrameIndex, tracks])
+  }, [activeTracks, currentMotionFrame, motionFrameIndex])
 
   const placeholderText = isLive
     ? 'Motion capture overlays are available for recordings only.'
@@ -282,8 +299,26 @@ const MotioncapPanel: React.FC = () => {
   return (
     <div className="dashboard-motioncap-grid">
       <div className="stream-card">
-        <div className="stream-header">
+        <div className="stream-header motioncap-header">
           <span className="stream-title">Motion Capture</span>
+          <div
+            className="motioncap-trajectory-mode-control"
+            role="tablist"
+            aria-label="Trajectory source"
+          >
+            {TRAJECTORY_MODE_OPTIONS.map((option) => (
+              <button
+                key={option.id}
+                type="button"
+                role="tab"
+                aria-selected={trajectoryMode === option.id}
+                className={`motioncap-trajectory-mode${trajectoryMode === option.id ? ' is-active' : ''}`}
+                onClick={() => setTrajectoryMode(option.id)}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
         </div>
         <div className="motioncap-viewer">
           {motioncapAvailable === true ? (
@@ -307,13 +342,14 @@ const MotioncapPanel: React.FC = () => {
                 viewBox={`0 0 ${frameWidth} ${frameHeight}`}
                 preserveAspectRatio="xMidYMid meet"
               >
-                {visibleTracks.map((track) => {
+                {visibleTrajectories.map((track) => {
                   const currentPosition = track.visiblePositions.find(
                     (position) => position.frame_idx === motionFrameIndex,
                   )
                   const tailDenom = Math.max(track.visiblePositions.length - 1, 1)
+                  const isSegmentation = trajectoryMode === 'segmentation'
                   return (
-                    <g key={track.track_id}>
+                    <g key={`${trajectoryMode}-${track.track_id}`}>
                       {track.visiblePositions.slice(1).map((pos, idx) => {
                         const prev = track.visiblePositions[idx]
                         const fade = ((idx + 1) / tailDenom) ** 1.5
@@ -325,7 +361,7 @@ const MotioncapPanel: React.FC = () => {
                             x2={pos.cx}
                             y2={pos.cy}
                             stroke={scaledColorToCss(track.color, fade)}
-                            strokeWidth={1}
+                            strokeWidth={isSegmentation ? 2 : 1}
                             strokeLinecap="round"
                           />
                         )
@@ -333,9 +369,29 @@ const MotioncapPanel: React.FC = () => {
                       {currentPosition && (
                         currentPosition.interpolated ? (
                           <g stroke={colorToCss(track.color, 0.95)} strokeWidth={1}>
-                            <line x1={currentPosition.cx - 5} y1={currentPosition.cy} x2={currentPosition.cx + 5} y2={currentPosition.cy} />
-                            <line x1={currentPosition.cx} y1={currentPosition.cy - 5} x2={currentPosition.cx} y2={currentPosition.cy + 5} />
+                            {isSegmentation ? (
+                              <>
+                                <line x1={currentPosition.cx - 5} y1={currentPosition.cy - 5} x2={currentPosition.cx + 5} y2={currentPosition.cy + 5} />
+                                <line x1={currentPosition.cx - 5} y1={currentPosition.cy + 5} x2={currentPosition.cx + 5} y2={currentPosition.cy - 5} />
+                              </>
+                            ) : (
+                              <>
+                                <line x1={currentPosition.cx - 5} y1={currentPosition.cy} x2={currentPosition.cx + 5} y2={currentPosition.cy} />
+                                <line x1={currentPosition.cx} y1={currentPosition.cy - 5} x2={currentPosition.cx} y2={currentPosition.cy + 5} />
+                              </>
+                            )}
                           </g>
+                        ) : isSegmentation ? (
+                          <rect
+                            x={currentPosition.cx - 5}
+                            y={currentPosition.cy - 5}
+                            width={10}
+                            height={10}
+                            transform={`rotate(45 ${currentPosition.cx} ${currentPosition.cy})`}
+                            fill="none"
+                            stroke={colorToCss(track.color, 0.95)}
+                            strokeWidth={2}
+                          />
                         ) : (
                           <circle
                             cx={currentPosition.cx}
@@ -350,12 +406,12 @@ const MotioncapPanel: React.FC = () => {
                       {currentPosition && (
                         <text
                           x={currentPosition.cx + 8}
-                          y={currentPosition.cy - 8}
+                          y={isSegmentation ? currentPosition.cy + 14 : currentPosition.cy - 8}
                           fill={colorToCss(track.color, 0.95)}
                           fontSize={13}
                           fontFamily="Arial, sans-serif"
                         >
-                          {`T${track.track_id}`}
+                          {`${isSegmentation ? 'S' : 'T'}${track.track_id}`}
                         </text>
                       )}
                     </g>
@@ -377,7 +433,8 @@ const MotioncapPanel: React.FC = () => {
       </div>
 
       <MotioncapLegend
-        tracks={tracks}
+        tracks={activeTracks}
+        mode={trajectoryMode}
         available={motioncapAvailable}
         hasRecording={!!currentRecordingName}
         isLive={isLive}

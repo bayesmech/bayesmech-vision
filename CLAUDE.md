@@ -58,7 +58,7 @@ uv run python ../analysis/homography/main.py ../recordings/<name>.vis.pb
 
 # Motion heatmap (offline batch)
 cd server
-uv run python motioncap/main.py ../recordings/<name>.vis.pb --output-video
+uv run python motioncap/main.py ../recordings/<name>.vis.pb --debug-render-video
 ```
 
 ## Architecture

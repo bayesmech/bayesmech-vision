@@ -398,6 +398,48 @@ body {
   overflow: visible;
 }
 
+.motioncap-header {
+  gap: 1rem;
+}
+
+.motioncap-trajectory-mode-control {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  width: min(100%, 300px);
+  border: 1px solid rgba(0, 255, 136, 0.35);
+  background: #030303;
+}
+
+.motioncap-trajectory-mode {
+  min-height: 2rem;
+  padding: 0 0.75rem;
+  border: 0;
+  border-right: 1px solid rgba(0, 255, 136, 0.22);
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.motioncap-trajectory-mode:last-child {
+  border-right: 0;
+}
+
+.motioncap-trajectory-mode:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.motioncap-trajectory-mode.is-active {
+  color: #001b0f;
+  background: var(--accent);
+}
+
 .motioncap-legend-list {
   display: flex;
   flex-direction: column;
@@ -429,6 +471,9 @@ body {
   color: var(--text);
   letter-spacing: 0.05em;
   text-transform: uppercase;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .motioncap-legend-meta {
@@ -671,6 +716,15 @@ body {
   .surface-pose-header {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .motioncap-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .motioncap-trajectory-mode-control {
+    width: 100%;
   }
 
   .table-3d-header {
