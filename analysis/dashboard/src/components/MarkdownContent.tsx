@@ -234,6 +234,23 @@ const headingTag = (level: number, content: ReactNode[], key: string): ReactNode
   return <h5 key={key}>{content}</h5>
 }
 
+const renderMathBlock = (text: string, key: string): ReactNode => {
+  const lines = text
+    .split(/\s*(?:\n|\\\\(?:\[[^\]]+])?)\s*/g)
+    .map((line) => line.trim())
+    .filter(Boolean)
+
+  return (
+    <div key={key} className="markdown-math-block">
+      {(lines.length > 0 ? lines : [text]).map((line, lineIndex) => (
+        <span key={`${key}-line-${lineIndex}`} className="markdown-math-line">
+          {line}
+        </span>
+      ))}
+    </div>
+  )
+}
+
 interface MarkdownContentProps {
   text: string
 }
@@ -259,7 +276,7 @@ const MarkdownContent = ({ text }: MarkdownContentProps) => {
           )
         }
         if (block.type === 'math') {
-          return <div key={key} className="markdown-math-block">{block.text}</div>
+          return renderMathBlock(block.text, key)
         }
         if (block.type === 'table') {
           return (

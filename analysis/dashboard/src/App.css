@@ -494,8 +494,7 @@ body {
   padding: 0.05rem 0.25rem;
 }
 
-.markdown-code-block,
-.markdown-math-block {
+.markdown-code-block {
   background: #030303;
   border: 1px solid var(--border);
   color: var(--text);
@@ -506,14 +505,30 @@ body {
   white-space: pre;
 }
 
-.markdown-math-inline,
-.markdown-math-block {
+.markdown-math-inline {
   font-family: 'Times New Roman', Cambria, serif;
+  font-size: 1.04em;
   letter-spacing: 0;
 }
 
 .markdown-math-block {
+  background: #030303;
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: 'Times New Roman', Cambria, serif;
+  font-size: 1.08rem;
+  line-height: 1.85;
+  letter-spacing: 0;
+  overflow: auto;
+  overflow-wrap: anywhere;
+  padding: 0.9rem 1rem;
   text-align: center;
+  white-space: pre-wrap;
+}
+
+.markdown-math-line {
+  display: block;
+  min-height: 1.85em;
 }
 
 .markdown-table-wrap {
