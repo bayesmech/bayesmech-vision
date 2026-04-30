@@ -39,7 +39,7 @@ docker pull "$IMAGE"
 #   bm segmentation recordings/foo/foo.vis.pb --model sam3 --text "person"
 #   bm motioncap   recordings/foo/foo.vis.pb --debug-render-video
 #   bm reconstruct recordings/foo/foo.vis.pb --no-splat
-#   bm genspark    recordings/foo/foo.vis.pb --provider claude
+#   bm genspark    recordings/foo/foo.vis.pb
 #   bm bash        # drop into a shell inside the container
 cat > /usr/local/bin/bm << WRAPPER
 #!/usr/bin/env bash

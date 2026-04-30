@@ -27,9 +27,8 @@ uv run python motioncap/main.py ../recordings/<name>/<name>.vis.pb --max-frames 
 # Re-run only tracking (set regenerate_raft: false in motioncap/config.yaml first)
 uv run python motioncap/main.py ../recordings/<name>/<name>.vis.pb
 
-# AI video analysis (Gemini / Claude / OpenAI)
+# AI video analysis (Gemini native video upload)
 uv run python genspark/main.py ../recordings/<name>/<name>.vis.pb
-uv run python genspark/main.py ../recordings/<name>/<name>.vis.pb --provider claude
 
 # 3D reconstruction: COLMAP SfM + Gaussian Splatting
 uv run python reconstruct/main.py ../recordings/<name>/<name>.vis.pb
@@ -62,7 +61,7 @@ huggingface-cli login
 | `streamlog/` | FastAPI server — live streaming, playback, dashboard WebSocket |
 | `segmentation/` | Offline SAM3 annotator → writes `.segmentation.pb` |
 | `motioncap/` | Offline RAFT optical-flow motion heatmap → writes `.motioncap.pb` |
-| `genspark/` | Offline AI video analysis (Gemini/Claude/OpenAI) |
+| `genspark/` | Offline AI video analysis (Gemini native video upload) |
 | `reconstruct/` | Offline COLMAP SfM + Gaussian Splatting → writes `.recon/`, `.splat.ply`, `.recon.pb` |
 | `idoslam/` | Offline SLAM pipeline → writes `.idoslam.pb` and workspace CSV/JSON artifacts consumed by the dashboard |
 
@@ -98,13 +97,9 @@ Output: `recordings/<name>/<name>.segmentation.pb` (length-delimited `Segmentati
 
 ## AI Analysis (`genspark/`)
 
-Sends a `.vis.pb` recording to a vision LLM for analysis against a prompt in `genspark/prompt.md`.
+Sends a `.vis.pb` recording to Gemini's native video upload API for analysis against a prompt in `genspark/prompt.md`. Requires `GEMINI_API_KEY`.
 
-- **gemini**: native video upload via Files API (best temporal understanding); needs `GEMINI_API_KEY`
-- **claude**: evenly-sampled frames as base64 JPEG images; needs `ANTHROPIC_API_KEY`
-- **openai**: evenly-sampled frames as base64 JPEG images; needs `OPENAI_API_KEY`
-
-Config: `genspark/config.yaml` — provider, video resolution/fps/duration, model names.
+Config: `genspark/config.yaml` — video resolution/fps/duration and Gemini model settings.
 
 ## Path Convention
 

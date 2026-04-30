@@ -1,11 +1,7 @@
 #!/usr/bin/env python3
 """
-Analyze a .vis.pb recording using a vision-capable AI model (agentic multi-turn loop).
-
-Supports three providers:
-  - gemini: native video upload via Gemini Files API (best temporal understanding)
-  - claude: evenly-sampled frames sent as base64 JPEG images via Anthropic API
-  - openai: evenly-sampled frames sent as base64 JPEG images via OpenAI API
+Analyze a .vis.pb recording using Gemini's native video upload API
+(agentic multi-turn loop).
 
 After the initial video analysis the model may call tools (scene_context,
 scene_emphasis, and analyzer-specific data tools). Tool results are fed back
@@ -15,14 +11,12 @@ The full conversation is saved as a GensparkResponse proto.
 
 Usage (from server/):
     uv run python genspark/main.py ../recordings/<name>.vis.pb
-    uv run python genspark/main.py ../recordings/<name>.vis.pb --provider claude
-    uv run python genspark/main.py ../recordings/<name>.vis.pb --provider openai \\
+    uv run python genspark/main.py ../recordings/<name>.vis.pb \\
         --offset 5 --max-duration 20 --fps 8 --width 480 --height 360
 """
 
 import argparse
 import asyncio
-import base64
 import copy
 import json
 import os
@@ -58,7 +52,7 @@ with open(_config_path) as _f:
     _CONFIG = yaml.safe_load(_f)
 
 
-# ── Tool definitions (provider-agnostic JSON schema) ─────────────────────────
+# ── Tool definitions ─────────────────────────────────────────────────────────
 
 def _tool(name: str, description: str, properties: dict | None = None, required: list[str] | None = None) -> dict:
     return {
@@ -483,31 +477,7 @@ def select_frames(frames: list, cfg: dict) -> list:
     return selected
 
 
-# ── Frame sampling for image-based providers ──────────────────────────────────
-
-def sample_frames_jpeg(selected: list, max_frames: int, cfg: dict) -> list:
-    w = cfg["video"]["width"]
-    h = cfg["video"]["height"]
-    n = len(selected)
-
-    if n <= max_frames:
-        indices = list(range(n))
-    else:
-        indices = [int(i * (n - 1) / (max_frames - 1)) for i in range(max_frames)]
-
-    result = []
-    with tqdm(total=len(indices), desc="Sampling frames", unit="frame") as bar:
-        for i in indices:
-            bgr = decode_frame_bgr(selected[i])
-            resized = cv2.resize(bgr, (w, h), interpolation=cv2.INTER_AREA)
-            _, buf = cv2.imencode(".jpg", resized, [cv2.IMWRITE_JPEG_QUALITY, 85])
-            result.append(buf.tobytes())
-            bar.update(1)
-
-    return result
-
-
-# ── Video assembly (Gemini only) ──────────────────────────────────────────────
+# ── Video assembly ────────────────────────────────────────────────────────────
 
 def build_video(frames: list, cfg: dict, tmp_path: str) -> None:
     w = cfg["video"]["width"]
@@ -640,184 +610,6 @@ def run_gemini(tmp_path: str, cfg: dict, runner: McpToolRunner) -> list:
     return turns
 
 
-# ── Claude (agentic multi-turn) ───────────────────────────────────────────────
-
-def run_claude(frame_jpegs: list, cfg: dict, runner: McpToolRunner) -> list:
-    """Send sampled frames, then run a multi-turn agentic loop with tool support."""
-    import anthropic
-
-    key_env = cfg["claude"]["api_key_env"]
-    api_key = os.environ.get(key_env)
-    if not api_key:
-        raise RuntimeError(f"Environment variable {key_env!r} is not set.")
-
-    prompt_text = (Path(__file__).parent / cfg["claude"]["prompt_file"]).read_text("utf-8")
-    model = cfg["claude"]["model"]
-
-    # Build tool schemas for Anthropic
-    claude_tools = [
-        {
-            "name": t["name"],
-            "description": t["description"],
-            "input_schema": t["parameters"],
-        }
-        for t in TOOLS
-    ]
-
-    # Initial message content: images + prompt
-    initial_content = []
-    for jpeg_bytes in frame_jpegs:
-        initial_content.append({
-            "type": "image",
-            "source": {
-                "type": "base64",
-                "media_type": "image/jpeg",
-                "data": base64.b64encode(jpeg_bytes).decode("utf-8"),
-            },
-        })
-    initial_content.append({"type": "text", "text": prompt_text})
-
-    messages = [{"role": "user", "content": initial_content}]
-    client = anthropic.Anthropic(api_key=api_key)
-    turns = []
-    turn_num = 0
-
-    while True:
-        turn_num += 1
-        print(f"\n[Turn {turn_num}] Querying {model} with {len(messages)} messages...")
-        response = client.messages.create(
-            model=model,
-            max_tokens=4096,
-            tools=claude_tools,
-            messages=messages,
-        )
-
-        text_blocks = [b.text for b in response.content if b.type == "text"]
-        tool_use_blocks = [b for b in response.content if b.type == "tool_use"]
-
-        text = "\n".join(text_blocks)
-        turn = insightgen_pb2.GensparkTurn(text=text)
-
-        if text:
-            print(text[:500] + ("..." if len(text) > 500 else ""))
-
-        if response.stop_reason != "tool_use" or not tool_use_blocks:
-            turns.append(turn)
-            break
-
-        # Add assistant turn to messages
-        messages.append({"role": "assistant", "content": response.content})
-
-        # Execute tools and build tool_result content
-        tool_results = []
-        for block in tool_use_blocks:
-            args = block.input
-            print(f"  [tool call] {block.name}({json.dumps(args)})")
-            result = call_tool(runner, block.name, args)
-            print(f"  [tool result] {result[:200]}")
-            turn.tool_calls.append(insightgen_pb2.GensparkToolCall(
-                tool_name=block.name,
-                arguments_json=json.dumps(args),
-                result=result,
-            ))
-            tool_results.append({
-                "type": "tool_result",
-                "tool_use_id": block.id,
-                "content": result,
-            })
-        turns.append(turn)
-        messages.append({"role": "user", "content": tool_results})
-
-    return turns
-
-
-# ── OpenAI (agentic multi-turn) ───────────────────────────────────────────────
-
-def run_openai(frame_jpegs: list, cfg: dict, runner: McpToolRunner) -> list:
-    """Send sampled frames, then run a multi-turn agentic loop with tool support."""
-    import openai
-
-    key_env = cfg["openai"]["api_key_env"]
-    api_key = os.environ.get(key_env)
-    if not api_key:
-        raise RuntimeError(f"Environment variable {key_env!r} is not set.")
-
-    prompt_text = (Path(__file__).parent / cfg["openai"]["prompt_file"]).read_text("utf-8")
-    model = cfg["openai"]["model"]
-
-    # Build tool schemas for OpenAI
-    openai_tools = [
-        {
-            "type": "function",
-            "function": {
-                "name": t["name"],
-                "description": t["description"],
-                "parameters": t["parameters"],
-            },
-        }
-        for t in TOOLS
-    ]
-
-    # Initial message
-    initial_content = []
-    for jpeg_bytes in frame_jpegs:
-        b64 = base64.b64encode(jpeg_bytes).decode("utf-8")
-        initial_content.append({
-            "type": "image_url",
-            "image_url": {"url": f"data:image/jpeg;base64,{b64}"},
-        })
-    initial_content.append({"type": "text", "text": prompt_text})
-
-    messages = [{"role": "user", "content": initial_content}]
-    client = openai.OpenAI(api_key=api_key)
-    turns = []
-    turn_num = 0
-
-    while True:
-        turn_num += 1
-        print(f"\n[Turn {turn_num}] Querying {model} with {len(messages)} messages...")
-        response = client.chat.completions.create(
-            model=model,
-            tools=openai_tools,
-            messages=messages,
-        )
-
-        choice = response.choices[0]
-        msg = choice.message
-        text = msg.content or ""
-        turn = insightgen_pb2.GensparkTurn(text=text)
-
-        if text:
-            print(text[:500] + ("..." if len(text) > 500 else ""))
-
-        if choice.finish_reason != "tool_calls" or not msg.tool_calls:
-            turns.append(turn)
-            break
-
-        # Add assistant message
-        messages.append(msg)
-
-        # Execute tools
-        for tc in msg.tool_calls:
-            args = json.loads(tc.function.arguments)
-            print(f"  [tool call] {tc.function.name}({json.dumps(args)})")
-            result = call_tool(runner, tc.function.name, args)
-            print(f"  [tool result] {result[:200]}")
-            turn.tool_calls.append(insightgen_pb2.GensparkToolCall(
-                tool_name=tc.function.name,
-                arguments_json=tc.function.arguments,
-                result=result,
-            ))
-            messages.append({
-                "role": "tool",
-                "tool_call_id": tc.id,
-                "content": result,
-            })
-        turns.append(turn)
-
-    return turns
-
-
 # ── Summary generation ───────────────────────────────────────────────────────
 
 _SUMMARY_PROMPT_BASE = """\
@@ -914,16 +706,11 @@ def generate_summary(turns: list, cfg: dict) -> insightgen_pb2.GensparkSummary:
 
 def main() -> None:
     cfg_video = _CONFIG.get("video", {})
-    default_provider = _CONFIG.get("provider", "gemini")
 
     parser = argparse.ArgumentParser(
-        description="Analyze a .vis.pb recording with a vision AI model (agentic loop)"
+        description="Analyze a .vis.pb recording with Gemini native video upload (agentic loop)"
     )
     parser.add_argument("recording", help="Path to .vis.pb recording file")
-    parser.add_argument(
-        "--provider", choices=["gemini", "claude", "openai"], default=None,
-        help=f"AI provider to use (default: {default_provider})"
-    )
     parser.add_argument("--config", default=None,
                         help="Path to alternate config.yaml")
     parser.add_argument("--offset", type=float, default=None, metavar="SECONDS",
@@ -944,8 +731,6 @@ def main() -> None:
     else:
         cfg = copy.deepcopy(_CONFIG)
 
-    provider = args.provider if args.provider is not None else cfg.get("provider", "gemini")
-    cfg["provider"] = provider
     if args.offset is not None:
         cfg["video"]["start_offset_seconds"] = args.offset
     if args.max_duration is not None:
@@ -980,7 +765,7 @@ def main() -> None:
     video_duration = len(selected) / cfg["video"]["fps"]
     print(
         f"Selected {len(selected)} frames "
-        f"→ {video_duration:.1f}s at {cfg['video']['fps']} fps  [provider={provider}]"
+        f"→ {video_duration:.1f}s at {cfg['video']['fps']} fps"
     )
 
     # Start the MCP server — crashes with a clear error if it fails or is missing tools
@@ -988,32 +773,17 @@ def main() -> None:
     runner.start()
 
     try:
-        # Run inference
-        if provider == "gemini":
-            tmp_file = tempfile.NamedTemporaryFile(suffix=".mp4", delete=False)
-            tmp_path = tmp_file.name
-            tmp_file.close()
-            try:
-                build_video(selected, cfg, tmp_path)
-                print(f"Temporary video written: {tmp_path}")
-                turns = run_gemini(tmp_path, cfg, runner)
-            finally:
-                if Path(tmp_path).exists():
-                    Path(tmp_path).unlink()
-                    print(f"Deleted temp file: {tmp_path}")
-
-        elif provider == "claude":
-            frame_jpegs = sample_frames_jpeg(selected, cfg["claude"]["max_frames"], cfg)
-            turns = run_claude(frame_jpegs, cfg, runner)
-
-        elif provider == "openai":
-            frame_jpegs = sample_frames_jpeg(selected, cfg["openai"]["max_frames"], cfg)
-            turns = run_openai(frame_jpegs, cfg, runner)
-
-        else:
-            print(f"Error: unknown provider {provider!r}", file=sys.stderr)
-            sys.exit(1)
-
+        tmp_file = tempfile.NamedTemporaryFile(suffix=".mp4", delete=False)
+        tmp_path = tmp_file.name
+        tmp_file.close()
+        try:
+            build_video(selected, cfg, tmp_path)
+            print(f"Temporary video written: {tmp_path}")
+            turns = run_gemini(tmp_path, cfg, runner)
+        finally:
+            if Path(tmp_path).exists():
+                Path(tmp_path).unlink()
+                print(f"Deleted temp file: {tmp_path}")
     finally:
         runner.stop()
         print("[MCP] Server stopped.")
