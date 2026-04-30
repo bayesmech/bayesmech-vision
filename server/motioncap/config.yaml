@@ -52,6 +52,9 @@ normalization:
 output:
   overlay_alpha: 0.5        # heatmap blend weight over RGB (0=no overlay, 1=full heatmap)
   video_codec: "mp4v"
+  # Debug video trajectory overlay mode:
+  #   ALL_TRAJECTORIES, SEGMENTATION_ONLY, or RAFT_ONLY
+  debug_video_trajectory_mode: "SEGMENTATION_ONLY"
 
 # ── Persistent object tracker (track_motion.py) ───────────────────────────────
 tracking:
@@ -99,6 +102,18 @@ tracking:
   # Appearance gate on merge_tracks: merged track-ends must have cosine_sim >= this
   # Set 0.0 to disable (spatial gate only, matching original merge behaviour)
   merge_appearance_threshold: 0.6
+
+# ── Segmentation trajectories ────────────────────────────────────────────────
+segmentation_tracking:
+  enabled: true
+  heatmap_percentile: 95       # Percentile of heatmap values inside each mask.
+  motion_value_threshold: 80   # 0-255 heatmap value considered reasonably high.
+  min_motion_pixel_fraction: 0.02
+  min_motion_observations: 10
+  min_motion_observation_fraction: 0.25
+  min_presence_fraction: 0.02
+  min_mask_area: 50
+  max_interpolation_gap_frames: 30
 
 # ── Feature extraction pass ───────────────────────────────────────────────────
 features:

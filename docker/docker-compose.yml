@@ -21,7 +21,7 @@ services:
   #     /app/.venv/bin/python server/segmentation/main.py recordings/foo.vis.pb --text "person"
   #
   #   docker-compose run --rm motioncap \
-  #     /app/.venv/bin/python server/motioncap/main.py recordings/foo.vis.pb --output-video
+  #     /app/.venv/bin/python server/motioncap/main.py recordings/foo.vis.pb --debug-render-video
   #
   #   docker-compose run --rm genspark \
   #     /app/.venv/bin/python server/genspark/main.py recordings/foo.vis.pb --provider gemini

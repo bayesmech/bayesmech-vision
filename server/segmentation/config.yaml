@@ -9,5 +9,8 @@ sam3:
                             # avoid steady VRAM growth on long recordings.
                             # Set to null or 0 to disable resets.
 
+id_stability:
+  iou_threshold: 0.7 # Same-label masks above this filled-mask IoU keep ID after reset.
+
 sampling:
   sample_every_x_frames: 1  # Emit annotations for every Nth frame.

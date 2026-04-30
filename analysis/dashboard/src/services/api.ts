@@ -31,6 +31,9 @@ const MOTIONCAP_TRACK_COLORS: [number, number, number][] = [
 const motioncapColorForTrack = (trackId: number): [number, number, number] =>
   MOTIONCAP_TRACK_COLORS[((trackId % MOTIONCAP_TRACK_COLORS.length) + MOTIONCAP_TRACK_COLORS.length) % MOTIONCAP_TRACK_COLORS.length]
 
+const motioncapColorForSegmentationTrack = (trackId: number): [number, number, number] =>
+  motioncapColorForTrack(trackId + 5)
+
 const numberFromLong = (value: number | { toNumber?: () => number } | null | undefined): number => {
   if (typeof value === 'number') return value
   if (value && typeof value.toNumber === 'function') return value.toNumber()
@@ -93,10 +96,14 @@ export async function fetchRecordingMotioncapData(recordingName: string): Promis
   const records = decodeMotioncapRecords(new Uint8Array(await res.arrayBuffer()))
   const frames: MotioncapFrameRecord[] = []
   let summaryTracks: bayesmech.vision.IMotionTrack[] = []
+  let summarySegmentationTrajectories: bayesmech.vision.IMotionTrack[] = []
 
   for (const record of records) {
     if (record.tracks?.length) {
       summaryTracks = record.tracks
+    }
+    if (record.segmentationTrajectories?.length) {
+      summarySegmentationTrajectories = record.segmentationTrajectories
     }
 
     const heatmapData = record.heatmap?.heatmapData
@@ -111,7 +118,7 @@ export async function fetchRecordingMotioncapData(recordingName: string): Promis
     })
   }
 
-  if (frames.length === 0 && summaryTracks.length === 0) {
+  if (frames.length === 0 && summaryTracks.length === 0 && summarySegmentationTrajectories.length === 0) {
     return null
   }
 
@@ -122,27 +129,37 @@ export async function fetchRecordingMotioncapData(recordingName: string): Promis
     byHeatmapIndex.set(frame.heatmapIndex, frame)
   }
 
+  const mapTrack = (
+    track: bayesmech.vision.IMotionTrack,
+    colorForTrack: (trackId: number) => [number, number, number],
+  ) => {
+    const trackId = track.trackId ?? 0
+    return {
+      track_id: trackId,
+      label: track.label ?? '',
+      color: colorForTrack(trackId),
+      detected_frames: track.detectedFrames ?? 0,
+      total_positions: track.totalPositions ?? 0,
+      presence_fraction: track.presenceFraction ?? 0,
+      positions: (track.positions ?? []).map((position) => ({
+        frame_idx: position.frameIdx ?? 0,
+        cx: position.cx ?? 0,
+        cy: position.cy ?? 0,
+        area: position.area ?? 0,
+        interpolated: position.interpolated ?? false,
+      })),
+    }
+  }
+
   const tracks = [...summaryTracks]
     .sort((a, b) => (a.trackId ?? 0) - (b.trackId ?? 0))
-    .map((track) => {
-      const trackId = track.trackId ?? 0
-      return {
-        track_id: trackId,
-        color: motioncapColorForTrack(trackId),
-        detected_frames: track.detectedFrames ?? 0,
-        total_positions: track.totalPositions ?? 0,
-        presence_fraction: track.presenceFraction ?? 0,
-        positions: (track.positions ?? []).map((position) => ({
-          frame_idx: position.frameIdx ?? 0,
-          cx: position.cx ?? 0,
-          cy: position.cy ?? 0,
-          area: position.area ?? 0,
-          interpolated: position.interpolated ?? false,
-        })),
-      }
-    })
+    .map((track) => mapTrack(track, motioncapColorForTrack))
 
-  return { frames, byFrameNumber, byHeatmapIndex, tracks }
+  const segmentation_trajectories = [...summarySegmentationTrajectories]
+    .sort((a, b) => (a.trackId ?? 0) - (b.trackId ?? 0))
+    .map((track) => mapTrack(track, motioncapColorForSegmentationTrack))
+
+  return { frames, byFrameNumber, byHeatmapIndex, tracks, segmentation_trajectories }
 }
 
 export async function fetchRecordingPongtownData(recordingName: string): Promise<PongtownData | null> {

@@ -36,19 +36,21 @@ import cv2
 import numpy as np
 import scipy.ndimage as ndi
 
-
 # ── Data classes ──────────────────────────────────────────────────────────────
+
 
 @dataclass
 class RichDetection:
     """A single blob detection, optionally augmented with RAFT features."""
-    centroid:   tuple[float, float]        # (cy, cx) — row, col
-    area:       int
-    bbox:       tuple[int, int, int, int]  # (r0, c0, r1, c1)
+
+    centroid: tuple[float, float]  # (cy, cx) — row, col
+    area: int
+    bbox: tuple[int, int, int, int]  # (r0, c0, r1, c1)
     # Optional fields — populated during the feature-extraction pass (Pass 3).
     # None when running without RAFT (regenerate_raft: false).
-    flow_vec:   tuple[float, float] | None = None  # (dy, dx) raw RAFT flow at centroid
-    appearance: np.ndarray | None          = None  # (256,) float32, L2-normalised
+    flow_vec: tuple[float, float] | None = None  # (dy, dx) raw RAFT flow at centroid
+    appearance: np.ndarray | None = None  # (256,) float32, L2-normalised
+
 
 # Backward-compat alias — external callers using Detection still work.
 Detection = RichDetection
@@ -65,11 +67,14 @@ class TrackPoint:
 @dataclass
 class Track:
     track_id: int
-    positions: dict[int, TrackPoint] = field(default_factory=dict)  # frame_idx → TrackPoint
+    label: str = ""
+    positions: dict[int, TrackPoint] = field(
+        default_factory=dict
+    )  # frame_idx → TrackPoint
 
     @property
     def presence_fraction(self) -> float:
-        return 0.0   # computed externally after total_frames is known
+        return 0.0  # computed externally after total_frames is known
 
     def last_centroid(self) -> tuple[float, float] | None:
         if not self.positions:
@@ -81,6 +86,7 @@ class Track:
 
 # ── Heatmap decoding ──────────────────────────────────────────────────────────
 
+
 def decode_heatmap(data: bytes) -> np.ndarray:
     """Decode [h:u32le][w:u32le][zlib(uint8 array)] → uint8 ndarray (H, W)."""
     h, w = struct.unpack("<II", data[:8])
@@ -89,6 +95,7 @@ def decode_heatmap(data: bytes) -> np.ndarray:
 
 
 # ── Temporal consistency filter ───────────────────────────────────────────────
+
 
 class TemporalFilter:
     """Maintains a sliding window of past heatmaps and computes per-pixel
@@ -123,12 +130,15 @@ class TemporalFilter:
         else:
             temporal_support = np.zeros_like(h_norm)
 
-        combined = h_norm * (self.base_weight + (1.0 - self.base_weight) * temporal_support)
+        combined = h_norm * (
+            self.base_weight + (1.0 - self.base_weight) * temporal_support
+        )
         self._past.append(heatmap_u8)
         return combined
 
 
 # ── Blob detector ─────────────────────────────────────────────────────────────
+
 
 def detect_blobs(
     combined: np.ndarray,
@@ -161,14 +171,15 @@ def detect_blobs(
         rows, cols = np.where(mask)
         r0, r1 = int(rows.min()), int(rows.max())
         c0, c1 = int(cols.min()), int(cols.max())
-        detections.append(RichDetection(
-            centroid=(cy, cx), area=area, bbox=(r0, c0, r1, c1)
-        ))
+        detections.append(
+            RichDetection(centroid=(cy, cx), area=area, bbox=(r0, c0, r1, c1))
+        )
 
     return detections
 
 
 # ── Tracker ───────────────────────────────────────────────────────────────────
+
 
 class NearestNeighbourTracker:
     """Feature-aware greedy tracker with flow-predicted motion and re-ID.
@@ -185,35 +196,35 @@ class NearestNeighbourTracker:
     allowing the same object to be re-identified after a long invisible period.
     """
 
-    _VEL_ALPHA = 0.4   # EWM weight for velocity smoothing
+    _VEL_ALPHA = 0.4  # EWM weight for velocity smoothing
 
     def __init__(
         self,
-        max_distance:    float = 200.0,
-        max_gap:         int   = 25,
-        lambda_spatial:  float = 1.0,
+        max_distance: float = 200.0,
+        max_gap: int = 25,
+        lambda_spatial: float = 1.0,
         lambda_appearance: float = 0.4,
-        bank_size:       int   = 20,
-        reid_threshold:  float = 0.75,
-        max_lost_banks:  int   = 32,
+        bank_size: int = 20,
+        reid_threshold: float = 0.75,
+        max_lost_banks: int = 32,
     ) -> None:
-        self.max_distance     = max_distance
-        self.max_gap          = max_gap
-        self.lambda_spatial   = lambda_spatial
+        self.max_distance = max_distance
+        self.max_gap = max_gap
+        self.lambda_spatial = lambda_spatial
         self.lambda_appearance = lambda_appearance
-        self.bank_size        = bank_size
-        self.reid_threshold   = reid_threshold
-        self.max_lost_banks   = max_lost_banks
+        self.bank_size = bank_size
+        self.reid_threshold = reid_threshold
+        self.max_lost_banks = max_lost_banks
 
-        self._tracks:        dict[int, Track]                  = {}
-        self._missed:        dict[int, int]                    = {}
-        self._last_centroid: dict[int, tuple[float, float]]    = {}
-        self._velocity:      dict[int, tuple[float, float]]    = {}
-        self._last_frame:    dict[int, int]                    = {}
-        self._last_flow:     dict[int, tuple[float, float] | None] = {}
-        self._feature_bank:  dict[int, deque]                  = {}
-        self._lost_banks:    list[tuple[int, np.ndarray]]      = []
-        self._next_id:       int                               = 0
+        self._tracks: dict[int, Track] = {}
+        self._missed: dict[int, int] = {}
+        self._last_centroid: dict[int, tuple[float, float]] = {}
+        self._velocity: dict[int, tuple[float, float]] = {}
+        self._last_frame: dict[int, int] = {}
+        self._last_flow: dict[int, tuple[float, float] | None] = {}
+        self._feature_bank: dict[int, deque] = {}
+        self._lost_banks: list[tuple[int, np.ndarray]] = []
+        self._next_id: int = 0
 
     # ── Feature helpers ───────────────────────────────────────────────────────
 
@@ -247,21 +258,19 @@ class NearestNeighbourTracker:
     def _cost(
         self,
         pred: tuple[float, float],
-        det:  RichDetection,
+        det: RichDetection,
         mean_desc: np.ndarray | None,
     ) -> float:
         dy = pred[0] - det.centroid[0]
         dx = pred[1] - det.centroid[1]
         spatial = float(np.sqrt(dy * dy + dx * dx)) / self.max_distance
 
-        if (mean_desc is None or det.appearance is None
-                or self.lambda_appearance == 0.0):
+        if mean_desc is None or det.appearance is None or self.lambda_appearance == 0.0:
             return self.lambda_spatial * spatial
 
-        cosine_sim  = float(np.dot(mean_desc, det.appearance))
-        appearance  = 1.0 - cosine_sim          # 0 = perfect match, 2 = opposite
-        return (self.lambda_spatial   * spatial
-              + self.lambda_appearance * appearance)
+        cosine_sim = float(np.dot(mean_desc, det.appearance))
+        appearance = 1.0 - cosine_sim  # 0 = perfect match, 2 = opposite
+        return self.lambda_spatial * spatial + self.lambda_appearance * appearance
 
     # ── Update ────────────────────────────────────────────────────────────────
 
@@ -291,13 +300,13 @@ class NearestNeighbourTracker:
                 dy = pred[0] - det.centroid[0]
                 dx = pred[1] - det.centroid[1]
                 if float(np.sqrt(dy * dy + dx * dx)) > self.max_distance:
-                    continue   # hard spatial gate
+                    continue  # hard spatial gate
                 pairs.append((self._cost(pred, det, mean_desc), ti, di))
 
         pairs.sort(key=lambda x: x[0])
 
         matched_tracks: set[int] = set()
-        matched_dets:   set[int] = set()
+        matched_dets: set[int] = set()
 
         for _, ti, di in pairs:
             if ti in matched_tracks or di in matched_dets:
@@ -311,18 +320,21 @@ class NearestNeighbourTracker:
             raw_vx = (new_cx - old_cx) / gap
             old_vy, old_vx = self._velocity.get(tid, (raw_vy, raw_vx))
             a = self._VEL_ALPHA
-            self._velocity[tid] = (a * raw_vy + (1 - a) * old_vy,
-                                   a * raw_vx + (1 - a) * old_vx)
+            self._velocity[tid] = (
+                a * raw_vy + (1 - a) * old_vy,
+                a * raw_vx + (1 - a) * old_vx,
+            )
             self._last_flow[tid] = det.flow_vec
             self._tracks[tid].positions[frame_idx] = TrackPoint(
-                cx=new_cx, cy=new_cy, area=det.area,
+                cx=new_cx,
+                cy=new_cy,
+                area=det.area,
             )
             self._last_centroid[tid] = det.centroid
-            self._last_frame[tid]    = frame_idx
-            self._missed[tid]        = 0
+            self._last_frame[tid] = frame_idx
+            self._missed[tid] = 0
             if det.appearance is not None:
-                bank = self._feature_bank.setdefault(
-                    tid, deque(maxlen=self.bank_size))
+                bank = self._feature_bank.setdefault(tid, deque(maxlen=self.bank_size))
                 bank.append(det.appearance)
             matched_tracks.add(ti)
             matched_dets.add(di)
@@ -345,13 +357,15 @@ class NearestNeighbourTracker:
         self._next_id += 1
         self._tracks[tid] = Track(track_id=tid)
         self._tracks[tid].positions[frame_idx] = TrackPoint(
-            cx=det.centroid[1], cy=det.centroid[0], area=det.area,
+            cx=det.centroid[1],
+            cy=det.centroid[0],
+            area=det.area,
         )
         self._last_centroid[tid] = det.centroid
-        self._last_frame[tid]    = frame_idx
-        self._velocity[tid]      = (0.0, 0.0)
-        self._last_flow[tid]     = det.flow_vec
-        self._missed[tid]        = 0
+        self._last_frame[tid] = frame_idx
+        self._velocity[tid] = (0.0, 0.0)
+        self._last_flow[tid] = det.flow_vec
+        self._missed[tid] = 0
         if det.appearance is not None:
             self._feature_bank[tid] = deque([det.appearance], maxlen=self.bank_size)
 
@@ -377,7 +391,7 @@ class NearestNeighbourTracker:
         if det.appearance is None or not self._lost_banks:
             return False
 
-        best_sim = self.reid_threshold   # must strictly exceed this
+        best_sim = self.reid_threshold  # must strictly exceed this
         best_idx = None
         for li, (_, mean_desc) in enumerate(self._lost_banks):
             sim = float(np.dot(mean_desc, det.appearance))
@@ -395,16 +409,19 @@ class NearestNeighbourTracker:
 
         # Restore active state for the revived track
         self._last_centroid[orig_tid] = det.centroid
-        self._last_frame[orig_tid]    = frame_idx
-        self._velocity[orig_tid]      = (0.0, 0.0)
-        self._last_flow[orig_tid]     = det.flow_vec
-        self._missed[orig_tid]        = 0
+        self._last_frame[orig_tid] = frame_idx
+        self._velocity[orig_tid] = (0.0, 0.0)
+        self._last_flow[orig_tid] = det.flow_vec
+        self._missed[orig_tid] = 0
         self._tracks[orig_tid].positions[frame_idx] = TrackPoint(
-            cx=det.centroid[1], cy=det.centroid[0], area=det.area,
+            cx=det.centroid[1],
+            cy=det.centroid[0],
+            area=det.area,
         )
         if det.appearance is not None:
             self._feature_bank[orig_tid] = deque(
-                [det.appearance], maxlen=self.bank_size)
+                [det.appearance], maxlen=self.bank_size
+            )
         self._lost_banks.pop(best_idx)
         return True
 
@@ -425,12 +442,13 @@ class NearestNeighbourTracker:
 
 # ── Track merging ─────────────────────────────────────────────────────────────
 
+
 def merge_tracks(
     tracks: list[Track],
-    max_merge_gap:         int   = 120,
-    max_merge_dist:        float = 250.0,
-    track_descriptors:     dict[int, np.ndarray] | None = None,
-    appearance_threshold:  float = 0.0,
+    max_merge_gap: int = 120,
+    max_merge_dist: float = 250.0,
+    track_descriptors: dict[int, np.ndarray] | None = None,
+    appearance_threshold: float = 0.0,
 ) -> list[Track]:
     """
     Merge pairs of tracks that are likely the same object split by a long
@@ -441,6 +459,7 @@ def merge_tracks(
       - (if appearance_threshold > 0 and descriptors available)
         cosine_sim(desc_A, desc_B) ≥ appearance_threshold
     """
+
     def _last(t: Track):
         f = max(t.positions)
         p = t.positions[f]
@@ -463,8 +482,8 @@ def merge_tracks(
                 continue
             f1_end, pos1_end = _last(t1)
 
-            best_j:    int | None = None
-            best_dist: float      = float("inf")
+            best_j: int | None = None
+            best_dist: float = float("inf")
 
             for j, t2 in enumerate(tracks):
                 if j <= i or id(t2) in merged_ids:
@@ -473,20 +492,20 @@ def merge_tracks(
                 gap = f2_start - f1_end
                 if gap < 0 or gap > max_merge_gap:
                     continue
-                dist = float(np.hypot(pos1_end[0] - pos2_start[0],
-                                      pos1_end[1] - pos2_start[1]))
+                dist = float(
+                    np.hypot(pos1_end[0] - pos2_start[0], pos1_end[1] - pos2_start[1])
+                )
                 if dist > max_merge_dist or dist >= best_dist:
                     continue
                 # Optional appearance gate
-                if (appearance_threshold > 0.0
-                        and track_descriptors is not None):
+                if appearance_threshold > 0.0 and track_descriptors is not None:
                     d1 = track_descriptors.get(t1.track_id)
                     d2 = track_descriptors.get(t2.track_id)
                     if d1 is not None and d2 is not None:
                         if float(np.dot(d1, d2)) < appearance_threshold:
                             continue
                 best_dist = dist
-                best_j    = j
+                best_j = j
 
             if best_j is not None:
                 t2 = tracks[best_j]
@@ -502,6 +521,7 @@ def merge_tracks(
 
 
 # ── Persistence filter + gap interpolation ────────────────────────────────────
+
 
 def filter_and_interpolate(
     tracks: list[Track],
@@ -547,6 +567,7 @@ def filter_and_interpolate(
 
 # ── High-level entry point ────────────────────────────────────────────────────
 
+
 def run_tracker(
     heatmaps: list[np.ndarray],
     cfg: dict,
@@ -565,13 +586,13 @@ def run_tracker(
     tc = cfg.get("tracking", {})
 
     tracker = NearestNeighbourTracker(
-        max_distance     = tc.get("max_tracking_distance",   200),
-        max_gap          = tc.get("max_gap_frames",           25),
-        lambda_spatial   = tc.get("lambda_spatial",          1.0),
-        lambda_appearance= tc.get("lambda_appearance",       0.4),
-        bank_size        = tc.get("feature_bank_size",        20),
-        reid_threshold   = tc.get("reid_similarity_threshold", 0.75),
-        max_lost_banks   = tc.get("max_lost_banks",           32),
+        max_distance=tc.get("max_tracking_distance", 200),
+        max_gap=tc.get("max_gap_frames", 25),
+        lambda_spatial=tc.get("lambda_spatial", 1.0),
+        lambda_appearance=tc.get("lambda_appearance", 0.4),
+        bank_size=tc.get("feature_bank_size", 20),
+        reid_threshold=tc.get("reid_similarity_threshold", 0.75),
+        max_lost_banks=tc.get("max_lost_banks", 32),
     )
 
     if rich_detections is not None:
@@ -579,19 +600,19 @@ def run_tracker(
             tracker.update(frame_idx, dets)
     else:
         filt = TemporalFilter(
-            window         = tc.get("temporal_window",       5),
-            sigma          = tc.get("neighborhood_sigma",    15),
-            threshold_norm = tc.get("motion_threshold_norm", 0.08),
-            base_weight    = tc.get("combined_base_weight",  0.25),
+            window=tc.get("temporal_window", 5),
+            sigma=tc.get("neighborhood_sigma", 15),
+            threshold_norm=tc.get("motion_threshold_norm", 0.08),
+            base_weight=tc.get("combined_base_weight", 0.25),
         )
         for frame_idx, hm in enumerate(heatmaps):
             combined = filt.update(hm)
             detections = detect_blobs(
                 combined,
-                persistence_threshold = tc.get("persistence_threshold", 0.08),
-                close_size            = tc.get("morphology_close_size",  15),
-                min_area              = tc.get("min_blob_area",         150),
-                max_area              = tc.get("max_blob_area",       50_000),
+                persistence_threshold=tc.get("persistence_threshold", 0.08),
+                close_size=tc.get("morphology_close_size", 15),
+                min_area=tc.get("min_blob_area", 150),
+                max_area=tc.get("max_blob_area", 50_000),
             )
             tracker.update(frame_idx, detections)
 
@@ -599,13 +620,13 @@ def run_tracker(
 
     merged = merge_tracks(
         raw_tracks,
-        max_merge_gap        = tc.get("max_gap_frames", 25) * 4,
-        max_merge_dist       = tc.get("max_tracking_distance", 200),
-        track_descriptors    = track_descs,
-        appearance_threshold = tc.get("merge_appearance_threshold", 0.0),
+        max_merge_gap=tc.get("max_gap_frames", 25) * 4,
+        max_merge_dist=tc.get("max_tracking_distance", 200),
+        track_descriptors=track_descs,
+        appearance_threshold=tc.get("merge_appearance_threshold", 0.0),
     )
     return filter_and_interpolate(
         merged,
-        total_frames = len(heatmaps),
-        min_fraction = tc.get("min_presence_fraction", 0.05),
+        total_frames=len(heatmaps),
+        min_fraction=tc.get("min_presence_fraction", 0.05),
     )

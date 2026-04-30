@@ -42,16 +42,16 @@ _motion_io = ProtoIO(motioncap_pb2.MotionCaptureResponse)
 # ── Track colours (BGR, matching motioncap/main.py) ───────────────────────────
 
 _TRACK_COLORS = [
-    (0,   200, 255),   # orange
-    (50,  255,  50),   # green
-    (255,  80,  80),   # blue
-    (255,  50, 200),   # pink
-    (255, 220,   0),   # cyan
-    (100, 100, 255),   # salmon
-    (0,   255, 200),   # yellow-green
-    (200,   0, 255),   # violet
-    (255, 180,   0),   # sky-blue
-    (0,   128, 255),   # gold
+    (0, 200, 255),  # orange
+    (50, 255, 50),  # green
+    (255, 80, 80),  # blue
+    (255, 50, 200),  # pink
+    (255, 220, 0),  # cyan
+    (100, 100, 255),  # salmon
+    (0, 255, 200),  # yellow-green
+    (200, 0, 255),  # violet
+    (255, 180, 0),  # sky-blue
+    (0, 128, 255),  # gold
 ]
 
 
@@ -64,7 +64,17 @@ def _rgb_color_for(track_id: int) -> list[int]:
     return [r, g, b]
 
 
+def _segmentation_color_for(track_id: int):
+    return _TRACK_COLORS[(track_id + 5) % len(_TRACK_COLORS)]
+
+
+def _rgb_segmentation_color_for(track_id: int) -> list[int]:
+    b, g, r = _segmentation_color_for(track_id)
+    return [r, g, b]
+
+
 # ── Frame helpers ─────────────────────────────────────────────────────────────
+
 
 def _decode_rgb(frame: perceiver_pb2.PerceiverDataFrame) -> np.ndarray:
     """Return (H, W, 3) uint8 RGB array from a PerceiverDataFrame."""
@@ -77,7 +87,7 @@ def _decode_rgb(frame: perceiver_pb2.PerceiverDataFrame) -> np.ndarray:
     if img.format == fmt.BITMAP_RGB:
         raw = np.frombuffer(img.data, dtype=np.uint8)
         total = len(raw) // 3
-        h = w = int(total ** 0.5)
+        h = w = int(total**0.5)
         return raw[: h * w * 3].reshape(h, w, 3)
     raise ValueError(f"Unsupported image format: {img.format}")
 
@@ -128,29 +138,58 @@ def _motioncap_cache_key(motion_path: Path) -> tuple[str, int]:
     return (str(motion_path), stat.st_mtime_ns)
 
 
+def _is_motioncap_summary(rec: motioncap_pb2.MotionCaptureResponse) -> bool:
+    return bool(rec.tracks or rec.segmentation_trajectories or rec.total_frames)
+
+
 @lru_cache(maxsize=8)
 def _load_motioncap_overlay_data(
     motion_path_str: str,
     motion_mtime_ns: int,
-) -> tuple[list[motioncap_pb2.MotionCaptureResponse], list[motioncap_pb2.MotionTrack], dict[int, list[tuple[int, float, float, bool]]]]:
+) -> tuple[
+    list[motioncap_pb2.MotionCaptureResponse],
+    list[motioncap_pb2.MotionTrack],
+    list[motioncap_pb2.MotionTrack],
+    dict[int, list[tuple[int, float, float, bool]]],
+    dict[int, list[tuple[int, float, float, bool]]],
+]:
     del motion_mtime_ns  # included only to invalidate the cache when the file changes
 
     heatmap_records: list[motioncap_pb2.MotionCaptureResponse] = []
     tracks: list[motioncap_pb2.MotionTrack] = []
+    segmentation_trajectories: list[motioncap_pb2.MotionTrack] = []
     for rec in _motion_io.read_file(Path(motion_path_str)):
-        if rec.tracks:
+        if _is_motioncap_summary(rec):
             tracks = list(rec.tracks)
+            segmentation_trajectories = list(rec.segmentation_trajectories)
         else:
             heatmap_records.append(rec)
 
-    positions_by_hm_idx: dict[int, list[tuple[int, float, float, bool]]] = defaultdict(list)
+    positions_by_hm_idx: dict[int, list[tuple[int, float, float, bool]]] = defaultdict(
+        list
+    )
     for track in tracks:
         for pos in track.positions:
             positions_by_hm_idx[pos.frame_idx].append(
                 (track.track_id, pos.cx, pos.cy, pos.interpolated)
             )
 
-    return heatmap_records, tracks, positions_by_hm_idx
+    segmentation_positions_by_hm_idx: dict[
+        int, list[tuple[int, float, float, bool]]
+    ] = defaultdict(list)
+    for track in segmentation_trajectories:
+        for pos in track.positions:
+            segmentation_positions_by_hm_idx[pos.frame_idx].append(
+                (track.track_id, pos.cx, pos.cy, pos.interpolated)
+            )
+
+    return (
+        heatmap_records,
+        tracks,
+        segmentation_trajectories,
+        positions_by_hm_idx,
+        segmentation_positions_by_hm_idx,
+    )
 
 
 @lru_cache(maxsize=256)
@@ -159,7 +198,9 @@ def _render_motioncap_heatmap_png(
     motion_mtime_ns: int,
     frame_index: int,
 ) -> bytes | None:
-    heatmap_records, _, _ = _load_motioncap_overlay_data(motion_path_str, motion_mtime_ns)
+    heatmap_records, _, _, _, _ = _load_motioncap_overlay_data(
+        motion_path_str, motion_mtime_ns
+    )
     if frame_index < 0 or frame_index >= len(heatmap_records):
         return None
 
@@ -178,8 +219,27 @@ def _build_motioncap_track_legend(
     motion_path_str: str,
     motion_mtime_ns: int,
 ) -> list[dict]:
-    _, tracks, _ = _load_motioncap_overlay_data(motion_path_str, motion_mtime_ns)
+    _, tracks, _, _, _ = _load_motioncap_overlay_data(motion_path_str, motion_mtime_ns)
 
+    return _tracks_to_legend(tracks, color_fn=_rgb_color_for)
+
+
+@lru_cache(maxsize=8)
+def _build_motioncap_segmentation_legend(
+    motion_path_str: str,
+    motion_mtime_ns: int,
+) -> list[dict]:
+    _, _, segmentation_trajectories, _, _ = _load_motioncap_overlay_data(
+        motion_path_str, motion_mtime_ns
+    )
+
+    return _tracks_to_legend(
+        segmentation_trajectories,
+        color_fn=_rgb_segmentation_color_for,
+    )
+
+
+def _tracks_to_legend(tracks, color_fn) -> list[dict]:
     legend: list[dict] = []
     for track in sorted(tracks, key=lambda item: item.track_id):
         positions = [
@@ -191,18 +251,22 @@ def _build_motioncap_track_legend(
             }
             for pos in track.positions
         ]
-        legend.append({
-            "track_id": track.track_id,
-            "color": _rgb_color_for(track.track_id),
-            "detected_frames": track.detected_frames,
-            "total_positions": track.total_positions,
-            "presence_fraction": track.presence_fraction,
-            "positions": positions,
-        })
+        legend.append(
+            {
+                "track_id": track.track_id,
+                "label": track.label,
+                "color": color_fn(track.track_id),
+                "detected_frames": track.detected_frames,
+                "total_positions": track.total_positions,
+                "presence_fraction": track.presence_fraction,
+                "positions": positions,
+            }
+        )
     return legend
 
 
 # ── Abstract base ─────────────────────────────────────────────────────────────
+
 
 class VideoLayer(ABC):
     """
@@ -231,11 +295,11 @@ class VideoLayer(ABC):
         frame_indices: list[int] | None,
         jpeg_quality: int = 75,
         max_width: int = 0,
-    ) -> list[tuple[int, bytes]]:
-        ...
+    ) -> list[tuple[int, bytes]]: ...
 
 
 # ── Raw layer ─────────────────────────────────────────────────────────────────
+
 
 class RawVideoLayer(VideoLayer):
     """Serves the original RGB frames with no overlay."""
@@ -263,10 +327,11 @@ def _existing_motioncap_artifact(parent: Path, stem: str, extension: str) -> Pat
 
 # ── Motioncap overlay layer ───────────────────────────────────────────────────
 
+
 class MotioncapVideoLayer(VideoLayer):
     """
     Returns the understanding video — original RGB with the motioncap heatmap
-    and track overlay that motioncap/main.py --output-video produces.
+    and track overlay that motioncap/main.py --debug-render-video produces.
 
     Priority:
       1. Read frames directly from the pre-rendered .motioncap.mp4 (zero extra work,
@@ -296,21 +361,34 @@ class MotioncapVideoLayer(VideoLayer):
         motion_path = _existing_motioncap_artifact(vis_path.parent, base, "pb")
 
         if self.use_prerendered_video and mp4_path.exists():
-            return self._render_from_mp4(vis_path, mp4_path, motion_path, frame_indices, jpeg_quality, max_width)
+            return self._render_from_mp4(
+                vis_path, mp4_path, motion_path, frame_indices, jpeg_quality, max_width
+            )
         elif motion_path.exists():
-            return self._render_from_pb(vis_path, motion_path, frame_indices, jpeg_quality, max_width)
+            return self._render_from_pb(
+                vis_path, motion_path, frame_indices, jpeg_quality, max_width
+            )
         else:
-            return RawVideoLayer().render_frames(vis_path, frame_indices, jpeg_quality, max_width)
+            return RawVideoLayer().render_frames(
+                vis_path, frame_indices, jpeg_quality, max_width
+            )
 
     def track_legend(self, motion_path: Path) -> list[dict]:
         return _build_motioncap_track_legend(*_motioncap_cache_key(motion_path))
 
+    def segmentation_trajectory_legend(self, motion_path: Path) -> list[dict]:
+        return _build_motioncap_segmentation_legend(*_motioncap_cache_key(motion_path))
+
     def heatmap_png(self, motion_path: Path, frame_index: int) -> bytes | None:
-        return _render_motioncap_heatmap_png(*_motioncap_cache_key(motion_path), frame_index)
+        return _render_motioncap_heatmap_png(
+            *_motioncap_cache_key(motion_path), frame_index
+        )
 
     # ── Source: pre-rendered .motioncap.mp4 ───────────────────────────────────
 
-    def _render_from_mp4(self, vis_path, mp4_path, motion_path, frame_indices, jpeg_quality, max_width):
+    def _render_from_mp4(
+        self, vis_path, mp4_path, motion_path, frame_indices, jpeg_quality, max_width
+    ):
         """
         Read frames from the pre-rendered .motioncap.mp4.
 
@@ -325,9 +403,13 @@ class MotioncapVideoLayer(VideoLayer):
         # Build vis timestamp → mp4 frame index mapping via motioncap.pb timestamps
         hm_by_ts: dict[int, int] = {}
         if motion_path.exists():
-            for i, rec in enumerate(_motion_io.read_file(motion_path)):
-                if not rec.tracks and rec.HasField("frame_identifier"):
-                    hm_by_ts[rec.frame_identifier.timestamp_ns] = i
+            heatmap_idx = 0
+            for rec in _motion_io.read_file(motion_path):
+                if _is_motioncap_summary(rec):
+                    continue
+                if rec.HasField("frame_identifier"):
+                    hm_by_ts[rec.frame_identifier.timestamp_ns] = heatmap_idx
+                heatmap_idx += 1
 
         # Build the ordered list of (vis_idx, mp4_frame_idx) to read
         tasks: list[tuple[int, int | None]] = []
@@ -363,20 +445,28 @@ class MotioncapVideoLayer(VideoLayer):
                 result.append((ts, jpeg))
             else:
                 # No mp4 frame for this vis frame — use raw
-                result.append((ts, _frame_to_jpeg(vis_frames[vis_idx], jpeg_quality, max_width)))
+                result.append(
+                    (ts, _frame_to_jpeg(vis_frames[vis_idx], jpeg_quality, max_width))
+                )
 
         return result
 
     # ── Source: on-demand render from .motioncap.pb ────────────────────────────
 
-    def _render_from_pb(self, vis_path, motion_path, frame_indices, jpeg_quality, max_width):
+    def _render_from_pb(
+        self, vis_path, motion_path, frame_indices, jpeg_quality, max_width
+    ):
         """Render overlay on-demand when no mp4 is available."""
         vis_frames = _vis_io.read_file(vis_path)
         if frame_indices is None:
             frame_indices = list(range(len(vis_frames)))
-        heatmap_records, tracks, positions_by_hm_idx = _load_motioncap_overlay_data(
-            *_motioncap_cache_key(motion_path)
-        )
+        (
+            heatmap_records,
+            tracks,
+            segmentation_trajectories,
+            positions_by_hm_idx,
+            segmentation_positions_by_hm_idx,
+        ) = _load_motioncap_overlay_data(*_motioncap_cache_key(motion_path))
 
         hm_by_ts: dict[int, int] = {}
         for i, rec in enumerate(heatmap_records):
@@ -404,20 +494,37 @@ class MotioncapVideoLayer(VideoLayer):
                 hm = cv2.resize(hm, (bgr.shape[1], bgr.shape[0]))
 
             hm_color = cv2.applyColorMap(hm, cv2.COLORMAP_JET)
-            canvas = cv2.addWeighted(bgr, 1.0 - self.overlay_alpha, hm_color, self.overlay_alpha, 0)
-            self._draw_tracks(canvas, hm_idx, tracks, positions_by_hm_idx)
+            canvas = cv2.addWeighted(
+                bgr, 1.0 - self.overlay_alpha, hm_color, self.overlay_alpha, 0
+            )
+            self._draw_tracks(
+                canvas,
+                hm_idx,
+                tracks,
+                positions_by_hm_idx,
+                segmentation_trajectories,
+                segmentation_positions_by_hm_idx,
+            )
 
             result.append((ts, _bgr_to_jpeg(canvas, jpeg_quality, max_width)))
 
         return result
 
-    def _draw_tracks(self, canvas, current_hm_idx, tracks, positions_by_hm_idx):
+    def _draw_tracks(
+        self,
+        canvas,
+        current_hm_idx,
+        tracks,
+        positions_by_hm_idx,
+        segmentation_trajectories,
+        segmentation_positions_by_hm_idx,
+    ):
         for track in tracks:
             color = _color_for(track.track_id)
             tail_start = max(0, current_hm_idx - self.tail_length)
             tail_pts = []
             for fi in range(tail_start, current_hm_idx + 1):
-                for (tid, cx, cy, _interp) in positions_by_hm_idx.get(fi, []):
+                for tid, cx, cy, _interp in positions_by_hm_idx.get(fi, []):
                     if tid == track.track_id:
                         tail_pts.append((int(round(cx)), int(round(cy))))
             for i in range(1, len(tail_pts)):
@@ -425,21 +532,82 @@ class MotioncapVideoLayer(VideoLayer):
                 c = tuple(int(v * fade) for v in color)
                 cv2.line(canvas, tail_pts[i - 1], tail_pts[i], c, 1, cv2.LINE_AA)
 
+        for track in segmentation_trajectories:
+            color = _segmentation_color_for(track.track_id)
+            tail_start = max(0, current_hm_idx - self.tail_length)
+            tail_pts = []
+            for fi in range(tail_start, current_hm_idx + 1):
+                for tid, cx, cy, _interp in segmentation_positions_by_hm_idx.get(
+                    fi, []
+                ):
+                    if tid == track.track_id:
+                        tail_pts.append((int(round(cx)), int(round(cy))))
+            for i in range(1, len(tail_pts)):
+                fade = (i / len(tail_pts)) ** 1.5
+                c = tuple(int(v * fade) for v in color)
+                cv2.line(canvas, tail_pts[i - 1], tail_pts[i], c, 2, cv2.LINE_AA)
+
         if not self.show_track_markers and not self.show_track_labels:
             return
 
-        for (tid, cx, cy, interp) in positions_by_hm_idx.get(current_hm_idx, []):
+        for tid, cx, cy, interp in positions_by_hm_idx.get(current_hm_idx, []):
             color = _color_for(tid)
             center = (int(round(cx)), int(round(cy)))
             if self.show_track_markers:
                 if interp:
-                    cv2.drawMarker(canvas, center, color, cv2.MARKER_CROSS, 10, 1, cv2.LINE_AA)
+                    cv2.drawMarker(
+                        canvas, center, color, cv2.MARKER_CROSS, 10, 1, cv2.LINE_AA
+                    )
                 else:
                     cv2.circle(canvas, center, 6, color, 2, cv2.LINE_AA)
             if self.show_track_labels:
                 cv2.putText(
-                    canvas, f"T{tid}", (center[0] + 8, center[1] - 8),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.45, color, 1, cv2.LINE_AA,
+                    canvas,
+                    f"T{tid}",
+                    (center[0] + 8, center[1] - 8),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.45,
+                    color,
+                    1,
+                    cv2.LINE_AA,
+                )
+
+        for tid, cx, cy, interp in segmentation_positions_by_hm_idx.get(
+            current_hm_idx, []
+        ):
+            color = _segmentation_color_for(tid)
+            center = (int(round(cx)), int(round(cy)))
+            if self.show_track_markers:
+                if interp:
+                    cv2.drawMarker(
+                        canvas,
+                        center,
+                        color,
+                        cv2.MARKER_TILTED_CROSS,
+                        12,
+                        1,
+                        cv2.LINE_AA,
+                    )
+                else:
+                    cv2.drawMarker(
+                        canvas,
+                        center,
+                        color,
+                        cv2.MARKER_DIAMOND,
+                        14,
+                        2,
+                        cv2.LINE_AA,
+                    )
+            if self.show_track_labels:
+                cv2.putText(
+                    canvas,
+                    f"S{tid}",
+                    (center[0] + 8, center[1] + 14),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.45,
+                    color,
+                    1,
+                    cv2.LINE_AA,
                 )
 
 

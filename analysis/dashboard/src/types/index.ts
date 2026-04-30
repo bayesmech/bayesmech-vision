@@ -207,6 +207,7 @@ export interface MotioncapTrackPosition {
 
 export interface MotioncapTrackLegendItem {
   track_id: number
+  label?: string
   color: [number, number, number]
   detected_frames: number
   total_positions: number
@@ -226,6 +227,7 @@ export interface MotioncapData {
   byFrameNumber: Map<number, MotioncapFrameRecord>
   byHeatmapIndex: Map<number, MotioncapFrameRecord>
   tracks: MotioncapTrackLegendItem[]
+  segmentation_trajectories: MotioncapTrackLegendItem[]
 }
 
 export interface PongtownFrameRecord {

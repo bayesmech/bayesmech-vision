@@ -37,7 +37,7 @@ docker pull "$IMAGE"
 # ── Convenience wrapper ───────────────────────────────────────────────────────
 # Usage examples (run as ubuntu user):
 #   bm segmentation recordings/foo/foo.vis.pb --model sam3 --text "person"
-#   bm motioncap   recordings/foo/foo.vis.pb --output-video
+#   bm motioncap   recordings/foo/foo.vis.pb --debug-render-video
 #   bm reconstruct recordings/foo/foo.vis.pb --no-splat
 #   bm genspark    recordings/foo/foo.vis.pb --provider claude
 #   bm bash        # drop into a shell inside the container

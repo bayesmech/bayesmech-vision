@@ -2060,6 +2060,9 @@ export namespace bayesmech {
 
             /** MotionCaptureResponse totalFrames */
             totalFrames?: (number|null);
+
+            /** MotionCaptureResponse segmentationTrajectories */
+            segmentationTrajectories?: (bayesmech.vision.IMotionTrack[]|null);
         }
 
         /** Represents a MotionCaptureResponse. */
@@ -2088,6 +2091,9 @@ export namespace bayesmech {
 
             /** MotionCaptureResponse totalFrames. */
             public totalFrames: number;
+
+            /** MotionCaptureResponse segmentationTrajectories. */
+            public segmentationTrajectories: bayesmech.vision.IMotionTrack[];
 
             /**
              * Creates a new MotionCaptureResponse instance using the specified properties.
@@ -2421,6 +2427,9 @@ export namespace bayesmech {
 
             /** MotionTrack positions */
             positions?: (bayesmech.vision.IMotionTrackPoint[]|null);
+
+            /** MotionTrack label */
+            label?: (string|null);
         }
 
         /** Represents a MotionTrack. */
@@ -2446,6 +2455,9 @@ export namespace bayesmech {
 
             /** MotionTrack positions. */
             public positions: bayesmech.vision.IMotionTrackPoint[];
+
+            /** MotionTrack label. */
+            public label: string;
 
             /**
              * Creates a new MotionTrack instance using the specified properties.
