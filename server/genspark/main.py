@@ -8,8 +8,9 @@ Supports three providers:
   - openai: evenly-sampled frames sent as base64 JPEG images via OpenAI API
 
 After the initial video analysis the model may call tools (scene_context,
-scene_emphasis, get_motioncap_tracks).  Tool results are fed back and the
-conversation continues until the model returns a response with no tool calls.
+scene_emphasis, and analyzer-specific data tools). Tool results are fed back
+and the conversation continues until the model returns a response with no tool
+calls.
 The full conversation is saved as a GensparkResponse proto.
 
 Usage (from server/):
@@ -59,59 +60,265 @@ with open(_config_path) as _f:
 
 # ── Tool definitions (provider-agnostic JSON schema) ─────────────────────────
 
+def _tool(name: str, description: str, properties: dict | None = None, required: list[str] | None = None) -> dict:
+    return {
+        "name": name,
+        "description": description,
+        "parameters": {
+            "type": "object",
+            "properties": properties or {},
+            "required": required or [],
+        },
+    }
+
+
+def _string(description: str, enum: list[str] | None = None) -> dict:
+    prop = {"type": "string", "description": description}
+    if enum:
+        prop["enum"] = enum
+    return prop
+
+
+def _number(description: str) -> dict:
+    return {"type": "number", "description": description}
+
+
+def _integer(description: str) -> dict:
+    return {"type": "integer", "description": description}
+
+
+def _boolean(description: str) -> dict:
+    return {"type": "boolean", "description": description}
+
+
 TOOLS = [
-    {
-        "name": "scene_context",
-        "description": (
-            "Tag this recording with a scene type classification. "
-            "Always call this once after identifying the scene type. "
-            "Returns scene-specific follow-up analysis instructions."
+    _tool(
+        "scene_context",
+        (
+            "Tag this recording with a scene type classification. Always call "
+            "this once after identifying the scene type. Returns scene-specific "
+            "follow-up analysis instructions."
         ),
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "type": {
-                    "type": "string",
-                    "enum": ["sport-karting", "sport-running", "sport-chess", "experiment-pendulum"],
-                    "description": "The scene category that best describes this recording.",
-                }
-            },
-            "required": ["type"],
+        {
+            "type": _string(
+                "The scene category that best describes this recording.",
+                ["sport-karting", "sport-running", "sport-chess", "experiment-pendulum"],
+            )
         },
-    },
-    {
-        "name": "scene_emphasis",
-        "description": (
-            "Mark a temporal highlight segment within the recording. "
-            "Each segment should be between 2 and 10 seconds long. "
-            "Returns a confirmation string."
+        ["type"],
+    ),
+    _tool(
+        "scene_emphasis",
+        (
+            "Mark a temporal highlight segment within the recording. Each "
+            "segment should be between 2 and 10 seconds long. Returns a "
+            "confirmation string."
         ),
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "start_time": {"type": "number", "description": "Start of the highlight in seconds (>= 0.0)."},
-                "end_time":   {"type": "number", "description": "End of the highlight in seconds (> start_time, <= start_time + 10)."},
-                "description": {"type": "string", "description": "What is happening and why this moment is notable."},
-            },
-            "required": ["start_time", "end_time", "description"],
+        {
+            "start_time": _number("Start of the highlight in seconds (>= 0.0)."),
+            "end_time": _number("End of the highlight in seconds (> start_time, <= start_time + 10)."),
+            "description": _string("What is happening and why this moment is notable."),
         },
-    },
-    {
-        "name": "get_motioncap_tracks",
-        "description": (
-            "Return motion tracking data for a time window. "
-            "Track positions are (cx, cy) pixel coordinates (origin top-left). "
-            "Use to analyze object motion: oscillation, trajectory, speed, etc."
+        ["start_time", "end_time", "description"],
+    ),
+    _tool(
+        "list_available_analyses",
+        (
+            "List which analyzer outputs are available for the recording. Use "
+            "before analyzer-specific calls to check segmentation, motioncap, "
+            "Pongtown, and SLAM availability."
         ),
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "start_time": {"type": "number", "description": "Start of the window in seconds (>= 0.0)."},
-                "end_time":   {"type": "number", "description": "End of the window in seconds (> start_time)."},
-            },
-            "required": ["start_time", "end_time"],
+    ),
+    _tool(
+        "get_recording_metadata",
+        "Return recording duration, frame count, FPS estimate, and frame dimensions.",
+    ),
+    _tool(
+        "segmentation_list_identified_objects",
+        "List persistent segmented objects with labels, time spans, confidence, and average mask size.",
+    ),
+    _tool(
+        "segmentation_get_objects_at_time",
+        "Return segmented objects in the frame nearest a requested time.",
+        {"t": _number("Time in seconds from the start of the recording.")},
+        ["t"],
+    ),
+    _tool(
+        "segmentation_get_object_track",
+        "Return a segmentation centroid track for one object ID in image-space pixels.",
+        {
+            "object_id": _integer("Persistent segmentation object ID."),
+            "from_time": _number("Optional window start time in seconds."),
+            "to_time": _number("Optional window end time in seconds."),
+            "limit": _integer("Maximum returned positions. Use 0 for no limit."),
         },
-    },
+        ["object_id"],
+    ),
+    _tool(
+        "segmentation_get_relative_position",
+        (
+            "Return dx, dy, distance, and qualitative relation between two "
+            "segmented objects. Object arguments can be IDs or exact labels."
+        ),
+        {
+            "object_1": _string("First object ID or exact label."),
+            "object_2": _string("Second object ID or exact label."),
+            "t": _number("Optional time in seconds. If omitted, uses the first frame where both are visible."),
+        },
+        ["object_1", "object_2"],
+    ),
+    _tool(
+        "motioncap_list_tracks",
+        "List available motion tracks and summaries.",
+        {
+            "segmentation": _boolean(
+                "false for RAFT/motioncap tracks; true for tracks derived from segmentation centroids."
+            )
+        },
+    ),
+    _tool(
+        "motioncap_get_track_summary",
+        "Summarize one motion track's displacement, path distance, duration, and speed.",
+        {
+            "track_id": _integer("Motion track ID."),
+            "segmentation": _boolean("Use segmentation-derived tracks instead of RAFT/motioncap tracks."),
+            "from_time": _number("Optional window start time in seconds."),
+            "to_time": _number("Optional window end time in seconds."),
+        },
+        ["track_id"],
+    ),
+    _tool(
+        "motioncap_get_moving_objects",
+        "Return tracks that move at least min_distance_px in a time window.",
+        {
+            "from_time": _number("Window start time in seconds."),
+            "to_time": _number("Window end time in seconds."),
+            "min_distance_px": _number("Minimum path distance in pixels."),
+            "segmentation": _boolean("Use segmentation-derived tracks instead of RAFT/motioncap tracks."),
+        },
+        ["from_time", "to_time"],
+    ),
+    _tool(
+        "motioncap_find_extrema",
+        "Find local extrema in a track's x or y centroid coordinate.",
+        {
+            "track_id": _integer("Motion track ID."),
+            "axis": _string("Coordinate axis to analyze.", ["x", "y"]),
+            "from_time": _number("Optional window start time in seconds."),
+            "to_time": _number("Optional window end time in seconds."),
+            "segmentation": _boolean("Use segmentation-derived tracks instead of RAFT/motioncap tracks."),
+        },
+        ["track_id"],
+    ),
+    _tool(
+        "motioncap_estimate_period",
+        "Estimate oscillation period from same-kind extrema in one motion track.",
+        {
+            "track_id": _integer("Motion track ID."),
+            "axis": _string("Coordinate axis to analyze.", ["x", "y"]),
+            "from_time": _number("Optional window start time in seconds."),
+            "to_time": _number("Optional window end time in seconds."),
+            "segmentation": _boolean("Use segmentation-derived tracks instead of RAFT/motioncap tracks."),
+        },
+        ["track_id"],
+    ),
+    _tool(
+        "get_motioncap_tracks",
+        (
+            "Return motion tracking data for a time window. Track positions are "
+            "(cx, cy) pixel coordinates. Set segmentation=true to use semantic "
+            "segmentation centroid tracks instead of RAFT/motioncap tracks."
+        ),
+        {
+            "start_time": _number("Start of the window in seconds (>= 0.0)."),
+            "end_time": _number("End of the window in seconds (> start_time)."),
+            "segmentation": _boolean("Use segmentation-derived tracks instead of RAFT/motioncap tracks."),
+            "limit_per_track": _integer("Maximum returned positions per track. Use 0 for no limit."),
+        },
+        ["start_time", "end_time"],
+    ),
+    _tool(
+        "pongtown_get_table_pose_at_time",
+        "Return ping-pong table and net pose/reprojection nearest a requested time.",
+        {"t": _number("Time in seconds from the start of the Pongtown output.")},
+        ["t"],
+    ),
+    _tool(
+        "pongtown_get_ball_trajectory",
+        "Return ping-pong ball trajectory in image and table coordinates.",
+        {
+            "from_time": _number("Optional window start time in seconds."),
+            "to_time": _number("Optional window end time in seconds."),
+            "limit": _integer("Maximum returned trajectory points. Use 0 for no limit."),
+            "responder_pov": _string("Player point of view for table coordinates.", ["near", "far"]),
+        },
+    ),
+    _tool(
+        "pongtown_get_table_bounces",
+        "Return detected table bounce candidates in a time window with responder-relative side labels.",
+        {
+            "from_time": _number("Optional window start time in seconds."),
+            "to_time": _number("Optional window end time in seconds."),
+            "responder_pov": _string("Player point of view for self/opponent side mapping.", ["near", "far"]),
+        },
+    ),
+    _tool(
+        "pongtown_get_ball_speed",
+        "Return ping-pong ball speed statistics over trajectory segments.",
+        {
+            "from_time": _number("Window start time in seconds."),
+            "to_time": _number("Window end time in seconds."),
+            "space": _string("Coordinate space for speed.", ["table", "image"]),
+        },
+        ["from_time", "to_time"],
+    ),
+    _tool(
+        "slam_get_map",
+        "Return SLAM camera trajectory as world positions per frame.",
+        {"limit": _integer("Maximum returned poses. Use 0 for no limit.")},
+    ),
+    _tool(
+        "slam_get_pose_at_time",
+        "Return camera pose nearest a requested time.",
+        {"t": _number("Time in seconds from the start of SLAM poses.")},
+        ["t"],
+    ),
+    _tool(
+        "slam_get_velocity_at_time",
+        "Estimate camera velocity around a requested time from neighboring SLAM poses.",
+        {
+            "t": _number("Time in seconds from the start of SLAM poses."),
+            "window_s": _number("Time window in seconds used for the estimate."),
+        },
+        ["t"],
+    ),
+    _tool(
+        "slam_get_position_on_road",
+        "Return lateral road position nearest a time as a 0..1 fraction from the left edge.",
+        {"t": _number("Time in seconds from the start of canonical road tracks.")},
+        ["t"],
+    ),
+    _tool(
+        "slam_get_road_width_at_time",
+        "Return nearest road-width estimate at a requested time.",
+        {"t": _number("Time in seconds from the start of road-width estimates.")},
+        ["t"],
+    ),
+    _tool(
+        "slam_get_lap_progress",
+        "Return canonical track/lap progress nearest a requested time.",
+        {"t": _number("Time in seconds from the start of canonical road tracks.")},
+        ["t"],
+    ),
+    _tool(
+        "slam_get_motion_between",
+        "Summarize SLAM camera displacement and path distance between two times.",
+        {
+            "from_time": _number("Window start time in seconds."),
+            "to_time": _number("Window end time in seconds."),
+        },
+        ["from_time", "to_time"],
+    ),
 ]
 
 
@@ -129,7 +336,7 @@ class McpToolRunner:
       the process exits immediately (no silent fallback).
     """
 
-    REQUIRED_TOOLS = frozenset({"scene_context", "scene_emphasis", "get_motioncap_tracks"})
+    REQUIRED_TOOLS = frozenset(t["name"] for t in TOOLS)
 
     def __init__(self, rec_path: Path) -> None:
         self._rec_path = rec_path
@@ -650,12 +857,9 @@ def _build_conversation_text(turns: list) -> str:
             parts.append(turn.text)
         for tc in turn.tool_calls:
             parts.append(f"  tool_call: {tc.tool_name}({tc.arguments_json})")
-            # Truncate long track data so the summary prompt doesn't balloon
             result = tc.result
-            if tc.tool_name == "get_motioncap_tracks" and len(result) > 800:
-                lines = result.splitlines()
-                header = next((l for l in lines if l.startswith("Motion")), lines[0])
-                result = header + f"\n  [...{len(lines) - 1} coordinate lines omitted...]"
+            if len(result) > 6000:
+                result = result[:6000] + f"\n  [...{len(tc.result) - 6000} chars omitted...]"
             parts.append(f"  tool_result: {result}")
     return "\n".join(parts)
 
