@@ -219,7 +219,7 @@ body {
 }
 
 .top-analysis-grid {
-  --top-analysis-panel-height: clamp(360px, 54vh, 720px);
+  --top-analysis-panel-height: clamp(252px, 38vh, 504px);
   display: grid;
   grid-template-columns: minmax(380px, 1fr) minmax(520px, 2fr);
   grid-template-rows: var(--top-analysis-panel-height);
@@ -237,7 +237,7 @@ body {
 }
 
 .top-analysis-grid > .stream-card .stream-viewer {
-  flex: 1 1 auto;
+  flex: 1 1 0;
   min-height: 0;
 }
 
@@ -1141,7 +1141,7 @@ body {
   }
 
   .top-analysis-grid {
-    --top-analysis-panel-height: clamp(300px, 56vh, 520px);
+    --top-analysis-panel-height: clamp(210px, 39vh, 364px);
     grid-template-columns: 1fr;
   }
 
