@@ -15,6 +15,7 @@ import statistics
 import struct
 import sys
 import zlib
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
@@ -25,6 +26,7 @@ sys.path.insert(0, str(_project_root))
 sys.path.insert(0, str(_project_root / "proto"))  # needed for primitives_pb2 absolute imports
 sys.path.insert(0, str(_server_root))
 
+import numpy as np
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
 
@@ -90,7 +92,25 @@ def _missing(analysis: str, path: Path) -> str:
     return _json({
         "available": False,
         "analysis": analysis,
-        "error": f"No {analysis} output found at {path.name}. Run {analysis} first.",
+        "error_type": "analysis_missing",
+        "error": (
+            f"{analysis} tool is not available for this recording because no "
+            f"{analysis} output was found at {path.name}. Run {analysis} first."
+        ),
+        "retry_recommended": False,
+    })
+
+
+def _missing_tracks(path: Path, source: str) -> str:
+    if not path.exists():
+        return _missing("motioncap", path)
+    return _json({
+        "available": False,
+        "analysis": "motioncap",
+        "source": source,
+        "error_type": "analysis_missing",
+        "error": f"No {source} tracks found in {path.name}.",
+        "retry_recommended": False,
     })
 
 
@@ -133,31 +153,9 @@ def _decode_mask_stats(mask_data: bytes) -> dict[str, Any]:
     height, width = struct.unpack("<II", mask_data[:8])
     packed = zlib.decompress(mask_data[8:])
     total = int(height) * int(width)
-    count = 0
-    sum_x = 0
-    sum_y = 0
-    min_x = int(width)
-    min_y = int(height)
-    max_x = -1
-    max_y = -1
-
-    for i in range(total):
-        byte = packed[i >> 3]
-        bit = 7 - (i & 7)
-        if ((byte >> bit) & 1) == 0:
-            continue
-        y, x = divmod(i, int(width))
-        count += 1
-        sum_x += x
-        sum_y += y
-        if x < min_x:
-            min_x = x
-        if x > max_x:
-            max_x = x
-        if y < min_y:
-            min_y = y
-        if y > max_y:
-            max_y = y
+    bits = np.unpackbits(np.frombuffer(packed, dtype=np.uint8), bitorder="big")[:total]
+    ys, xs = np.nonzero(bits.reshape((int(height), int(width))))
+    count = int(xs.size)
 
     if count == 0:
         return {
@@ -172,12 +170,67 @@ def _decode_mask_stats(mask_data: bytes) -> dict[str, Any]:
         "width": int(width),
         "height": int(height),
         "pixel_count": count,
-        "centroid": {"x": sum_x / count, "y": sum_y / count},
-        "bbox": {"x0": min_x, "y0": min_y, "x1": max_x, "y1": max_y},
+        "centroid": {"x": float(xs.mean()), "y": float(ys.mean())},
+        "bbox": {
+            "x0": int(xs.min()),
+            "y0": int(ys.min()),
+            "x1": int(xs.max()),
+            "y1": int(ys.max()),
+        },
     }
 
 
-def _load_segmentation_observations() -> tuple[Path, list[dict[str, Any]]]:
+def _segmentation_observation_from_mask(
+    record: segmentation_pb2.SegmentationResponse,
+    mask: segmentation_pb2.SegmentationResponse.SegmentationMask,
+    time_s: float,
+    stats: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    return {
+        "object_id": int(mask.object_id),
+        "label": mask.label or "",
+        "confidence": float(mask.confidence),
+        "frame_number": int(record.frame_identifier.frame_number),
+        "timestamp_ns": int(record.frame_identifier.timestamp_ns),
+        "time_s": time_s,
+        "pixel_count": int(mask.pixel_count) if int(mask.pixel_count) else int((stats or {}).get("pixel_count", 0)),
+        "centroid": (stats or {}).get("centroid"),
+        "bbox": (stats or {}).get("bbox"),
+        "mask_width": (stats or {}).get("width"),
+        "mask_height": (stats or {}).get("height"),
+    }
+
+
+@lru_cache(maxsize=16)
+def _load_segmentation_metadata_for_path(seg_path_str: str) -> tuple[dict[str, Any], ...]:
+    records = _seg_io.read_file(Path(seg_path_str))
+    if not records:
+        return ()
+
+    t0_ns = int(records[0].frame_identifier.timestamp_ns)
+    observations: list[dict[str, Any]] = []
+    for record in records:
+        time_s = (int(record.frame_identifier.timestamp_ns) - t0_ns) / 1e9
+        for mask in record.masks:
+            observations.append(_segmentation_observation_from_mask(record, mask, time_s))
+    return tuple(observations)
+
+
+def _load_segmentation_metadata() -> tuple[Path, list[dict[str, Any]]]:
+    seg_path = _analysis_path("segmentation.pb", aliases=("seg.pb",))
+    if not seg_path.exists():
+        return seg_path, []
+    return seg_path, [dict(obs) for obs in _load_segmentation_metadata_for_path(str(seg_path.resolve()))]
+
+
+def _load_segmentation_observations(
+    decode_masks: bool = False,
+    object_ids: set[int] | None = None,
+    frame_time_s: float | None = None,
+) -> tuple[Path, list[dict[str, Any]]]:
+    if not decode_masks:
+        return _load_segmentation_metadata()
+
     seg_path = _analysis_path("segmentation.pb", aliases=("seg.pb",))
     if not seg_path.exists():
         return seg_path, []
@@ -187,11 +240,21 @@ def _load_segmentation_observations() -> tuple[Path, list[dict[str, Any]]]:
         return seg_path, []
 
     t0_ns = int(records[0].frame_identifier.timestamp_ns)
+    target_time_s: float | None = None
+    if frame_time_s is not None:
+        target_time_s = min(
+            ((int(record.frame_identifier.timestamp_ns) - t0_ns) / 1e9 for record in records),
+            key=lambda value: abs(value - frame_time_s),
+        )
+
     observations: list[dict[str, Any]] = []
     for record in records:
         time_s = (int(record.frame_identifier.timestamp_ns) - t0_ns) / 1e9
+        if target_time_s is not None and abs(time_s - target_time_s) >= 1e-9:
+            continue
         for mask in record.masks:
-            stats: dict[str, Any]
+            if object_ids is not None and int(mask.object_id) not in object_ids:
+                continue
             try:
                 stats = _decode_mask_stats(mask.mask_data)
             except Exception:
@@ -202,19 +265,7 @@ def _load_segmentation_observations() -> tuple[Path, list[dict[str, Any]]]:
                     "centroid": None,
                     "bbox": None,
                 }
-            observations.append({
-                "object_id": int(mask.object_id),
-                "label": mask.label or "",
-                "confidence": float(mask.confidence),
-                "frame_number": int(record.frame_identifier.frame_number),
-                "timestamp_ns": int(record.frame_identifier.timestamp_ns),
-                "time_s": time_s,
-                "pixel_count": int(mask.pixel_count) or stats.get("pixel_count", 0),
-                "centroid": stats.get("centroid"),
-                "bbox": stats.get("bbox"),
-                "mask_width": stats.get("width"),
-                "mask_height": stats.get("height"),
-            })
+            observations.append(_segmentation_observation_from_mask(record, mask, time_s, stats))
     return seg_path, observations
 
 
@@ -232,8 +283,8 @@ def _resolve_object(observations: list[dict[str, Any]], value: str | int) -> int
     return None
 
 
-def _segmentation_tracks() -> dict[int, dict[str, Any]]:
-    _, observations = _load_segmentation_observations()
+def _segmentation_tracks_from_masks(object_ids: set[int] | None = None) -> dict[int, dict[str, Any]]:
+    _, observations = _load_segmentation_observations(decode_masks=True, object_ids=object_ids)
     tracks: dict[int, dict[str, Any]] = {}
     for obs in observations:
         centroid = obs.get("centroid")
@@ -264,18 +315,27 @@ def _segmentation_tracks() -> dict[int, dict[str, Any]]:
     return tracks
 
 
-def _load_motion_tracks(segmentation: bool) -> tuple[Path, dict[int, dict[str, Any]]]:
-    if segmentation:
-        seg_path, _ = _load_segmentation_observations()
-        return seg_path, _segmentation_tracks()
+def _segmentation_tracks() -> dict[int, dict[str, Any]]:
+    _, stored_tracks = _load_motion_tracks(segmentation=True)
+    if stored_tracks:
+        return stored_tracks
+    return _segmentation_tracks_from_masks()
 
+
+def _load_motion_tracks(segmentation: bool) -> tuple[Path, dict[int, dict[str, Any]]]:
     motion_path = _analysis_path("motioncap.pb", aliases=("motion.pb",))
     if not motion_path.exists():
         return motion_path, {}
 
     records = _motion_io.read_file(motion_path)
-    frame_records = [record for record in records if not record.tracks]
-    summary_records = [record for record in records if record.tracks]
+    frame_records = [
+        record for record in records
+        if _has_frame_id(record) and not (record.tracks or record.segmentation_trajectories or record.total_frames)
+    ]
+    summary_records = [
+        record for record in records
+        if record.tracks or record.segmentation_trajectories or record.total_frames
+    ]
     if not frame_records or not summary_records:
         return motion_path, {}
 
@@ -288,7 +348,10 @@ def _load_motion_tracks(segmentation: bool) -> tuple[Path, dict[int, dict[str, A
         for idx, record in enumerate(frame_records)
     }
     tracks: dict[int, dict[str, Any]] = {}
-    for track in summary_records[0].tracks:
+    summary = summary_records[-1]
+    source_tracks = summary.segmentation_trajectories if segmentation else summary.tracks
+    source_name = "segmentation" if segmentation else "raft_motioncap"
+    for track in source_tracks:
         points = []
         for point in track.positions:
             frame_idx = int(point.frame_idx)
@@ -307,7 +370,9 @@ def _load_motion_tracks(segmentation: bool) -> tuple[Path, dict[int, dict[str, A
             })
         tracks[int(track.track_id)] = {
             "track_id": int(track.track_id),
-            "source": "raft_motioncap",
+            "object_id": int(track.track_id) if segmentation else None,
+            "source": source_name,
+            "label": track.label or None,
             "detected_frames": int(track.detected_frames),
             "total_positions": int(track.total_positions),
             "presence_fraction": float(track.presence_fraction),
@@ -475,6 +540,9 @@ class SceneType(str, enum.Enum):
     SPORT_KARTING = "sport-karting"
     SPORT_RUNNING = "sport-running"
     SPORT_CHESS = "sport-chess"
+    SPORT_SNOOKER = "sport-snooker"
+    SPORT_PINGPONG = "sport-pingpong"
+    SPORT_BIKE = "sport-bike"
     EXPERIMENT_PENDULUM = "experiment-pendulum"
 
 
@@ -507,8 +575,77 @@ def scene_context(type: SceneType) -> str:
             "   - Exact timestamps when the pendulum is at an extremum (local maximum or minimum in cx or cy)\n"
             "   - Amplitude at each extremum (distance from the equilibrium position)\n"
             "   - Whether the amplitude is decaying (damped oscillation) and estimate the decay rate\n"
-            "4. Call scene_emphasis() to mark a 2–5s window around each identified extremum.\n"
+            "4. Call scene_emphasis() to mark a 7–20s window around the most important extrema or motion phases.\n"
             "5. Provide a final numerical summary: period(s), extremum times, amplitudes, and decay rate."
+        )
+    if type == SceneType.SPORT_PINGPONG:
+        return (
+            "Scene classified as sport-pingpong. Prefer Pongtown data when available. "
+            "Please do the following:\n"
+            "1. Call list_available_analyses() and get_recording_metadata().\n"
+            "2. If pongtown is available, call pongtown_get_table_pose_at_time(), "
+            "pongtown_get_ball_trajectory(), pongtown_get_table_bounces(), and "
+            "pongtown_get_ball_speed() to summarize table layout, ball motion, bounces, "
+            "and speed.\n"
+            "3. If segmentation is available, use segmentation_list_identified_objects() "
+            "only for semantic context such as players, table, paddle, or ball.\n"
+            "4. Call scene_emphasis() for up to three 7–20s clips covering the most "
+            "important rally, bounce sequence, serve, or camera transition."
+        )
+    if type == SceneType.SPORT_SNOOKER:
+        return (
+            "Scene classified as sport-snooker. Prefer available table/ball analysis "
+            "and segmentation context. Please do the following:\n"
+            "1. Call list_available_analyses() and get_recording_metadata().\n"
+            "2. If pongtown-style table/ball output is available, call "
+            "pongtown_get_table_pose_at_time() and pongtown_get_ball_trajectory() to "
+            "inspect table pose and ball path; use bounce/speed tools only if the "
+            "output reports relevant ball trajectory data.\n"
+            "3. If segmentation is available, call segmentation_list_identified_objects() "
+            "to identify table, balls, cue, pockets, and players when present.\n"
+            "4. Call scene_emphasis() for up to three 7–20s clips covering key shots, "
+            "ball motion, table-layout changes, or camera transitions."
+        )
+    if type == SceneType.SPORT_BIKE:
+        return (
+            "Scene classified as sport-bike. Prefer SLAM and motion metadata when "
+            "available. Please do the following:\n"
+            "1. Call list_available_analyses() and get_recording_metadata().\n"
+            "2. If SLAM is available, call slam_get_map(), slam_get_pose_at_time(), "
+            "slam_get_velocity_at_time(), and slam_get_motion_between() to summarize "
+            "ego motion, route shape, speed changes, and turns.\n"
+            "3. If road-width or canonical track outputs are available, call "
+            "slam_get_position_on_road(), slam_get_road_width_at_time(), and "
+            "slam_get_lap_progress() for lane/road position and progress.\n"
+            "4. Call scene_emphasis() for up to three 7–20s clips covering turns, "
+            "acceleration/deceleration, traffic/obstacle interactions, or major "
+            "camera-motion changes."
+        )
+    if type == SceneType.SPORT_KARTING:
+        return (
+            "Scene classified as sport-karting. Prefer SLAM and motion data when "
+            "available. Use list_available_analyses() and get_recording_metadata(), "
+            "then use SLAM tools for ego trajectory, velocity, lap/progress, and turns. "
+            "Call scene_emphasis() for up to three 7–20s clips covering overtakes, "
+            "turns, braking/acceleration, or notable track transitions."
+        )
+    if type == SceneType.SPORT_RUNNING:
+        return (
+            "Scene classified as sport-running. Use list_available_analyses() and "
+            "get_recording_metadata(). If SLAM is available, use map, pose, velocity, "
+            "and motion-between tools to summarize route and pace changes. If "
+            "segmentation or motioncap is available, use it for visible runner/body "
+            "motion or other moving objects. Call scene_emphasis() for up to three "
+            "7–20s clips covering pace changes, turns, obstacles, or scene transitions."
+        )
+    if type == SceneType.SPORT_CHESS:
+        return (
+            "Scene classified as sport-chess. Use list_available_analyses() and "
+            "get_recording_metadata(). If segmentation is available, call "
+            "segmentation_list_identified_objects() and selected snapshots to identify "
+            "board, pieces, hands, and clock. Call scene_emphasis() for up to three "
+            "7–20s clips covering moves, captures, clock interactions, or major "
+            "camera/view changes."
         )
     return f"Scene classified as {type.value}. No additional analysis required."
 
@@ -518,7 +655,7 @@ def scene_emphasis(start_time: float, end_time: float, description: str) -> str:
     """
     Mark a temporal highlight segment within the recording.
 
-    Each segment should be between 2 and 10 seconds long. Provide a description
+    Each segment should be between 7 and 20 seconds long. Provide a description
     explaining what is happening and why this moment is notable.
 
     Args:
@@ -527,9 +664,9 @@ def scene_emphasis(start_time: float, end_time: float, description: str) -> str:
         description: What is happening in this segment and why it is notable.
     """
     duration = end_time - start_time
-    if duration > 10.0:
+    if duration < 7.0 or duration > 20.0:
         raise ToolError(
-            f"Highlight segment must be 10.0 seconds or shorter, "
+            f"Highlight segment must be between 7.0 and 20.0 seconds, "
             f"but got {duration:.2f}s ({start_time}s – {end_time}s)."
         )
     return f"Marked emphasis [{start_time}s – {end_time}s]: {description}"
@@ -629,14 +766,18 @@ def segmentation_list_identified_objects() -> str:
 
 
 @mcp.tool()
-def segmentation_get_objects_at_time(t: float) -> str:
+def segmentation_get_objects_at_time(t: float, include_geometry: bool = False) -> str:
     """
     Return segmented objects in the frame nearest time t.
 
     Use this for a spatial snapshot of semantic objects visible at a specific
-    video moment.
+    video moment. By default this returns metadata only and does not decode mask
+    bytes; set include_geometry=true when centroid and bbox are needed.
     """
-    seg_path, observations = _load_segmentation_observations()
+    seg_path, observations = _load_segmentation_observations(
+        decode_masks=include_geometry,
+        frame_time_s=t if include_geometry else None,
+    )
     if not observations:
         return _missing("segmentation", seg_path)
     nearest_time = min({float(obs["time_s"]) for obs in observations}, key=lambda value: abs(value - t))
@@ -645,6 +786,7 @@ def segmentation_get_objects_at_time(t: float) -> str:
         "available": True,
         "requested_time_s": t,
         "nearest_time_s": nearest_time,
+        "geometry_included": include_geometry,
         "objects": frame_obs,
     })
 
@@ -664,6 +806,8 @@ def segmentation_get_object_track(
     """
     tracks = _segmentation_tracks()
     track = tracks.get(int(object_id))
+    if track is None:
+        track = _segmentation_tracks_from_masks({int(object_id)}).get(int(object_id))
     if track is None:
         return _json({"available": False, "error": f"No segmentation track found for object_id={object_id}"})
     positions = _filter_time(track["positions"], from_time, to_time)
@@ -687,12 +831,12 @@ def segmentation_get_relative_position(object_1: str, object_2: str, t: float | 
     object_1 and object_2 can be object IDs or exact labels. If t is omitted,
     the first frame where both objects have centroids is used.
     """
-    _, observations = _load_segmentation_observations()
-    if not observations:
-        return _json({"available": False, "error": "No segmentation observations available."})
+    seg_path, metadata = _load_segmentation_metadata()
+    if not metadata:
+        return _missing("segmentation", seg_path)
 
-    id_1 = _resolve_object(observations, object_1)
-    id_2 = _resolve_object(observations, object_2)
+    id_1 = _resolve_object(metadata, object_1)
+    id_2 = _resolve_object(metadata, object_2)
     if id_1 is None or id_2 is None:
         return _json({
             "available": False,
@@ -701,23 +845,53 @@ def segmentation_get_relative_position(object_1: str, object_2: str, t: float | 
             "object_2": object_2,
         })
 
-    obs_1 = [obs for obs in observations if obs["object_id"] == id_1 and obs.get("centroid")]
-    obs_2 = [obs for obs in observations if obs["object_id"] == id_2 and obs.get("centroid")]
-    if not obs_1 or not obs_2:
-        return _json({"available": False, "error": "Both objects need centroid-bearing masks."})
-
-    if t is not None:
-        a = _nearest_by_time(obs_1, t)
-        b = _nearest_by_time(obs_2, t)
+    tracks = _segmentation_tracks()
+    if id_1 in tracks and id_2 in tracks:
+        pos_1 = tracks[id_1]["positions"]
+        pos_2 = tracks[id_2]["positions"]
+        if t is not None:
+            a = _nearest_by_time(pos_1, t)
+            b = _nearest_by_time(pos_2, t)
+        else:
+            by_frame_2 = {int(pos["frame_number"]): pos for pos in pos_2}
+            a = next((pos for pos in pos_1 if int(pos["frame_number"]) in by_frame_2), None)
+            b = by_frame_2.get(int(a["frame_number"])) if a else None
+        if a is None or b is None:
+            return _json({"available": False, "error": "No comparable track positions found."})
+        c1 = {"x": a["cx"], "y": a["cy"]}
+        c2 = {"x": b["cx"], "y": b["cy"]}
+        time_s = a["time_s"]
+        frame_number = a["frame_number"]
     else:
-        by_frame_2 = {int(obs["frame_number"]): obs for obs in obs_2}
-        a = next((obs for obs in obs_1 if int(obs["frame_number"]) in by_frame_2), None)
-        b = by_frame_2.get(int(a["frame_number"])) if a else None
-    if a is None or b is None:
-        return _json({"available": False, "error": "No comparable observations found."})
+        _, observations = _load_segmentation_observations(decode_masks=True, object_ids={id_1, id_2})
+        if not observations:
+            return _json({"available": False, "error": "No centroid-bearing segmentation observations available."})
+        obs_1 = [obs for obs in observations if obs["object_id"] == id_1 and obs.get("centroid")]
+        obs_2 = [obs for obs in observations if obs["object_id"] == id_2 and obs.get("centroid")]
+        if not obs_1 or not obs_2:
+            return _json({"available": False, "error": "Both objects need centroid-bearing masks."})
 
-    c1 = a["centroid"]
-    c2 = b["centroid"]
+        if t is not None:
+            a = _nearest_by_time(obs_1, t)
+            b = _nearest_by_time(obs_2, t)
+        else:
+            by_frame_2 = {int(obs["frame_number"]): obs for obs in obs_2}
+            a = next((obs for obs in obs_1 if int(obs["frame_number"]) in by_frame_2), None)
+            b = by_frame_2.get(int(a["frame_number"])) if a else None
+        if a is None or b is None:
+            return _json({"available": False, "error": "No comparable observations found."})
+        c1 = a["centroid"]
+        c2 = b["centroid"]
+        time_s = a["time_s"]
+        frame_number = a["frame_number"]
+
+    if c1 is None or c2 is None:
+        return _json({
+            "available": False,
+            "error": "Both objects need centroid-bearing positions.",
+            "object_1": object_1,
+            "object_2": object_2,
+        })
     dx = float(c2["x"]) - float(c1["x"])
     dy = float(c2["y"]) - float(c1["y"])
     relation_x = "right_of" if dx > 0 else "left_of" if dx < 0 else "same_x_as"
@@ -726,8 +900,8 @@ def segmentation_get_relative_position(object_1: str, object_2: str, t: float | 
         "available": True,
         "object_1": {"query": object_1, "object_id": id_1, "centroid": c1},
         "object_2": {"query": object_2, "object_id": id_2, "centroid": c2},
-        "time_s": a["time_s"],
-        "frame_number": a["frame_number"],
+        "time_s": time_s,
+        "frame_number": frame_number,
         "dx_px": dx,
         "dy_px": dy,
         "distance_px": math.hypot(dx, dy),
@@ -748,15 +922,12 @@ def motioncap_list_tracks(segmentation: bool = False) -> str:
             segmentation mask centroids.
     """
     path, tracks = _load_motion_tracks(segmentation)
+    source = "segmentation" if segmentation else "raft_motioncap"
     if not tracks:
-        return _json({
-            "available": False,
-            "source": "segmentation" if segmentation else "raft_motioncap",
-            "error": f"No tracks found in {path.name}.",
-        })
+        return _missing_tracks(path, source)
     return _json({
         "available": True,
-        "source": "segmentation" if segmentation else "raft_motioncap",
+        "source": source,
         "tracks": [
             {
                 **_track_summary(track),
@@ -778,9 +949,11 @@ def motioncap_get_track_summary(
     """
     Summarize one motion track's displacement, distance, and speed.
     """
-    _, tracks = _load_motion_tracks(segmentation)
+    path, tracks = _load_motion_tracks(segmentation)
     track = tracks.get(int(track_id))
     if track is None:
+        if not tracks:
+            return _missing_tracks(path, "segmentation" if segmentation else "raft_motioncap")
         return _json({"available": False, "error": f"No track_id={track_id} for segmentation={segmentation}."})
     return _json({"available": True, "summary": _track_summary(track, from_time, to_time)})
 
@@ -795,7 +968,9 @@ def motioncap_get_moving_objects(
     """
     Return tracks that move at least min_distance_px in the time window.
     """
-    _, tracks = _load_motion_tracks(segmentation)
+    path, tracks = _load_motion_tracks(segmentation)
+    if not tracks:
+        return _missing_tracks(path, "segmentation" if segmentation else "raft_motioncap")
     moving = []
     for track in tracks.values():
         summary = _track_summary(track, from_time, to_time)
@@ -824,9 +999,11 @@ def motioncap_find_extrema(
 
     Use this for pendulums or other oscillatory motion.
     """
-    _, tracks = _load_motion_tracks(segmentation)
+    path, tracks = _load_motion_tracks(segmentation)
     track = tracks.get(int(track_id))
     if track is None:
+        if not tracks:
+            return _missing_tracks(path, "segmentation" if segmentation else "raft_motioncap")
         return _json({"available": False, "error": f"No track_id={track_id} for segmentation={segmentation}."})
     coord = "cy" if axis.lower().startswith("y") else "cx"
     positions = _filter_time(track["positions"], from_time, to_time)
@@ -901,12 +1078,9 @@ def get_motioncap_tracks(start_time: float, end_time: float, segmentation: bool 
         limit_per_track: Maximum returned positions per track.
     """
     path, tracks = _load_motion_tracks(segmentation)
+    source = "segmentation" if segmentation else "raft_motioncap"
     if not tracks:
-        return _json({
-            "available": False,
-            "source": "segmentation" if segmentation else "raft_motioncap",
-            "error": f"No tracks found in {path.name}.",
-        })
+        return _missing_tracks(path, source)
     result = []
     for track in tracks.values():
         positions = _filter_time(track["positions"], start_time, end_time)
@@ -923,7 +1097,7 @@ def get_motioncap_tracks(start_time: float, end_time: float, segmentation: bool 
         })
     return _json({
         "available": True,
-        "source": "segmentation" if segmentation else "raft_motioncap",
+        "source": source,
         "start_time": start_time,
         "end_time": end_time,
         "tracks": result,

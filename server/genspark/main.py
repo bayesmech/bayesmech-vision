@@ -85,6 +85,21 @@ def _boolean(description: str) -> dict:
     return {"type": "boolean", "description": description}
 
 
+def _tool_failure_json(name: str, error_type: str, error: str, **extra: object) -> str:
+    return json.dumps(
+        {
+            "available": False,
+            "tool": name,
+            "error_type": error_type,
+            "error": error,
+            "retry_recommended": False,
+            **extra,
+        },
+        indent=2,
+        sort_keys=True,
+    )
+
+
 TOOLS = [
     _tool(
         "scene_context",
@@ -96,7 +111,15 @@ TOOLS = [
         {
             "type": _string(
                 "The scene category that best describes this recording.",
-                ["sport-karting", "sport-running", "sport-chess", "experiment-pendulum"],
+                [
+                    "sport-karting",
+                    "sport-running",
+                    "sport-chess",
+                    "sport-snooker",
+                    "sport-pingpong",
+                    "sport-bike",
+                    "experiment-pendulum",
+                ],
             )
         },
         ["type"],
@@ -105,12 +128,12 @@ TOOLS = [
         "scene_emphasis",
         (
             "Mark a temporal highlight segment within the recording. Each "
-            "segment should be between 2 and 10 seconds long. Returns a "
+            "segment should be between 7 and 20 seconds long. Returns a "
             "confirmation string."
         ),
         {
             "start_time": _number("Start of the highlight in seconds (>= 0.0)."),
-            "end_time": _number("End of the highlight in seconds (> start_time, <= start_time + 10)."),
+            "end_time": _number("End of the highlight in seconds (>= start_time + 7, <= start_time + 20)."),
             "description": _string("What is happening and why this moment is notable."),
         },
         ["start_time", "end_time", "description"],
@@ -134,7 +157,10 @@ TOOLS = [
     _tool(
         "segmentation_get_objects_at_time",
         "Return segmented objects in the frame nearest a requested time.",
-        {"t": _number("Time in seconds from the start of the recording.")},
+        {
+            "t": _number("Time in seconds from the start of the recording."),
+            "include_geometry": _boolean("Set true only when mask centroid/bbox geometry is needed."),
+        },
         ["t"],
     ),
     _tool(
@@ -326,8 +352,9 @@ class McpToolRunner:
     Guarantees:
     - All REQUIRED_TOOLS must be present on the server at startup; otherwise
       the process exits with a clear error message.
-    - If a tool call fails because the server has crashed or become unreachable,
-      the process exits immediately (no silent fallback).
+    - Tool call timeouts, unknown tools, and server-side exceptions are converted
+      into structured non-retryable tool results so one failed tool does not
+      crash the conversation.
     """
 
     REQUIRED_TOOLS = frozenset(t["name"] for t in TOOLS)
@@ -399,23 +426,47 @@ class McpToolRunner:
 
     def call_tool(self, name: str, args: dict) -> str:
         """Synchronously dispatch a tool call to the MCP server.
-        Crashes (sys.exit(1)) if the server is not running or the call fails."""
+        Returns a structured non-retryable error JSON if the call fails."""
         if self._session is None:
-            print(
-                f"\n[MCP] ERROR: MCP server is not running; cannot execute '{name}'. Aborting.",
-                file=sys.stderr,
+            return _tool_failure_json(
+                name,
+                "tool_server_unavailable",
+                f"MCP server is not running; cannot execute '{name}'. Do not retry this tool call.",
             )
-            sys.exit(1)
         try:
-            result = self._loop.run_until_complete(self._session.call_tool(name, args))
-            return "\n".join(c.text for c in result.content if hasattr(c, "text"))
-        except Exception as exc:
-            print(
-                f"\n[MCP] ERROR: Tool call '{name}' failed — server may have crashed: {exc}\n"
-                f"[MCP] Aborting.",
-                file=sys.stderr,
+            timeout_s = float(os.environ.get("GENSPARK_TOOL_TIMEOUT_SECONDS", "10"))
+            result = self._loop.run_until_complete(
+                asyncio.wait_for(self._session.call_tool(name, args), timeout=timeout_s)
             )
-            sys.exit(1)
+            text = "\n".join(c.text for c in result.content if hasattr(c, "text"))
+            is_error = bool(getattr(result, "isError", False) or getattr(result, "is_error", False))
+            if is_error:
+                return _tool_failure_json(
+                    name,
+                    "tool_server_error",
+                    f"Server error executing tool '{name}': {text or 'unknown error'}. Do not retry this tool call.",
+                )
+            if not text:
+                return _tool_failure_json(
+                    name,
+                    "empty_tool_result",
+                    f"Tool '{name}' returned no content. Do not retry this tool call.",
+                )
+            return text
+        except asyncio.TimeoutError:
+            timeout_s = float(os.environ.get("GENSPARK_TOOL_TIMEOUT_SECONDS", "10"))
+            return _tool_failure_json(
+                name,
+                "tool_timeout",
+                f"Tool '{name}' timed out after {timeout_s:.1f}s. Do not retry this tool call.",
+                timeout_s=timeout_s,
+            )
+        except Exception as exc:
+            return _tool_failure_json(
+                name,
+                "tool_server_error",
+                f"Server error executing tool '{name}': {exc}. Do not retry this tool call.",
+            )
 
 
 def call_tool(runner: McpToolRunner, name: str, args: dict) -> str:
