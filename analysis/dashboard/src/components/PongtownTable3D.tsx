@@ -53,9 +53,10 @@ const CORRECTION_OUTLIER_TABLE_LENGTHS = 2
 const CORRECTION_MAX_AXIS_NORM = 2
 const CORRECTION_INFLUENCE_POWER = 1.15
 const SNOOKER_BLACK_END_X_SIGN = -1
-const SNOOKER_MOTION_WINDOW_S = 2
-const SNOOKER_STATIC_LOOKAHEAD_S = 5
-const SNOOKER_FALLBACK_JITTER_THRESHOLD_M = 0.025
+const SNOOKER_MOTION_WINDOW_S = 5
+const SNOOKER_STATIC_LOOKAHEAD_S = 10
+const SNOOKER_YELLOW_MOVEMENT_THRESHOLD_SCALE = 0.5
+const SNOOKER_FALLBACK_JITTER_THRESHOLD_M = 0.01
 const FALLBACK_FRAME_RATE_FPS = 30
 
 type SportKind = 'pingpong' | 'snooker' | 'unknown'
@@ -289,7 +290,7 @@ const computeSnookerJitterThresholdM = (
   }
 
   return maxYellowMoveM > 0
-    ? maxYellowMoveM * 2
+    ? maxYellowMoveM * SNOOKER_YELLOW_MOVEMENT_THRESHOLD_SCALE
     : SNOOKER_FALLBACK_JITTER_THRESHOLD_M
 }
 
@@ -309,7 +310,7 @@ const hasSnookerMotionNearFrame = (
     if (currentTimeS - timedFrame.timeS > SNOOKER_MOTION_WINDOW_S) break
     const matched = nearestMatchingMarker(previous, timedFrame.markers, objectIdCounts)
     if (matched === null) continue
-    if (markerDistanceM(previous, matched) > thresholdM) return true
+    if (markerDistanceM(marker, matched) > thresholdM) return true
     previous = matched
   }
 
@@ -319,7 +320,7 @@ const hasSnookerMotionNearFrame = (
     if (timedFrame.timeS - currentTimeS > SNOOKER_MOTION_WINDOW_S) break
     const matched = nearestMatchingMarker(next, timedFrame.markers, objectIdCounts)
     if (matched === null) continue
-    if (markerDistanceM(next, matched) > thresholdM) return true
+    if (markerDistanceM(marker, matched) > thresholdM) return true
     next = matched
   }
 
@@ -343,7 +344,7 @@ const stableSnookerPosition = (
     const timedFrame = timedFrames[i]
     const matched = nearestMatchingMarker(previous, timedFrame.markers, objectIdCounts)
     if (matched === null) continue
-    if (markerDistanceM(previous, matched) > thresholdM) break
+    if (markerDistanceM(marker, matched) > thresholdM) break
     segmentStartIndex = i
     segmentStartMarker = matched
     previous = matched
@@ -357,7 +358,7 @@ const stableSnookerPosition = (
     if (timedFrame.timeS - segmentStartTimeS > SNOOKER_STATIC_LOOKAHEAD_S) break
     const matched = nearestMatchingMarker(next, timedFrame.markers, objectIdCounts)
     if (matched === null) continue
-    if (markerDistanceM(next, matched) > thresholdM) break
+    if (markerDistanceM(segmentStartMarker, matched) > thresholdM) break
     positions.push(matched)
     next = matched
   }
