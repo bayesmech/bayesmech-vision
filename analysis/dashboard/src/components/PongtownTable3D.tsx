@@ -58,6 +58,8 @@ const SNOOKER_STATIC_LOOKAHEAD_S = 10
 const SNOOKER_YELLOW_MOVEMENT_THRESHOLD_SCALE = 0.5
 const SNOOKER_FALLBACK_JITTER_THRESHOLD_M = 0.01
 const FALLBACK_FRAME_RATE_FPS = 30
+const demo_hacks = true
+const DEMO_HACK_FIXED_COLORS = ['yellow', 'green', 'brown'] as const
 
 type SportKind = 'pingpong' | 'snooker' | 'unknown'
 
@@ -184,6 +186,14 @@ const markerDistanceM = (a: SnookerMarker, b: SnookerMarker): number => (
   Math.hypot(a.xM - b.xM, a.zM - b.zM)
 )
 
+const demoHackColor = (label: string): typeof DEMO_HACK_FIXED_COLORS[number] | null => {
+  const labelKey = snookerLabelKey(label)
+  for (const color of DEMO_HACK_FIXED_COLORS) {
+    if (labelKey.includes(color)) return color
+  }
+  return null
+}
+
 const median = (values: number[]): number => {
   if (values.length === 0) return 0
   const sorted = [...values].sort((a, b) => a - b)
@@ -294,6 +304,43 @@ const computeSnookerJitterThresholdM = (
     : SNOOKER_FALLBACK_JITTER_THRESHOLD_M
 }
 
+const meanDemoHackPositions = (timedFrames: TimedSnookerFrame[]): Map<string, Pick<SnookerMarker, 'xM' | 'zM'>> => {
+  const sums = new Map<string, { xM: number, zM: number, count: number }>()
+  for (const timedFrame of timedFrames) {
+    for (const marker of timedFrame.markers) {
+      const color = demoHackColor(marker.label)
+      if (color === null) continue
+      const sum = sums.get(color) ?? { xM: 0, zM: 0, count: 0 }
+      sum.xM += marker.xM
+      sum.zM += marker.zM
+      sum.count += 1
+      sums.set(color, sum)
+    }
+  }
+
+  const means = new Map<string, Pick<SnookerMarker, 'xM' | 'zM'>>()
+  for (const [color, sum] of sums) {
+    if (sum.count <= 0) continue
+    means.set(color, { xM: sum.xM / sum.count, zM: sum.zM / sum.count })
+  }
+  return means
+}
+
+const applyDemoHacks = (
+  markers: SnookerMarker[],
+  timedFrames: TimedSnookerFrame[],
+): SnookerMarker[] => {
+  if (!demo_hacks || timedFrames.length === 0) return markers
+  const meanPositions = meanDemoHackPositions(timedFrames)
+  if (meanPositions.size === 0) return markers
+
+  return markers.map((marker) => {
+    const color = demoHackColor(marker.label)
+    const meanPosition = color === null ? undefined : meanPositions.get(color)
+    return meanPosition === undefined ? marker : { ...marker, ...meanPosition }
+  })
+}
+
 const hasSnookerMotionNearFrame = (
   marker: SnookerMarker,
   currentFrameIndex: number,
@@ -387,7 +434,7 @@ const smoothSnookerMarkers = (
   const objectIdCounts = buildObjectIdCounts(timedFrames)
   const thresholdM = computeSnookerJitterThresholdM(timedFrames, objectIdCounts)
 
-  return currentMarkers.map((marker) => {
+  const smoothedMarkers = currentMarkers.map((marker) => {
     if (hasSnookerMotionNearFrame(marker, currentTimedFrameIndex, timedFrames, thresholdM, objectIdCounts)) {
       return marker
     }
@@ -400,6 +447,8 @@ const smoothSnookerMarkers = (
     )
     return { ...marker, ...stablePosition }
   })
+
+  return applyDemoHacks(smoothedMarkers, timedFrames)
 }
 
 const makeLabelTexture = (text: string, active: boolean): THREE.CanvasTexture => {
