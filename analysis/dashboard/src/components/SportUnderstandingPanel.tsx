@@ -392,6 +392,7 @@ const SportUnderstandingPanel: React.FC = () => {
       </div>
       <PongtownTable3D
         summary={pongtownData?.summary}
+        frames={pongtownData?.frames}
         currentFrame={currentPongtownFrame}
         currentFrameIndex={currentPongtownFrameIndex}
         currentFrameNumber={currentPongtownFrameNumber}
