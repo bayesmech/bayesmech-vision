@@ -558,6 +558,47 @@ const addDisc = (
   parent.add(disc)
 }
 
+const addSnookerPocket = (
+  parent: THREE.Group,
+  xM: number,
+  zM: number,
+  radiusM: number,
+): void => {
+  const cupDepthM = 0.11
+  const cup = new THREE.Mesh(
+    new THREE.CylinderGeometry(radiusM * 0.9, radiusM * 0.68, cupDepthM, 40, 1, true),
+    new THREE.MeshStandardMaterial({
+      color: 0x010101,
+      roughness: 0.92,
+      side: THREE.DoubleSide,
+    }),
+  )
+  cup.position.set(xM, TABLE_THICKNESS_M / 2 - cupDepthM / 2 + 0.002, zM)
+  parent.add(cup)
+
+  const bottom = new THREE.Mesh(
+    new THREE.CylinderGeometry(radiusM * 0.68, radiusM * 0.68, 0.012, 40),
+    new THREE.MeshStandardMaterial({ color: 0x020202, roughness: 0.88 }),
+  )
+  bottom.position.set(xM, TABLE_THICKNESS_M / 2 - cupDepthM - 0.003, zM)
+  parent.add(bottom)
+
+  const shadow = new THREE.Mesh(
+    new THREE.CylinderGeometry(radiusM * 1.04, radiusM * 1.04, 0.006, 48),
+    new THREE.MeshStandardMaterial({ color: 0x020302, roughness: 0.95 }),
+  )
+  shadow.position.set(xM, TABLE_THICKNESS_M / 2 + 0.008, zM)
+  parent.add(shadow)
+
+  const rim = new THREE.Mesh(
+    new THREE.TorusGeometry(radiusM * 0.93, radiusM * 0.12, 10, 44),
+    new THREE.MeshStandardMaterial({ color: 0x11110f, roughness: 0.78 }),
+  )
+  rim.rotation.x = Math.PI / 2
+  rim.position.set(xM, TABLE_THICKNESS_M / 2 + 0.013, zM)
+  parent.add(rim)
+}
+
 const addSnookerArc = (
   parent: THREE.Group,
   xM: number,
@@ -617,7 +658,7 @@ const addSnookerMarkings = (
     [0, -tableWidthM / 2 + pocketInsetM],
     [0, tableWidthM / 2 - pocketInsetM],
   ]) {
-    addDisc(parent, xM, zM, pocketRadiusM, 0x050505, 0.012)
+    addSnookerPocket(parent, xM, zM, pocketRadiusM)
   }
 }
 
