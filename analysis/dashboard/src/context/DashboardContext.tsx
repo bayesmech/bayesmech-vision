@@ -6,7 +6,7 @@ import type {
 } from '../types'
 import { dashboardWs } from '../services/websocket'
 import { fetchIdoSlam, startPlayback, switchToLive as apiSwitchToLive } from '../services/api'
-import { bytesToBlobUrl, compositeMasksToDataUrl, decodeMask, MASK_COLORS } from '../services/proto'
+import { bytesToBlobUrl, compositeMasksToDataUrl, decodeMask, maskColorForLabel } from '../services/proto'
 import { bayesmech } from '../proto/bundle'
 
 // =====================================================================
@@ -328,7 +328,7 @@ class FrameDecoder {
       const objId = m.objectId ?? 0
       if (seen.has(objId)) continue
       seen.add(objId)
-      const c = MASK_COLORS[((objId % MASK_COLORS.length) + MASK_COLORS.length) % MASK_COLORS.length]
+      const c = maskColorForLabel(m.label, objId)
       legend.push({ objectId: objId, label: m.label || 'UNDEFINED', color: [c[0], c[1], c[2]] })
     }
 

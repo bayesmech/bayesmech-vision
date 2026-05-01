@@ -123,11 +123,70 @@ export function decodeMotionHeatmapData(
   return { height, width, values: values.subarray(0, total) }
 }
 
-// Object colors matching annotate_direct.py (RGBA)
-export const MASK_COLORS = [
-  [255, 0, 0, 128], [0, 255, 0, 128], [0, 0, 255, 128],
-  [255, 255, 0, 128], [255, 0, 255, 128], [0, 255, 255, 128],
+export type MaskColor = [number, number, number, number]
+
+const SEMANTIC_MASK_COLORS: { token: string; color: MaskColor }[] = [
+  { token: 'person', color: [145, 145, 145, 150] },
+  { token: 'wooden', color: [92, 55, 28, 150] },
+  { token: 'black', color: [24, 24, 24, 165] },
+  { token: 'white', color: [248, 248, 248, 150] },
+  { token: 'red', color: [239, 68, 68, 145] },
+  { token: 'green', color: [34, 197, 94, 145] },
+  { token: 'blue', color: [59, 130, 246, 145] },
+  { token: 'brown', color: [150, 91, 42, 150] },
 ]
+
+const FALLBACK_MASK_COLORS: MaskColor[] = [
+  [255, 99, 132, 140],
+  [54, 162, 235, 140],
+  [255, 206, 86, 140],
+  [75, 192, 192, 140],
+  [153, 102, 255, 140],
+  [255, 159, 64, 140],
+  [46, 204, 113, 140],
+  [231, 76, 60, 140],
+  [52, 152, 219, 140],
+  [241, 196, 15, 140],
+  [155, 89, 182, 140],
+  [26, 188, 156, 140],
+  [230, 126, 34, 140],
+  [149, 165, 166, 140],
+  [244, 114, 182, 140],
+  [14, 165, 233, 140],
+  [132, 204, 22, 140],
+  [168, 85, 247, 140],
+  [251, 146, 60, 140],
+  [45, 212, 191, 140],
+  [250, 204, 21, 140],
+  [129, 140, 248, 140],
+]
+
+const hashMaskKey = (label: string, objectId: number): number => {
+  const key = `${label.toLowerCase()}#${objectId}`
+  let hash = 2166136261
+  for (let i = 0; i < key.length; i += 1) {
+    hash ^= key.charCodeAt(i)
+    hash = Math.imul(hash, 16777619)
+  }
+  return hash >>> 0
+}
+
+export function maskColorForLabel(label: string | null | undefined, objectId = 0): MaskColor {
+  const normalized = (label ?? '').toLowerCase()
+  const personColor = SEMANTIC_MASK_COLORS[0]
+  if (normalized.includes(personColor.token)) return personColor.color
+
+  let bestMatch: { index: number; color: MaskColor } | null = null
+  for (const { token, color } of SEMANTIC_MASK_COLORS.slice(1)) {
+    const index = normalized.indexOf(token)
+    if (index >= 0 && (!bestMatch || index < bestMatch.index)) {
+      bestMatch = { index, color }
+    }
+  }
+  if (bestMatch) return bestMatch.color
+
+  return FALLBACK_MASK_COLORS[hashMaskKey(normalized, objectId) % FALLBACK_MASK_COLORS.length]
+}
 
 /**
  * Composite all masks from a SegmentationResponse into a single RGBA overlay.
@@ -137,14 +196,15 @@ export function compositeMasksToDataUrl(
   masks: bayesmech.vision.SegmentationResponse.ISegmentationMask[],
 ): string | null {
   let width = 0, height = 0
-  const decoded: { objId: number; mask: Uint8Array }[] = []
+  const decoded: { color: MaskColor; mask: Uint8Array }[] = []
 
   for (const m of masks) {
     if (!m.maskData || m.maskData.length < 9) continue
     const d = decodeMask(m.maskData as Uint8Array)
+    const objectId = m.objectId ?? 0
     width = d.width
     height = d.height
-    decoded.push({ objId: m.objectId ?? 0, mask: d.mask })
+    decoded.push({ color: maskColorForLabel(m.label, objectId), mask: d.mask })
   }
 
   if (decoded.length === 0 || width === 0 || height === 0) return null
@@ -159,8 +219,7 @@ export function compositeMasksToDataUrl(
   const px = imageData.data
   const n = width * height
 
-  for (const { objId, mask } of decoded) {
-    const color = MASK_COLORS[((objId % MASK_COLORS.length) + MASK_COLORS.length) % MASK_COLORS.length]
+  for (const { color, mask } of decoded) {
     for (let i = 0; i < n; i++) {
       if (mask[i]) {
         const off = i * 4

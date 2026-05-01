@@ -32,8 +32,6 @@ dependencies = [
     # Gemini video analysis + MCP
     "google-genai>=0.8.0",
     "fastmcp>=2.0.0",
-    "anthropic>=0.40.0",
-    "openai>=1.50.0",
     # 3D reconstruction (COLMAP bridge)
     "pycolmap>=0.4.0",
     "gsplat",

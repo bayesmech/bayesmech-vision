@@ -24,7 +24,7 @@ services:
   #     /app/.venv/bin/python server/motioncap/main.py recordings/foo.vis.pb --debug-render-video
   #
   #   docker-compose run --rm genspark \
-  #     /app/.venv/bin/python server/genspark/main.py recordings/foo.vis.pb --provider gemini
+  #     /app/.venv/bin/python server/genspark/main.py recordings/foo.vis.pb
   #
   #   docker-compose run --rm reconstruct \
   #     /app/.venv/bin/python server/reconstruct/main.py recordings/foo.vis.pb --no-splat

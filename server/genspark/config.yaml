@@ -1,26 +1,12 @@
-provider: gemini   # gemini | claude | openai
-
 video:
   max_duration_seconds: 30    # Truncate recording to this many seconds (0 = no limit)
   start_offset_seconds: 0     # Skip this many seconds at the start of the recording
   width: 640                  # Output frame width in pixels
   height: 480                 # Output frame height in pixels
   fps: 10                     # Target output frame rate
-  codec: mp4v                 # OpenCV VideoWriter fourcc codec (gemini only)
+  codec: mp4v                 # OpenCV VideoWriter fourcc codec
 
 gemini:
   model: gemini-2.5-flash     # Gemini model to use for analysis
   api_key_env: GEMINI_API_KEY # Environment variable holding the API key
   prompt_file: prompt.md      # Prompt file path, relative to this config file
-
-claude:
-  model: claude-sonnet-4-6    # Claude model to use for analysis
-  api_key_env: ANTHROPIC_API_KEY
-  max_frames: 20              # Max frames to sample and send as images
-  prompt_file: prompt.md
-
-openai:
-  model: gpt-4o               # OpenAI model to use for analysis
-  api_key_env: OPENAI_API_KEY
-  max_frames: 20              # Max frames to sample and send as images
-  prompt_file: prompt.md

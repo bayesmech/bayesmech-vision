@@ -1,27 +1,22 @@
 #!/usr/bin/env python3
 """
-Analyze a .vis.pb recording using a vision-capable AI model (agentic multi-turn loop).
-
-Supports three providers:
-  - gemini: native video upload via Gemini Files API (best temporal understanding)
-  - claude: evenly-sampled frames sent as base64 JPEG images via Anthropic API
-  - openai: evenly-sampled frames sent as base64 JPEG images via OpenAI API
+Analyze a .vis.pb recording using Gemini's native video upload API
+(agentic multi-turn loop).
 
 After the initial video analysis the model may call tools (scene_context,
-scene_emphasis, get_motioncap_tracks).  Tool results are fed back and the
-conversation continues until the model returns a response with no tool calls.
+scene_emphasis, and analyzer-specific data tools). Tool results are fed back
+and the conversation continues until the model returns a response with no tool
+calls.
 The full conversation is saved as a GensparkResponse proto.
 
 Usage (from server/):
     uv run python genspark/main.py ../recordings/<name>.vis.pb
-    uv run python genspark/main.py ../recordings/<name>.vis.pb --provider claude
-    uv run python genspark/main.py ../recordings/<name>.vis.pb --provider openai \\
+    uv run python genspark/main.py ../recordings/<name>.vis.pb \\
         --offset 5 --max-duration 20 --fps 8 --width 480 --height 360
 """
 
 import argparse
 import asyncio
-import base64
 import copy
 import json
 import os
@@ -57,61 +52,293 @@ with open(_config_path) as _f:
     _CONFIG = yaml.safe_load(_f)
 
 
-# ── Tool definitions (provider-agnostic JSON schema) ─────────────────────────
+# ── Tool definitions ─────────────────────────────────────────────────────────
+
+def _tool(name: str, description: str, properties: dict | None = None, required: list[str] | None = None) -> dict:
+    return {
+        "name": name,
+        "description": description,
+        "parameters": {
+            "type": "object",
+            "properties": properties or {},
+            "required": required or [],
+        },
+    }
+
+
+def _string(description: str, enum: list[str] | None = None) -> dict:
+    prop = {"type": "string", "description": description}
+    if enum:
+        prop["enum"] = enum
+    return prop
+
+
+def _number(description: str) -> dict:
+    return {"type": "number", "description": description}
+
+
+def _integer(description: str) -> dict:
+    return {"type": "integer", "description": description}
+
+
+def _boolean(description: str) -> dict:
+    return {"type": "boolean", "description": description}
+
+
+def _tool_failure_json(name: str, error_type: str, error: str, **extra: object) -> str:
+    return json.dumps(
+        {
+            "available": False,
+            "tool": name,
+            "error_type": error_type,
+            "error": error,
+            "retry_recommended": False,
+            **extra,
+        },
+        indent=2,
+        sort_keys=True,
+    )
+
 
 TOOLS = [
-    {
-        "name": "scene_context",
-        "description": (
-            "Tag this recording with a scene type classification. "
-            "Always call this once after identifying the scene type. "
-            "Returns scene-specific follow-up analysis instructions."
+    _tool(
+        "scene_context",
+        (
+            "Tag this recording with a scene type classification. Always call "
+            "this once after identifying the scene type. Returns scene-specific "
+            "follow-up analysis instructions."
         ),
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "type": {
-                    "type": "string",
-                    "enum": ["sport-karting", "sport-running", "sport-chess", "experiment-pendulum"],
-                    "description": "The scene category that best describes this recording.",
-                }
-            },
-            "required": ["type"],
+        {
+            "type": _string(
+                "The scene category that best describes this recording.",
+                [
+                    "sport-karting",
+                    "sport-running",
+                    "sport-chess",
+                    "sport-snooker",
+                    "sport-pingpong",
+                    "sport-bike",
+                    "experiment-pendulum",
+                ],
+            )
         },
-    },
-    {
-        "name": "scene_emphasis",
-        "description": (
-            "Mark a temporal highlight segment within the recording. "
-            "Each segment should be between 2 and 10 seconds long. "
-            "Returns a confirmation string."
+        ["type"],
+    ),
+    _tool(
+        "scene_emphasis",
+        (
+            "Mark a temporal highlight segment within the recording. Each "
+            "segment should be between 7 and 20 seconds long. Returns a "
+            "confirmation string."
         ),
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "start_time": {"type": "number", "description": "Start of the highlight in seconds (>= 0.0)."},
-                "end_time":   {"type": "number", "description": "End of the highlight in seconds (> start_time, <= start_time + 10)."},
-                "description": {"type": "string", "description": "What is happening and why this moment is notable."},
-            },
-            "required": ["start_time", "end_time", "description"],
+        {
+            "start_time": _number("Start of the highlight in seconds (>= 0.0)."),
+            "end_time": _number("End of the highlight in seconds (>= start_time + 7, <= start_time + 20)."),
+            "description": _string("What is happening and why this moment is notable."),
         },
-    },
-    {
-        "name": "get_motioncap_tracks",
-        "description": (
-            "Return motion tracking data for a time window. "
-            "Track positions are (cx, cy) pixel coordinates (origin top-left). "
-            "Use to analyze object motion: oscillation, trajectory, speed, etc."
+        ["start_time", "end_time", "description"],
+    ),
+    _tool(
+        "list_available_analyses",
+        (
+            "List which analyzer outputs are available for the recording. Use "
+            "before analyzer-specific calls to check segmentation, motioncap, "
+            "Pongtown, and SLAM availability."
         ),
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "start_time": {"type": "number", "description": "Start of the window in seconds (>= 0.0)."},
-                "end_time":   {"type": "number", "description": "End of the window in seconds (> start_time)."},
-            },
-            "required": ["start_time", "end_time"],
+    ),
+    _tool(
+        "get_recording_metadata",
+        "Return recording duration, frame count, FPS estimate, and frame dimensions.",
+    ),
+    _tool(
+        "segmentation_list_identified_objects",
+        "List persistent segmented objects with labels, time spans, confidence, and average mask size.",
+    ),
+    _tool(
+        "segmentation_get_objects_at_time",
+        "Return segmented objects in the frame nearest a requested time.",
+        {
+            "t": _number("Time in seconds from the start of the recording."),
+            "include_geometry": _boolean("Set true only when mask centroid/bbox geometry is needed."),
         },
-    },
+        ["t"],
+    ),
+    _tool(
+        "segmentation_get_object_track",
+        "Return a segmentation centroid track for one object ID in image-space pixels.",
+        {
+            "object_id": _integer("Persistent segmentation object ID."),
+            "from_time": _number("Optional window start time in seconds."),
+            "to_time": _number("Optional window end time in seconds."),
+            "limit": _integer("Maximum returned positions. Use 0 for no limit."),
+        },
+        ["object_id"],
+    ),
+    _tool(
+        "segmentation_get_relative_position",
+        (
+            "Return dx, dy, distance, and qualitative relation between two "
+            "segmented objects. Object arguments can be IDs or exact labels."
+        ),
+        {
+            "object_1": _string("First object ID or exact label."),
+            "object_2": _string("Second object ID or exact label."),
+            "t": _number("Optional time in seconds. If omitted, uses the first frame where both are visible."),
+        },
+        ["object_1", "object_2"],
+    ),
+    _tool(
+        "motioncap_list_tracks",
+        "List available motion tracks and summaries.",
+        {
+            "segmentation": _boolean(
+                "false for RAFT/motioncap tracks; true for tracks derived from segmentation centroids."
+            )
+        },
+    ),
+    _tool(
+        "motioncap_get_track_summary",
+        "Summarize one motion track's displacement, path distance, duration, and speed.",
+        {
+            "track_id": _integer("Motion track ID."),
+            "segmentation": _boolean("Use segmentation-derived tracks instead of RAFT/motioncap tracks."),
+            "from_time": _number("Optional window start time in seconds."),
+            "to_time": _number("Optional window end time in seconds."),
+        },
+        ["track_id"],
+    ),
+    _tool(
+        "motioncap_get_moving_objects",
+        "Return tracks that move at least min_distance_px in a time window.",
+        {
+            "from_time": _number("Window start time in seconds."),
+            "to_time": _number("Window end time in seconds."),
+            "min_distance_px": _number("Minimum path distance in pixels."),
+            "segmentation": _boolean("Use segmentation-derived tracks instead of RAFT/motioncap tracks."),
+        },
+        ["from_time", "to_time"],
+    ),
+    _tool(
+        "motioncap_find_extrema",
+        "Find local extrema in a track's x or y centroid coordinate.",
+        {
+            "track_id": _integer("Motion track ID."),
+            "axis": _string("Coordinate axis to analyze.", ["x", "y"]),
+            "from_time": _number("Optional window start time in seconds."),
+            "to_time": _number("Optional window end time in seconds."),
+            "segmentation": _boolean("Use segmentation-derived tracks instead of RAFT/motioncap tracks."),
+        },
+        ["track_id"],
+    ),
+    _tool(
+        "motioncap_estimate_period",
+        "Estimate oscillation period from same-kind extrema in one motion track.",
+        {
+            "track_id": _integer("Motion track ID."),
+            "axis": _string("Coordinate axis to analyze.", ["x", "y"]),
+            "from_time": _number("Optional window start time in seconds."),
+            "to_time": _number("Optional window end time in seconds."),
+            "segmentation": _boolean("Use segmentation-derived tracks instead of RAFT/motioncap tracks."),
+        },
+        ["track_id"],
+    ),
+    _tool(
+        "get_motioncap_tracks",
+        (
+            "Return motion tracking data for a time window. Track positions are "
+            "(cx, cy) pixel coordinates. Set segmentation=true to use semantic "
+            "segmentation centroid tracks instead of RAFT/motioncap tracks."
+        ),
+        {
+            "start_time": _number("Start of the window in seconds (>= 0.0)."),
+            "end_time": _number("End of the window in seconds (> start_time)."),
+            "segmentation": _boolean("Use segmentation-derived tracks instead of RAFT/motioncap tracks."),
+            "limit_per_track": _integer("Maximum returned positions per track. Use 0 for no limit."),
+        },
+        ["start_time", "end_time"],
+    ),
+    _tool(
+        "pongtown_get_table_pose_at_time",
+        "Return ping-pong table and net pose/reprojection nearest a requested time.",
+        {"t": _number("Time in seconds from the start of the Pongtown output.")},
+        ["t"],
+    ),
+    _tool(
+        "pongtown_get_ball_trajectory",
+        "Return ping-pong ball trajectory in image and table coordinates.",
+        {
+            "from_time": _number("Optional window start time in seconds."),
+            "to_time": _number("Optional window end time in seconds."),
+            "limit": _integer("Maximum returned trajectory points. Use 0 for no limit."),
+            "responder_pov": _string("Player point of view for table coordinates.", ["near", "far"]),
+        },
+    ),
+    _tool(
+        "pongtown_get_table_bounces",
+        "Return detected table bounce candidates in a time window with responder-relative side labels.",
+        {
+            "from_time": _number("Optional window start time in seconds."),
+            "to_time": _number("Optional window end time in seconds."),
+            "responder_pov": _string("Player point of view for self/opponent side mapping.", ["near", "far"]),
+        },
+    ),
+    _tool(
+        "pongtown_get_ball_speed",
+        "Return ping-pong ball speed statistics over trajectory segments.",
+        {
+            "from_time": _number("Window start time in seconds."),
+            "to_time": _number("Window end time in seconds."),
+            "space": _string("Coordinate space for speed.", ["table", "image"]),
+        },
+        ["from_time", "to_time"],
+    ),
+    _tool(
+        "slam_get_map",
+        "Return SLAM camera trajectory as world positions per frame.",
+        {"limit": _integer("Maximum returned poses. Use 0 for no limit.")},
+    ),
+    _tool(
+        "slam_get_pose_at_time",
+        "Return camera pose nearest a requested time.",
+        {"t": _number("Time in seconds from the start of SLAM poses.")},
+        ["t"],
+    ),
+    _tool(
+        "slam_get_velocity_at_time",
+        "Estimate camera velocity around a requested time from neighboring SLAM poses.",
+        {
+            "t": _number("Time in seconds from the start of SLAM poses."),
+            "window_s": _number("Time window in seconds used for the estimate."),
+        },
+        ["t"],
+    ),
+    _tool(
+        "slam_get_position_on_road",
+        "Return lateral road position nearest a time as a 0..1 fraction from the left edge.",
+        {"t": _number("Time in seconds from the start of canonical road tracks.")},
+        ["t"],
+    ),
+    _tool(
+        "slam_get_road_width_at_time",
+        "Return nearest road-width estimate at a requested time.",
+        {"t": _number("Time in seconds from the start of road-width estimates.")},
+        ["t"],
+    ),
+    _tool(
+        "slam_get_lap_progress",
+        "Return canonical track/lap progress nearest a requested time.",
+        {"t": _number("Time in seconds from the start of canonical road tracks.")},
+        ["t"],
+    ),
+    _tool(
+        "slam_get_motion_between",
+        "Summarize SLAM camera displacement and path distance between two times.",
+        {
+            "from_time": _number("Window start time in seconds."),
+            "to_time": _number("Window end time in seconds."),
+        },
+        ["from_time", "to_time"],
+    ),
 ]
 
 
@@ -125,11 +352,12 @@ class McpToolRunner:
     Guarantees:
     - All REQUIRED_TOOLS must be present on the server at startup; otherwise
       the process exits with a clear error message.
-    - If a tool call fails because the server has crashed or become unreachable,
-      the process exits immediately (no silent fallback).
+    - Tool call timeouts, unknown tools, and server-side exceptions are converted
+      into structured non-retryable tool results so one failed tool does not
+      crash the conversation.
     """
 
-    REQUIRED_TOOLS = frozenset({"scene_context", "scene_emphasis", "get_motioncap_tracks"})
+    REQUIRED_TOOLS = frozenset(t["name"] for t in TOOLS)
 
     def __init__(self, rec_path: Path) -> None:
         self._rec_path = rec_path
@@ -198,23 +426,47 @@ class McpToolRunner:
 
     def call_tool(self, name: str, args: dict) -> str:
         """Synchronously dispatch a tool call to the MCP server.
-        Crashes (sys.exit(1)) if the server is not running or the call fails."""
+        Returns a structured non-retryable error JSON if the call fails."""
         if self._session is None:
-            print(
-                f"\n[MCP] ERROR: MCP server is not running; cannot execute '{name}'. Aborting.",
-                file=sys.stderr,
+            return _tool_failure_json(
+                name,
+                "tool_server_unavailable",
+                f"MCP server is not running; cannot execute '{name}'. Do not retry this tool call.",
             )
-            sys.exit(1)
         try:
-            result = self._loop.run_until_complete(self._session.call_tool(name, args))
-            return "\n".join(c.text for c in result.content if hasattr(c, "text"))
-        except Exception as exc:
-            print(
-                f"\n[MCP] ERROR: Tool call '{name}' failed — server may have crashed: {exc}\n"
-                f"[MCP] Aborting.",
-                file=sys.stderr,
+            timeout_s = float(os.environ.get("GENSPARK_TOOL_TIMEOUT_SECONDS", "10"))
+            result = self._loop.run_until_complete(
+                asyncio.wait_for(self._session.call_tool(name, args), timeout=timeout_s)
             )
-            sys.exit(1)
+            text = "\n".join(c.text for c in result.content if hasattr(c, "text"))
+            is_error = bool(getattr(result, "isError", False) or getattr(result, "is_error", False))
+            if is_error:
+                return _tool_failure_json(
+                    name,
+                    "tool_server_error",
+                    f"Server error executing tool '{name}': {text or 'unknown error'}. Do not retry this tool call.",
+                )
+            if not text:
+                return _tool_failure_json(
+                    name,
+                    "empty_tool_result",
+                    f"Tool '{name}' returned no content. Do not retry this tool call.",
+                )
+            return text
+        except asyncio.TimeoutError:
+            timeout_s = float(os.environ.get("GENSPARK_TOOL_TIMEOUT_SECONDS", "10"))
+            return _tool_failure_json(
+                name,
+                "tool_timeout",
+                f"Tool '{name}' timed out after {timeout_s:.1f}s. Do not retry this tool call.",
+                timeout_s=timeout_s,
+            )
+        except Exception as exc:
+            return _tool_failure_json(
+                name,
+                "tool_server_error",
+                f"Server error executing tool '{name}': {exc}. Do not retry this tool call.",
+            )
 
 
 def call_tool(runner: McpToolRunner, name: str, args: dict) -> str:
@@ -276,31 +528,7 @@ def select_frames(frames: list, cfg: dict) -> list:
     return selected
 
 
-# ── Frame sampling for image-based providers ──────────────────────────────────
-
-def sample_frames_jpeg(selected: list, max_frames: int, cfg: dict) -> list:
-    w = cfg["video"]["width"]
-    h = cfg["video"]["height"]
-    n = len(selected)
-
-    if n <= max_frames:
-        indices = list(range(n))
-    else:
-        indices = [int(i * (n - 1) / (max_frames - 1)) for i in range(max_frames)]
-
-    result = []
-    with tqdm(total=len(indices), desc="Sampling frames", unit="frame") as bar:
-        for i in indices:
-            bgr = decode_frame_bgr(selected[i])
-            resized = cv2.resize(bgr, (w, h), interpolation=cv2.INTER_AREA)
-            _, buf = cv2.imencode(".jpg", resized, [cv2.IMWRITE_JPEG_QUALITY, 85])
-            result.append(buf.tobytes())
-            bar.update(1)
-
-    return result
-
-
-# ── Video assembly (Gemini only) ──────────────────────────────────────────────
+# ── Video assembly ────────────────────────────────────────────────────────────
 
 def build_video(frames: list, cfg: dict, tmp_path: str) -> None:
     w = cfg["video"]["width"]
@@ -433,184 +661,6 @@ def run_gemini(tmp_path: str, cfg: dict, runner: McpToolRunner) -> list:
     return turns
 
 
-# ── Claude (agentic multi-turn) ───────────────────────────────────────────────
-
-def run_claude(frame_jpegs: list, cfg: dict, runner: McpToolRunner) -> list:
-    """Send sampled frames, then run a multi-turn agentic loop with tool support."""
-    import anthropic
-
-    key_env = cfg["claude"]["api_key_env"]
-    api_key = os.environ.get(key_env)
-    if not api_key:
-        raise RuntimeError(f"Environment variable {key_env!r} is not set.")
-
-    prompt_text = (Path(__file__).parent / cfg["claude"]["prompt_file"]).read_text("utf-8")
-    model = cfg["claude"]["model"]
-
-    # Build tool schemas for Anthropic
-    claude_tools = [
-        {
-            "name": t["name"],
-            "description": t["description"],
-            "input_schema": t["parameters"],
-        }
-        for t in TOOLS
-    ]
-
-    # Initial message content: images + prompt
-    initial_content = []
-    for jpeg_bytes in frame_jpegs:
-        initial_content.append({
-            "type": "image",
-            "source": {
-                "type": "base64",
-                "media_type": "image/jpeg",
-                "data": base64.b64encode(jpeg_bytes).decode("utf-8"),
-            },
-        })
-    initial_content.append({"type": "text", "text": prompt_text})
-
-    messages = [{"role": "user", "content": initial_content}]
-    client = anthropic.Anthropic(api_key=api_key)
-    turns = []
-    turn_num = 0
-
-    while True:
-        turn_num += 1
-        print(f"\n[Turn {turn_num}] Querying {model} with {len(messages)} messages...")
-        response = client.messages.create(
-            model=model,
-            max_tokens=4096,
-            tools=claude_tools,
-            messages=messages,
-        )
-
-        text_blocks = [b.text for b in response.content if b.type == "text"]
-        tool_use_blocks = [b for b in response.content if b.type == "tool_use"]
-
-        text = "\n".join(text_blocks)
-        turn = insightgen_pb2.GensparkTurn(text=text)
-
-        if text:
-            print(text[:500] + ("..." if len(text) > 500 else ""))
-
-        if response.stop_reason != "tool_use" or not tool_use_blocks:
-            turns.append(turn)
-            break
-
-        # Add assistant turn to messages
-        messages.append({"role": "assistant", "content": response.content})
-
-        # Execute tools and build tool_result content
-        tool_results = []
-        for block in tool_use_blocks:
-            args = block.input
-            print(f"  [tool call] {block.name}({json.dumps(args)})")
-            result = call_tool(runner, block.name, args)
-            print(f"  [tool result] {result[:200]}")
-            turn.tool_calls.append(insightgen_pb2.GensparkToolCall(
-                tool_name=block.name,
-                arguments_json=json.dumps(args),
-                result=result,
-            ))
-            tool_results.append({
-                "type": "tool_result",
-                "tool_use_id": block.id,
-                "content": result,
-            })
-        turns.append(turn)
-        messages.append({"role": "user", "content": tool_results})
-
-    return turns
-
-
-# ── OpenAI (agentic multi-turn) ───────────────────────────────────────────────
-
-def run_openai(frame_jpegs: list, cfg: dict, runner: McpToolRunner) -> list:
-    """Send sampled frames, then run a multi-turn agentic loop with tool support."""
-    import openai
-
-    key_env = cfg["openai"]["api_key_env"]
-    api_key = os.environ.get(key_env)
-    if not api_key:
-        raise RuntimeError(f"Environment variable {key_env!r} is not set.")
-
-    prompt_text = (Path(__file__).parent / cfg["openai"]["prompt_file"]).read_text("utf-8")
-    model = cfg["openai"]["model"]
-
-    # Build tool schemas for OpenAI
-    openai_tools = [
-        {
-            "type": "function",
-            "function": {
-                "name": t["name"],
-                "description": t["description"],
-                "parameters": t["parameters"],
-            },
-        }
-        for t in TOOLS
-    ]
-
-    # Initial message
-    initial_content = []
-    for jpeg_bytes in frame_jpegs:
-        b64 = base64.b64encode(jpeg_bytes).decode("utf-8")
-        initial_content.append({
-            "type": "image_url",
-            "image_url": {"url": f"data:image/jpeg;base64,{b64}"},
-        })
-    initial_content.append({"type": "text", "text": prompt_text})
-
-    messages = [{"role": "user", "content": initial_content}]
-    client = openai.OpenAI(api_key=api_key)
-    turns = []
-    turn_num = 0
-
-    while True:
-        turn_num += 1
-        print(f"\n[Turn {turn_num}] Querying {model} with {len(messages)} messages...")
-        response = client.chat.completions.create(
-            model=model,
-            tools=openai_tools,
-            messages=messages,
-        )
-
-        choice = response.choices[0]
-        msg = choice.message
-        text = msg.content or ""
-        turn = insightgen_pb2.GensparkTurn(text=text)
-
-        if text:
-            print(text[:500] + ("..." if len(text) > 500 else ""))
-
-        if choice.finish_reason != "tool_calls" or not msg.tool_calls:
-            turns.append(turn)
-            break
-
-        # Add assistant message
-        messages.append(msg)
-
-        # Execute tools
-        for tc in msg.tool_calls:
-            args = json.loads(tc.function.arguments)
-            print(f"  [tool call] {tc.function.name}({json.dumps(args)})")
-            result = call_tool(runner, tc.function.name, args)
-            print(f"  [tool result] {result[:200]}")
-            turn.tool_calls.append(insightgen_pb2.GensparkToolCall(
-                tool_name=tc.function.name,
-                arguments_json=tc.function.arguments,
-                result=result,
-            ))
-            messages.append({
-                "role": "tool",
-                "tool_call_id": tc.id,
-                "content": result,
-            })
-        turns.append(turn)
-
-    return turns
-
-
 # ── Summary generation ───────────────────────────────────────────────────────
 
 _SUMMARY_PROMPT_BASE = """\
@@ -650,12 +700,9 @@ def _build_conversation_text(turns: list) -> str:
             parts.append(turn.text)
         for tc in turn.tool_calls:
             parts.append(f"  tool_call: {tc.tool_name}({tc.arguments_json})")
-            # Truncate long track data so the summary prompt doesn't balloon
             result = tc.result
-            if tc.tool_name == "get_motioncap_tracks" and len(result) > 800:
-                lines = result.splitlines()
-                header = next((l for l in lines if l.startswith("Motion")), lines[0])
-                result = header + f"\n  [...{len(lines) - 1} coordinate lines omitted...]"
+            if len(result) > 6000:
+                result = result[:6000] + f"\n  [...{len(tc.result) - 6000} chars omitted...]"
             parts.append(f"  tool_result: {result}")
     return "\n".join(parts)
 
@@ -710,16 +757,11 @@ def generate_summary(turns: list, cfg: dict) -> insightgen_pb2.GensparkSummary:
 
 def main() -> None:
     cfg_video = _CONFIG.get("video", {})
-    default_provider = _CONFIG.get("provider", "gemini")
 
     parser = argparse.ArgumentParser(
-        description="Analyze a .vis.pb recording with a vision AI model (agentic loop)"
+        description="Analyze a .vis.pb recording with Gemini native video upload (agentic loop)"
     )
     parser.add_argument("recording", help="Path to .vis.pb recording file")
-    parser.add_argument(
-        "--provider", choices=["gemini", "claude", "openai"], default=None,
-        help=f"AI provider to use (default: {default_provider})"
-    )
     parser.add_argument("--config", default=None,
                         help="Path to alternate config.yaml")
     parser.add_argument("--offset", type=float, default=None, metavar="SECONDS",
@@ -740,8 +782,6 @@ def main() -> None:
     else:
         cfg = copy.deepcopy(_CONFIG)
 
-    provider = args.provider if args.provider is not None else cfg.get("provider", "gemini")
-    cfg["provider"] = provider
     if args.offset is not None:
         cfg["video"]["start_offset_seconds"] = args.offset
     if args.max_duration is not None:
@@ -776,7 +816,7 @@ def main() -> None:
     video_duration = len(selected) / cfg["video"]["fps"]
     print(
         f"Selected {len(selected)} frames "
-        f"→ {video_duration:.1f}s at {cfg['video']['fps']} fps  [provider={provider}]"
+        f"→ {video_duration:.1f}s at {cfg['video']['fps']} fps"
     )
 
     # Start the MCP server — crashes with a clear error if it fails or is missing tools
@@ -784,32 +824,17 @@ def main() -> None:
     runner.start()
 
     try:
-        # Run inference
-        if provider == "gemini":
-            tmp_file = tempfile.NamedTemporaryFile(suffix=".mp4", delete=False)
-            tmp_path = tmp_file.name
-            tmp_file.close()
-            try:
-                build_video(selected, cfg, tmp_path)
-                print(f"Temporary video written: {tmp_path}")
-                turns = run_gemini(tmp_path, cfg, runner)
-            finally:
-                if Path(tmp_path).exists():
-                    Path(tmp_path).unlink()
-                    print(f"Deleted temp file: {tmp_path}")
-
-        elif provider == "claude":
-            frame_jpegs = sample_frames_jpeg(selected, cfg["claude"]["max_frames"], cfg)
-            turns = run_claude(frame_jpegs, cfg, runner)
-
-        elif provider == "openai":
-            frame_jpegs = sample_frames_jpeg(selected, cfg["openai"]["max_frames"], cfg)
-            turns = run_openai(frame_jpegs, cfg, runner)
-
-        else:
-            print(f"Error: unknown provider {provider!r}", file=sys.stderr)
-            sys.exit(1)
-
+        tmp_file = tempfile.NamedTemporaryFile(suffix=".mp4", delete=False)
+        tmp_path = tmp_file.name
+        tmp_file.close()
+        try:
+            build_video(selected, cfg, tmp_path)
+            print(f"Temporary video written: {tmp_path}")
+            turns = run_gemini(tmp_path, cfg, runner)
+        finally:
+            if Path(tmp_path).exists():
+                Path(tmp_path).unlink()
+                print(f"Deleted temp file: {tmp_path}")
     finally:
         runner.stop()
         print("[MCP] Server stopped.")

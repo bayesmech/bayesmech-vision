@@ -11,6 +11,7 @@ import CoveragePanel from './CoveragePanel'
 import MotioncapPanel from './MotioncapPanel'
 import LocalizationMappingTab from './LocalizationMappingTab'
 import SportUnderstandingPanel from './SportUnderstandingPanel'
+import GensparkConversationPanel from './GensparkConversationPanel'
 import type { GpsLocation, ImuData, SegmentationLegendEntry, SensorFrameData } from '../types'
 
 const XYZ = ['X', 'Y', 'Z']
@@ -208,22 +209,14 @@ const DashboardPage = () => {
       {/* Playback controls — full width, above all streams */}
       <PlaybackControls />
 
-      {/* Primary video stream */}
-      <div
-        className="streams-grid"
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))',
-          gap: '1rem',
-          marginBottom: '1.5rem',
-        }}
-      >
+      <div className="top-analysis-grid">
         <StreamViewer
           title="RGB Stream"
           blobUrl={displayedFrame?.rgbBlobUrl}
           placeholderIcon={'🎥'}
           placeholderText="Waiting for RGB frames..."
         />
+        <GensparkConversationPanel />
       </div>
 
       <div className="dashboard-workspace">

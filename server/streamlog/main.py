@@ -21,6 +21,7 @@ GET  /api/insightgen/insight     Return GensparkSummary for a recording
 GET  /api/insightgen/video       Return InsightVideoResponse (JPEG frames) for a recording
 GET  /api/insightgen/chat        Return ChatHistory delta proto for a recording since a timestamp
 POST /api/insightgen/chat        Follow-up chat with Gemini (bootstrapped from analysis)
+POST /api/insightgen/regenerate  Re-run genspark for a recording and overwrite .genspark.pb
 /   (static)                React dashboard (dashboard/dist/)
 """
 
@@ -538,6 +539,32 @@ def _load_chat_history_proto(
     if not history.file_name:
         history.file_name = file_name
     return history
+
+
+def _clear_chat_cache_name(chat_path: Path, file_name: str) -> None:
+    source_path = chat_path
+    if not source_path.exists():
+        legacy_path = chat_path.parent.parent / f"{file_name}.chat.pb"
+        source_path = legacy_path if legacy_path.exists() else chat_path
+    if not source_path.exists():
+        return
+    history = _load_chat_history_proto(chat_path, file_name)
+    if not history.gemini_cache_name:
+        return
+    history.gemini_cache_name = ""
+    source_path.parent.mkdir(parents=True, exist_ok=True)
+    source_path.write_bytes(history.SerializeToString())
+
+
+def _tail_process_output(stdout: bytes, stderr: bytes, max_chars: int = 4000) -> str:
+    text = "\n".join(
+        part.decode("utf-8", errors="replace").strip()
+        for part in (stdout, stderr)
+        if part
+    ).strip()
+    if len(text) <= max_chars:
+        return text
+    return text[-max_chars:]
 
 
 def _build_chat_history_delta(
@@ -1853,6 +1880,74 @@ async def insightgen_chat(request: Request):
     except Exception as exc:
         logger.error(f"insightgen_chat error ({safe_name}): {exc}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(exc))
+
+
+@app.post("/api/insightgen/regenerate")
+async def insightgen_regenerate(request: Request):
+    """
+    Re-run genspark/main.py for a recording and overwrite its .genspark.pb.
+
+    Body (JSON): {"file": "20260302_191856"}
+    """
+    body = await request.json()
+    file_name = body.get("file", "")
+    if not file_name:
+        raise HTTPException(status_code=400, detail="Missing file")
+
+    safe_name = Path(file_name).name
+    vis_path = _recording_file(safe_name, "vis.pb")
+    if not vis_path.exists():
+        raise HTTPException(status_code=404, detail=f"Recording not found: {safe_name}")
+
+    script_path = _server_root / "genspark" / "main.py"
+    env = os.environ.copy()
+    env["PYTHONPATH"] = os.pathsep.join(
+        str(path)
+        for path in (
+            _project_root,
+            _project_root / "proto",
+            _server_root,
+        )
+    ) + (os.pathsep + env["PYTHONPATH"] if env.get("PYTHONPATH") else "")
+
+    logger.info("Regenerating Genspark analysis for %s", safe_name)
+    process = await asyncio.create_subprocess_exec(
+        sys.executable,
+        str(script_path),
+        str(vis_path),
+        cwd=str(_server_root),
+        env=env,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+    stdout, stderr = await process.communicate()
+    output_tail = _tail_process_output(stdout, stderr)
+
+    if process.returncode != 0:
+        logger.error(
+            "Genspark regeneration failed for %s with exit code %s:\n%s",
+            safe_name,
+            process.returncode,
+            output_tail,
+        )
+        raise HTTPException(
+            status_code=500,
+            detail=output_tail or f"Genspark exited with {process.returncode}",
+        )
+
+    genspark_path = _recording_file(safe_name, "genspark.pb")
+    if not genspark_path.exists():
+        raise HTTPException(status_code=500, detail="Genspark finished without writing a response")
+
+    chat_manager.invalidate(safe_name)
+    _clear_chat_cache_name(_recording_file(safe_name, "chat.pb"), safe_name)
+
+    return {
+        "status": "ok",
+        "file": safe_name,
+        "genspark_path": str(genspark_path.relative_to(RECORDINGS_DIR)),
+        "size_bytes": genspark_path.stat().st_size,
+    }
 
 
 @app.post("/api/playback/start")
