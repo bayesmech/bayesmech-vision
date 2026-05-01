@@ -60,6 +60,8 @@ const SNOOKER_FALLBACK_JITTER_THRESHOLD_M = 0.01
 const FALLBACK_FRAME_RATE_FPS = 30
 const demo_hacks = true
 const DEMO_HACK_FIXED_COLORS = ['yellow', 'green', 'brown'] as const
+const SNOOKER_BALL_RENDER_RADIUS_M = 0.045
+const SNOOKER_OUTSIDE_SNAP_MARGIN_M = 0.12
 
 type SportKind = 'pingpong' | 'snooker' | 'unknown'
 
@@ -451,6 +453,26 @@ const smoothSnookerMarkers = (
   return applyDemoHacks(smoothedMarkers, timedFrames)
 }
 
+const constrainSnookerMarkerToTable = (
+  marker: SnookerMarker,
+  tableLengthM: number,
+  tableWidthM: number,
+): SnookerMarker | null => {
+  const halfLengthM = tableLengthM / 2
+  const halfWidthM = tableWidthM / 2
+  if (halfLengthM <= 0 || halfWidthM <= 0) return marker
+
+  const outsideDistanceM = distanceOutsideTable(marker.xM, marker.zM, halfLengthM, halfWidthM)
+  if (outsideDistanceM > SNOOKER_OUTSIDE_SNAP_MARGIN_M) return null
+
+  const maxCenterXM = Math.max(0, halfLengthM - SNOOKER_BALL_RENDER_RADIUS_M)
+  const maxCenterZM = Math.max(0, halfWidthM - SNOOKER_BALL_RENDER_RADIUS_M)
+  const xM = clamp(marker.xM, -maxCenterXM, maxCenterXM)
+  const zM = clamp(marker.zM, -maxCenterZM, maxCenterZM)
+  if (xM === marker.xM && zM === marker.zM) return marker
+  return { ...marker, xM, zM, insideTable: true }
+}
+
 const makeLabelTexture = (text: string, active: boolean): THREE.CanvasTexture => {
   const canvas = document.createElement('canvas')
   canvas.width = 256
@@ -728,6 +750,12 @@ const PongtownTable3D: React.FC<PongtownTable3DProps> = ({
     () => smoothSnookerMarkers(currentFrame, timedSnookerFrames),
     [currentFrame, timedSnookerFrames],
   )
+  const renderedSnookerBalls = useMemo<SnookerMarker[]>(
+    () => snookerBalls
+      .map((marker) => constrainSnookerMarkerToTable(marker, tableLengthM, tableWidthM))
+      .filter((marker): marker is SnookerMarker => marker !== null),
+    [snookerBalls, tableLengthM, tableWidthM],
+  )
 
   useEffect(() => {
     const container = containerRef.current
@@ -830,10 +858,10 @@ const PongtownTable3D: React.FC<PongtownTable3DProps> = ({
     }
 
     if (sport === 'snooker') {
-      for (const ballMarker of snookerBalls) {
+      for (const ballMarker of renderedSnookerBalls) {
         const marker = new THREE.Group()
         const ball = new THREE.Mesh(
-          new THREE.SphereGeometry(0.045, 28, 18),
+          new THREE.SphereGeometry(SNOOKER_BALL_RENDER_RADIUS_M, 28, 18),
           new THREE.MeshStandardMaterial({
             color: ballMarker.color,
             emissive: ballMarker.color,
@@ -902,7 +930,7 @@ const PongtownTable3D: React.FC<PongtownTable3DProps> = ({
 
       state.markers.add(marker)
     }
-  }, [visibleBounces, snookerBalls, sport])
+  }, [visibleBounces, renderedSnookerBalls, sport])
 
   return (
     <div className="stream-card table-3d-card">
@@ -928,7 +956,7 @@ const PongtownTable3D: React.FC<PongtownTable3DProps> = ({
       <div className="surface-pose-footer">
         {sport === 'snooker' ? (
           <>
-            <span>{`Balls ${snookerBalls.length}`}</span>
+            <span>{`Balls ${renderedSnookerBalls.length}`}</span>
             <span>Mode Snooker</span>
           </>
         ) : (
