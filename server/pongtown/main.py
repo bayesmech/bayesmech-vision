@@ -2,6 +2,8 @@
 
 Usage:
     uv run python pongtown/main.py ../recordings/<name>/<name>.vis.pb
+    uv run python pongtown/main.py ../recordings/<name>/<name>.vis.pb --mode pingpong
+    uv run python pongtown/main.py ../recordings/<name>/<name>.vis.pb --mode snooker
     uv run python pongtown/main.py ../recordings/<name>/<name>.vis.pb --stop-after 1
 """
 from __future__ import annotations
@@ -43,7 +45,12 @@ from pongtown.render import (
     render_pose_panel,
     render_stage1_panel,
 )
-from pongtown.trajectory import BallTrackPoint, extract_ball_trajectory
+from pongtown.trajectory import (
+    BallTrackPoint,
+    SnookerBallObservation,
+    extract_ball_trajectory,
+    extract_snooker_ball_positions,
+)
 from streamlog.protoio import ProtoIO
 
 
@@ -52,8 +59,10 @@ _pong_io = ProtoIO(pongtown_pb2.PongtownResponse)
 
 
 def parse_args() -> argparse.Namespace:
-    p = argparse.ArgumentParser(description="Ping-pong table pose pipeline")
+    p = argparse.ArgumentParser(description="Table pose pipeline for ping-pong/snooker recordings")
     p.add_argument("vis_path", type=Path)
+    p.add_argument("--mode", choices=["pingpong", "snooker"], default="pingpong")
+    p.add_argument("--seg-path", type=Path, default=None)
     p.add_argument("--max-frames", type=int, default=0)
     p.add_argument("--sample-every", type=int, default=1)
     p.add_argument("--stop-after", type=int, choices=[1, 2, 3], default=3)
@@ -61,9 +70,46 @@ def parse_args() -> argparse.Namespace:
     return p.parse_args()
 
 
-def _seg_path_for(vis: Path) -> Path:
+def _deep_merge(base: dict, override: dict) -> dict:
+    out = dict(base)
+    for key, value in override.items():
+        if isinstance(value, dict) and isinstance(out.get(key), dict):
+            out[key] = _deep_merge(out[key], value)
+        else:
+            out[key] = value
+    return out
+
+
+def _config_for_mode(cfg: dict, mode: str) -> dict:
+    modes = cfg.get("modes", {})
+    if mode not in modes:
+        raise ValueError(f"Unknown pongtown mode {mode!r}; configured modes: {sorted(modes)}")
+    base = {k: v for k, v in cfg.items() if k != "modes"}
+    merged = _deep_merge(base, modes.get(mode, {}))
+    merged["mode"] = mode
+    return merged
+
+
+def _sport_mode_enum(mode: str) -> int:
+    if mode == "pingpong":
+        return pongtown_pb2.PongtownResponse.PINGPONG
+    if mode == "snooker":
+        return pongtown_pb2.PongtownResponse.SNOOKER
+    return pongtown_pb2.PongtownResponse.SPORT_MODE_UNKNOWN
+
+
+def _seg_path_for(vis: Path, explicit: Path | None = None) -> Path:
+    if explicit is not None:
+        return explicit
     stem = vis.name.removesuffix(".vis.pb")
-    return vis.parent / f"{stem}.seg.pb"
+    candidates = [
+        vis.parent / f"{stem}.seg.pb",
+        vis.parent / f"{stem}.segmentation.pb",
+    ]
+    for candidate in candidates:
+        if candidate.is_file():
+            return candidate
+    return candidates[0]
 
 
 def _debug_dir(vis: Path) -> Path:
@@ -136,6 +182,25 @@ def _populate_ball_position_proto(
     _extend_floats(msg.cam_xyz_mm, obs.cam_xyz_mm)
     _extend_floats(msg.table_xyz_mm, obs.table_xyz_mm)
     msg.side = _side_enum(obs.side, obs.inside_table)
+    msg.inside_table = bool(obs.inside_table)
+
+
+def _populate_snooker_ball_position_proto(
+    msg: pongtown_pb2.PongtownResponse.SnookerBallPosition,
+    obs: SnookerBallObservation,
+) -> None:
+    msg.object_id = int(obs.object_id)
+    msg.label = str(obs.label)
+    msg.frame_idx = int(obs.frame_idx)
+    msg.frame_number = int(obs.frame_number)
+    msg.timestamp_ns = int(obs.timestamp_ns)
+    msg.u_img = float(obs.u)
+    msg.v_img = float(obs.v)
+    msg.area_px = int(obs.area_px)
+    msg.confidence = float(obs.confidence)
+    msg.has_table_position = bool(obs.has_table_position)
+    _extend_floats(msg.cam_xyz_mm, obs.cam_xyz_mm)
+    _extend_floats(msg.table_xyz_mm, obs.table_xyz_mm)
     msg.inside_table = bool(obs.inside_table)
 
 
@@ -225,6 +290,21 @@ def _net_points_table(cfg: dict) -> np.ndarray:
     return canonical_net_strip_mm(width, float(t_cfg["net_height_mm"]))
 
 
+def _net_enabled(cfg: dict) -> bool:
+    return bool(cfg.get("table", {}).get("net_enabled", True))
+
+
+def _render_geom_kwargs(cfg: dict) -> dict:
+    t_cfg = cfg["table"]
+    return {
+        "table_width_mm": float(t_cfg["width_mm"]),
+        "table_height_mm": float(t_cfg["height_mm"]),
+        "draw_net": _net_enabled(cfg),
+        "net_width_mm": float(t_cfg["height_mm"]) + 2.0 * float(t_cfg["net_overhang_mm"]),
+        "net_height_mm": float(t_cfg["net_height_mm"]),
+    }
+
+
 def _stage2_table_quad(result: dict, cfg: dict) -> np.ndarray | None:
     cached = result.get("quad_pnp")
     if cached is not None:
@@ -235,6 +315,8 @@ def _stage2_table_quad(result: dict, cfg: dict) -> np.ndarray | None:
 
 
 def _stage2_net_quad(result: dict, cfg: dict) -> np.ndarray | None:
+    if not _net_enabled(cfg):
+        return None
     cached = result.get("quad_net_pnp")
     if cached is not None:
         return cached
@@ -243,6 +325,8 @@ def _stage2_net_quad(result: dict, cfg: dict) -> np.ndarray | None:
 
 
 def _stage2_overlay_net_quad(result: dict, cfg: dict) -> np.ndarray | None:
+    if not _net_enabled(cfg):
+        return None
     cached = result.get("quad_net_overlay_pnp")
     if cached is not None:
         return cached
@@ -303,11 +387,14 @@ def _write_pongtown_pb(
     T_global_world: np.ndarray | None,
     T_global_net_world: np.ndarray | None,
     frames_used: int,
-    ball_trajectory: dict | None,
+    pingpong_trajectory: dict | None,
+    snooker_tracking: dict | None,
     refined_cost: float = 0.0,
 ) -> None:
     if out_path.exists():
         out_path.unlink()
+
+    sport_mode = _sport_mode_enum(cfg.get("mode", ""))
 
     batch: list[pongtown_pb2.PongtownResponse] = []
     for result in results:
@@ -315,6 +402,7 @@ def _write_pongtown_pb(
         qres = result["qres"]
         pres = result["pres"]
         rec = pongtown_pb2.PongtownResponse()
+        rec.sport_mode = sport_mode
         _copy_frame_identifier(rec, b)
 
         tp = rec.table_pose
@@ -347,8 +435,18 @@ def _write_pongtown_pb(
         out.has_net_pose = result.get("T_final_net_to_camera") is not None
         _extend_floats(out.T_net_to_camera, result.get("T_final_net_to_camera"))
 
-        for obs in result.get("ball_positions", []):
-            _populate_ball_position_proto(rec.ball_positions.add(), obs)
+        if cfg.get("mode") == "pingpong":
+            tracking = rec.pingpong_tracking
+            tracking.SetInParent()
+            for obs in result.get("ball_positions", []):
+                _populate_ball_position_proto(tracking.ball_positions.add(), obs)
+                # Deprecated compatibility field for older dashboard builds.
+                _populate_ball_position_proto(rec.ball_positions.add(), obs)
+        elif cfg.get("mode") == "snooker":
+            tracking = rec.snooker_tracking
+            tracking.SetInParent()
+            for obs in result.get("snooker_ball_positions", []):
+                _populate_snooker_ball_position_proto(tracking.ball_positions.add(), obs)
 
         batch.append(rec)
         if len(batch) >= 50:
@@ -359,6 +457,7 @@ def _write_pongtown_pb(
         _pong_io.write_file(out_path, batch)
 
     summary = pongtown_pb2.PongtownResponse()
+    summary.sport_mode = sport_mode
     summary.global_table_pose.has_pose = T_global_world is not None
     _extend_floats(summary.global_table_pose.T_table_to_world, T_global_world)
     summary.global_table_pose.refined_cost = float(refined_cost)
@@ -383,8 +482,18 @@ def _write_pongtown_pb(
     summary.table_height_mm = float(cfg["table"]["height_mm"])
     summary.net_overhang_mm = float(cfg["table"]["net_overhang_mm"])
     summary.net_height_mm = float(cfg["table"]["net_height_mm"])
-    if ball_trajectory is not None:
-        _populate_ball_trajectory_proto(summary.ball_trajectory, ball_trajectory)
+    if cfg.get("mode") == "pingpong" and pingpong_trajectory is not None:
+        summary.pingpong_tracking.SetInParent()
+        _populate_ball_trajectory_proto(
+            summary.pingpong_tracking.ball_trajectory,
+            pingpong_trajectory,
+        )
+        # Deprecated compatibility field for older dashboard builds.
+        _populate_ball_trajectory_proto(summary.ball_trajectory, pingpong_trajectory)
+    elif cfg.get("mode") == "snooker" and snooker_tracking is not None:
+        summary.snooker_tracking.SetInParent()
+        summary.snooker_tracking.observed_frames = int(snooker_tracking["observed_frames"])
+        summary.snooker_tracking.total_observations = int(snooker_tracking["total_observations"])
     _pong_io.write_file(out_path, [summary])
 
 
@@ -541,12 +650,14 @@ def main() -> None:
     args = parse_args()
 
     cfg_path = Path(__file__).resolve().parent / "config.yaml"
-    cfg = yaml.safe_load(open(cfg_path))
+    cfg = _config_for_mode(yaml.safe_load(open(cfg_path)), args.mode)
+    net_enabled = _net_enabled(cfg)
 
     vis_path = args.vis_path.resolve()
-    seg_path = _seg_path_for(vis_path)
+    seg_path = _seg_path_for(vis_path, args.seg_path.resolve() if args.seg_path else None)
     if not vis_path.is_file() or not seg_path.is_file():
         raise FileNotFoundError(f"Missing inputs: {vis_path} or {seg_path}")
+    log.info("Mode: %s; segmentation: %s", args.mode, seg_path.name)
 
     debug = (not args.no_debug) and cfg["pipeline"]["debug_dumps"]
     odir: Path | None = None
@@ -564,29 +675,30 @@ def main() -> None:
         vis_path, seg_path, cfg["mask_labels"],
         max_frames=args.max_frames, sample_every=args.sample_every,
     ):
-        qres = fit_table_quadrilateral(b.table_mask, b.net_mask, cfg=cfg)
+        net_mask = b.net_mask if net_enabled else None
+        qres = fit_table_quadrilateral(b.table_mask, net_mask, cfg=cfg)
         pres = PoseResult(None, None, None, 0.0, False)
-        net_quad_img = fit_net_quadrilateral(b.net_mask)
+        net_quad_img = fit_net_quadrilateral(net_mask) if net_enabled else None
         nres = PoseResult(None, None, None, 0.0, False)
         if args.stop_after >= 2:
             if qres.method != METHOD_QUAD_FAILED:
                 pres = solve_table_pose(
                     qres.quad_img, qres.midline_img, b.intrinsics,
                     cfg=cfg,
-                    table_mask=b.table_mask, net_mask=b.net_mask,
+                    table_mask=b.table_mask, net_mask=net_mask,
                     person_mask=b.person_mask,
                     image_shape=b.rgb.shape[:2],
                     T_camera_to_world=b.T_camera_to_world,
                     world_up_axis=1,
                     half_rectangle=False,
                 )
-            if net_quad_img is not None:
+            if net_enabled and net_quad_img is not None:
                 nres = solve_net_pose(
                     net_quad_img, b.intrinsics,
                     cfg=cfg,
                     T_camera_to_world=b.T_camera_to_world,
                     world_up_axis=1,
-                    net_mask=b.net_mask,
+                    net_mask=net_mask,
                     image_shape=b.rgb.shape[:2],
                 )
         results.append({
@@ -600,11 +712,11 @@ def main() -> None:
             mask_overlay = {
                 "legs": b.table_legs_mask,
                 "table": b.table_mask,
-                "net": b.net_mask,
+                "net": net_mask,
                 "person": b.person_mask,
             }
             panels = [render_stage1_panel(
-                b.rgb, b.table_mask, b.net_mask, b.person_mask,
+                b.rgb, b.table_mask, net_mask, b.person_mask,
                 qres.quad_img, qres.midline_img,
                 f"f{b.frame_idx} stage1 q={qres.quality:.2f}",
                 legs_mask=b.table_legs_mask,
@@ -616,6 +728,7 @@ def main() -> None:
                     f"f{b.frame_idx} stage2",
                     mask_overlays=mask_overlay,
                     net_rvec=nres.rvec, net_tvec=nres.tvec,
+                    **_render_geom_kwargs(cfg),
                 ))
             cv2.imwrite(str(odir / f"frame_{b.frame_idx:06d}.png"), montage(panels))
 
@@ -687,7 +800,7 @@ def main() -> None:
         )
 
         # ── Final net pose: independent RANSAC over per-frame net poses ─────
-        net_valid = [r for r in results if r["nres"].success]
+        net_valid = [r for r in results if r["nres"].success] if net_enabled else []
         if net_valid:
             net_iou_thresh = float(
                 np.percentile([r["nres"].pnp_iou for r in net_valid], 100 * (1 - top_pct))
@@ -719,7 +832,8 @@ def main() -> None:
                 t_net[0] / 1000, t_net[1] / 1000, t_net[2] / 1000,
             )
         else:
-            log.warning("Final net pose: no valid net poses, net rectangle will use table pose fallback")
+            if net_enabled:
+                log.warning("Final net pose: no valid net poses, net rectangle will use table pose fallback")
 
     # Reproject the global pose into every frame, score IoU, optionally render.
     scorer = IoUScorer()
@@ -759,7 +873,7 @@ def main() -> None:
                 quad_img=None,
                 image_shape=b.rgb.shape[:2],
                 table_top_mask=b.table_top_mask,
-                net_mask=b.net_mask,
+                net_mask=b.net_mask if net_enabled else None,
                 person_mask=b.person_mask,
                 bat_mask=b.bat_mask,
             )
@@ -780,7 +894,7 @@ def main() -> None:
             quad_img=quad_global,
             image_shape=b.rgb.shape[:2],
             table_top_mask=b.table_top_mask,
-            net_mask=b.net_mask,
+            net_mask=b.net_mask if net_enabled else None,
             person_mask=b.person_mask,
             bat_mask=b.bat_mask,
         )
@@ -794,7 +908,7 @@ def main() -> None:
         # independent net pose is unavailable, match the renderer fallback by
         # projecting the canonical net strip from the global table pose.
         net_rv_s3 = net_tv_s3 = None
-        if T_global_net_world is not None:
+        if net_enabled and T_global_net_world is not None:
             T_net_cam = T_world_to_camera @ T_global_net_world
             r["T_final_net_to_camera"] = T_net_cam
             net_rv_s3, _ = cv2.Rodrigues(T_net_cam[:3, :3])
@@ -802,7 +916,7 @@ def main() -> None:
             r["quad_net_global"] = _project_points(
                 _net_points_local(cfg), net_rv_s3, net_tv_s3, b.intrinsics
             )
-        else:
+        elif net_enabled:
             r["quad_net_global"] = _project_points(
                 _net_points_table(cfg), rv, tv, b.intrinsics
             )
@@ -812,7 +926,7 @@ def main() -> None:
         mask_overlay = {
             "legs": b.table_legs_mask,
             "table": b.table_mask,
-            "net": b.net_mask,
+            "net": b.net_mask if net_enabled else None,
             "person": b.person_mask,
         }
         final_panel = render_pose_panel(
@@ -821,9 +935,10 @@ def main() -> None:
             mask_overlays=mask_overlay,
             quad_thickness=3,
             net_rvec=net_rv_s3, net_tvec=net_tv_s3,
+            **_render_geom_kwargs(cfg),
         )
         stage1 = render_stage1_panel(
-            b.rgb, b.table_mask, b.net_mask, b.person_mask,
+            b.rgb, b.table_mask, b.net_mask if net_enabled else None, b.person_mask,
             r["qres"].quad_img, r["qres"].midline_img,
             f"f{b.frame_idx} stage1 q={r['qres'].quality:.2f}",
             legs_mask=b.table_legs_mask,
@@ -834,6 +949,7 @@ def main() -> None:
             f"f{b.frame_idx} stage2",
             mask_overlays=mask_overlay,
             net_rvec=r["nres"].rvec, net_tvec=r["nres"].tvec,
+            **_render_geom_kwargs(cfg),
         )
         cv2.imwrite(
             str(odir / f"frame_{b.frame_idx:06d}.png"),
@@ -857,13 +973,23 @@ def main() -> None:
         deciles = " ".join(f"p{q}={s[f'p{q}']:.3f}" for q in range(10, 100, 10))
         log.info("%s IoU deciles: %s", label, deciles)
 
-    ball_trajectory = extract_ball_trajectory(results, cfg)
-    log.info(
-        "Ball trajectory: %d positions, %d segments, %d bounce candidates",
-        len(ball_trajectory["positions"]),
-        len(ball_trajectory["segments"]),
-        len(ball_trajectory["bounces"]),
-    )
+    pingpong_trajectory = None
+    snooker_tracking = None
+    if cfg.get("mode") == "pingpong":
+        pingpong_trajectory = extract_ball_trajectory(results, cfg)
+        log.info(
+            "Ping-pong trajectory: %d positions, %d segments, %d bounce candidates",
+            len(pingpong_trajectory["positions"]),
+            len(pingpong_trajectory["segments"]),
+            len(pingpong_trajectory["bounces"]),
+        )
+    elif cfg.get("mode") == "snooker":
+        snooker_tracking = extract_snooker_ball_positions(results, cfg)
+        log.info(
+            "Snooker tracking: %d observations across %d frames",
+            snooker_tracking["total_observations"],
+            snooker_tracking["observed_frames"],
+        )
 
     out_pb = _pongtown_pb_path(vis_path)
     _write_pongtown_pb(
@@ -873,7 +999,8 @@ def main() -> None:
         T_global_world=T_global_world,
         T_global_net_world=T_global_net_world,
         frames_used=int(inlier_mask.sum()),
-        ball_trajectory=ball_trajectory,
+        pingpong_trajectory=pingpong_trajectory,
+        snooker_tracking=snooker_tracking,
     )
     log.info("Wrote %s (%d frames + 1 summary)", out_pb.name, len(results))
 

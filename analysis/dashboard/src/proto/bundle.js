@@ -10905,6 +10905,9 @@ export const bayesmech = $root.bayesmech = (() => {
              * @property {bayesmech.vision.PongtownResponse.IFrameOutput|null} [frameOutput] PongtownResponse frameOutput
              * @property {Array.<bayesmech.vision.PongtownResponse.IBallPosition>|null} [ballPositions] PongtownResponse ballPositions
              * @property {bayesmech.vision.PongtownResponse.IBallTrajectory|null} [ballTrajectory] PongtownResponse ballTrajectory
+             * @property {bayesmech.vision.PongtownResponse.SportMode|null} [sportMode] PongtownResponse sportMode
+             * @property {bayesmech.vision.PongtownResponse.IPingPongTracking|null} [pingpongTracking] PongtownResponse pingpongTracking
+             * @property {bayesmech.vision.PongtownResponse.ISnookerTracking|null} [snookerTracking] PongtownResponse snookerTracking
              * @property {bayesmech.vision.PongtownResponse.IGlobalTablePose|null} [globalTablePose] PongtownResponse globalTablePose
              * @property {number|null} [tableWidthMm] PongtownResponse tableWidthMm
              * @property {number|null} [tableHeightMm] PongtownResponse tableHeightMm
@@ -10978,6 +10981,30 @@ export const bayesmech = $root.bayesmech = (() => {
             PongtownResponse.prototype.ballTrajectory = null;
 
             /**
+             * PongtownResponse sportMode.
+             * @member {bayesmech.vision.PongtownResponse.SportMode} sportMode
+             * @memberof bayesmech.vision.PongtownResponse
+             * @instance
+             */
+            PongtownResponse.prototype.sportMode = 0;
+
+            /**
+             * PongtownResponse pingpongTracking.
+             * @member {bayesmech.vision.PongtownResponse.IPingPongTracking|null|undefined} pingpongTracking
+             * @memberof bayesmech.vision.PongtownResponse
+             * @instance
+             */
+            PongtownResponse.prototype.pingpongTracking = null;
+
+            /**
+             * PongtownResponse snookerTracking.
+             * @member {bayesmech.vision.PongtownResponse.ISnookerTracking|null|undefined} snookerTracking
+             * @memberof bayesmech.vision.PongtownResponse
+             * @instance
+             */
+            PongtownResponse.prototype.snookerTracking = null;
+
+            /**
              * PongtownResponse globalTablePose.
              * @member {bayesmech.vision.PongtownResponse.IGlobalTablePose|null|undefined} globalTablePose
              * @memberof bayesmech.vision.PongtownResponse
@@ -11016,6 +11043,20 @@ export const bayesmech = $root.bayesmech = (() => {
              * @instance
              */
             PongtownResponse.prototype.netHeightMm = 0;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * PongtownResponse tracking.
+             * @member {"pingpongTracking"|"snookerTracking"|undefined} tracking
+             * @memberof bayesmech.vision.PongtownResponse
+             * @instance
+             */
+            Object.defineProperty(PongtownResponse.prototype, "tracking", {
+                get: $util.oneOfGetter($oneOfFields = ["pingpongTracking", "snookerTracking"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
 
             /**
              * Creates a new PongtownResponse instance using the specified properties.
@@ -11065,6 +11106,12 @@ export const bayesmech = $root.bayesmech = (() => {
                         $root.bayesmech.vision.PongtownResponse.BallPosition.encode(message.ballPositions[i], writer.uint32(/* id 10, wireType 2 =*/82).fork()).ldelim();
                 if (message.ballTrajectory != null && Object.hasOwnProperty.call(message, "ballTrajectory"))
                     $root.bayesmech.vision.PongtownResponse.BallTrajectory.encode(message.ballTrajectory, writer.uint32(/* id 11, wireType 2 =*/90).fork()).ldelim();
+                if (message.sportMode != null && Object.hasOwnProperty.call(message, "sportMode"))
+                    writer.uint32(/* id 12, wireType 0 =*/96).int32(message.sportMode);
+                if (message.pingpongTracking != null && Object.hasOwnProperty.call(message, "pingpongTracking"))
+                    $root.bayesmech.vision.PongtownResponse.PingPongTracking.encode(message.pingpongTracking, writer.uint32(/* id 13, wireType 2 =*/106).fork()).ldelim();
+                if (message.snookerTracking != null && Object.hasOwnProperty.call(message, "snookerTracking"))
+                    $root.bayesmech.vision.PongtownResponse.SnookerTracking.encode(message.snookerTracking, writer.uint32(/* id 14, wireType 2 =*/114).fork()).ldelim();
                 return writer;
             };
 
@@ -11129,6 +11176,18 @@ export const bayesmech = $root.bayesmech = (() => {
                             message.ballTrajectory = $root.bayesmech.vision.PongtownResponse.BallTrajectory.decode(reader, reader.uint32());
                             break;
                         }
+                    case 12: {
+                            message.sportMode = reader.int32();
+                            break;
+                        }
+                    case 13: {
+                            message.pingpongTracking = $root.bayesmech.vision.PongtownResponse.PingPongTracking.decode(reader, reader.uint32());
+                            break;
+                        }
+                    case 14: {
+                            message.snookerTracking = $root.bayesmech.vision.PongtownResponse.SnookerTracking.decode(reader, reader.uint32());
+                            break;
+                        }
                     case 3: {
                             message.globalTablePose = $root.bayesmech.vision.PongtownResponse.GlobalTablePose.decode(reader, reader.uint32());
                             break;
@@ -11184,6 +11243,7 @@ export const bayesmech = $root.bayesmech = (() => {
             PongtownResponse.verify = function verify(message) {
                 if (typeof message !== "object" || message === null)
                     return "object expected";
+                let properties = {};
                 if (message.frameIdentifier != null && message.hasOwnProperty("frameIdentifier")) {
                     let error = $root.bayesmech.vision.PerceiverFrameIdentifier.verify(message.frameIdentifier);
                     if (error)
@@ -11221,6 +11281,33 @@ export const bayesmech = $root.bayesmech = (() => {
                     let error = $root.bayesmech.vision.PongtownResponse.BallTrajectory.verify(message.ballTrajectory);
                     if (error)
                         return "ballTrajectory." + error;
+                }
+                if (message.sportMode != null && message.hasOwnProperty("sportMode"))
+                    switch (message.sportMode) {
+                    default:
+                        return "sportMode: enum value expected";
+                    case 0:
+                    case 1:
+                    case 2:
+                        break;
+                    }
+                if (message.pingpongTracking != null && message.hasOwnProperty("pingpongTracking")) {
+                    properties.tracking = 1;
+                    {
+                        let error = $root.bayesmech.vision.PongtownResponse.PingPongTracking.verify(message.pingpongTracking);
+                        if (error)
+                            return "pingpongTracking." + error;
+                    }
+                }
+                if (message.snookerTracking != null && message.hasOwnProperty("snookerTracking")) {
+                    if (properties.tracking === 1)
+                        return "tracking: multiple values";
+                    properties.tracking = 1;
+                    {
+                        let error = $root.bayesmech.vision.PongtownResponse.SnookerTracking.verify(message.snookerTracking);
+                        if (error)
+                            return "snookerTracking." + error;
+                    }
                 }
                 if (message.globalTablePose != null && message.hasOwnProperty("globalTablePose")) {
                     let error = $root.bayesmech.vision.PongtownResponse.GlobalTablePose.verify(message.globalTablePose);
@@ -11294,6 +11381,36 @@ export const bayesmech = $root.bayesmech = (() => {
                         throw TypeError(".bayesmech.vision.PongtownResponse.ballTrajectory: object expected");
                     message.ballTrajectory = $root.bayesmech.vision.PongtownResponse.BallTrajectory.fromObject(object.ballTrajectory);
                 }
+                switch (object.sportMode) {
+                default:
+                    if (typeof object.sportMode === "number") {
+                        message.sportMode = object.sportMode;
+                        break;
+                    }
+                    break;
+                case "SPORT_MODE_UNKNOWN":
+                case 0:
+                    message.sportMode = 0;
+                    break;
+                case "PINGPONG":
+                case 1:
+                    message.sportMode = 1;
+                    break;
+                case "SNOOKER":
+                case 2:
+                    message.sportMode = 2;
+                    break;
+                }
+                if (object.pingpongTracking != null) {
+                    if (typeof object.pingpongTracking !== "object")
+                        throw TypeError(".bayesmech.vision.PongtownResponse.pingpongTracking: object expected");
+                    message.pingpongTracking = $root.bayesmech.vision.PongtownResponse.PingPongTracking.fromObject(object.pingpongTracking);
+                }
+                if (object.snookerTracking != null) {
+                    if (typeof object.snookerTracking !== "object")
+                        throw TypeError(".bayesmech.vision.PongtownResponse.snookerTracking: object expected");
+                    message.snookerTracking = $root.bayesmech.vision.PongtownResponse.SnookerTracking.fromObject(object.snookerTracking);
+                }
                 if (object.globalTablePose != null) {
                     if (typeof object.globalTablePose !== "object")
                         throw TypeError(".bayesmech.vision.PongtownResponse.globalTablePose: object expected");
@@ -11337,6 +11454,7 @@ export const bayesmech = $root.bayesmech = (() => {
                     object.netHeightMm = 0;
                     object.frameOutput = null;
                     object.ballTrajectory = null;
+                    object.sportMode = options.enums === String ? "SPORT_MODE_UNKNOWN" : 0;
                 }
                 if (message.frameIdentifier != null && message.hasOwnProperty("frameIdentifier"))
                     object.frameIdentifier = $root.bayesmech.vision.PerceiverFrameIdentifier.toObject(message.frameIdentifier, options);
@@ -11366,6 +11484,18 @@ export const bayesmech = $root.bayesmech = (() => {
                 }
                 if (message.ballTrajectory != null && message.hasOwnProperty("ballTrajectory"))
                     object.ballTrajectory = $root.bayesmech.vision.PongtownResponse.BallTrajectory.toObject(message.ballTrajectory, options);
+                if (message.sportMode != null && message.hasOwnProperty("sportMode"))
+                    object.sportMode = options.enums === String ? $root.bayesmech.vision.PongtownResponse.SportMode[message.sportMode] === undefined ? message.sportMode : $root.bayesmech.vision.PongtownResponse.SportMode[message.sportMode] : message.sportMode;
+                if (message.pingpongTracking != null && message.hasOwnProperty("pingpongTracking")) {
+                    object.pingpongTracking = $root.bayesmech.vision.PongtownResponse.PingPongTracking.toObject(message.pingpongTracking, options);
+                    if (options.oneofs)
+                        object.tracking = "pingpongTracking";
+                }
+                if (message.snookerTracking != null && message.hasOwnProperty("snookerTracking")) {
+                    object.snookerTracking = $root.bayesmech.vision.PongtownResponse.SnookerTracking.toObject(message.snookerTracking, options);
+                    if (options.oneofs)
+                        object.tracking = "snookerTracking";
+                }
                 return object;
             };
 
@@ -11394,6 +11524,22 @@ export const bayesmech = $root.bayesmech = (() => {
                 }
                 return typeUrlPrefix + "/bayesmech.vision.PongtownResponse";
             };
+
+            /**
+             * SportMode enum.
+             * @name bayesmech.vision.PongtownResponse.SportMode
+             * @enum {number}
+             * @property {number} SPORT_MODE_UNKNOWN=0 SPORT_MODE_UNKNOWN value
+             * @property {number} PINGPONG=1 PINGPONG value
+             * @property {number} SNOOKER=2 SNOOKER value
+             */
+            PongtownResponse.SportMode = (function() {
+                const valuesById = {}, values = Object.create(valuesById);
+                values[valuesById[0] = "SPORT_MODE_UNKNOWN"] = 0;
+                values[valuesById[1] = "PINGPONG"] = 1;
+                values[valuesById[2] = "SNOOKER"] = 2;
+                return values;
+            })();
 
             PongtownResponse.TablePose = (function() {
 
@@ -15660,6 +15806,1081 @@ export const bayesmech = $root.bayesmech = (() => {
                 };
 
                 return BallTrajectory;
+            })();
+
+            PongtownResponse.PingPongTracking = (function() {
+
+                /**
+                 * Properties of a PingPongTracking.
+                 * @memberof bayesmech.vision.PongtownResponse
+                 * @interface IPingPongTracking
+                 * @property {Array.<bayesmech.vision.PongtownResponse.IBallPosition>|null} [ballPositions] PingPongTracking ballPositions
+                 * @property {bayesmech.vision.PongtownResponse.IBallTrajectory|null} [ballTrajectory] PingPongTracking ballTrajectory
+                 */
+
+                /**
+                 * Constructs a new PingPongTracking.
+                 * @memberof bayesmech.vision.PongtownResponse
+                 * @classdesc Represents a PingPongTracking.
+                 * @implements IPingPongTracking
+                 * @constructor
+                 * @param {bayesmech.vision.PongtownResponse.IPingPongTracking=} [properties] Properties to set
+                 */
+                function PingPongTracking(properties) {
+                    this.ballPositions = [];
+                    if (properties)
+                        for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                            if (properties[keys[i]] != null)
+                                this[keys[i]] = properties[keys[i]];
+                }
+
+                /**
+                 * PingPongTracking ballPositions.
+                 * @member {Array.<bayesmech.vision.PongtownResponse.IBallPosition>} ballPositions
+                 * @memberof bayesmech.vision.PongtownResponse.PingPongTracking
+                 * @instance
+                 */
+                PingPongTracking.prototype.ballPositions = $util.emptyArray;
+
+                /**
+                 * PingPongTracking ballTrajectory.
+                 * @member {bayesmech.vision.PongtownResponse.IBallTrajectory|null|undefined} ballTrajectory
+                 * @memberof bayesmech.vision.PongtownResponse.PingPongTracking
+                 * @instance
+                 */
+                PingPongTracking.prototype.ballTrajectory = null;
+
+                /**
+                 * Creates a new PingPongTracking instance using the specified properties.
+                 * @function create
+                 * @memberof bayesmech.vision.PongtownResponse.PingPongTracking
+                 * @static
+                 * @param {bayesmech.vision.PongtownResponse.IPingPongTracking=} [properties] Properties to set
+                 * @returns {bayesmech.vision.PongtownResponse.PingPongTracking} PingPongTracking instance
+                 */
+                PingPongTracking.create = function create(properties) {
+                    return new PingPongTracking(properties);
+                };
+
+                /**
+                 * Encodes the specified PingPongTracking message. Does not implicitly {@link bayesmech.vision.PongtownResponse.PingPongTracking.verify|verify} messages.
+                 * @function encode
+                 * @memberof bayesmech.vision.PongtownResponse.PingPongTracking
+                 * @static
+                 * @param {bayesmech.vision.PongtownResponse.IPingPongTracking} message PingPongTracking message or plain object to encode
+                 * @param {$protobuf.Writer} [writer] Writer to encode to
+                 * @returns {$protobuf.Writer} Writer
+                 */
+                PingPongTracking.encode = function encode(message, writer) {
+                    if (!writer)
+                        writer = $Writer.create();
+                    if (message.ballPositions != null && message.ballPositions.length)
+                        for (let i = 0; i < message.ballPositions.length; ++i)
+                            $root.bayesmech.vision.PongtownResponse.BallPosition.encode(message.ballPositions[i], writer.uint32(/* id 1, wireType 2 =*/10).fork()).ldelim();
+                    if (message.ballTrajectory != null && Object.hasOwnProperty.call(message, "ballTrajectory"))
+                        $root.bayesmech.vision.PongtownResponse.BallTrajectory.encode(message.ballTrajectory, writer.uint32(/* id 2, wireType 2 =*/18).fork()).ldelim();
+                    return writer;
+                };
+
+                /**
+                 * Encodes the specified PingPongTracking message, length delimited. Does not implicitly {@link bayesmech.vision.PongtownResponse.PingPongTracking.verify|verify} messages.
+                 * @function encodeDelimited
+                 * @memberof bayesmech.vision.PongtownResponse.PingPongTracking
+                 * @static
+                 * @param {bayesmech.vision.PongtownResponse.IPingPongTracking} message PingPongTracking message or plain object to encode
+                 * @param {$protobuf.Writer} [writer] Writer to encode to
+                 * @returns {$protobuf.Writer} Writer
+                 */
+                PingPongTracking.encodeDelimited = function encodeDelimited(message, writer) {
+                    return this.encode(message, writer).ldelim();
+                };
+
+                /**
+                 * Decodes a PingPongTracking message from the specified reader or buffer.
+                 * @function decode
+                 * @memberof bayesmech.vision.PongtownResponse.PingPongTracking
+                 * @static
+                 * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+                 * @param {number} [length] Message length if known beforehand
+                 * @returns {bayesmech.vision.PongtownResponse.PingPongTracking} PingPongTracking
+                 * @throws {Error} If the payload is not a reader or valid buffer
+                 * @throws {$protobuf.util.ProtocolError} If required fields are missing
+                 */
+                PingPongTracking.decode = function decode(reader, length, error) {
+                    if (!(reader instanceof $Reader))
+                        reader = $Reader.create(reader);
+                    let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.PongtownResponse.PingPongTracking();
+                    while (reader.pos < end) {
+                        let tag = reader.uint32();
+                        if (tag === error)
+                            break;
+                        switch (tag >>> 3) {
+                        case 1: {
+                                if (!(message.ballPositions && message.ballPositions.length))
+                                    message.ballPositions = [];
+                                message.ballPositions.push($root.bayesmech.vision.PongtownResponse.BallPosition.decode(reader, reader.uint32()));
+                                break;
+                            }
+                        case 2: {
+                                message.ballTrajectory = $root.bayesmech.vision.PongtownResponse.BallTrajectory.decode(reader, reader.uint32());
+                                break;
+                            }
+                        default:
+                            reader.skipType(tag & 7);
+                            break;
+                        }
+                    }
+                    return message;
+                };
+
+                /**
+                 * Decodes a PingPongTracking message from the specified reader or buffer, length delimited.
+                 * @function decodeDelimited
+                 * @memberof bayesmech.vision.PongtownResponse.PingPongTracking
+                 * @static
+                 * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+                 * @returns {bayesmech.vision.PongtownResponse.PingPongTracking} PingPongTracking
+                 * @throws {Error} If the payload is not a reader or valid buffer
+                 * @throws {$protobuf.util.ProtocolError} If required fields are missing
+                 */
+                PingPongTracking.decodeDelimited = function decodeDelimited(reader) {
+                    if (!(reader instanceof $Reader))
+                        reader = new $Reader(reader);
+                    return this.decode(reader, reader.uint32());
+                };
+
+                /**
+                 * Verifies a PingPongTracking message.
+                 * @function verify
+                 * @memberof bayesmech.vision.PongtownResponse.PingPongTracking
+                 * @static
+                 * @param {Object.<string,*>} message Plain object to verify
+                 * @returns {string|null} `null` if valid, otherwise the reason why it is not
+                 */
+                PingPongTracking.verify = function verify(message) {
+                    if (typeof message !== "object" || message === null)
+                        return "object expected";
+                    if (message.ballPositions != null && message.hasOwnProperty("ballPositions")) {
+                        if (!Array.isArray(message.ballPositions))
+                            return "ballPositions: array expected";
+                        for (let i = 0; i < message.ballPositions.length; ++i) {
+                            let error = $root.bayesmech.vision.PongtownResponse.BallPosition.verify(message.ballPositions[i]);
+                            if (error)
+                                return "ballPositions." + error;
+                        }
+                    }
+                    if (message.ballTrajectory != null && message.hasOwnProperty("ballTrajectory")) {
+                        let error = $root.bayesmech.vision.PongtownResponse.BallTrajectory.verify(message.ballTrajectory);
+                        if (error)
+                            return "ballTrajectory." + error;
+                    }
+                    return null;
+                };
+
+                /**
+                 * Creates a PingPongTracking message from a plain object. Also converts values to their respective internal types.
+                 * @function fromObject
+                 * @memberof bayesmech.vision.PongtownResponse.PingPongTracking
+                 * @static
+                 * @param {Object.<string,*>} object Plain object
+                 * @returns {bayesmech.vision.PongtownResponse.PingPongTracking} PingPongTracking
+                 */
+                PingPongTracking.fromObject = function fromObject(object) {
+                    if (object instanceof $root.bayesmech.vision.PongtownResponse.PingPongTracking)
+                        return object;
+                    let message = new $root.bayesmech.vision.PongtownResponse.PingPongTracking();
+                    if (object.ballPositions) {
+                        if (!Array.isArray(object.ballPositions))
+                            throw TypeError(".bayesmech.vision.PongtownResponse.PingPongTracking.ballPositions: array expected");
+                        message.ballPositions = [];
+                        for (let i = 0; i < object.ballPositions.length; ++i) {
+                            if (typeof object.ballPositions[i] !== "object")
+                                throw TypeError(".bayesmech.vision.PongtownResponse.PingPongTracking.ballPositions: object expected");
+                            message.ballPositions[i] = $root.bayesmech.vision.PongtownResponse.BallPosition.fromObject(object.ballPositions[i]);
+                        }
+                    }
+                    if (object.ballTrajectory != null) {
+                        if (typeof object.ballTrajectory !== "object")
+                            throw TypeError(".bayesmech.vision.PongtownResponse.PingPongTracking.ballTrajectory: object expected");
+                        message.ballTrajectory = $root.bayesmech.vision.PongtownResponse.BallTrajectory.fromObject(object.ballTrajectory);
+                    }
+                    return message;
+                };
+
+                /**
+                 * Creates a plain object from a PingPongTracking message. Also converts values to other types if specified.
+                 * @function toObject
+                 * @memberof bayesmech.vision.PongtownResponse.PingPongTracking
+                 * @static
+                 * @param {bayesmech.vision.PongtownResponse.PingPongTracking} message PingPongTracking
+                 * @param {$protobuf.IConversionOptions} [options] Conversion options
+                 * @returns {Object.<string,*>} Plain object
+                 */
+                PingPongTracking.toObject = function toObject(message, options) {
+                    if (!options)
+                        options = {};
+                    let object = {};
+                    if (options.arrays || options.defaults)
+                        object.ballPositions = [];
+                    if (options.defaults)
+                        object.ballTrajectory = null;
+                    if (message.ballPositions && message.ballPositions.length) {
+                        object.ballPositions = [];
+                        for (let j = 0; j < message.ballPositions.length; ++j)
+                            object.ballPositions[j] = $root.bayesmech.vision.PongtownResponse.BallPosition.toObject(message.ballPositions[j], options);
+                    }
+                    if (message.ballTrajectory != null && message.hasOwnProperty("ballTrajectory"))
+                        object.ballTrajectory = $root.bayesmech.vision.PongtownResponse.BallTrajectory.toObject(message.ballTrajectory, options);
+                    return object;
+                };
+
+                /**
+                 * Converts this PingPongTracking to JSON.
+                 * @function toJSON
+                 * @memberof bayesmech.vision.PongtownResponse.PingPongTracking
+                 * @instance
+                 * @returns {Object.<string,*>} JSON object
+                 */
+                PingPongTracking.prototype.toJSON = function toJSON() {
+                    return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+                };
+
+                /**
+                 * Gets the default type url for PingPongTracking
+                 * @function getTypeUrl
+                 * @memberof bayesmech.vision.PongtownResponse.PingPongTracking
+                 * @static
+                 * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+                 * @returns {string} The default type url
+                 */
+                PingPongTracking.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+                    if (typeUrlPrefix === undefined) {
+                        typeUrlPrefix = "type.googleapis.com";
+                    }
+                    return typeUrlPrefix + "/bayesmech.vision.PongtownResponse.PingPongTracking";
+                };
+
+                return PingPongTracking;
+            })();
+
+            PongtownResponse.SnookerBallPosition = (function() {
+
+                /**
+                 * Properties of a SnookerBallPosition.
+                 * @memberof bayesmech.vision.PongtownResponse
+                 * @interface ISnookerBallPosition
+                 * @property {number|null} [objectId] SnookerBallPosition objectId
+                 * @property {string|null} [label] SnookerBallPosition label
+                 * @property {number|null} [frameIdx] SnookerBallPosition frameIdx
+                 * @property {number|null} [frameNumber] SnookerBallPosition frameNumber
+                 * @property {number|Long|null} [timestampNs] SnookerBallPosition timestampNs
+                 * @property {number|null} [uImg] SnookerBallPosition uImg
+                 * @property {number|null} [vImg] SnookerBallPosition vImg
+                 * @property {number|null} [areaPx] SnookerBallPosition areaPx
+                 * @property {number|null} [confidence] SnookerBallPosition confidence
+                 * @property {boolean|null} [hasTablePosition] SnookerBallPosition hasTablePosition
+                 * @property {Array.<number>|null} [camXyzMm] SnookerBallPosition camXyzMm
+                 * @property {Array.<number>|null} [tableXyzMm] SnookerBallPosition tableXyzMm
+                 * @property {boolean|null} [insideTable] SnookerBallPosition insideTable
+                 */
+
+                /**
+                 * Constructs a new SnookerBallPosition.
+                 * @memberof bayesmech.vision.PongtownResponse
+                 * @classdesc Represents a SnookerBallPosition.
+                 * @implements ISnookerBallPosition
+                 * @constructor
+                 * @param {bayesmech.vision.PongtownResponse.ISnookerBallPosition=} [properties] Properties to set
+                 */
+                function SnookerBallPosition(properties) {
+                    this.camXyzMm = [];
+                    this.tableXyzMm = [];
+                    if (properties)
+                        for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                            if (properties[keys[i]] != null)
+                                this[keys[i]] = properties[keys[i]];
+                }
+
+                /**
+                 * SnookerBallPosition objectId.
+                 * @member {number} objectId
+                 * @memberof bayesmech.vision.PongtownResponse.SnookerBallPosition
+                 * @instance
+                 */
+                SnookerBallPosition.prototype.objectId = 0;
+
+                /**
+                 * SnookerBallPosition label.
+                 * @member {string} label
+                 * @memberof bayesmech.vision.PongtownResponse.SnookerBallPosition
+                 * @instance
+                 */
+                SnookerBallPosition.prototype.label = "";
+
+                /**
+                 * SnookerBallPosition frameIdx.
+                 * @member {number} frameIdx
+                 * @memberof bayesmech.vision.PongtownResponse.SnookerBallPosition
+                 * @instance
+                 */
+                SnookerBallPosition.prototype.frameIdx = 0;
+
+                /**
+                 * SnookerBallPosition frameNumber.
+                 * @member {number} frameNumber
+                 * @memberof bayesmech.vision.PongtownResponse.SnookerBallPosition
+                 * @instance
+                 */
+                SnookerBallPosition.prototype.frameNumber = 0;
+
+                /**
+                 * SnookerBallPosition timestampNs.
+                 * @member {number|Long} timestampNs
+                 * @memberof bayesmech.vision.PongtownResponse.SnookerBallPosition
+                 * @instance
+                 */
+                SnookerBallPosition.prototype.timestampNs = $util.Long ? $util.Long.fromBits(0,0,true) : 0;
+
+                /**
+                 * SnookerBallPosition uImg.
+                 * @member {number} uImg
+                 * @memberof bayesmech.vision.PongtownResponse.SnookerBallPosition
+                 * @instance
+                 */
+                SnookerBallPosition.prototype.uImg = 0;
+
+                /**
+                 * SnookerBallPosition vImg.
+                 * @member {number} vImg
+                 * @memberof bayesmech.vision.PongtownResponse.SnookerBallPosition
+                 * @instance
+                 */
+                SnookerBallPosition.prototype.vImg = 0;
+
+                /**
+                 * SnookerBallPosition areaPx.
+                 * @member {number} areaPx
+                 * @memberof bayesmech.vision.PongtownResponse.SnookerBallPosition
+                 * @instance
+                 */
+                SnookerBallPosition.prototype.areaPx = 0;
+
+                /**
+                 * SnookerBallPosition confidence.
+                 * @member {number} confidence
+                 * @memberof bayesmech.vision.PongtownResponse.SnookerBallPosition
+                 * @instance
+                 */
+                SnookerBallPosition.prototype.confidence = 0;
+
+                /**
+                 * SnookerBallPosition hasTablePosition.
+                 * @member {boolean} hasTablePosition
+                 * @memberof bayesmech.vision.PongtownResponse.SnookerBallPosition
+                 * @instance
+                 */
+                SnookerBallPosition.prototype.hasTablePosition = false;
+
+                /**
+                 * SnookerBallPosition camXyzMm.
+                 * @member {Array.<number>} camXyzMm
+                 * @memberof bayesmech.vision.PongtownResponse.SnookerBallPosition
+                 * @instance
+                 */
+                SnookerBallPosition.prototype.camXyzMm = $util.emptyArray;
+
+                /**
+                 * SnookerBallPosition tableXyzMm.
+                 * @member {Array.<number>} tableXyzMm
+                 * @memberof bayesmech.vision.PongtownResponse.SnookerBallPosition
+                 * @instance
+                 */
+                SnookerBallPosition.prototype.tableXyzMm = $util.emptyArray;
+
+                /**
+                 * SnookerBallPosition insideTable.
+                 * @member {boolean} insideTable
+                 * @memberof bayesmech.vision.PongtownResponse.SnookerBallPosition
+                 * @instance
+                 */
+                SnookerBallPosition.prototype.insideTable = false;
+
+                /**
+                 * Creates a new SnookerBallPosition instance using the specified properties.
+                 * @function create
+                 * @memberof bayesmech.vision.PongtownResponse.SnookerBallPosition
+                 * @static
+                 * @param {bayesmech.vision.PongtownResponse.ISnookerBallPosition=} [properties] Properties to set
+                 * @returns {bayesmech.vision.PongtownResponse.SnookerBallPosition} SnookerBallPosition instance
+                 */
+                SnookerBallPosition.create = function create(properties) {
+                    return new SnookerBallPosition(properties);
+                };
+
+                /**
+                 * Encodes the specified SnookerBallPosition message. Does not implicitly {@link bayesmech.vision.PongtownResponse.SnookerBallPosition.verify|verify} messages.
+                 * @function encode
+                 * @memberof bayesmech.vision.PongtownResponse.SnookerBallPosition
+                 * @static
+                 * @param {bayesmech.vision.PongtownResponse.ISnookerBallPosition} message SnookerBallPosition message or plain object to encode
+                 * @param {$protobuf.Writer} [writer] Writer to encode to
+                 * @returns {$protobuf.Writer} Writer
+                 */
+                SnookerBallPosition.encode = function encode(message, writer) {
+                    if (!writer)
+                        writer = $Writer.create();
+                    if (message.objectId != null && Object.hasOwnProperty.call(message, "objectId"))
+                        writer.uint32(/* id 1, wireType 0 =*/8).uint32(message.objectId);
+                    if (message.label != null && Object.hasOwnProperty.call(message, "label"))
+                        writer.uint32(/* id 2, wireType 2 =*/18).string(message.label);
+                    if (message.frameIdx != null && Object.hasOwnProperty.call(message, "frameIdx"))
+                        writer.uint32(/* id 3, wireType 0 =*/24).uint32(message.frameIdx);
+                    if (message.frameNumber != null && Object.hasOwnProperty.call(message, "frameNumber"))
+                        writer.uint32(/* id 4, wireType 0 =*/32).uint32(message.frameNumber);
+                    if (message.timestampNs != null && Object.hasOwnProperty.call(message, "timestampNs"))
+                        writer.uint32(/* id 5, wireType 0 =*/40).uint64(message.timestampNs);
+                    if (message.uImg != null && Object.hasOwnProperty.call(message, "uImg"))
+                        writer.uint32(/* id 6, wireType 5 =*/53).float(message.uImg);
+                    if (message.vImg != null && Object.hasOwnProperty.call(message, "vImg"))
+                        writer.uint32(/* id 7, wireType 5 =*/61).float(message.vImg);
+                    if (message.areaPx != null && Object.hasOwnProperty.call(message, "areaPx"))
+                        writer.uint32(/* id 8, wireType 0 =*/64).uint32(message.areaPx);
+                    if (message.confidence != null && Object.hasOwnProperty.call(message, "confidence"))
+                        writer.uint32(/* id 9, wireType 5 =*/77).float(message.confidence);
+                    if (message.hasTablePosition != null && Object.hasOwnProperty.call(message, "hasTablePosition"))
+                        writer.uint32(/* id 10, wireType 0 =*/80).bool(message.hasTablePosition);
+                    if (message.camXyzMm != null && message.camXyzMm.length) {
+                        writer.uint32(/* id 11, wireType 2 =*/90).fork();
+                        for (let i = 0; i < message.camXyzMm.length; ++i)
+                            writer.float(message.camXyzMm[i]);
+                        writer.ldelim();
+                    }
+                    if (message.tableXyzMm != null && message.tableXyzMm.length) {
+                        writer.uint32(/* id 12, wireType 2 =*/98).fork();
+                        for (let i = 0; i < message.tableXyzMm.length; ++i)
+                            writer.float(message.tableXyzMm[i]);
+                        writer.ldelim();
+                    }
+                    if (message.insideTable != null && Object.hasOwnProperty.call(message, "insideTable"))
+                        writer.uint32(/* id 13, wireType 0 =*/104).bool(message.insideTable);
+                    return writer;
+                };
+
+                /**
+                 * Encodes the specified SnookerBallPosition message, length delimited. Does not implicitly {@link bayesmech.vision.PongtownResponse.SnookerBallPosition.verify|verify} messages.
+                 * @function encodeDelimited
+                 * @memberof bayesmech.vision.PongtownResponse.SnookerBallPosition
+                 * @static
+                 * @param {bayesmech.vision.PongtownResponse.ISnookerBallPosition} message SnookerBallPosition message or plain object to encode
+                 * @param {$protobuf.Writer} [writer] Writer to encode to
+                 * @returns {$protobuf.Writer} Writer
+                 */
+                SnookerBallPosition.encodeDelimited = function encodeDelimited(message, writer) {
+                    return this.encode(message, writer).ldelim();
+                };
+
+                /**
+                 * Decodes a SnookerBallPosition message from the specified reader or buffer.
+                 * @function decode
+                 * @memberof bayesmech.vision.PongtownResponse.SnookerBallPosition
+                 * @static
+                 * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+                 * @param {number} [length] Message length if known beforehand
+                 * @returns {bayesmech.vision.PongtownResponse.SnookerBallPosition} SnookerBallPosition
+                 * @throws {Error} If the payload is not a reader or valid buffer
+                 * @throws {$protobuf.util.ProtocolError} If required fields are missing
+                 */
+                SnookerBallPosition.decode = function decode(reader, length, error) {
+                    if (!(reader instanceof $Reader))
+                        reader = $Reader.create(reader);
+                    let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.PongtownResponse.SnookerBallPosition();
+                    while (reader.pos < end) {
+                        let tag = reader.uint32();
+                        if (tag === error)
+                            break;
+                        switch (tag >>> 3) {
+                        case 1: {
+                                message.objectId = reader.uint32();
+                                break;
+                            }
+                        case 2: {
+                                message.label = reader.string();
+                                break;
+                            }
+                        case 3: {
+                                message.frameIdx = reader.uint32();
+                                break;
+                            }
+                        case 4: {
+                                message.frameNumber = reader.uint32();
+                                break;
+                            }
+                        case 5: {
+                                message.timestampNs = reader.uint64();
+                                break;
+                            }
+                        case 6: {
+                                message.uImg = reader.float();
+                                break;
+                            }
+                        case 7: {
+                                message.vImg = reader.float();
+                                break;
+                            }
+                        case 8: {
+                                message.areaPx = reader.uint32();
+                                break;
+                            }
+                        case 9: {
+                                message.confidence = reader.float();
+                                break;
+                            }
+                        case 10: {
+                                message.hasTablePosition = reader.bool();
+                                break;
+                            }
+                        case 11: {
+                                if (!(message.camXyzMm && message.camXyzMm.length))
+                                    message.camXyzMm = [];
+                                if ((tag & 7) === 2) {
+                                    let end2 = reader.uint32() + reader.pos;
+                                    while (reader.pos < end2)
+                                        message.camXyzMm.push(reader.float());
+                                } else
+                                    message.camXyzMm.push(reader.float());
+                                break;
+                            }
+                        case 12: {
+                                if (!(message.tableXyzMm && message.tableXyzMm.length))
+                                    message.tableXyzMm = [];
+                                if ((tag & 7) === 2) {
+                                    let end2 = reader.uint32() + reader.pos;
+                                    while (reader.pos < end2)
+                                        message.tableXyzMm.push(reader.float());
+                                } else
+                                    message.tableXyzMm.push(reader.float());
+                                break;
+                            }
+                        case 13: {
+                                message.insideTable = reader.bool();
+                                break;
+                            }
+                        default:
+                            reader.skipType(tag & 7);
+                            break;
+                        }
+                    }
+                    return message;
+                };
+
+                /**
+                 * Decodes a SnookerBallPosition message from the specified reader or buffer, length delimited.
+                 * @function decodeDelimited
+                 * @memberof bayesmech.vision.PongtownResponse.SnookerBallPosition
+                 * @static
+                 * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+                 * @returns {bayesmech.vision.PongtownResponse.SnookerBallPosition} SnookerBallPosition
+                 * @throws {Error} If the payload is not a reader or valid buffer
+                 * @throws {$protobuf.util.ProtocolError} If required fields are missing
+                 */
+                SnookerBallPosition.decodeDelimited = function decodeDelimited(reader) {
+                    if (!(reader instanceof $Reader))
+                        reader = new $Reader(reader);
+                    return this.decode(reader, reader.uint32());
+                };
+
+                /**
+                 * Verifies a SnookerBallPosition message.
+                 * @function verify
+                 * @memberof bayesmech.vision.PongtownResponse.SnookerBallPosition
+                 * @static
+                 * @param {Object.<string,*>} message Plain object to verify
+                 * @returns {string|null} `null` if valid, otherwise the reason why it is not
+                 */
+                SnookerBallPosition.verify = function verify(message) {
+                    if (typeof message !== "object" || message === null)
+                        return "object expected";
+                    if (message.objectId != null && message.hasOwnProperty("objectId"))
+                        if (!$util.isInteger(message.objectId))
+                            return "objectId: integer expected";
+                    if (message.label != null && message.hasOwnProperty("label"))
+                        if (!$util.isString(message.label))
+                            return "label: string expected";
+                    if (message.frameIdx != null && message.hasOwnProperty("frameIdx"))
+                        if (!$util.isInteger(message.frameIdx))
+                            return "frameIdx: integer expected";
+                    if (message.frameNumber != null && message.hasOwnProperty("frameNumber"))
+                        if (!$util.isInteger(message.frameNumber))
+                            return "frameNumber: integer expected";
+                    if (message.timestampNs != null && message.hasOwnProperty("timestampNs"))
+                        if (!$util.isInteger(message.timestampNs) && !(message.timestampNs && $util.isInteger(message.timestampNs.low) && $util.isInteger(message.timestampNs.high)))
+                            return "timestampNs: integer|Long expected";
+                    if (message.uImg != null && message.hasOwnProperty("uImg"))
+                        if (typeof message.uImg !== "number")
+                            return "uImg: number expected";
+                    if (message.vImg != null && message.hasOwnProperty("vImg"))
+                        if (typeof message.vImg !== "number")
+                            return "vImg: number expected";
+                    if (message.areaPx != null && message.hasOwnProperty("areaPx"))
+                        if (!$util.isInteger(message.areaPx))
+                            return "areaPx: integer expected";
+                    if (message.confidence != null && message.hasOwnProperty("confidence"))
+                        if (typeof message.confidence !== "number")
+                            return "confidence: number expected";
+                    if (message.hasTablePosition != null && message.hasOwnProperty("hasTablePosition"))
+                        if (typeof message.hasTablePosition !== "boolean")
+                            return "hasTablePosition: boolean expected";
+                    if (message.camXyzMm != null && message.hasOwnProperty("camXyzMm")) {
+                        if (!Array.isArray(message.camXyzMm))
+                            return "camXyzMm: array expected";
+                        for (let i = 0; i < message.camXyzMm.length; ++i)
+                            if (typeof message.camXyzMm[i] !== "number")
+                                return "camXyzMm: number[] expected";
+                    }
+                    if (message.tableXyzMm != null && message.hasOwnProperty("tableXyzMm")) {
+                        if (!Array.isArray(message.tableXyzMm))
+                            return "tableXyzMm: array expected";
+                        for (let i = 0; i < message.tableXyzMm.length; ++i)
+                            if (typeof message.tableXyzMm[i] !== "number")
+                                return "tableXyzMm: number[] expected";
+                    }
+                    if (message.insideTable != null && message.hasOwnProperty("insideTable"))
+                        if (typeof message.insideTable !== "boolean")
+                            return "insideTable: boolean expected";
+                    return null;
+                };
+
+                /**
+                 * Creates a SnookerBallPosition message from a plain object. Also converts values to their respective internal types.
+                 * @function fromObject
+                 * @memberof bayesmech.vision.PongtownResponse.SnookerBallPosition
+                 * @static
+                 * @param {Object.<string,*>} object Plain object
+                 * @returns {bayesmech.vision.PongtownResponse.SnookerBallPosition} SnookerBallPosition
+                 */
+                SnookerBallPosition.fromObject = function fromObject(object) {
+                    if (object instanceof $root.bayesmech.vision.PongtownResponse.SnookerBallPosition)
+                        return object;
+                    let message = new $root.bayesmech.vision.PongtownResponse.SnookerBallPosition();
+                    if (object.objectId != null)
+                        message.objectId = object.objectId >>> 0;
+                    if (object.label != null)
+                        message.label = String(object.label);
+                    if (object.frameIdx != null)
+                        message.frameIdx = object.frameIdx >>> 0;
+                    if (object.frameNumber != null)
+                        message.frameNumber = object.frameNumber >>> 0;
+                    if (object.timestampNs != null)
+                        if ($util.Long)
+                            (message.timestampNs = $util.Long.fromValue(object.timestampNs)).unsigned = true;
+                        else if (typeof object.timestampNs === "string")
+                            message.timestampNs = parseInt(object.timestampNs, 10);
+                        else if (typeof object.timestampNs === "number")
+                            message.timestampNs = object.timestampNs;
+                        else if (typeof object.timestampNs === "object")
+                            message.timestampNs = new $util.LongBits(object.timestampNs.low >>> 0, object.timestampNs.high >>> 0).toNumber(true);
+                    if (object.uImg != null)
+                        message.uImg = Number(object.uImg);
+                    if (object.vImg != null)
+                        message.vImg = Number(object.vImg);
+                    if (object.areaPx != null)
+                        message.areaPx = object.areaPx >>> 0;
+                    if (object.confidence != null)
+                        message.confidence = Number(object.confidence);
+                    if (object.hasTablePosition != null)
+                        message.hasTablePosition = Boolean(object.hasTablePosition);
+                    if (object.camXyzMm) {
+                        if (!Array.isArray(object.camXyzMm))
+                            throw TypeError(".bayesmech.vision.PongtownResponse.SnookerBallPosition.camXyzMm: array expected");
+                        message.camXyzMm = [];
+                        for (let i = 0; i < object.camXyzMm.length; ++i)
+                            message.camXyzMm[i] = Number(object.camXyzMm[i]);
+                    }
+                    if (object.tableXyzMm) {
+                        if (!Array.isArray(object.tableXyzMm))
+                            throw TypeError(".bayesmech.vision.PongtownResponse.SnookerBallPosition.tableXyzMm: array expected");
+                        message.tableXyzMm = [];
+                        for (let i = 0; i < object.tableXyzMm.length; ++i)
+                            message.tableXyzMm[i] = Number(object.tableXyzMm[i]);
+                    }
+                    if (object.insideTable != null)
+                        message.insideTable = Boolean(object.insideTable);
+                    return message;
+                };
+
+                /**
+                 * Creates a plain object from a SnookerBallPosition message. Also converts values to other types if specified.
+                 * @function toObject
+                 * @memberof bayesmech.vision.PongtownResponse.SnookerBallPosition
+                 * @static
+                 * @param {bayesmech.vision.PongtownResponse.SnookerBallPosition} message SnookerBallPosition
+                 * @param {$protobuf.IConversionOptions} [options] Conversion options
+                 * @returns {Object.<string,*>} Plain object
+                 */
+                SnookerBallPosition.toObject = function toObject(message, options) {
+                    if (!options)
+                        options = {};
+                    let object = {};
+                    if (options.arrays || options.defaults) {
+                        object.camXyzMm = [];
+                        object.tableXyzMm = [];
+                    }
+                    if (options.defaults) {
+                        object.objectId = 0;
+                        object.label = "";
+                        object.frameIdx = 0;
+                        object.frameNumber = 0;
+                        if ($util.Long) {
+                            let long = new $util.Long(0, 0, true);
+                            object.timestampNs = options.longs === String ? long.toString() : options.longs === Number ? long.toNumber() : long;
+                        } else
+                            object.timestampNs = options.longs === String ? "0" : 0;
+                        object.uImg = 0;
+                        object.vImg = 0;
+                        object.areaPx = 0;
+                        object.confidence = 0;
+                        object.hasTablePosition = false;
+                        object.insideTable = false;
+                    }
+                    if (message.objectId != null && message.hasOwnProperty("objectId"))
+                        object.objectId = message.objectId;
+                    if (message.label != null && message.hasOwnProperty("label"))
+                        object.label = message.label;
+                    if (message.frameIdx != null && message.hasOwnProperty("frameIdx"))
+                        object.frameIdx = message.frameIdx;
+                    if (message.frameNumber != null && message.hasOwnProperty("frameNumber"))
+                        object.frameNumber = message.frameNumber;
+                    if (message.timestampNs != null && message.hasOwnProperty("timestampNs"))
+                        if (typeof message.timestampNs === "number")
+                            object.timestampNs = options.longs === String ? String(message.timestampNs) : message.timestampNs;
+                        else
+                            object.timestampNs = options.longs === String ? $util.Long.prototype.toString.call(message.timestampNs) : options.longs === Number ? new $util.LongBits(message.timestampNs.low >>> 0, message.timestampNs.high >>> 0).toNumber(true) : message.timestampNs;
+                    if (message.uImg != null && message.hasOwnProperty("uImg"))
+                        object.uImg = options.json && !isFinite(message.uImg) ? String(message.uImg) : message.uImg;
+                    if (message.vImg != null && message.hasOwnProperty("vImg"))
+                        object.vImg = options.json && !isFinite(message.vImg) ? String(message.vImg) : message.vImg;
+                    if (message.areaPx != null && message.hasOwnProperty("areaPx"))
+                        object.areaPx = message.areaPx;
+                    if (message.confidence != null && message.hasOwnProperty("confidence"))
+                        object.confidence = options.json && !isFinite(message.confidence) ? String(message.confidence) : message.confidence;
+                    if (message.hasTablePosition != null && message.hasOwnProperty("hasTablePosition"))
+                        object.hasTablePosition = message.hasTablePosition;
+                    if (message.camXyzMm && message.camXyzMm.length) {
+                        object.camXyzMm = [];
+                        for (let j = 0; j < message.camXyzMm.length; ++j)
+                            object.camXyzMm[j] = options.json && !isFinite(message.camXyzMm[j]) ? String(message.camXyzMm[j]) : message.camXyzMm[j];
+                    }
+                    if (message.tableXyzMm && message.tableXyzMm.length) {
+                        object.tableXyzMm = [];
+                        for (let j = 0; j < message.tableXyzMm.length; ++j)
+                            object.tableXyzMm[j] = options.json && !isFinite(message.tableXyzMm[j]) ? String(message.tableXyzMm[j]) : message.tableXyzMm[j];
+                    }
+                    if (message.insideTable != null && message.hasOwnProperty("insideTable"))
+                        object.insideTable = message.insideTable;
+                    return object;
+                };
+
+                /**
+                 * Converts this SnookerBallPosition to JSON.
+                 * @function toJSON
+                 * @memberof bayesmech.vision.PongtownResponse.SnookerBallPosition
+                 * @instance
+                 * @returns {Object.<string,*>} JSON object
+                 */
+                SnookerBallPosition.prototype.toJSON = function toJSON() {
+                    return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+                };
+
+                /**
+                 * Gets the default type url for SnookerBallPosition
+                 * @function getTypeUrl
+                 * @memberof bayesmech.vision.PongtownResponse.SnookerBallPosition
+                 * @static
+                 * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+                 * @returns {string} The default type url
+                 */
+                SnookerBallPosition.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+                    if (typeUrlPrefix === undefined) {
+                        typeUrlPrefix = "type.googleapis.com";
+                    }
+                    return typeUrlPrefix + "/bayesmech.vision.PongtownResponse.SnookerBallPosition";
+                };
+
+                return SnookerBallPosition;
+            })();
+
+            PongtownResponse.SnookerTracking = (function() {
+
+                /**
+                 * Properties of a SnookerTracking.
+                 * @memberof bayesmech.vision.PongtownResponse
+                 * @interface ISnookerTracking
+                 * @property {Array.<bayesmech.vision.PongtownResponse.ISnookerBallPosition>|null} [ballPositions] SnookerTracking ballPositions
+                 * @property {number|null} [observedFrames] SnookerTracking observedFrames
+                 * @property {number|null} [totalObservations] SnookerTracking totalObservations
+                 */
+
+                /**
+                 * Constructs a new SnookerTracking.
+                 * @memberof bayesmech.vision.PongtownResponse
+                 * @classdesc Represents a SnookerTracking.
+                 * @implements ISnookerTracking
+                 * @constructor
+                 * @param {bayesmech.vision.PongtownResponse.ISnookerTracking=} [properties] Properties to set
+                 */
+                function SnookerTracking(properties) {
+                    this.ballPositions = [];
+                    if (properties)
+                        for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                            if (properties[keys[i]] != null)
+                                this[keys[i]] = properties[keys[i]];
+                }
+
+                /**
+                 * SnookerTracking ballPositions.
+                 * @member {Array.<bayesmech.vision.PongtownResponse.ISnookerBallPosition>} ballPositions
+                 * @memberof bayesmech.vision.PongtownResponse.SnookerTracking
+                 * @instance
+                 */
+                SnookerTracking.prototype.ballPositions = $util.emptyArray;
+
+                /**
+                 * SnookerTracking observedFrames.
+                 * @member {number} observedFrames
+                 * @memberof bayesmech.vision.PongtownResponse.SnookerTracking
+                 * @instance
+                 */
+                SnookerTracking.prototype.observedFrames = 0;
+
+                /**
+                 * SnookerTracking totalObservations.
+                 * @member {number} totalObservations
+                 * @memberof bayesmech.vision.PongtownResponse.SnookerTracking
+                 * @instance
+                 */
+                SnookerTracking.prototype.totalObservations = 0;
+
+                /**
+                 * Creates a new SnookerTracking instance using the specified properties.
+                 * @function create
+                 * @memberof bayesmech.vision.PongtownResponse.SnookerTracking
+                 * @static
+                 * @param {bayesmech.vision.PongtownResponse.ISnookerTracking=} [properties] Properties to set
+                 * @returns {bayesmech.vision.PongtownResponse.SnookerTracking} SnookerTracking instance
+                 */
+                SnookerTracking.create = function create(properties) {
+                    return new SnookerTracking(properties);
+                };
+
+                /**
+                 * Encodes the specified SnookerTracking message. Does not implicitly {@link bayesmech.vision.PongtownResponse.SnookerTracking.verify|verify} messages.
+                 * @function encode
+                 * @memberof bayesmech.vision.PongtownResponse.SnookerTracking
+                 * @static
+                 * @param {bayesmech.vision.PongtownResponse.ISnookerTracking} message SnookerTracking message or plain object to encode
+                 * @param {$protobuf.Writer} [writer] Writer to encode to
+                 * @returns {$protobuf.Writer} Writer
+                 */
+                SnookerTracking.encode = function encode(message, writer) {
+                    if (!writer)
+                        writer = $Writer.create();
+                    if (message.ballPositions != null && message.ballPositions.length)
+                        for (let i = 0; i < message.ballPositions.length; ++i)
+                            $root.bayesmech.vision.PongtownResponse.SnookerBallPosition.encode(message.ballPositions[i], writer.uint32(/* id 1, wireType 2 =*/10).fork()).ldelim();
+                    if (message.observedFrames != null && Object.hasOwnProperty.call(message, "observedFrames"))
+                        writer.uint32(/* id 2, wireType 0 =*/16).uint32(message.observedFrames);
+                    if (message.totalObservations != null && Object.hasOwnProperty.call(message, "totalObservations"))
+                        writer.uint32(/* id 3, wireType 0 =*/24).uint32(message.totalObservations);
+                    return writer;
+                };
+
+                /**
+                 * Encodes the specified SnookerTracking message, length delimited. Does not implicitly {@link bayesmech.vision.PongtownResponse.SnookerTracking.verify|verify} messages.
+                 * @function encodeDelimited
+                 * @memberof bayesmech.vision.PongtownResponse.SnookerTracking
+                 * @static
+                 * @param {bayesmech.vision.PongtownResponse.ISnookerTracking} message SnookerTracking message or plain object to encode
+                 * @param {$protobuf.Writer} [writer] Writer to encode to
+                 * @returns {$protobuf.Writer} Writer
+                 */
+                SnookerTracking.encodeDelimited = function encodeDelimited(message, writer) {
+                    return this.encode(message, writer).ldelim();
+                };
+
+                /**
+                 * Decodes a SnookerTracking message from the specified reader or buffer.
+                 * @function decode
+                 * @memberof bayesmech.vision.PongtownResponse.SnookerTracking
+                 * @static
+                 * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+                 * @param {number} [length] Message length if known beforehand
+                 * @returns {bayesmech.vision.PongtownResponse.SnookerTracking} SnookerTracking
+                 * @throws {Error} If the payload is not a reader or valid buffer
+                 * @throws {$protobuf.util.ProtocolError} If required fields are missing
+                 */
+                SnookerTracking.decode = function decode(reader, length, error) {
+                    if (!(reader instanceof $Reader))
+                        reader = $Reader.create(reader);
+                    let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.PongtownResponse.SnookerTracking();
+                    while (reader.pos < end) {
+                        let tag = reader.uint32();
+                        if (tag === error)
+                            break;
+                        switch (tag >>> 3) {
+                        case 1: {
+                                if (!(message.ballPositions && message.ballPositions.length))
+                                    message.ballPositions = [];
+                                message.ballPositions.push($root.bayesmech.vision.PongtownResponse.SnookerBallPosition.decode(reader, reader.uint32()));
+                                break;
+                            }
+                        case 2: {
+                                message.observedFrames = reader.uint32();
+                                break;
+                            }
+                        case 3: {
+                                message.totalObservations = reader.uint32();
+                                break;
+                            }
+                        default:
+                            reader.skipType(tag & 7);
+                            break;
+                        }
+                    }
+                    return message;
+                };
+
+                /**
+                 * Decodes a SnookerTracking message from the specified reader or buffer, length delimited.
+                 * @function decodeDelimited
+                 * @memberof bayesmech.vision.PongtownResponse.SnookerTracking
+                 * @static
+                 * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+                 * @returns {bayesmech.vision.PongtownResponse.SnookerTracking} SnookerTracking
+                 * @throws {Error} If the payload is not a reader or valid buffer
+                 * @throws {$protobuf.util.ProtocolError} If required fields are missing
+                 */
+                SnookerTracking.decodeDelimited = function decodeDelimited(reader) {
+                    if (!(reader instanceof $Reader))
+                        reader = new $Reader(reader);
+                    return this.decode(reader, reader.uint32());
+                };
+
+                /**
+                 * Verifies a SnookerTracking message.
+                 * @function verify
+                 * @memberof bayesmech.vision.PongtownResponse.SnookerTracking
+                 * @static
+                 * @param {Object.<string,*>} message Plain object to verify
+                 * @returns {string|null} `null` if valid, otherwise the reason why it is not
+                 */
+                SnookerTracking.verify = function verify(message) {
+                    if (typeof message !== "object" || message === null)
+                        return "object expected";
+                    if (message.ballPositions != null && message.hasOwnProperty("ballPositions")) {
+                        if (!Array.isArray(message.ballPositions))
+                            return "ballPositions: array expected";
+                        for (let i = 0; i < message.ballPositions.length; ++i) {
+                            let error = $root.bayesmech.vision.PongtownResponse.SnookerBallPosition.verify(message.ballPositions[i]);
+                            if (error)
+                                return "ballPositions." + error;
+                        }
+                    }
+                    if (message.observedFrames != null && message.hasOwnProperty("observedFrames"))
+                        if (!$util.isInteger(message.observedFrames))
+                            return "observedFrames: integer expected";
+                    if (message.totalObservations != null && message.hasOwnProperty("totalObservations"))
+                        if (!$util.isInteger(message.totalObservations))
+                            return "totalObservations: integer expected";
+                    return null;
+                };
+
+                /**
+                 * Creates a SnookerTracking message from a plain object. Also converts values to their respective internal types.
+                 * @function fromObject
+                 * @memberof bayesmech.vision.PongtownResponse.SnookerTracking
+                 * @static
+                 * @param {Object.<string,*>} object Plain object
+                 * @returns {bayesmech.vision.PongtownResponse.SnookerTracking} SnookerTracking
+                 */
+                SnookerTracking.fromObject = function fromObject(object) {
+                    if (object instanceof $root.bayesmech.vision.PongtownResponse.SnookerTracking)
+                        return object;
+                    let message = new $root.bayesmech.vision.PongtownResponse.SnookerTracking();
+                    if (object.ballPositions) {
+                        if (!Array.isArray(object.ballPositions))
+                            throw TypeError(".bayesmech.vision.PongtownResponse.SnookerTracking.ballPositions: array expected");
+                        message.ballPositions = [];
+                        for (let i = 0; i < object.ballPositions.length; ++i) {
+                            if (typeof object.ballPositions[i] !== "object")
+                                throw TypeError(".bayesmech.vision.PongtownResponse.SnookerTracking.ballPositions: object expected");
+                            message.ballPositions[i] = $root.bayesmech.vision.PongtownResponse.SnookerBallPosition.fromObject(object.ballPositions[i]);
+                        }
+                    }
+                    if (object.observedFrames != null)
+                        message.observedFrames = object.observedFrames >>> 0;
+                    if (object.totalObservations != null)
+                        message.totalObservations = object.totalObservations >>> 0;
+                    return message;
+                };
+
+                /**
+                 * Creates a plain object from a SnookerTracking message. Also converts values to other types if specified.
+                 * @function toObject
+                 * @memberof bayesmech.vision.PongtownResponse.SnookerTracking
+                 * @static
+                 * @param {bayesmech.vision.PongtownResponse.SnookerTracking} message SnookerTracking
+                 * @param {$protobuf.IConversionOptions} [options] Conversion options
+                 * @returns {Object.<string,*>} Plain object
+                 */
+                SnookerTracking.toObject = function toObject(message, options) {
+                    if (!options)
+                        options = {};
+                    let object = {};
+                    if (options.arrays || options.defaults)
+                        object.ballPositions = [];
+                    if (options.defaults) {
+                        object.observedFrames = 0;
+                        object.totalObservations = 0;
+                    }
+                    if (message.ballPositions && message.ballPositions.length) {
+                        object.ballPositions = [];
+                        for (let j = 0; j < message.ballPositions.length; ++j)
+                            object.ballPositions[j] = $root.bayesmech.vision.PongtownResponse.SnookerBallPosition.toObject(message.ballPositions[j], options);
+                    }
+                    if (message.observedFrames != null && message.hasOwnProperty("observedFrames"))
+                        object.observedFrames = message.observedFrames;
+                    if (message.totalObservations != null && message.hasOwnProperty("totalObservations"))
+                        object.totalObservations = message.totalObservations;
+                    return object;
+                };
+
+                /**
+                 * Converts this SnookerTracking to JSON.
+                 * @function toJSON
+                 * @memberof bayesmech.vision.PongtownResponse.SnookerTracking
+                 * @instance
+                 * @returns {Object.<string,*>} JSON object
+                 */
+                SnookerTracking.prototype.toJSON = function toJSON() {
+                    return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+                };
+
+                /**
+                 * Gets the default type url for SnookerTracking
+                 * @function getTypeUrl
+                 * @memberof bayesmech.vision.PongtownResponse.SnookerTracking
+                 * @static
+                 * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+                 * @returns {string} The default type url
+                 */
+                SnookerTracking.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+                    if (typeUrlPrefix === undefined) {
+                        typeUrlPrefix = "type.googleapis.com";
+                    }
+                    return typeUrlPrefix + "/bayesmech.vision.PongtownResponse.SnookerTracking";
+                };
+
+                return SnookerTracking;
             })();
 
             PongtownResponse.GlobalTablePose = (function() {

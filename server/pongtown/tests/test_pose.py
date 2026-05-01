@@ -8,6 +8,7 @@ from pongtown.pose import (
     canonical_midline_mm,
     solve_table_pose,
 )
+from pongtown.main import _config_for_mode, _net_enabled
 
 
 def _cfg() -> dict:
@@ -56,3 +57,12 @@ def test_pnp_works_without_midline():
     R_est, _ = cv2.Rodrigues(res.rvec)
     reproj = _project(P_corners, K, R_est, res.tvec.reshape(3))
     assert np.max(np.linalg.norm(reproj - quad_img, axis=1)) < 1.0
+
+
+def test_snooker_mode_config_uses_full_table_no_net():
+    cfg = _config_for_mode(_cfg(), "snooker")
+    assert cfg["table"]["width_mm"] == 3569
+    assert cfg["table"]["height_mm"] == 1778
+    assert not _net_enabled(cfg)
+    assert "green snooker table top" in cfg["mask_labels"]["table_top"]
+    assert cfg["quad"]["score_full_table_mask"]

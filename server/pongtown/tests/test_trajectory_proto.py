@@ -47,18 +47,18 @@ def test_ball_trajectory_populates_summary_proto() -> None:
     trajectory = extract_ball_trajectory(results, cfg)
 
     summary = pongtown_pb2.PongtownResponse()
-    _populate_ball_trajectory_proto(summary.ball_trajectory, trajectory)
+    _populate_ball_trajectory_proto(summary.pingpong_tracking.ball_trajectory, trajectory)
 
-    assert len(summary.ball_trajectory.positions) == 5
-    assert len(summary.ball_trajectory.segments) == 4
-    assert len(summary.ball_trajectory.bounces) == 1
+    assert len(summary.pingpong_tracking.ball_trajectory.positions) == 5
+    assert len(summary.pingpong_tracking.ball_trajectory.segments) == 4
+    assert len(summary.pingpong_tracking.ball_trajectory.bounces) == 1
     assert len(results[0]["ball_positions"]) == 1
 
-    bounce = summary.ball_trajectory.bounces[0]
+    bounce = summary.pingpong_tracking.ball_trajectory.bounces[0]
     assert bounce.frame_idx == 2
     assert bounce.has_table_position
     assert bounce.prominence_px > 0
 
-    segment = summary.ball_trajectory.segments[0]
+    segment = summary.pingpong_tracking.ball_trajectory.segments[0]
     assert segment.has_table_displacement
     assert segment.dt_s == 1.0

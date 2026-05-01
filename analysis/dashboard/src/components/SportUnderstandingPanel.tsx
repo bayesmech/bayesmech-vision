@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { useDashboard } from '../context/DashboardContext'
 import { fetchRecordingPongtownData } from '../services/api'
 import type { PongtownData, PongtownFrameRecord } from '../types'
+import type { bayesmech } from '../proto/bundle'
 import PongtownTable3D from './PongtownTable3D'
 
 type PoseOverlayMode = 'hull' | 'pnp' | 'global'
@@ -12,17 +13,21 @@ const POSE_OVERLAY_MODES: { id: PoseOverlayMode; label: string }[] = [
   { id: 'global', label: 'Global Pose' },
 ]
 
-const TABLE_HEIGHT_MM = 1525
-
 interface Point2 {
   x: number
   y: number
+}
+
+interface BallPoint extends Point2 {
+  label: string
+  confidence?: number
 }
 
 interface OverlayGeometry {
   tableQuad: Point2[]
   netQuad: Point2[]
   midline: Point2[]
+  ballPoints: BallPoint[]
   iou?: number
   offScreen?: boolean
 }
@@ -58,7 +63,25 @@ const firstNumberList = (source: unknown, names: string[]): number[] => {
   return []
 }
 
-const projectTableMidline = (transform: number[], cameraMatrix: number[]): Point2[] => {
+const sportKind = (
+  record?: bayesmech.vision.PongtownResponse | null,
+): 'pingpong' | 'snooker' | 'unknown' => {
+  if (!record) return 'unknown'
+  if (record.tracking === 'snookerTracking' || record.sportMode === 2) return 'snooker'
+  if (record.tracking === 'pingpongTracking' || record.sportMode === 1) return 'pingpong'
+  if (record.ballTrajectory || (record.ballPositions?.length ?? 0) > 0) return 'pingpong'
+  return 'unknown'
+}
+
+const tableHeightMmForRecord = (record?: bayesmech.vision.PongtownResponse | null): number => (
+  Number(record?.tableHeightMm) || 1525
+)
+
+const projectTableMidline = (
+  transform: number[],
+  cameraMatrix: number[],
+  tableHeightMm: number,
+): Point2[] => {
   if (transform.length < 16 || cameraMatrix.length < 9) return []
 
   const fx = cameraMatrix[0]
@@ -66,8 +89,8 @@ const projectTableMidline = (transform: number[], cameraMatrix: number[]): Point
   const cx = cameraMatrix[2]
   const cy = cameraMatrix[5]
   const points3d = [
-    [0, -TABLE_HEIGHT_MM / 2, 0],
-    [0, TABLE_HEIGHT_MM / 2, 0],
+    [0, -tableHeightMm / 2, 0],
+    [0, tableHeightMm / 2, 0],
   ]
 
   const projected: Point2[] = []
@@ -86,6 +109,20 @@ const projectTableMidline = (transform: number[], cameraMatrix: number[]): Point
   return projected
 }
 
+const snookerBallPoints = (record?: bayesmech.vision.PongtownResponse | null): BallPoint[] => (
+  (record?.snookerTracking?.ballPositions ?? [])
+    .map<BallPoint | null>((ball) => {
+      const point = { x: Number(ball.uImg ?? 0), y: Number(ball.vImg ?? 0) }
+      if (!isFinitePoint(point)) return null
+      return {
+        ...point,
+        label: ball.label ?? `ball ${ball.objectId ?? ''}`,
+        confidence: Number(ball.confidence ?? 0),
+      }
+    })
+    .filter((point): point is BallPoint => point !== null)
+)
+
 const pathFor = (points: Point2[], closed = true): string => {
   if (points.length === 0) return ''
   const head = `M ${points[0].x} ${points[0].y}`
@@ -101,17 +138,23 @@ const getOverlayGeometry = (
   const debug = record?.pnpFrameDebug?.[0]
   const output = record?.frameOutput
   const cameraMatrix = firstNumberList(debug, ['cameraMatrix'])
+  const tableHeightMm = tableHeightMmForRecord(record)
+  const sport = sportKind(record)
+  const drawNet = sport === 'pingpong'
+  const ballPoints = sport === 'snooker' ? snookerBallPoints(record) : []
 
   if (mode === 'hull') {
     return {
       tableQuad: pointsFromFlat(debug?.imagePlaneTableQuadImg),
-      netQuad: pointsFromFlat(debug?.imagePlaneNetQuadImg),
-      midline: pointsFromFlat(debug?.imagePlaneMidlineImg),
+      netQuad: drawNet ? pointsFromFlat(debug?.imagePlaneNetQuadImg) : [],
+      midline: drawNet ? pointsFromFlat(debug?.imagePlaneMidlineImg) : [],
+      ballPoints,
       iou: debug?.imagePlaneQuadQuality ?? undefined,
     }
   }
 
   if (mode === 'pnp') {
+    const pnpOverlayNetQuad = drawNet ? pointsFromFlat(debug?.pnpOverlayNetQuadImg) : []
     const pnpTableTransform = firstNumberList(debug, [
       'pnp_TTableToCamera',
       'pnpTTableToCamera',
@@ -119,10 +162,11 @@ const getOverlayGeometry = (
     ])
     return {
       tableQuad: pointsFromFlat(debug?.pnpTableQuadImg),
-      netQuad: pointsFromFlat(debug?.pnpOverlayNetQuadImg).length > 0
-        ? pointsFromFlat(debug?.pnpOverlayNetQuadImg)
-        : pointsFromFlat(debug?.pnpNetQuadImg),
-      midline: projectTableMidline(pnpTableTransform, cameraMatrix),
+      netQuad: pnpOverlayNetQuad.length > 0
+        ? pnpOverlayNetQuad
+        : drawNet ? pointsFromFlat(debug?.pnpNetQuadImg) : [],
+      midline: drawNet ? projectTableMidline(pnpTableTransform, cameraMatrix, tableHeightMm) : [],
+      ballPoints,
       iou: debug?.pnpTableIou ?? undefined,
     }
   }
@@ -134,8 +178,9 @@ const getOverlayGeometry = (
   ])
   return {
     tableQuad: pointsFromFlat(output?.tableQuadImg),
-    netQuad: pointsFromFlat(output?.netQuadImg),
-    midline: projectTableMidline(outputTransform, cameraMatrix),
+    netQuad: drawNet ? pointsFromFlat(output?.netQuadImg) : [],
+    midline: drawNet ? projectTableMidline(outputTransform, cameraMatrix, tableHeightMm) : [],
+    ballPoints,
     iou: output?.globalIou ?? undefined,
     offScreen: output?.offScreen ?? undefined,
   }
@@ -211,6 +256,7 @@ const SportUnderstandingPanel: React.FC = () => {
     () => getOverlayGeometry(currentPongtownFrame, mode),
     [currentPongtownFrame, mode],
   )
+  const currentSport = sportKind(currentPongtownFrame?.record ?? pongtownData?.summary)
 
   const frameWidth = displayedFrame?.rgb_width
     ?? currentPongtownFrame?.record.pnpFrameDebug?.[0]?.cameraIntrinsics?.imageWidth
@@ -235,7 +281,8 @@ const SportUnderstandingPanel: React.FC = () => {
   const hasGeometry =
     geometry.tableQuad.length >= 2 ||
     geometry.netQuad.length >= 2 ||
-    geometry.midline.length >= 2
+    geometry.midline.length >= 2 ||
+    geometry.ballPoints.length > 0
   const currentPongtownFrameIndex = currentPongtownFrame?.frameIndex ?? currentIndex
   const currentPongtownFrameNumber = currentPongtownFrame?.frameNumber ?? displayedFrameNumber
 
@@ -295,6 +342,17 @@ const SportUnderstandingPanel: React.FC = () => {
                     className="surface-pose-midline"
                   />
                 )}
+                {geometry.ballPoints.map((point, index) => (
+                  <circle
+                    key={`${point.label}-${index}`}
+                    cx={point.x}
+                    cy={point.y}
+                    r={Math.max(4, Math.min(10, 5 + (point.confidence ?? 0) * 3))}
+                    className="surface-pose-ball"
+                  >
+                    <title>{point.label}</title>
+                  </circle>
+                ))}
                 {geometry.offScreen && (
                   <rect
                     x={4}
@@ -329,10 +387,12 @@ const SportUnderstandingPanel: React.FC = () => {
               ? `Score ${geometry.iou.toFixed(3)}`
               : 'Score N/A'}
           </span>
+          <span>{currentSport === 'snooker' ? `Balls ${geometry.ballPoints.length}` : currentSport}</span>
         </div>
       </div>
       <PongtownTable3D
         summary={pongtownData?.summary}
+        currentFrame={currentPongtownFrame}
         currentFrameIndex={currentPongtownFrameIndex}
         currentFrameNumber={currentPongtownFrameNumber}
       />

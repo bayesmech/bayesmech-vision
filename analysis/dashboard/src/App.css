@@ -938,6 +938,7 @@ body {
 .surface-pose-table,
 .surface-pose-net,
 .surface-pose-midline,
+.surface-pose-ball,
 .surface-pose-offscreen {
   fill: none;
   vector-effect: non-scaling-stroke;
@@ -955,6 +956,12 @@ body {
 
 .surface-pose-midline {
   stroke: #ff3030;
+  stroke-width: 2;
+}
+
+.surface-pose-ball {
+  fill: #ffd84d;
+  stroke: #07120b;
   stroke-width: 2;
 }
 

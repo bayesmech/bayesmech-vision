@@ -10,12 +10,13 @@ mask_labels:
   table_legs: ["legs", "legs and sides", "apron"]
   net:        ["net"]
   person:     ["person", "player", "human"]
-  bat:        ["bat", "paddle", "racket"]
+  bat:        ["bat", "paddle", "racket", "cue", "cue stick"]
   ball:       ["ball"]
 
 table:
   width_mm: 2740
   height_mm: 1525
+  net_enabled: true
   net_overhang_mm: 152.5
   net_height_mm: 152.5
 
@@ -31,6 +32,7 @@ quad:
   aspect_ratio_max: 4.5
   parallel_threshold_deg: 8.0
   midline_equidistance_tolerance: 0.15   # fraction of short-edge length
+  score_full_table_mask: false
 
 pnp:
   iou_min: 0.6
@@ -61,3 +63,24 @@ overlay:
 pipeline:
   render_mp4: false
   debug_dumps: true
+
+modes:
+  pingpong:
+    table:
+      width_mm: 2740
+      height_mm: 1525
+      net_enabled: true
+      net_overhang_mm: 152.5
+      net_height_mm: 152.5
+  snooker:
+    mask_labels:
+      table_top: ["green snooker table top", "snooker table top", "snooker tabletop", "snooker table"]
+      net: []
+    table:
+      width_mm: 3569
+      height_mm: 1778
+      net_enabled: false
+      net_overhang_mm: 0
+      net_height_mm: 0
+    quad:
+      score_full_table_mask: true

@@ -63,6 +63,23 @@ class BallBouncePoint:
     inside_table: bool
 
 
+@dataclass
+class SnookerBallObservation:
+    object_id: int
+    label: str
+    frame_idx: int
+    frame_number: int
+    timestamp_ns: int
+    u: float
+    v: float
+    area_px: int
+    confidence: float
+    has_table_position: bool
+    cam_xyz_mm: np.ndarray | None
+    table_xyz_mm: np.ndarray | None
+    inside_table: bool
+
+
 def ball_centroid(mask: np.ndarray) -> tuple[float, float, int] | None:
     if mask is None or not mask.any():
         return None
@@ -336,4 +353,65 @@ def extract_ball_trajectory(results: list[dict], cfg: dict) -> dict:
         "min_prominence_px": min_prominence_px,
         "min_spacing_frames": min_spacing_frames,
         "smooth_sigma": smooth_sigma,
+    }
+
+
+def extract_snooker_ball_positions(results: list[dict], cfg: dict) -> dict:
+    """Extract all visible snooker ball positions for each frame."""
+    table_w_mm = float(cfg["table"]["width_mm"])
+    table_h_mm = float(cfg["table"]["height_mm"])
+
+    positions: list[SnookerBallObservation] = []
+    observed_frames = 0
+    for r in results:
+        r["snooker_ball_positions"] = []
+        b = r["bundle"]
+        frame_positions: list[SnookerBallObservation] = []
+        for obj in getattr(b, "ball_objects", []):
+            cent = ball_centroid(obj.mask)
+            if cent is None:
+                continue
+
+            u, v, area = cent
+            T_t2c = r.get("T_final_table_to_camera")
+            P_cam = P_table = None
+            inside = False
+            if T_t2c is not None:
+                P_cam = ray_plane_intersect_in_camera(b.intrinsics, (u, v), T_t2c)
+                if P_cam is not None:
+                    P_table = to_table_local(P_cam, T_t2c)
+                    x, y = abs(float(P_table[0])), abs(float(P_table[1]))
+                    inside = (
+                        x <= table_w_mm / 2 + 50.0
+                        and y <= table_h_mm / 2 + 50.0
+                    )
+
+            confidence = float(obj.confidence)
+            if confidence <= 0:
+                confidence = ball_position_confidence(area, P_table, table_w_mm, table_h_mm)
+            obs = SnookerBallObservation(
+                object_id=int(obj.object_id),
+                label=str(obj.label),
+                frame_idx=int(b.frame_idx),
+                frame_number=int(b.frame_number),
+                timestamp_ns=int(b.timestamp_ns),
+                u=float(u),
+                v=float(v),
+                area_px=int(area),
+                confidence=confidence,
+                has_table_position=P_table is not None,
+                cam_xyz_mm=P_cam,
+                table_xyz_mm=P_table,
+                inside_table=bool(inside),
+            )
+            frame_positions.append(obs)
+            positions.append(obs)
+        if frame_positions:
+            observed_frames += 1
+        r["snooker_ball_positions"] = frame_positions
+
+    return {
+        "positions": positions,
+        "observed_frames": observed_frames,
+        "total_observations": len(positions),
     }
