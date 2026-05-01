@@ -45,6 +45,7 @@ const TABLE_THICKNESS_M = 0.07
 const CORRECTION_OUTLIER_TABLE_LENGTHS = 2
 const CORRECTION_MAX_AXIS_NORM = 2
 const CORRECTION_INFLUENCE_POWER = 1.15
+const SNOOKER_BLACK_END_X_SIGN = -1
 
 type SportKind = 'pingpong' | 'snooker' | 'unknown'
 
@@ -249,8 +250,11 @@ const addSnookerArc = (
   xM: number,
   zM: number,
   radiusM: number,
+  bulgeXSign: -1 | 1,
 ): void => {
-  const curve = new THREE.EllipseCurve(xM, zM, radiusM, radiusM, -Math.PI / 2, Math.PI / 2)
+  const startAngle = bulgeXSign > 0 ? -Math.PI / 2 : Math.PI / 2
+  const endAngle = bulgeXSign > 0 ? Math.PI / 2 : (3 * Math.PI) / 2
+  const curve = new THREE.EllipseCurve(xM, zM, radiusM, radiusM, startAngle, endAngle)
   const points = curve.getPoints(72).map((point) => (
     new THREE.Vector3(point.x, TABLE_THICKNESS_M / 2 + 0.012, point.y)
   ))
@@ -269,14 +273,15 @@ const addSnookerMarkings = (
 ): void => {
   const playableWidthM = Math.max(0.1, tableWidthM - cushionM * 2)
   const baulkDistanceM = Math.min(0.737, tableLengthM * 0.28)
-  const baulkXM = -tableLengthM / 2 + baulkDistanceM
+  const blackEndSign = SNOOKER_BLACK_END_X_SIGN
+  const baulkXM = -blackEndSign * (tableLengthM / 2 - baulkDistanceM)
   const dRadiusM = Math.min(0.292, playableWidthM * 0.32, baulkDistanceM * 0.66)
 
   addLine(parent, baulkXM, 0, 0.014, playableWidthM)
-  addSnookerArc(parent, baulkXM, 0, dRadiusM)
+  addSnookerArc(parent, baulkXM, 0, dRadiusM, blackEndSign)
 
-  const blackXM = tableLengthM / 2 - Math.min(0.324, tableLengthM * 0.12)
-  const pinkXM = tableLengthM / 4
+  const blackXM = blackEndSign * (tableLengthM / 2 - Math.min(0.324, tableLengthM * 0.12))
+  const pinkXM = blackEndSign * (tableLengthM / 4)
   const spotRadiusM = Math.min(0.022, tableWidthM * 0.014)
   for (const [xM, zM] of [
     [blackXM, 0],
@@ -452,8 +457,9 @@ const PongtownTable3D: React.FC<PongtownTable3DProps> = ({
     scene.background = new THREE.Color(0x050706)
 
     const camera = new THREE.PerspectiveCamera(42, 1, 0.01, 100)
+    const cameraXSign = sport === 'snooker' ? SNOOKER_BLACK_END_X_SIGN : 1
     camera.position.set(
-      Math.max(2.7, tableLengthM * 0.92),
+      cameraXSign * Math.max(2.7, tableLengthM * 0.92),
       Math.max(2.0, tableLengthM * 0.58),
       Math.max(2.55, tableWidthM * 1.55),
     )
