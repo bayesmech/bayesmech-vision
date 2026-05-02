@@ -4,6 +4,7 @@
 server/data/
 **/.env
 .secrets/
+**/node_modules
 
 # Client side excludes
 **/.vite/
@@ -18,3 +19,6 @@ recordings
 recordings/
 server/segmentation/models/
 server/motioncap/models/
+
+# Agent Excludes
+**/.claude
