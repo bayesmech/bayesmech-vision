@@ -7,6 +7,7 @@
     "proto": "pbjs -t static-module -w es6 -o src/proto/bundle.js ../../proto/primitives.proto ../../proto/perceiver.proto ../../proto/spatial.proto ../../proto/segmentation.proto ../../proto/motioncap.proto ../../proto/idoslam.proto ../../proto/pongtown.proto ../../proto/insightgen.proto && pbts -o src/proto/bundle.d.ts src/proto/bundle.js",
     "predev": "npm run proto",
     "dev": "vite",
+    "devserver": "npm run dev -- --host 0.0.0.0 --port 80 --strictPort",
     "prebuild": "npm run proto",
     "build": "tsc -b && vite build",
     "lint": "eslint .",

@@ -570,13 +570,19 @@ def scene_context(type: SceneType) -> str:
             "2. Identify which track(s) represent the pendulum — look for oscillatory (back-and-forth) "
             "motion in the cx (horizontal) or cy (vertical) coordinate. Multiple tracks may represent "
             "the same pendulum if tracking was lost and later recovered.\n"
-            "3. For each pendulum track, determine:\n"
+            "3. You must call motioncap_find_extrema(...) and motioncap_estimate_period(...) "
+            "on at least one likely pendulum track before giving a final answer. If RAFT tracks "
+            "are ambiguous, call get_motioncap_tracks(..., segmentation=true) or "
+            "motioncap_list_tracks(segmentation=true), then run extrema and period estimation "
+            "on the best semantic pendulum/bob track as well.\n"
+            "4. For each analyzed pendulum track, determine:\n"
             "   - Oscillation period: time between successive extrema of the same type (peak-to-peak or trough-to-trough)\n"
             "   - Exact timestamps when the pendulum is at an extremum (local maximum or minimum in cx or cy)\n"
             "   - Amplitude at each extremum (distance from the equilibrium position)\n"
             "   - Whether the amplitude is decaying (damped oscillation) and estimate the decay rate\n"
-            "4. Call scene_emphasis() to mark a 7–20s window around the most important extrema or motion phases.\n"
-            "5. Provide a final numerical summary: period(s), extremum times, amplitudes, and decay rate."
+            "5. Call scene_emphasis() to mark a 7–20s window around the most important extrema or motion phases.\n"
+            "6. Provide a final numerical summary: period(s), extremum times, amplitudes, and decay rate. "
+            "Do not report period or amplitude as pending if the extrema/period tools returned data."
         )
     if type == SceneType.SPORT_PINGPONG:
         return (
