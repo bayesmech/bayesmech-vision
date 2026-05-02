@@ -5,6 +5,7 @@ import type { PongtownFrameRecord, PongtownResponse } from '../types'
 
 interface PongtownTable3DProps {
   summary?: PongtownResponse
+  frames?: PongtownFrameRecord[]
   currentFrame?: PongtownFrameRecord
   currentFrameIndex?: number
   currentFrameNumber?: number
@@ -28,6 +29,12 @@ interface SnookerMarker {
   color: number
 }
 
+interface TimedSnookerFrame {
+  frame: PongtownFrameRecord
+  timeS: number
+  markers: SnookerMarker[]
+}
+
 interface SceneState {
   scene: THREE.Scene
   camera: THREE.PerspectiveCamera
@@ -45,6 +52,16 @@ const TABLE_THICKNESS_M = 0.07
 const CORRECTION_OUTLIER_TABLE_LENGTHS = 2
 const CORRECTION_MAX_AXIS_NORM = 2
 const CORRECTION_INFLUENCE_POWER = 1.15
+const SNOOKER_BLACK_END_X_SIGN = -1
+const SNOOKER_MOTION_WINDOW_S = 5
+const SNOOKER_STATIC_LOOKAHEAD_S = 10
+const SNOOKER_YELLOW_MOVEMENT_THRESHOLD_SCALE = 0.5
+const SNOOKER_FALLBACK_JITTER_THRESHOLD_M = 0.01
+const FALLBACK_FRAME_RATE_FPS = 30
+const demo_hacks = true
+const DEMO_HACK_FIXED_COLORS = ['yellow', 'green', 'brown'] as const
+const SNOOKER_BALL_RENDER_RADIUS_M = 0.045
+const SNOOKER_OUTSIDE_SNAP_MARGIN_M = 0.12
 
 type SportKind = 'pingpong' | 'snooker' | 'unknown'
 
@@ -159,6 +176,303 @@ const snookerBallColor = (label: string): number => {
   return 0xffd84d
 }
 
+const snookerLabelKey = (label: string): string => (
+  label.toLowerCase().replace(/\s+/g, ' ').trim()
+)
+
+const markerIdentityKey = (marker: SnookerMarker): string => (
+  `${snookerLabelKey(marker.label)}#${marker.objectId}`
+)
+
+const markerDistanceM = (a: SnookerMarker, b: SnookerMarker): number => (
+  Math.hypot(a.xM - b.xM, a.zM - b.zM)
+)
+
+const demoHackColor = (label: string): typeof DEMO_HACK_FIXED_COLORS[number] | null => {
+  const labelKey = snookerLabelKey(label)
+  for (const color of DEMO_HACK_FIXED_COLORS) {
+    if (labelKey.includes(color)) return color
+  }
+  return null
+}
+
+const median = (values: number[]): number => {
+  if (values.length === 0) return 0
+  const sorted = [...values].sort((a, b) => a - b)
+  return sorted[Math.floor(sorted.length / 2)]
+}
+
+const snookerMarkersForFrame = (frame?: PongtownFrameRecord): SnookerMarker[] => (
+  (frame?.record.snookerTracking?.ballPositions ?? [])
+    .map((ball) => {
+      const table = numberList(ball.tableXyzMm)
+      if (table.length < 2) return null
+      const label = ball.label ?? `ball ${ball.objectId ?? ''}`
+      return {
+        objectId: Number(ball.objectId ?? 0),
+        label,
+        xM: table[0] / 1000,
+        zM: table[1] / 1000,
+        insideTable: Boolean(ball.insideTable),
+        color: snookerBallColor(label),
+      }
+    })
+    .filter((item): item is SnookerMarker => item !== null)
+)
+
+const buildObjectIdCounts = (timedFrames: TimedSnookerFrame[]): Map<string, number> => {
+  const counts = new Map<string, number>()
+  for (const timedFrame of timedFrames) {
+    for (const marker of timedFrame.markers) {
+      if (marker.objectId <= 0) continue
+      const key = markerIdentityKey(marker)
+      counts.set(key, (counts.get(key) ?? 0) + 1)
+    }
+  }
+  return counts
+}
+
+const markerUsesObjectIdentity = (
+  marker: SnookerMarker,
+  objectIdCounts: Map<string, number>,
+): boolean => (
+  marker.objectId > 0 && (objectIdCounts.get(markerIdentityKey(marker)) ?? 0) > 1
+)
+
+const nearestMatchingMarker = (
+  reference: SnookerMarker,
+  candidates: SnookerMarker[],
+  objectIdCounts: Map<string, number>,
+): SnookerMarker | null => {
+  const labelKey = snookerLabelKey(reference.label)
+  const useObjectIdentity = markerUsesObjectIdentity(reference, objectIdCounts)
+  let best: SnookerMarker | null = null
+  let bestDistance = Number.POSITIVE_INFINITY
+
+  for (const candidate of candidates) {
+    if (snookerLabelKey(candidate.label) !== labelKey) continue
+    if (useObjectIdentity && candidate.objectId !== reference.objectId) continue
+    const distance = markerDistanceM(reference, candidate)
+    if (distance < bestDistance) {
+      best = candidate
+      bestDistance = distance
+    }
+  }
+  return best
+}
+
+const frameTimeS = (frame: PongtownFrameRecord): number => {
+  if (frame.timestampNs > 0) return frame.timestampNs / 1_000_000_000
+  return frame.frameIndex / FALLBACK_FRAME_RATE_FPS
+}
+
+const buildTimedSnookerFrames = (frames?: PongtownFrameRecord[]): TimedSnookerFrame[] => (
+  (frames ?? [])
+    .map((frame) => ({
+      frame,
+      timeS: frameTimeS(frame),
+      markers: snookerMarkersForFrame(frame),
+    }))
+    .filter((timedFrame) => timedFrame.markers.length > 0)
+    .sort((a, b) => a.timeS - b.timeS || a.frame.frameIndex - b.frame.frameIndex)
+)
+
+const computeSnookerJitterThresholdM = (
+  timedFrames: TimedSnookerFrame[],
+  objectIdCounts: Map<string, number>,
+): number => {
+  let previousYellow: SnookerMarker | null = null
+  let maxYellowMoveM = 0
+
+  for (const timedFrame of timedFrames) {
+    const yellowMarkers = timedFrame.markers.filter((marker) => (
+      snookerLabelKey(marker.label).includes('yellow')
+    ))
+    if (yellowMarkers.length === 0) continue
+
+    if (previousYellow === null) {
+      previousYellow = yellowMarkers[0]
+      continue
+    }
+
+    const matched = nearestMatchingMarker(previousYellow, yellowMarkers, objectIdCounts)
+    if (matched === null) continue
+    maxYellowMoveM = Math.max(maxYellowMoveM, markerDistanceM(previousYellow, matched))
+    previousYellow = matched
+  }
+
+  return maxYellowMoveM > 0
+    ? maxYellowMoveM * SNOOKER_YELLOW_MOVEMENT_THRESHOLD_SCALE
+    : SNOOKER_FALLBACK_JITTER_THRESHOLD_M
+}
+
+const meanDemoHackPositions = (timedFrames: TimedSnookerFrame[]): Map<string, Pick<SnookerMarker, 'xM' | 'zM'>> => {
+  const sums = new Map<string, { xM: number, zM: number, count: number }>()
+  for (const timedFrame of timedFrames) {
+    for (const marker of timedFrame.markers) {
+      const color = demoHackColor(marker.label)
+      if (color === null) continue
+      const sum = sums.get(color) ?? { xM: 0, zM: 0, count: 0 }
+      sum.xM += marker.xM
+      sum.zM += marker.zM
+      sum.count += 1
+      sums.set(color, sum)
+    }
+  }
+
+  const means = new Map<string, Pick<SnookerMarker, 'xM' | 'zM'>>()
+  for (const [color, sum] of sums) {
+    if (sum.count <= 0) continue
+    means.set(color, { xM: sum.xM / sum.count, zM: sum.zM / sum.count })
+  }
+  return means
+}
+
+const applyDemoHacks = (
+  markers: SnookerMarker[],
+  timedFrames: TimedSnookerFrame[],
+): SnookerMarker[] => {
+  if (!demo_hacks || timedFrames.length === 0) return markers
+  const meanPositions = meanDemoHackPositions(timedFrames)
+  if (meanPositions.size === 0) return markers
+
+  return markers.map((marker) => {
+    const color = demoHackColor(marker.label)
+    const meanPosition = color === null ? undefined : meanPositions.get(color)
+    return meanPosition === undefined ? marker : { ...marker, ...meanPosition }
+  })
+}
+
+const hasSnookerMotionNearFrame = (
+  marker: SnookerMarker,
+  currentFrameIndex: number,
+  timedFrames: TimedSnookerFrame[],
+  thresholdM: number,
+  objectIdCounts: Map<string, number>,
+): boolean => {
+  const currentTimeS = timedFrames[currentFrameIndex]?.timeS
+  if (currentTimeS === undefined) return false
+
+  let previous = marker
+  for (let i = currentFrameIndex - 1; i >= 0; i -= 1) {
+    const timedFrame = timedFrames[i]
+    if (currentTimeS - timedFrame.timeS > SNOOKER_MOTION_WINDOW_S) break
+    const matched = nearestMatchingMarker(previous, timedFrame.markers, objectIdCounts)
+    if (matched === null) continue
+    if (markerDistanceM(marker, matched) > thresholdM) return true
+    previous = matched
+  }
+
+  let next = marker
+  for (let i = currentFrameIndex + 1; i < timedFrames.length; i += 1) {
+    const timedFrame = timedFrames[i]
+    if (timedFrame.timeS - currentTimeS > SNOOKER_MOTION_WINDOW_S) break
+    const matched = nearestMatchingMarker(next, timedFrame.markers, objectIdCounts)
+    if (matched === null) continue
+    if (markerDistanceM(marker, matched) > thresholdM) return true
+    next = matched
+  }
+
+  return false
+}
+
+const stableSnookerPosition = (
+  marker: SnookerMarker,
+  currentFrameIndex: number,
+  timedFrames: TimedSnookerFrame[],
+  thresholdM: number,
+  objectIdCounts: Map<string, number>,
+): Pick<SnookerMarker, 'xM' | 'zM'> => {
+  if (timedFrames[currentFrameIndex] === undefined) return marker
+
+  let segmentStartIndex = currentFrameIndex
+  let segmentStartMarker = marker
+
+  let previous = marker
+  for (let i = currentFrameIndex - 1; i >= 0; i -= 1) {
+    const timedFrame = timedFrames[i]
+    const matched = nearestMatchingMarker(previous, timedFrame.markers, objectIdCounts)
+    if (matched === null) continue
+    if (markerDistanceM(marker, matched) > thresholdM) break
+    segmentStartIndex = i
+    segmentStartMarker = matched
+    previous = matched
+  }
+
+  const segmentStartTimeS = timedFrames[segmentStartIndex].timeS
+  const positions: SnookerMarker[] = [segmentStartMarker]
+  let next = segmentStartMarker
+  for (let i = segmentStartIndex + 1; i < timedFrames.length; i += 1) {
+    const timedFrame = timedFrames[i]
+    if (timedFrame.timeS - segmentStartTimeS > SNOOKER_STATIC_LOOKAHEAD_S) break
+    const matched = nearestMatchingMarker(next, timedFrame.markers, objectIdCounts)
+    if (matched === null) continue
+    if (markerDistanceM(segmentStartMarker, matched) > thresholdM) break
+    positions.push(matched)
+    next = matched
+  }
+
+  return {
+    xM: median(positions.map((position) => position.xM)),
+    zM: median(positions.map((position) => position.zM)),
+  }
+}
+
+const smoothSnookerMarkers = (
+  currentFrame: PongtownFrameRecord | undefined,
+  timedFrames: TimedSnookerFrame[],
+): SnookerMarker[] => {
+  const currentMarkers = snookerMarkersForFrame(currentFrame)
+  if (!currentFrame || currentMarkers.length === 0 || timedFrames.length === 0) {
+    return currentMarkers
+  }
+
+  const currentTimedFrameIndex = timedFrames.findIndex((timedFrame) => (
+    timedFrame.frame.frameIndex === currentFrame.frameIndex
+    || timedFrame.frame.frameNumber === currentFrame.frameNumber
+  ))
+  if (currentTimedFrameIndex < 0) return currentMarkers
+
+  const objectIdCounts = buildObjectIdCounts(timedFrames)
+  const thresholdM = computeSnookerJitterThresholdM(timedFrames, objectIdCounts)
+
+  const smoothedMarkers = currentMarkers.map((marker) => {
+    if (hasSnookerMotionNearFrame(marker, currentTimedFrameIndex, timedFrames, thresholdM, objectIdCounts)) {
+      return marker
+    }
+    const stablePosition = stableSnookerPosition(
+      marker,
+      currentTimedFrameIndex,
+      timedFrames,
+      thresholdM,
+      objectIdCounts,
+    )
+    return { ...marker, ...stablePosition }
+  })
+
+  return applyDemoHacks(smoothedMarkers, timedFrames)
+}
+
+const constrainSnookerMarkerToTable = (
+  marker: SnookerMarker,
+  tableLengthM: number,
+  tableWidthM: number,
+): SnookerMarker | null => {
+  const halfLengthM = tableLengthM / 2
+  const halfWidthM = tableWidthM / 2
+  if (halfLengthM <= 0 || halfWidthM <= 0) return marker
+
+  const outsideDistanceM = distanceOutsideTable(marker.xM, marker.zM, halfLengthM, halfWidthM)
+  if (outsideDistanceM > SNOOKER_OUTSIDE_SNAP_MARGIN_M) return null
+
+  const maxCenterXM = Math.max(0, halfLengthM - SNOOKER_BALL_RENDER_RADIUS_M)
+  const maxCenterZM = Math.max(0, halfWidthM - SNOOKER_BALL_RENDER_RADIUS_M)
+  const xM = clamp(marker.xM, -maxCenterXM, maxCenterXM)
+  const zM = clamp(marker.zM, -maxCenterZM, maxCenterZM)
+  if (xM === marker.xM && zM === marker.zM) return marker
+  return { ...marker, xM, zM, insideTable: true }
+}
+
 const makeLabelTexture = (text: string, active: boolean): THREE.CanvasTexture => {
   const canvas = document.createElement('canvas')
   canvas.width = 256
@@ -244,13 +558,57 @@ const addDisc = (
   parent.add(disc)
 }
 
-const addSnookerArc = (
+const addSnookerPocket = (
   parent: THREE.Group,
   xM: number,
   zM: number,
   radiusM: number,
 ): void => {
-  const curve = new THREE.EllipseCurve(xM, zM, radiusM, radiusM, -Math.PI / 2, Math.PI / 2)
+  const cupDepthM = 0.11
+  const cup = new THREE.Mesh(
+    new THREE.CylinderGeometry(radiusM * 0.9, radiusM * 0.68, cupDepthM, 40, 1, true),
+    new THREE.MeshStandardMaterial({
+      color: 0x010101,
+      roughness: 0.92,
+      side: THREE.DoubleSide,
+    }),
+  )
+  cup.position.set(xM, TABLE_THICKNESS_M / 2 - cupDepthM / 2 + 0.002, zM)
+  parent.add(cup)
+
+  const bottom = new THREE.Mesh(
+    new THREE.CylinderGeometry(radiusM * 0.68, radiusM * 0.68, 0.012, 40),
+    new THREE.MeshStandardMaterial({ color: 0x020202, roughness: 0.88 }),
+  )
+  bottom.position.set(xM, TABLE_THICKNESS_M / 2 - cupDepthM - 0.003, zM)
+  parent.add(bottom)
+
+  const shadow = new THREE.Mesh(
+    new THREE.CylinderGeometry(radiusM * 1.04, radiusM * 1.04, 0.006, 48),
+    new THREE.MeshStandardMaterial({ color: 0x020302, roughness: 0.95 }),
+  )
+  shadow.position.set(xM, TABLE_THICKNESS_M / 2 + 0.008, zM)
+  parent.add(shadow)
+
+  const rim = new THREE.Mesh(
+    new THREE.TorusGeometry(radiusM * 0.93, radiusM * 0.12, 10, 44),
+    new THREE.MeshStandardMaterial({ color: 0x11110f, roughness: 0.78 }),
+  )
+  rim.rotation.x = Math.PI / 2
+  rim.position.set(xM, TABLE_THICKNESS_M / 2 + 0.013, zM)
+  parent.add(rim)
+}
+
+const addSnookerArc = (
+  parent: THREE.Group,
+  xM: number,
+  zM: number,
+  radiusM: number,
+  bulgeXSign: -1 | 1,
+): void => {
+  const startAngle = bulgeXSign > 0 ? -Math.PI / 2 : Math.PI / 2
+  const endAngle = bulgeXSign > 0 ? Math.PI / 2 : (3 * Math.PI) / 2
+  const curve = new THREE.EllipseCurve(xM, zM, radiusM, radiusM, startAngle, endAngle)
   const points = curve.getPoints(72).map((point) => (
     new THREE.Vector3(point.x, TABLE_THICKNESS_M / 2 + 0.012, point.y)
   ))
@@ -269,14 +627,15 @@ const addSnookerMarkings = (
 ): void => {
   const playableWidthM = Math.max(0.1, tableWidthM - cushionM * 2)
   const baulkDistanceM = Math.min(0.737, tableLengthM * 0.28)
-  const baulkXM = -tableLengthM / 2 + baulkDistanceM
+  const blackEndSign = SNOOKER_BLACK_END_X_SIGN
+  const baulkXM = -blackEndSign * (tableLengthM / 2 - baulkDistanceM)
   const dRadiusM = Math.min(0.292, playableWidthM * 0.32, baulkDistanceM * 0.66)
 
   addLine(parent, baulkXM, 0, 0.014, playableWidthM)
-  addSnookerArc(parent, baulkXM, 0, dRadiusM)
+  addSnookerArc(parent, baulkXM, 0, dRadiusM, blackEndSign)
 
-  const blackXM = tableLengthM / 2 - Math.min(0.324, tableLengthM * 0.12)
-  const pinkXM = tableLengthM / 4
+  const blackXM = blackEndSign * (tableLengthM / 2 - Math.min(0.324, tableLengthM * 0.12))
+  const pinkXM = blackEndSign * (tableLengthM / 4)
   const spotRadiusM = Math.min(0.022, tableWidthM * 0.014)
   for (const [xM, zM] of [
     [blackXM, 0],
@@ -299,7 +658,7 @@ const addSnookerMarkings = (
     [0, -tableWidthM / 2 + pocketInsetM],
     [0, tableWidthM / 2 - pocketInsetM],
   ]) {
-    addDisc(parent, xM, zM, pocketRadiusM, 0x050505, 0.012)
+    addSnookerPocket(parent, xM, zM, pocketRadiusM)
   }
 }
 
@@ -378,6 +737,7 @@ const buildTable = (
 
 const PongtownTable3D: React.FC<PongtownTable3DProps> = ({
   summary,
+  frames,
   currentFrame,
   currentFrameIndex,
   currentFrameNumber,
@@ -426,23 +786,17 @@ const PongtownTable3D: React.FC<PongtownTable3DProps> = ({
     return displayBounces.filter((bounce) => bounce.frameIdx <= currentFrameIndex)
   }, [displayBounces, currentFrameIndex, currentFrameNumber])
 
-  const snookerBalls = useMemo<SnookerMarker[]>(() => (
-    (currentFrame?.record.snookerTracking?.ballPositions ?? [])
-      .map((ball) => {
-        const table = numberList(ball.tableXyzMm)
-        if (table.length < 2) return null
-        const label = ball.label ?? `ball ${ball.objectId ?? ''}`
-        return {
-          objectId: Number(ball.objectId ?? 0),
-          label,
-          xM: table[0] / 1000,
-          zM: table[1] / 1000,
-          insideTable: Boolean(ball.insideTable),
-          color: snookerBallColor(label),
-        }
-      })
-      .filter((item): item is SnookerMarker => item !== null)
-  ), [currentFrame])
+  const timedSnookerFrames = useMemo(() => buildTimedSnookerFrames(frames), [frames])
+  const snookerBalls = useMemo<SnookerMarker[]>(
+    () => smoothSnookerMarkers(currentFrame, timedSnookerFrames),
+    [currentFrame, timedSnookerFrames],
+  )
+  const renderedSnookerBalls = useMemo<SnookerMarker[]>(
+    () => snookerBalls
+      .map((marker) => constrainSnookerMarkerToTable(marker, tableLengthM, tableWidthM))
+      .filter((marker): marker is SnookerMarker => marker !== null),
+    [snookerBalls, tableLengthM, tableWidthM],
+  )
 
   useEffect(() => {
     const container = containerRef.current
@@ -452,8 +806,9 @@ const PongtownTable3D: React.FC<PongtownTable3DProps> = ({
     scene.background = new THREE.Color(0x050706)
 
     const camera = new THREE.PerspectiveCamera(42, 1, 0.01, 100)
+    const cameraXSign = sport === 'snooker' ? SNOOKER_BLACK_END_X_SIGN : 1
     camera.position.set(
-      Math.max(2.7, tableLengthM * 0.92),
+      cameraXSign * Math.max(2.7, tableLengthM * 0.92),
       Math.max(2.0, tableLengthM * 0.58),
       Math.max(2.55, tableWidthM * 1.55),
     )
@@ -544,10 +899,10 @@ const PongtownTable3D: React.FC<PongtownTable3DProps> = ({
     }
 
     if (sport === 'snooker') {
-      for (const ballMarker of snookerBalls) {
+      for (const ballMarker of renderedSnookerBalls) {
         const marker = new THREE.Group()
         const ball = new THREE.Mesh(
-          new THREE.SphereGeometry(0.045, 28, 18),
+          new THREE.SphereGeometry(SNOOKER_BALL_RENDER_RADIUS_M, 28, 18),
           new THREE.MeshStandardMaterial({
             color: ballMarker.color,
             emissive: ballMarker.color,
@@ -616,7 +971,7 @@ const PongtownTable3D: React.FC<PongtownTable3DProps> = ({
 
       state.markers.add(marker)
     }
-  }, [visibleBounces, snookerBalls, sport])
+  }, [visibleBounces, renderedSnookerBalls, sport])
 
   return (
     <div className="stream-card table-3d-card">
@@ -642,7 +997,7 @@ const PongtownTable3D: React.FC<PongtownTable3DProps> = ({
       <div className="surface-pose-footer">
         {sport === 'snooker' ? (
           <>
-            <span>{`Balls ${snookerBalls.length}`}</span>
+            <span>{`Balls ${renderedSnookerBalls.length}`}</span>
             <span>Mode Snooker</span>
           </>
         ) : (

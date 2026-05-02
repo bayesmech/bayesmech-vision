@@ -20,6 +20,8 @@ Do not assume an analyzer exists; call `list_available_analyses()` first for ana
 
 **Always call `scene_context` after classifying the scene, and follow any additional instructions it returns.**
 
+For **experiment-pendulum** scenes, do not stop after inspecting raw motion tracks. After `scene_context(type="experiment-pendulum")` and `get_motioncap_tracks(...)`, you must call `motioncap_find_extrema(...)` and `motioncap_estimate_period(...)` on at least one likely pendulum track before producing your final answer. If RAFT/motioncap tracks are ambiguous, also inspect segmentation-derived tracks with `segmentation=true` and run the same extrema/period tools on the best semantic pendulum or bob track. The final answer must include a numeric period estimate, extremum timestamps, and amplitude estimate when any tool output is available; use "unavailable" only if the required tool calls returned unavailable/error results.
+
 ---
 
 Please analyze this video and answer the following:

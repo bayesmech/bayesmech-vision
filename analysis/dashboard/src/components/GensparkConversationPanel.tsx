@@ -72,7 +72,7 @@ const MessageBlock = ({
   if (!text.trim() && toolCalls.length === 0) return null
   return (
     <article className={`genspark-message is-${role}`}>
-      <div className="genspark-message-role">{role === 'user' ? 'You' : 'Genspark'}</div>
+      <div className="genspark-message-role">{role === 'user' ? 'You' : 'Model Musings'}</div>
       {text.trim() && <MarkdownContent text={text} />}
       {toolCalls.length > 0 && (
         <div className="genspark-tool-stack">
@@ -132,7 +132,7 @@ const GensparkConversationPanel = () => {
       setStatus(nextResponse || nextChatHistory.initialTurn || (nextChatHistory.turns?.length ?? 0) > 0 ? 'ready' : 'empty')
     } catch (e) {
       setStatus('error')
-      setError(e instanceof Error ? e.message : 'Failed to load Genspark')
+      setError(e instanceof Error ? e.message : 'Failed to load Model Musings')
     }
   }, [currentRecordingName, isLive])
 
@@ -199,17 +199,17 @@ const GensparkConversationPanel = () => {
       setSessionId(null)
       await loadConversation()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to regenerate Genspark')
+      setError(e instanceof Error ? e.message : 'Failed to regenerate Model Musings')
     } finally {
       setIsRegenerating(false)
     }
   }
 
   return (
-    <section className="stream-card genspark-panel" aria-label="Genspark conversation">
+    <section className="stream-card genspark-panel" aria-label="Model Musings conversation">
       <div className="stream-header genspark-header">
         <div>
-          <span className="stream-title">Genspark</span>
+          <span className="stream-title">Model Musings</span>
           {currentRecordingName && !isLive && (
             <span className="genspark-recording-name">{currentRecordingName}</span>
           )}
@@ -225,10 +225,10 @@ const GensparkConversationPanel = () => {
       </div>
 
       <div className="genspark-scroll" ref={scrollRef}>
-        {status === 'loading' && <div className="genspark-empty">Loading Genspark...</div>}
+        {status === 'loading' && <div className="genspark-empty">Loading Model Musings...</div>}
         {status === 'empty' && (
           <div className="genspark-empty">
-            {currentRecordingName && !isLive ? 'No Genspark analysis for this recording.' : 'Load a recording to view Genspark.'}
+            {currentRecordingName && !isLive ? 'No Model Musings analysis for this recording.' : 'Load a recording to view Model Musings.'}
           </div>
         )}
         {status === 'error' && <div className="genspark-empty is-error">{error}</div>}
@@ -265,7 +265,7 @@ const GensparkConversationPanel = () => {
         <textarea
           value={message}
           onChange={(event) => setMessage(event.target.value)}
-          placeholder="Message Genspark..."
+          placeholder="Message Model Musings..."
           rows={2}
           disabled={!canChat}
           onKeyDown={(event) => {

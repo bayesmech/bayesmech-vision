@@ -1,0 +1,2 @@
+"""Snooker analysis tools."""
+

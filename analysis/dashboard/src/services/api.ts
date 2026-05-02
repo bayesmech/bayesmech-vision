@@ -210,7 +210,7 @@ export async function fetchGensparkResponse(recordingName: string): Promise<Gens
     { cache: 'no-store' },
   )
   if (res.status === 404) return null
-  if (!res.ok) throw new Error(`Failed to fetch Genspark response: ${res.status}`)
+  if (!res.ok) throw new Error(`Failed to fetch Model Musings response: ${res.status}`)
   return bayesmech.vision.GensparkResponse.decode(new Uint8Array(await res.arrayBuffer()))
 }
 
@@ -219,7 +219,7 @@ export async function fetchGensparkChatHistory(recordingName: string, sinceTimes
     `/api/insightgen/chat?file=${encodeURIComponent(recordingName)}&since_timestamp_ns=${sinceTimestampNs}`,
     { cache: 'no-store' },
   )
-  if (!res.ok) throw new Error(`Failed to fetch Genspark chat: ${res.status}`)
+  if (!res.ok) throw new Error(`Failed to fetch Model Musings chat: ${res.status}`)
   return bayesmech.vision.ChatHistory.decode(new Uint8Array(await res.arrayBuffer()))
 }
 
@@ -238,7 +238,7 @@ export async function sendGensparkMessage(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ file: recordingName, message, session_id: sessionId }),
   })
-  if (!res.ok) throw new Error(`Failed to send Genspark message: ${res.status}`)
+  if (!res.ok) throw new Error(`Failed to send Model Musings message: ${res.status}`)
   const payload = await res.json() as {
     response?: string
     session_id?: string
@@ -259,5 +259,5 @@ export async function regenerateGensparkAnalysis(recordingName: string): Promise
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ file: recordingName }),
   })
-  if (!res.ok) throw new Error(`Failed to regenerate Genspark: ${res.status}`)
+  if (!res.ok) throw new Error(`Failed to regenerate Model Musings: ${res.status}`)
 }
