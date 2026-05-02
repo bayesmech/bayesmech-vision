@@ -710,7 +710,6 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   // Set when seekTo/skip sends a seek request, cleared when the response arrives.
   // This lets handleFrames distinguish "I asked for this" from "server pushed this".
   const seekPendingRef = useRef(false)
-  const currentRecordingNameRef = useRef<string | null>(null)
 
   useEffect(() => { isPlayingRef.current = isPlaying }, [isPlaying])
   useEffect(() => { isLiveRef.current = isLive }, [isLive])
@@ -1055,23 +1054,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   }, [])
 
   useEffect(() => {
-    currentRecordingNameRef.current = currentRecordingName
-  }, [currentRecordingName])
-
-  useEffect(() => {
     dashboardWs.connect()
     const unsubFrames = dashboardWs.addFrameListener(handleFrames)
     const unsubAnnotations = dashboardWs.addAnnotationListener(handleAnnotations)
     const unsubPongtown = dashboardWs.addPongtownListener(handlePongtownRecords)
-    const unsubStatus = dashboardWs.addStatusListener((status) => {
-      setConnectionStatus(status)
-      if (status === 'Connected' && currentRecordingNameRef.current !== null) {
-        // Re-request data that may have been lost if the connection dropped mid-computation.
-        dashboardWs.getStats()
-        dashboardWs.getTrajectory()
-        dashboardWs.getSensorData()
-      }
-    })
+    const unsubStatus = dashboardWs.addStatusListener(setConnectionStatus)
     const unsubStats = dashboardWs.addStatsListener(handleStats)
     const unsubTrajectory = dashboardWs.addTrajectoryListener(handleTrajectory)
     const unsubSensorData = dashboardWs.addSensorDataListener(handleSensorData)

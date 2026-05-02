@@ -306,10 +306,12 @@ class DashboardBridge:
                     await self._send_pongtown(ws, pongtown_records)
 
         elif action == "get_trajectory":
-            asyncio.create_task(self._send_trajectory(ws))
+            positions = await asyncio.to_thread(self._store.compute_trajectory)
+            await ws.send_text(json.dumps({"type": "trajectory", "positions": positions}))
 
         elif action == "get_sensor_data":
-            asyncio.create_task(self._send_sensor_data(ws))
+            frames = await asyncio.to_thread(self._store.compute_sensor_data)
+            await ws.send_text(json.dumps({"type": "sensor_data", "frames": frames}))
 
         elif action == "get_annotations":
             frame_number = msg.get("frame_number")
@@ -355,17 +357,3 @@ class DashboardBridge:
             )
             if records:
                 await self._send_pongtown(ws, records, batch_size=64)
-
-    async def _send_trajectory(self, ws: WebSocket) -> None:
-        try:
-            positions = await asyncio.to_thread(self._store.compute_trajectory)
-            await ws.send_text(json.dumps({"type": "trajectory", "positions": positions}))
-        except Exception as exc:
-            logger.warning(f"Failed to send trajectory: {exc}")
-
-    async def _send_sensor_data(self, ws: WebSocket) -> None:
-        try:
-            frames = await asyncio.to_thread(self._store.compute_sensor_data)
-            await ws.send_text(json.dumps({"type": "sensor_data", "frames": frames}))
-        except Exception as exc:
-            logger.warning(f"Failed to send sensor data: {exc}")
