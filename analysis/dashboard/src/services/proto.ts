@@ -64,6 +64,10 @@ export function decodePongtownRecords(payload: Uint8Array): bayesmech.vision.Pon
   return readDelimited(payload, (b) => PongtownResponse.decode(b))
 }
 
+export function decodeIdoSlamRecords(payload: Uint8Array): bayesmech.vision.IdoSlamResponse[] {
+  return readDelimited(payload, (b) => IdoSlamResponse.decode(b))
+}
+
 export function decodeIdoSlamResponse(payload: Uint8Array): bayesmech.vision.IdoSlamResponse {
   return IdoSlamResponse.decode(payload)
 }

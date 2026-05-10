@@ -8,6 +8,7 @@ import {
   decodeAnnotations,
   decodePongtownRecords,
 } from './proto'
+import { legacyDashboardWsUrl, streamlogDashboardWsUrl } from './streamlog'
 
 export type FrameListener = (frames: bayesmech.vision.PerceiverDataFrame[]) => void
 export type AnnotationListener = (annotations: bayesmech.vision.SegmentationResponse[]) => void
@@ -27,13 +28,10 @@ class DashboardWebSocketService {
   private sensorDataListeners: Set<SensorDataListener> = new Set()
   private statusListeners: Set<StatusListener> = new Set()
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null
+  private connectPromise: Promise<void> | null = null
+  private connectAttempt = 0
   private intentionalClose = false
   private _status: ConnectionStatus = 'Disconnected'
-
-  private get url(): string {
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    return `${protocol}//${window.location.host}/ws/dashboard`
-  }
 
   private setStatus(status: ConnectionStatus): void {
     this._status = status
@@ -44,18 +42,42 @@ class DashboardWebSocketService {
     if (this.ws && (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)) {
       return
     }
+    if (this.connectPromise) return
 
     this.intentionalClose = false
     this.setStatus('Connecting')
+    const attempt = ++this.connectAttempt
+    this.connectPromise = this.connectResolvedUrl(attempt).finally(() => {
+      if (attempt === this.connectAttempt) {
+        this.connectPromise = null
+      }
+    })
+  }
 
-    const ws = new WebSocket(this.url)
+  private async connectResolvedUrl(attempt: number): Promise<void> {
+    const primaryUrl = await streamlogDashboardWsUrl()
+    if (this.intentionalClose || attempt !== this.connectAttempt) return
+    this.openSocket(primaryUrl, legacyDashboardWsUrl(), attempt)
+  }
+
+  private openSocket(url: string, fallbackUrl: string | undefined, attempt: number): void {
+    if (this.intentionalClose || attempt !== this.connectAttempt) return
+    let opened = false
+    let fallbackStarted = false
+    const ws = new WebSocket(url)
     ws.binaryType = 'arraybuffer'
 
     ws.onopen = () => {
+      if (this.intentionalClose || attempt !== this.connectAttempt) {
+        ws.close()
+        return
+      }
+      opened = true
       this.setStatus('Connected')
     }
 
     ws.onmessage = (event: MessageEvent) => {
+      if (this.intentionalClose || attempt !== this.connectAttempt) return
       if (event.data instanceof ArrayBuffer) {
         this.handleBinary(new Uint8Array(event.data))
       } else if (typeof event.data === 'string') {
@@ -64,6 +86,13 @@ class DashboardWebSocketService {
     }
 
     ws.onclose = () => {
+      if (attempt !== this.connectAttempt) return
+      if (!opened && fallbackUrl && !fallbackStarted && !this.intentionalClose) {
+        fallbackStarted = true
+        this.ws = null
+        this.openSocket(fallbackUrl, undefined, attempt)
+        return
+      }
       this.setStatus('Disconnected')
       this.ws = null
       if (!this.intentionalClose) {
@@ -80,6 +109,8 @@ class DashboardWebSocketService {
 
   disconnect(): void {
     this.intentionalClose = true
+    this.connectAttempt += 1
+    this.connectPromise = null
     if (this.reconnectTimer !== null) {
       clearTimeout(this.reconnectTimer)
       this.reconnectTimer = null

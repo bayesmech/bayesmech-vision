@@ -7,8 +7,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Running Tools (all commands run from `server/`)
 
 ```bash
-# Vision server
-uv run python streamlog/main.py   # (or from project root: uv run python server/streamlog/main.py)
+# Streamlog server (Rust)
+cd streamlog && cargo run
 
 # Recordings are now stored in per-folder structure: recordings/<name>/<name>.vis.pb
 
@@ -58,7 +58,7 @@ huggingface-cli login
 
 | Directory | Purpose |
 |-----------|---------|
-| `streamlog/` | FastAPI server — live streaming, playback, dashboard WebSocket |
+| `streamlog/` | Rust Streamlog server — live streaming, playback, dashboard WebSocket; includes a small Python `protoio` compatibility helper for analyzers |
 | `segmentation/` | Offline SAM3 annotator → writes `.segmentation.pb` |
 | `motioncap/` | Offline RAFT optical-flow motion heatmap → writes `.motioncap.pb` |
 | `genspark/` | Offline AI video analysis (Gemini native video upload) |
@@ -103,4 +103,4 @@ Config: `genspark/config.yaml` — video resolution/fps/duration and Gemini mode
 
 ## Path Convention
 
-All server Python files set `_server_root = Path(__file__).resolve().parent.parent` and `_project_root = _server_root.parent`, then insert both into `sys.path`. This allows `from proto import perceiver_pb2` and `from streamlog.protoio import ProtoIO` to work regardless of where the script is invoked from.
+Python analyzer scripts set `_server_root = Path(__file__).resolve().parent.parent` and `_project_root = _server_root.parent`, then insert both into `sys.path`. This allows `from proto import perceiver_pb2` and the compatibility helper `from streamlog.protoio import ProtoIO` to work regardless of where the script is invoked from.

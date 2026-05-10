@@ -74,11 +74,21 @@ body {
   color: var(--success);
   text-transform: uppercase;
   letter-spacing: 0.08em;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.status-badge:hover {
+  background: rgba(0, 255, 136, 0.06);
 }
 
 .status-badge.disconnected {
   border-color: var(--error);
   color: var(--error);
+}
+
+.status-badge.disconnected:hover {
+  background: rgba(255, 51, 68, 0.08);
 }
 
 .status-dot {
@@ -90,6 +100,167 @@ body {
 
 .status-badge.disconnected .status-dot {
   background: var(--error);
+}
+
+.endpoint-health-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  padding: 4.5rem 2rem 2rem;
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.endpoint-health-dialog {
+  width: min(760px, calc(100vw - 2rem));
+  max-height: min(760px, calc(100vh - 6rem));
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: #050505;
+  border: 1px solid var(--border);
+}
+
+.endpoint-health-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.endpoint-health-header h2 {
+  font-size: 0.9rem;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.35rem;
+}
+
+.endpoint-health-header p {
+  color: var(--text-dim);
+  font-size: 0.75rem;
+}
+
+.endpoint-health-close,
+.endpoint-health-actions button {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.endpoint-health-close {
+  width: 2rem;
+  height: 2rem;
+  flex: 0 0 auto;
+  font-size: 1rem;
+}
+
+.endpoint-health-close:hover,
+.endpoint-health-actions button:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.endpoint-health-actions {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.endpoint-health-actions button {
+  padding: 0.45rem 0.75rem;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.endpoint-health-actions button:disabled {
+  color: var(--text-dim);
+  cursor: default;
+}
+
+.endpoint-health-error {
+  margin: 0.75rem 1rem 0;
+  border: 1px solid var(--error);
+  color: var(--error);
+  padding: 0.65rem 0.75rem;
+  font-size: 0.75rem;
+}
+
+.endpoint-health-list {
+  overflow: auto;
+  padding: 0.5rem 1rem 1rem;
+}
+
+.endpoint-health-row {
+  display: grid;
+  grid-template-columns: 5.2rem minmax(0, 1fr);
+  gap: 0.75rem;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.endpoint-health-state {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--error);
+}
+
+.endpoint-health-state.ok {
+  color: var(--success);
+}
+
+.endpoint-health-dot {
+  width: 0.45rem;
+  height: 0.45rem;
+  background: currentColor;
+}
+
+.endpoint-health-main {
+  min-width: 0;
+}
+
+.endpoint-health-name {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text);
+  font-size: 0.8rem;
+  margin-bottom: 0.35rem;
+}
+
+.endpoint-health-kind {
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  padding: 0.1rem 0.3rem;
+  font-size: 0.62rem;
+  text-transform: uppercase;
+}
+
+.endpoint-health-url,
+.endpoint-health-detail,
+.endpoint-health-empty {
+  color: var(--text-dim);
+  font-size: 0.72rem;
+  line-height: 1.35;
+}
+
+.endpoint-health-url {
+  overflow-wrap: anywhere;
+  margin-bottom: 0.25rem;
+}
+
+.endpoint-health-empty {
+  padding: 1rem 0;
 }
 
 .container {

@@ -1,18 +1,27 @@
-server:
-  host: "0.0.0.0"
-  port: 8080
-  max_connections: 5
+listeners:
+  - name: streamlog
+    bind_host: "0.0.0.0"
+    bind_port: 8080
+    base_url: "http://localhost:8080/streamlog"
+    base_path: "/streamlog"
+    planes: [Outstream, Instream, Insightgen, Analyzers]
 
-buffer:
-  max_frames_per_client: 60  # Keep last 60 frames (~2-4 seconds at 15-30 FPS)
+recordings_root: "recordings"
+logs_root: "logs"
+dashboard_static_root: "analysis/dashboard/dist"
+enabled_planes: [Outstream, Instream, Insightgen, Analyzers]
 
-segmentation:
-  host: "http://127.0.0.1:8081"
+limits:
+  max_record_size: 536870912
+  max_outstream_range_frames: 240
+  max_outstream_response_bytes: 268435456
+  max_upload_size: 8589934592
+  max_upload_chunk_size: 134217728
+  max_transcription_upload_size: 52428800
 
-insightgen:
-  video:
-    highlights_only: true     # Send only scene_emphasis windows; false = full recording
-    jpeg_quality: 75          # JPEG encoding quality for rendered frames (0-100)
-    max_width: 480            # Downscale frames to this width before encoding (0 = no limit)
-    overlay_alpha: 0.5        # Heatmap blend weight for the understanding layer
-    tail_length: 30           # Motioncap track tail length in frames
+media:
+  jpeg_quality: 75
+  max_width: 480
+  overlay_alpha: 0.5
+  motion_tail_length: 30
+  highlights_only: true

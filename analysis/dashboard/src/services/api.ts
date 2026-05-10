@@ -7,7 +7,8 @@ import type {
   RecordingInfo,
 } from '../types'
 import { bayesmech } from '../proto/bundle'
-import { decodeIdoSlamResponse, decodeMotioncapRecords, decodePongtownRecords } from './proto'
+import { decodeIdoSlamRecords, decodeIdoSlamResponse, decodeMotioncapRecords, decodePongtownRecords } from './proto'
+import { streamlogLegacyUrl, streamlogPlaneUrl } from './streamlog'
 
 export type GensparkAnalysisResponse = bayesmech.vision.IGensparkResponse
 export type GensparkChatHistory = bayesmech.vision.IChatHistory
@@ -40,20 +41,37 @@ const numberFromLong = (value: number | { toNumber?: () => number } | null | und
   return Number(value ?? 0)
 }
 
+const fetchWithLegacyFallback = async (
+  primaryUrl: Promise<string>,
+  legacyUrl: string,
+  init?: RequestInit,
+): Promise<Response> => {
+  try {
+    const res = await fetch(await primaryUrl, init)
+    if (res.status !== 404 && res.status !== 405) return res
+  } catch {
+    // Fall through to the legacy compatibility route.
+  }
+  return fetch(legacyUrl, init)
+}
+
 export async function fetchStreamStats(): Promise<StreamStats> {
-  const res = await fetch('/api/stream')
+  const res = await fetch(streamlogLegacyUrl('/api/stream'))
   if (!res.ok) throw new Error(`Failed to fetch stream stats: ${res.status}`)
   return res.json() as Promise<StreamStats>
 }
 
 export async function fetchRecordings(): Promise<{ recordings: RecordingInfo[] }> {
-  const res = await fetch('/api/recordings')
+  const res = await fetchWithLegacyFallback(
+    streamlogPlaneUrl('insightgen', '/recordings'),
+    streamlogLegacyUrl('/api/recordings'),
+  )
   if (!res.ok) throw new Error(`Failed to fetch recordings: ${res.status}`)
   return res.json() as Promise<{ recordings: RecordingInfo[] }>
 }
 
 export async function startPlayback(name: string, speed = 1.0, loop = false): Promise<void> {
-  const res = await fetch('/api/playback/start', {
+  const res = await fetch(streamlogLegacyUrl('/api/playback/start'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ name, speed, loop }),
@@ -62,33 +80,92 @@ export async function startPlayback(name: string, speed = 1.0, loop = false): Pr
 }
 
 export async function stopPlayback(): Promise<void> {
-  const res = await fetch('/api/playback/stop', { method: 'POST' })
+  const res = await fetch(streamlogLegacyUrl('/api/playback/stop'), { method: 'POST' })
   if (!res.ok) throw new Error(`Failed to stop playback: ${res.status}`)
 }
 
 export async function switchToLive(): Promise<void> {
-  const res = await fetch('/api/playback/live', { method: 'POST' })
+  const res = await fetch(streamlogLegacyUrl('/api/playback/live'), { method: 'POST' })
   if (!res.ok) throw new Error(`Failed to switch to live: ${res.status}`)
 }
 
 export async function fetchIdoSlam(fileName?: string): Promise<bayesmech.vision.IdoSlamResponse | null> {
   const query = fileName ? `?file=${encodeURIComponent(fileName)}` : ''
-  const res = await fetch(`/api/idoslam${query}`)
+  const res = fileName
+    ? await fetchWithLegacyFallback(
+        streamlogPlaneUrl(
+          'outstream',
+          `/recordings/${encodeURIComponent(fileName)}/analyses/idoslam/artifacts/proto`,
+        ),
+        streamlogLegacyUrl(`/api/idoslam${query}`),
+      )
+    : await fetch(streamlogLegacyUrl(`/api/idoslam${query}`))
   if (res.status === 404) return null
   if (!res.ok) throw new Error(`Failed to fetch idoslam data: ${res.status}`)
-  return decodeIdoSlamResponse(new Uint8Array(await res.arrayBuffer()))
+  const payload = new Uint8Array(await res.arrayBuffer())
+  const records = decodeIdoSlamRecords(payload)
+  return records.at(-1) ?? decodeIdoSlamResponse(payload)
 }
 
 export async function uploadRecording(file: File): Promise<void> {
-  const formData = new FormData()
-  formData.append('file', file)
-  const res = await fetch('/api/upload_recording', { method: 'POST', body: formData })
-  if (!res.ok) throw new Error(`Failed to upload recording: ${res.status}`)
+  const fallbackToLegacyUpload = async () => {
+    const formData = new FormData()
+    formData.append('file', file)
+    const res = await fetch(streamlogLegacyUrl('/api/upload_recording'), { method: 'POST', body: formData })
+    if (!res.ok) throw new Error(`Failed to upload recording: ${res.status}`)
+  }
+
+  try {
+    const startRes = await fetch(await streamlogPlaneUrl('instream', '/imports'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        recording_id: file.name.replace(/\.vis\.pb$/, ''),
+        file_name: file.name,
+      }),
+    })
+    if (startRes.status === 404 || startRes.status === 405) {
+      await fallbackToLegacyUpload()
+      return
+    }
+    if (!startRes.ok) throw new Error(`Failed to start upload: ${startRes.status}`)
+    const started = await startRes.json() as { import_id?: string }
+    if (!started.import_id) throw new Error('Upload session did not return an import id')
+
+    const contentRes = await fetch(await streamlogPlaneUrl('instream', `/imports/${started.import_id}/content`), {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/octet-stream' },
+      body: await file.arrayBuffer(),
+    })
+    if (!contentRes.ok) throw new Error(`Failed to upload recording bytes: ${contentRes.status}`)
+
+    const completeRes = await fetch(await streamlogPlaneUrl('instream', `/imports/${started.import_id}:complete`), {
+      method: 'POST',
+    })
+    if (!completeRes.ok) throw new Error(`Failed to complete upload: ${completeRes.status}`)
+    const completed = await completeRes.json() as { recording_id?: string }
+    if (completed.recording_id) {
+      await startPlayback(completed.recording_id)
+    }
+    return
+  } catch (e) {
+    if (e instanceof Error && !e.message.includes('Failed to')) {
+      await fallbackToLegacyUpload()
+      return
+    }
+    throw e
+  }
 }
 
 export async function fetchRecordingMotioncapData(recordingName: string): Promise<MotioncapData | null> {
-  const res = await fetch(
-    `/api/analysis/recordings/${encodeURIComponent(recordingName)}/analyses/motioncap/records?include_summary=true`,
+  const res = await fetchWithLegacyFallback(
+    streamlogPlaneUrl(
+      'outstream',
+      `/recordings/${encodeURIComponent(recordingName)}/analyses/motioncap/records?include_summary=true`,
+    ),
+    streamlogLegacyUrl(
+      `/api/analysis/recordings/${encodeURIComponent(recordingName)}/analyses/motioncap/records?include_summary=true`,
+    ),
   )
   if (res.status === 404) return null
   if (!res.ok) throw new Error(`Failed to fetch motion capture records: ${res.status}`)
@@ -163,8 +240,14 @@ export async function fetchRecordingMotioncapData(recordingName: string): Promis
 }
 
 export async function fetchRecordingPongtownData(recordingName: string): Promise<PongtownData | null> {
-  const res = await fetch(
-    `/api/analysis/recordings/${encodeURIComponent(recordingName)}/analyses/pongtown/records?include_summary=true`,
+  const res = await fetchWithLegacyFallback(
+    streamlogPlaneUrl(
+      'outstream',
+      `/recordings/${encodeURIComponent(recordingName)}/analyses/pongtown/records?include_summary=true`,
+    ),
+    streamlogLegacyUrl(
+      `/api/analysis/recordings/${encodeURIComponent(recordingName)}/analyses/pongtown/records?include_summary=true`,
+    ),
   )
   if (res.status === 404) return null
   if (!res.ok) throw new Error(`Failed to fetch Pongtown records: ${res.status}`)
@@ -205,8 +288,14 @@ export async function fetchRecordingPongtownData(recordingName: string): Promise
 }
 
 export async function fetchGensparkResponse(recordingName: string): Promise<GensparkAnalysisResponse | null> {
-  const res = await fetch(
-    `/api/analysis/recordings/${encodeURIComponent(recordingName)}/analyses/genspark/artifacts/proto`,
+  const res = await fetchWithLegacyFallback(
+    streamlogPlaneUrl(
+      'outstream',
+      `/recordings/${encodeURIComponent(recordingName)}/analyses/genspark/artifacts/proto`,
+    ),
+    streamlogLegacyUrl(
+      `/api/analysis/recordings/${encodeURIComponent(recordingName)}/analyses/genspark/artifacts/proto`,
+    ),
     { cache: 'no-store' },
   )
   if (res.status === 404) return null
@@ -215,8 +304,14 @@ export async function fetchGensparkResponse(recordingName: string): Promise<Gens
 }
 
 export async function fetchGensparkChatHistory(recordingName: string, sinceTimestampNs = 0): Promise<GensparkChatHistory> {
-  const res = await fetch(
-    `/api/insightgen/chat?file=${encodeURIComponent(recordingName)}&since_timestamp_ns=${sinceTimestampNs}`,
+  const res = await fetchWithLegacyFallback(
+    streamlogPlaneUrl(
+      'insightgen',
+      `/recordings/${encodeURIComponent(recordingName)}/chat?since_timestamp_ns=${sinceTimestampNs}`,
+    ),
+    streamlogLegacyUrl(
+      `/api/insightgen/chat?file=${encodeURIComponent(recordingName)}&since_timestamp_ns=${sinceTimestampNs}`,
+    ),
     { cache: 'no-store' },
   )
   if (!res.ok) throw new Error(`Failed to fetch Model Musings chat: ${res.status}`)
@@ -233,11 +328,16 @@ export async function sendGensparkMessage(
   userTimestampNs: number
   responseTimestampNs: number
 }> {
-  const res = await fetch('/api/insightgen/chat', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ file: recordingName, message, session_id: sessionId }),
-  })
+  const body = JSON.stringify({ file: recordingName, message, session_id: sessionId })
+  const res = await fetchWithLegacyFallback(
+    streamlogPlaneUrl('insightgen', `/recordings/${encodeURIComponent(recordingName)}/chat`),
+    streamlogLegacyUrl('/api/insightgen/chat'),
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body,
+    },
+  )
   if (!res.ok) throw new Error(`Failed to send Model Musings message: ${res.status}`)
   const payload = await res.json() as {
     response?: string
@@ -254,10 +354,14 @@ export async function sendGensparkMessage(
 }
 
 export async function regenerateGensparkAnalysis(recordingName: string): Promise<void> {
-  const res = await fetch('/api/insightgen/regenerate', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ file: recordingName }),
-  })
+  const res = await fetchWithLegacyFallback(
+    streamlogPlaneUrl('analyzers', `/recordings/${encodeURIComponent(recordingName)}/runs`),
+    streamlogLegacyUrl('/api/insightgen/regenerate'),
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ file: recordingName, pipeline: 'genspark', parameters: {} }),
+    },
+  )
   if (!res.ok) throw new Error(`Failed to regenerate Model Musings: ${res.status}`)
 }

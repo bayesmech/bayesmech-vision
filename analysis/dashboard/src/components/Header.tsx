@@ -1,8 +1,11 @@
+import { useState } from 'react'
 import { useDashboard } from '../context/DashboardContext'
+import EndpointHealthDialog from './EndpointHealthDialog'
 import UploadButton from './UploadButton'
 
 const Header = () => {
   const { connectionStatus } = useDashboard()
+  const [showEndpointHealth, setShowEndpointHealth] = useState(false)
 
   const isConnected = connectionStatus === 'Connected'
 
@@ -15,12 +18,23 @@ const Header = () => {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <UploadButton />
-          <div className={`status-badge${isConnected ? '' : ' disconnected'}`}>
+          <button
+            className={`status-badge${isConnected ? '' : ' disconnected'}`}
+            type="button"
+            onClick={() => setShowEndpointHealth(true)}
+            title="Show Streamlog endpoint health"
+          >
             <span className="status-dot" />
             {connectionStatus}
-          </div>
+          </button>
         </div>
       </div>
+      {showEndpointHealth && (
+        <EndpointHealthDialog
+          connectionStatus={connectionStatus}
+          onClose={() => setShowEndpointHealth(false)}
+        />
+      )}
     </header>
   )
 }
