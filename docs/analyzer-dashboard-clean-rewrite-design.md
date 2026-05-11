@@ -874,6 +874,8 @@ Load when tab is opened or prewarm after idle:
 - Request heatmaps separately from track primitives. Track updates are fast and
   tied to the displayed frame; heatmap requests are single-flight with one
   queued latest request so playback cannot accumulate stale worker jobs.
+- While a requested heatmap is pending, continue drawing the previous heatmap
+  without showing a pending label or blanking the layer.
 - Merge a heatmap response only if its frame index and frame number still match
   the current displayed frame; otherwise close and discard its bitmap.
 

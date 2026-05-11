@@ -713,6 +713,8 @@ Layers:
   at `640px` draw width, while still fitting the full viewer bounds.
 - Heatmap overlay opacity: `0.55`.
 - Heatmap colorization uses a jet ramp with low motion values transparent.
+- If the next heatmap is still rendering, keep the previous heatmap visible
+  rather than showing a pending/loading label or blanking the heatmap layer.
 - SVG: absolute inset `0`, full width/height, pointer-events none, overflow visible.
 - SVG viewBox must match the current RGB frame dimensions so track coordinates
   stay inline with video playback.
@@ -1470,7 +1472,8 @@ Before shipping the rewrite:
 - Chart current-frame line updates during seek without chart re-creation.
 - Motioncap playback renders a low-resolution RGB stream, motion heatmap, and
   track overlays. Heatmap inflation/colorization is worker-side, throttled, and
-  stale heatmap responses are ignored.
+  stale heatmap responses are ignored. The previous heatmap remains visible
+  while the next heatmap is pending.
 - Segmentation masks render without the original RGB frame underneath.
 - 3D table viewer is nonblank, framed correctly, and interactive at desktop and mobile sizes.
 - Keyboard focus is visible on all interactive elements.

@@ -72,7 +72,6 @@
       <div class="motion-footer">
         <span>Frame {asset?.frameNumber ?? frame?.frameNumber ?? 0}</span>
         <span>{activeSegments.length} visible tracks</span>
-        <span>{asset?.heatmapBitmap ? 'Heatmap' : 'Heatmap pending'}</span>
       </div>
     {/if}
   </Panel>

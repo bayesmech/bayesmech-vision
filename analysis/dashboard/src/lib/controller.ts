@@ -1029,8 +1029,12 @@ function mergeMotionHeatmapForFrame(previous: MotionOverlayAsset | undefined, ne
       heatmapHeight: previous.heatmapHeight
     };
   }
-  previous?.heatmapBitmap?.close();
-  return next;
+  return {
+    ...next,
+    heatmapBitmap: previous?.heatmapBitmap,
+    heatmapWidth: previous?.heatmapWidth,
+    heatmapHeight: previous?.heatmapHeight
+  };
 }
 
 function nearestPast(cache: Map<number, DecodedFrameAsset>, target: number, tolerance: number): DecodedFrameAsset | undefined {
