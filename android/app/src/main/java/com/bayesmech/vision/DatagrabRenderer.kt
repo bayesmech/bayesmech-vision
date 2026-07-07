@@ -270,6 +270,18 @@ class DatagrabRenderer(val activity: MainActivity) :
         client.sendFrame(frame)
     }
 
+    fun notifyRecordingStarted(recordingName: String) {
+        streamClient?.startRecording(recordingName)
+    }
+
+    fun notifyRecordingFinished(recordingName: String) {
+        streamClient?.finishRecording(recordingName)
+    }
+
+    fun notifyRecordingDeleted(recordingName: String) {
+        streamClient?.deleteRecording(recordingName)
+    }
+
     private fun showError(errorMessage: String) {
         activity.appViewModel.setArcoreError(errorMessage)
     }

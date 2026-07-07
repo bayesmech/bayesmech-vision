@@ -183,6 +183,22 @@
                 android:contentDescription="Record"
                 android:elevation="8dp"
                 android:stateListAnimator="@animator/record_button_press" />
+
+            <ImageButton
+                android:id="@+id/delete_recording_button"
+                android:layout_width="56dp"
+                android:layout_height="56dp"
+                android:layout_gravity="top|center_horizontal"
+                android:layout_marginTop="-28dp"
+                android:translationX="76dp"
+                android:background="@drawable/delete_recording_button_background"
+                android:padding="14dp"
+                android:scaleType="centerInside"
+                android:src="@drawable/ic_delete"
+                android:tint="@color/text_primary"
+                android:contentDescription="Discard recording"
+                android:elevation="8dp"
+                android:visibility="gone" />
         </FrameLayout>
     </LinearLayout>
 </FrameLayout>

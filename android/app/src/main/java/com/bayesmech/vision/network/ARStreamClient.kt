@@ -4,6 +4,7 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import com.bayesmech.vision.PerceiverDataFrame
+import org.json.JSONObject
 import okhttp3.*
 import okio.ByteString
 import java.util.concurrent.atomic.AtomicBoolean
@@ -54,6 +55,9 @@ class ARStreamClient(
     private var retryCount = 0
     private var autoReconnectEnabled = true
     private var isReconnecting = false
+
+    @Volatile
+    private var activeRecordingName: String? = null
     
     private fun buildStreamUrl(): String = "${serverUrl.trim().trimEnd('/')}/ar-stream"
 
@@ -117,6 +121,8 @@ class ARStreamClient(
                         isRetrying = false,
                         retryCount = 0
                     ))
+
+                    activeRecordingName?.let { sendControl("start_recording", it) }
                 }
 
                 override fun onMessage(webSocket: WebSocket, text: String) {
@@ -263,6 +269,32 @@ class ARStreamClient(
             if (framesSent % 30 == 0) {  // Log every 30th frame
                 Log.w(TAG, "Failed to send frame")
             }
+        }
+    }
+
+    fun startRecording(recordingName: String) {
+        activeRecordingName = recordingName
+        sendControl("start_recording", recordingName)
+    }
+
+    fun finishRecording(recordingName: String) {
+        sendControl("finish_recording", recordingName)
+        activeRecordingName = null
+    }
+
+    fun deleteRecording(recordingName: String) {
+        sendControl("delete_recording", recordingName)
+        activeRecordingName = null
+    }
+
+    private fun sendControl(action: String, recordingName: String) {
+        if (!isConnected.get()) return
+        val payload = JSONObject()
+            .put("type", action)
+            .put("recording_name", recordingName)
+            .toString()
+        if (webSocket?.send(payload) != true) {
+            Log.w(TAG, "Failed to send control message: $action")
         }
     }
 

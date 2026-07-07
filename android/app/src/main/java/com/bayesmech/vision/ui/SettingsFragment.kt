@@ -264,10 +264,36 @@ class SettingsFragment : Fragment() {
             .setMessage("Delete ${file.name}?")
             .setPositiveButton("Delete") { _, _ ->
                 file.delete()
+                deleteServerRecording(file)
                 loadSavedFiles()
             }
             .setNegativeButton("Cancel", null)
             .show()
+    }
+
+    private fun deleteServerRecording(file: File) {
+        val recordingName = file.name.removeSuffix(".vis.pb")
+        val httpBase = viewModel.serverUrl.value.trimEnd('/')
+            .replaceFirst("wss://", "https://")
+            .replaceFirst("ws://", "http://")
+        if (httpBase.isBlank()) return
+
+        viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val encodedName = Uri.encode(recordingName)
+                val request = Request.Builder()
+                    .url("$httpBase/api/recordings/$encodedName")
+                    .delete()
+                    .build()
+                OkHttpClient().newCall(request).execute().use { response ->
+                    if (!response.isSuccessful && response.code != 404) {
+                        Log.w("SettingsFragment", "Server delete failed for $recordingName: ${response.code}")
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w("SettingsFragment", "Failed to delete server recording $recordingName: ${e.message}")
+            }
+        }
     }
 
     private fun setupUserProfilePage() {

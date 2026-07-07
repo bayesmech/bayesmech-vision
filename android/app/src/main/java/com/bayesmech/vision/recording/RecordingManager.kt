@@ -34,8 +34,7 @@ class RecordingManager(private val context: Context) {
     private var isRecording = false
 
     companion object {
-        private const val FILE_PREFIX = "arstream_"
-        private const val FILE_EXTENSION = ".pb"
+        private const val FILE_EXTENSION = ".vis.pb"
         private const val FSYNC_INTERVAL = 30  // fdatasync every N frames
     }
 
@@ -65,7 +64,7 @@ class RecordingManager(private val context: Context) {
             }
 
             val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
-            val filename = "$FILE_PREFIX$timestamp$FILE_EXTENSION"
+            val filename = "$timestamp$FILE_EXTENSION"
             currentFile = File(recordingsDir, filename)
 
             channel = FileOutputStream(currentFile!!).channel
@@ -127,6 +126,20 @@ class RecordingManager(private val context: Context) {
             return null
         }
     }
+
+    /**
+     * Stop the current recording and remove the partial file instead of keeping it.
+     */
+    fun discardRecording(): File? {
+        val file = currentFile
+        stopRecording()
+        if (file != null && file.exists() && !file.delete()) {
+            Log.w(TAG, "Failed to delete discarded recording: ${file.absolutePath}")
+        }
+        return file
+    }
+
+    fun currentRecordingName(): String? = currentFile?.name?.removeSuffix(FILE_EXTENSION)
 
     /**
      * Write a single AR frame to the recording.
@@ -217,7 +230,7 @@ class RecordingManager(private val context: Context) {
         if (!recordingsDir.exists()) return emptyList()
 
         return recordingsDir.listFiles { file ->
-            file.isFile && file.name.startsWith(FILE_PREFIX) && file.name.endsWith(FILE_EXTENSION)
+            file.isFile && file.name.endsWith(FILE_EXTENSION)
         }?.sortedByDescending { it.name }?.toList() ?: emptyList()
     }
 }

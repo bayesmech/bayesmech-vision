@@ -76,11 +76,11 @@ class ARDataCapture(
                 frameNum = capturedFrameNumber
             )
 
-            if (recordingManager.isRecording()) {
+            val isRecording = recordingManager.isRecording()
+            if (isRecording) {
                 recordingManager.writeFrame(perceiverFrame)
+                client.sendFrame(perceiverFrame)
             }
-
-            client.sendFrame(perceiverFrame)
 
             val frameSize = perceiverFrame.serializedSize
             bandwidthMonitor.recordSent(frameSize)

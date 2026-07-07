@@ -30,6 +30,7 @@ import json
 import logging
 import os
 import re
+import shutil
 import struct
 import sys
 import time
@@ -145,11 +146,116 @@ app.add_middleware(
 # ── WebSocket: AR stream (Android -> server) ─────────────────────────────────
 
 
+class LiveRecordingWriter:
+    """Writes an incoming AR stream as a normal recording artifact."""
+
+    def __init__(self, recordings_dir: Path) -> None:
+        self._recordings_dir = recordings_dir
+        self._recording_name: str | None = None
+        self._path: Path | None = None
+        self._file = None
+        self._frame_count = 0
+
+    @property
+    def recording_name(self) -> str | None:
+        return self._recording_name
+
+    @property
+    def path(self) -> Path | None:
+        return self._path
+
+    @property
+    def frame_count(self) -> int:
+        return self._frame_count
+
+    def start(self, recording_name: str) -> Path:
+        self.finish()
+        safe_name = _safe_recording_stem(recording_name)
+        if not safe_name:
+            raise ValueError("recording_name is required")
+        folder = self._recordings_dir / safe_name
+        folder.mkdir(parents=True, exist_ok=True)
+        path = folder / f"{_recording_file_stem(safe_name)}.vis.pb"
+        self._file = open(path, "wb")
+        self._recording_name = safe_name
+        self._path = path
+        self._frame_count = 0
+        return path
+
+    def write(self, frame: perceiver_pb2.PerceiverDataFrame) -> None:
+        if self._file is None:
+            return
+        raw = frame.SerializeToString()
+        self._file.write(struct.pack(">I", len(raw)))
+        self._file.write(raw)
+        self._frame_count += 1
+        if self._frame_count % 30 == 0:
+            self._file.flush()
+
+    def finish(self) -> Path | None:
+        path = self._path
+        if self._file is not None:
+            self._file.flush()
+            os.fsync(self._file.fileno())
+            self._file.close()
+        self._file = None
+        self._recording_name = None
+        self._path = None
+        self._frame_count = 0
+        return path
+
+    def delete(self, recording_name: str | None = None) -> Path | None:
+        active_name = self._recording_name
+        path = self.finish()
+        safe_name = _safe_recording_stem(recording_name or active_name or "")
+        target_dir = self._recordings_dir / safe_name if safe_name else None
+        if target_dir is not None and target_dir.exists():
+            shutil.rmtree(target_dir)
+            return target_dir
+        if path is not None and path.exists():
+            path.unlink()
+            return path
+        return None
+
+
+def _handle_ar_control_message(writer: LiveRecordingWriter, text: str, addr: str) -> None:
+    try:
+        payload = json.loads(text)
+    except json.JSONDecodeError:
+        logger.warning("Ignoring non-JSON AR text message from %s: %r", addr, text[:120])
+        return
+
+    action = str(payload.get("type") or payload.get("action") or "").strip()
+    recording_name = str(payload.get("recording_name") or payload.get("filename") or "").strip()
+
+    try:
+        if action == "start_recording":
+            path = writer.start(recording_name)
+            logger.info("Started live recording from %s: %s", addr, path)
+        elif action == "finish_recording":
+            if recording_name and writer.recording_name != _safe_recording_stem(recording_name):
+                logger.warning(
+                    "Finish requested for %s, but active live recording is %s",
+                    recording_name,
+                    writer.recording_name,
+                )
+            path = writer.finish()
+            logger.info("Finished live recording from %s: %s", addr, path)
+        elif action == "delete_recording":
+            deleted = writer.delete(recording_name)
+            logger.info("Deleted live recording from %s: %s", addr, deleted)
+        else:
+            logger.warning("Unknown AR control action from %s: %r", addr, action)
+    except Exception as exc:
+        logger.error("AR control message failed from %s: %s", addr, exc, exc_info=True)
+
+
 @app.websocket("/ar-stream")
 async def ar_stream_ws(websocket: WebSocket):
     addr = f"{websocket.client.host}:{websocket.client.port}"
     await websocket.accept()
     logger.info(f"AR client connected: {addr}")
+    writer = LiveRecordingWriter(RECORDINGS_DIR)
 
     await store.stop_replay()
     store.clear()
@@ -157,13 +263,23 @@ async def ar_stream_ws(websocket: WebSocket):
 
     try:
         while True:
-            raw = await websocket.receive_bytes()
+            message = await websocket.receive()
+            if message.get("type") == "websocket.disconnect":
+                break
+            text = message.get("text")
+            if text is not None:
+                _handle_ar_control_message(writer, text, addr)
+                continue
+            raw = message.get("bytes")
+            if raw is None:
+                continue
             frame = perceiver_pb2.PerceiverDataFrame()
             try:
                 frame.ParseFromString(raw)
             except Exception as exc:
                 logger.warning(f"Proto parse error from {addr}: {exc}")
                 continue
+            writer.write(frame)
             store.push(frame)
     except WebSocketDisconnect:
         pass
@@ -173,6 +289,9 @@ async def ar_stream_ws(websocket: WebSocket):
         logger.info(
             f"AR client disconnected: {addr}  (pushed {store.frame_count} frames)"
         )
+        if writer.path is not None:
+            path = writer.finish()
+            logger.info("Closed unfinished live recording from %s: %s", addr, path)
         store.set_source("none")
 
 
@@ -1195,6 +1314,21 @@ async def list_recordings():
             }
         )
     return {"recordings": recordings}
+
+
+@app.delete("/api/recordings/{recording_name}")
+async def delete_recording(recording_name: str):
+    safe_name = _safe_recording_stem(recording_name)
+    if not safe_name:
+        raise HTTPException(status_code=400, detail="Recording name is required")
+    folder = RECORDINGS_DIR / safe_name
+    if not folder.exists():
+        return Response(status_code=204)
+    if not folder.is_dir():
+        raise HTTPException(status_code=400, detail=f"Invalid recording: {safe_name}")
+    shutil.rmtree(folder)
+    logger.info("Deleted recording %s at %s", safe_name, folder)
+    return Response(status_code=204)
 
 
 @app.get("/api/idoslam")

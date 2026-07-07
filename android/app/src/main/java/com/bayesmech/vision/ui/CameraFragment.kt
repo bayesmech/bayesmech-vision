@@ -75,14 +75,29 @@ class CameraFragment : Fragment() {
             val mainActivity = activity as? MainActivity ?: return@setOnClickListener
 
             if (isRecording) {
+                val recordingName = mainActivity.recordingManager.currentRecordingName()
                 mainActivity.recordingManager.stopRecording()
+                if (recordingName != null) {
+                    mainActivity.renderer?.notifyRecordingFinished(recordingName)
+                }
                 viewModel.setRecording(false)
             } else {
                 val filename = mainActivity.recordingManager.startRecording()
                 if (filename != null) {
+                    mainActivity.recordingManager.currentRecordingName()?.let {
+                        mainActivity.renderer?.notifyRecordingStarted(it)
+                    }
                     viewModel.setRecording(true)
                 }
             }
+        }
+
+        binding.deleteRecordingButton.setOnClickListener {
+            val mainActivity = activity as? MainActivity ?: return@setOnClickListener
+            val recordingName = mainActivity.recordingManager.currentRecordingName() ?: return@setOnClickListener
+            mainActivity.recordingManager.discardRecording()
+            mainActivity.renderer?.notifyRecordingDeleted(recordingName)
+            viewModel.setRecording(false)
         }
 
         binding.fullscreenButton.setOnClickListener { toggleFullscreen() }
@@ -344,10 +359,13 @@ class CameraFragment : Fragment() {
         if (isFullscreen) {
             binding.chatPanel.visibility = View.GONE
             binding.recordButton.visibility = View.GONE
+            binding.deleteRecordingButton.visibility = View.GONE
             binding.fullscreenButton.setImageResource(R.drawable.ic_fullscreen_exit)
         } else {
             binding.chatPanel.visibility = View.VISIBLE
             binding.recordButton.visibility = View.VISIBLE
+            binding.deleteRecordingButton.visibility =
+                if (viewModel.isRecording.value) View.VISIBLE else View.GONE
             binding.fullscreenButton.setImageResource(R.drawable.ic_fullscreen)
         }
     }
@@ -355,12 +373,14 @@ class CameraFragment : Fragment() {
     private fun updateRecordButtonState(isRecording: Boolean) {
         if (isRecording) {
             binding.recordButton.setBackgroundResource(R.drawable.record_button_recording)
+            binding.deleteRecordingButton.visibility = if (isFullscreen) View.GONE else View.VISIBLE
             binding.liveBadge.text = "● REC"
             binding.liveBadge.visibility = View.VISIBLE
             startPulse()
         } else {
             stopPulse()
             binding.recordButton.setBackgroundResource(R.drawable.record_button_idle)
+            binding.deleteRecordingButton.visibility = View.GONE
             binding.liveBadge.visibility = View.GONE
         }
     }
