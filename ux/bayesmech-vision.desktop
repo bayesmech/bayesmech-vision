@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=BayesMech Vision
+Comment=BayesMech Vision desktop app
+Categories=Science;DataVisualization;
+Exec=/home/animesh/Code/Projects/bayesmech-vision/ux/scripts/run-native-linux.sh
+Icon=/home/animesh/Code/Projects/bayesmech-vision/ux/electron/assets/bayesmech-icon-512.png
+Terminal=false
+StartupNotify=true
+StartupWMClass=BayesMech Vision

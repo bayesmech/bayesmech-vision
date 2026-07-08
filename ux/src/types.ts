@@ -1,0 +1,277 @@
+export type Vec3 = {
+  x: number
+  y: number
+  z: number
+}
+
+export type Quat = {
+  x: number
+  y: number
+  z: number
+  w: number
+}
+
+export type Pose = {
+  position: Vec3
+  rotation: Quat
+}
+
+export type ProjectAnalysis = {
+  key: string
+  title: string
+  kind: string
+  source: 'vis' | 'artifact'
+  suffix?: string
+  path: string
+  relativePath: string
+  sizeBytes?: number
+  sizeLabel?: string
+  modifiedMs?: number
+}
+
+export type RecordingEntry = {
+  id: string
+  name: string
+  fileStem: string
+  path: string
+  directoryPath: string
+  relativePath: string
+  sizeBytes: number
+  sizeLabel: string
+  modifiedMs: number
+  analyses: ProjectAnalysis[]
+}
+
+export type ProjectScanResult = {
+  rootPath: string
+  name: string
+  recordings: RecordingEntry[]
+  error?: string
+}
+
+export type SelectProjectResponse = ProjectScanResult | { cancelled: true; error?: string }
+
+export type SamplePoint = Vec3 & {
+  confidence: number
+}
+
+export type SamplePlane = {
+  type: number
+  extentX: number
+  extentZ: number
+  centerPose: Pose | null
+  polygon: Vec3[]
+}
+
+export type VisSample = {
+  sampleIndex: number
+  frameNumber: number
+  timestampNs: string
+  cameraPose: Pose | null
+  points: SamplePoint[]
+  planes: SamplePlane[]
+  rgb: {
+    width: number
+    height: number
+    format: number
+    bytes: number
+  } | null
+  depth: {
+    width: number
+    height: number
+    format: number
+    bytes: number
+  } | null
+  userTextInput: string
+}
+
+export type VisSummary = {
+  path: string
+  fileName: string
+  sizeBytes: number
+  sizeLabel: string
+  frameCount: number
+  decodedFrames: number
+  parseErrors: number
+  firstTimestampNs: string
+  lastTimestampNs: string
+  durationSeconds: number
+  firstFrameNumber: number
+  lastFrameNumber: number
+  devices: string[]
+  framesWithRgb: number
+  framesWithDepth: number
+  framesWithPointCloud: number
+  framesWithPlanes: number
+  sampledPointCount: number
+  sampledPlaneCount: number
+  rgbPreview: {
+    dataUrl: string
+    width: number
+    height: number
+    frameNumber: number
+  } | null
+  depthStats: {
+    width: number
+    height: number
+    format: number
+    minMeters: number
+    maxMeters: number
+    sampledPixels: number
+  } | null
+  bounds: {
+    min: Vec3
+    max: Vec3
+  } | null
+  samples: VisSample[]
+}
+
+export type VisFrame = {
+  index: number
+  frameCount: number
+  frameNumber: number
+  timestampNs: string
+  width: number
+  height: number
+  // JPEG data URL for the frame's RGB image, or null when the frame carries no
+  // decodable RGB (non-JPEG format or an RGB-less frame).
+  dataUrl: string | null
+}
+
+export type SegMask = {
+  objectId: number
+  label: string
+  // base64-encoded [H:u32le][W:u32le][zlib(packbits(mask))] payload.
+  maskData: string
+}
+
+export type VideoMarker = {
+  id: string
+  name: string
+  reference: string
+  frameIndex: number
+  frameNumber: number
+  seconds: number
+  color: string
+}
+
+export type VideoPlaybackState = {
+  index: number
+  playing: boolean
+  speed: number
+  markers: VideoMarker[]
+}
+
+export type WorldgenPoint = Vec3 & {
+  r: number
+  g: number
+  b: number
+  confidence: number
+  frameIndex: number
+  frameNumber: number
+  framePointIndex: number
+  u: number
+  v: number
+}
+
+export type WorldgenCamera = Vec3 & {
+  frameIndex: number
+  frameNumber: number
+  matrix: number[]
+  intrinsics: number[]
+}
+
+export type WorldgenFrame = {
+  sampledFrameIndex: number
+  frameIndex: number
+  frameNumber: number
+  imageWidth: number
+  imageHeight: number
+  pointCount: number
+  returnedPointCount: number
+}
+
+export type WorldgenResult = {
+  id: string
+  outputPath: string
+  markerStart: string
+  markerEnd: string
+  startFrameIndex: number
+  endFrameIndex: number
+  frameCount: number
+  pointCount: number
+  returnedPointCount: number
+  model: string
+  elapsedSec: number
+  frames: WorldgenFrame[]
+  points: WorldgenPoint[]
+  cameras: WorldgenCamera[]
+}
+
+export type WorldgenRequest = {
+  requestId: string
+  recordingPath: string
+  markerStart: string
+  markerEnd: string
+  startFrameIndex: number
+  endFrameIndex: number
+  resolution?: number
+  confidenceThreshold?: number
+  maxPointsPerFrame?: number
+  windowSize?: number
+}
+
+export type WorkspaceTabType = 'scene' | 'point-cloud' | 'planes' | 'video' | 'analysis' | 'worldgen'
+
+export type WorkspaceTabRequest = {
+  requestId: string
+  type: WorkspaceTabType
+  title: string
+  analysisKey?: string
+  worldgenResultId?: string
+}
+
+export type WorkspaceTab = {
+  id: string
+  type: WorkspaceTabType
+  title: string
+  analysisKey?: string
+  worldgenResultId?: string
+}
+
+export type LeafNode = {
+  id: string
+  type: 'leaf'
+  activeTabId: string
+  tabs: WorkspaceTab[]
+}
+
+export type SplitNode = {
+  id: string
+  type: 'split'
+  direction: 'row' | 'column'
+  ratio: number
+  first: LayoutNode
+  second: LayoutNode
+}
+
+export type LayoutNode = LeafNode | SplitNode
+
+export type BridgeApi = {
+  selectProject: () => Promise<SelectProjectResponse>
+  selectVisFiles: () => Promise<SelectProjectResponse>
+  scanProject: (projectPath: string) => Promise<ProjectScanResult>
+  readVisSummary: (filePath: string) => Promise<VisSummary>
+  readVisFrame: (filePath: string, frameIndex: number) => Promise<VisFrame | null>
+  readSegmentationMasks: (filePath: string, frameNumber: number) => Promise<SegMask[] | null>
+  readSegmentationLabels: (filePath: string) => Promise<string[]>
+  runWorldgen: (request: WorldgenRequest) => Promise<WorldgenResult>
+  revealPath: (filePath: string) => Promise<boolean>
+  onOpenProject: (callback: () => void) => () => void
+}
+
+declare global {
+  interface Window {
+    bayesmech?: BridgeApi
+  }
+}

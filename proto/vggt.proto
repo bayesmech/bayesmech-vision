@@ -1,0 +1,62 @@
+syntax = "proto3";
+
+package bayesmech.vision;
+
+option java_multiple_files = true;
+option java_package = "com.bayesmech.vision";
+
+import "perceiver.proto";
+
+message VggtInferenceRequest {
+  string request_id = 1;
+  string source_recording_path = 2;
+  string marker_start = 3;
+  string marker_end = 4;
+  uint32 start_frame_index = 5;
+  uint32 end_frame_index = 6;
+  repeated PerceiverFrameIdentifier frame_identifiers = 7;
+  uint32 resolution = 8;
+  float confidence_threshold = 9;
+  uint32 max_points_per_frame = 10;
+}
+
+message VggtCameraFrame {
+  PerceiverFrameIdentifier frame_identifier = 1;
+  uint32 source_frame_index = 2;
+  uint32 sampled_frame_index = 3;
+  repeated float extrinsics_cfw = 4 [packed = true];
+  repeated float intrinsics = 5 [packed = true];
+  repeated float camera_to_world = 6 [packed = true];
+  repeated float camera_center = 7 [packed = true];
+}
+
+message VggtPointCloudFrame {
+  PerceiverFrameIdentifier frame_identifier = 1;
+  uint32 source_frame_index = 2;
+  uint32 sampled_frame_index = 3;
+  uint32 point_count = 4;
+  uint32 returned_point_count = 5;
+  bytes xyz_f32_le = 6;
+  bytes rgb_f32_le = 7;
+  bytes uv_f32_le = 8;
+  bytes confidence_f32_le = 9;
+}
+
+message VggtInferenceResponse {
+  string request_id = 1;
+  string model = 2;
+  string checkpoint = 3;
+  string device = 4;
+  string source_recording_path = 5;
+  string marker_start = 6;
+  string marker_end = 7;
+  uint32 start_frame_index = 8;
+  uint32 end_frame_index = 9;
+  uint32 frame_count = 10;
+  repeated VggtCameraFrame cameras = 11;
+  repeated VggtPointCloudFrame point_clouds = 12;
+  string camera_convention = 13;
+  string pointcloud_space = 14;
+  float elapsed_sec = 15;
+  string endpoint = 16;
+}

@@ -1,0 +1,35 @@
+{
+  "name": "bayesmech-vision-ux",
+  "productName": "BayesMech Vision",
+  "desktopName": "bayesmech-vision.desktop",
+  "private": true,
+  "version": "0.1.0",
+  "main": "electron/main.cjs",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1 --port ${VITE_PORT:-5173} --strictPort",
+    "electron": "VITE_DEV_SERVER_URL=http://127.0.0.1:${VITE_PORT:-5173} electron --no-sandbox .",
+    "electron:software": "VITE_DEV_SERVER_URL=http://127.0.0.1:${VITE_PORT:-5173} electron --no-sandbox --disable-gpu --enable-unsafe-swiftshader .",
+    "start": "concurrently -k \"npm run dev\" \"wait-on http://127.0.0.1:${VITE_PORT:-5173} && npm run electron:software\"",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview --host 127.0.0.1"
+  },
+  "dependencies": {
+    "@vitejs/plugin-react": "^5.1.1",
+    "electron": "^39.2.7",
+    "lucide-react": "^0.561.0",
+    "protobufjs": "^8.0.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "three": "^0.184.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "@types/three": "^0.185.0",
+    "concurrently": "^9.2.1",
+    "typescript": "~5.9.3",
+    "vite": "^7.3.1",
+    "wait-on": "^9.0.3"
+  }
+}
