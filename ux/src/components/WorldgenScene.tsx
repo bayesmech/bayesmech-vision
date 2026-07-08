@@ -1,7 +1,8 @@
 import { MouseEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { RotateCcw, ZoomIn, ZoomOut } from 'lucide-react'
 import * as THREE from 'three'
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
-import type { VisFrame, WorldgenCamera, WorldgenFrame, WorldgenPoint, WorldgenResult } from '../types'
+import { TrackballControls } from 'three/examples/jsm/controls/TrackballControls.js'
+import type { VisFrame, WorldgenCamera, WorldgenFrame, WorldgenPoint, WorldgenResult, WorldgenSplatPoint } from '../types'
 import { compactNumber, shortPath } from '../lib/format'
 import { useFrameSource } from '../lib/frameSource'
 
@@ -12,11 +13,13 @@ type WorldgenSceneProps = {
 type SceneHandles = {
   camera: THREE.PerspectiveCamera
   renderer: THREE.WebGLRenderer
-  controls: OrbitControls
+  controls: TrackballControls
   dataGroup: THREE.Group
   resizeObserver: ResizeObserver
   animationId: number
 }
+
+type WorldgenViewMode = 'splat' | 'both' | 'vggt'
 
 function pointKey(point: Pick<WorldgenPoint, 'frameIndex' | 'framePointIndex'>): string {
   return `${point.frameIndex}:${point.framePointIndex}`
@@ -36,31 +39,121 @@ function transformCameraLocal(camera: WorldgenCamera, x: number, y: number, z: n
   )
 }
 
-function fitCamera(handles: SceneHandles, result: WorldgenResult | null) {
+type ScenePoint = Pick<WorldgenPoint | WorldgenSplatPoint, 'x' | 'y' | 'z'>
+
+function finiteScenePoints(points: ScenePoint[]): THREE.Vector3[] {
+  return points
+    .filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y) && Number.isFinite(point.z))
+    .map((point) => new THREE.Vector3(point.x, point.y, point.z))
+}
+
+function quantile(values: number[], amount: number): number {
+  if (!values.length) return 0
+  const index = Math.max(0, Math.min(values.length - 1, Math.floor((values.length - 1) * amount)))
+  return values[index]
+}
+
+function robustPointBox(points: ScenePoint[], low = 0.01, high = 0.99): THREE.Box3 | null {
+  const finite = finiteScenePoints(points)
+  if (!finite.length) return null
+  if (finite.length < 64) return new THREE.Box3().setFromPoints(finite)
+
+  const xs = finite.map((point) => point.x).sort((a, b) => a - b)
+  const ys = finite.map((point) => point.y).sort((a, b) => a - b)
+  const zs = finite.map((point) => point.z).sort((a, b) => a - b)
+  const min = new THREE.Vector3(quantile(xs, low), quantile(ys, low), quantile(zs, low))
+  const max = new THREE.Vector3(quantile(xs, high), quantile(ys, high), quantile(zs, high))
+  const box = new THREE.Box3(min, max)
+  return box.isEmpty() ? new THREE.Box3().setFromPoints(finite) : box
+}
+
+function activeFitBox(result: WorldgenResult, viewMode: WorldgenViewMode): THREE.Box3 | null {
+  const boxes: THREE.Box3[] = []
+  if ((viewMode === 'vggt' || viewMode === 'both') && result.points.length) {
+    const box = robustPointBox(result.points, 0.01, 0.99)
+    if (box) boxes.push(box)
+  }
+  if ((viewMode === 'splat' || viewMode === 'both') && result.splatPoints.length) {
+    const box = robustPointBox(result.splatPoints, 0.10, 0.90)
+    if (box) boxes.push(box)
+  }
+  if (!boxes.length && result.cameras.length) {
+    boxes.push(new THREE.Box3().setFromPoints(result.cameras.map(cameraPoint)))
+  }
+  if (!boxes.length) return null
+  const out = boxes[0].clone()
+  for (const box of boxes.slice(1)) out.union(box)
+  return out
+}
+
+function fitCamera(handles: SceneHandles, result: WorldgenResult | null, viewMode: WorldgenViewMode) {
   const { camera, controls } = handles
-  if (!result || result.points.length === 0) {
+  if (!result || (result.points.length === 0 && result.splatPoints.length === 0)) {
     camera.position.set(2.8, 2.0, 3.4)
     controls.target.set(0, 0, 0)
+    controls.minDistance = 0.02
+    controls.maxDistance = 200
     controls.update()
     return
   }
 
-  const box = new THREE.Box3()
-  for (const point of result.points) box.expandByPoint(new THREE.Vector3(point.x, point.y, point.z))
-  for (const center of result.cameras) box.expandByPoint(cameraPoint(center))
+  const box = activeFitBox(result, viewMode)
+  if (!box) return
 
   const center = new THREE.Vector3()
   const size = new THREE.Vector3()
   box.getCenter(center)
   box.getSize(size)
-  const radius = Math.max(size.length() * 0.62, 1.0)
+  const radius = Math.max(size.length() * 0.72, 0.65)
 
-  camera.position.copy(center).add(new THREE.Vector3(radius * 1.1, radius * 0.78, radius * 1.25))
+  camera.position.copy(center).add(new THREE.Vector3(radius * 1.06, radius * 0.62, radius * 1.18))
   camera.near = Math.max(0.01, radius / 240)
-  camera.far = Math.max(100, radius * 120)
+  camera.far = Math.max(100, radius * 80)
   camera.updateProjectionMatrix()
   controls.target.copy(center)
+  controls.minDistance = Math.max(0.01, radius * 0.05)
+  controls.maxDistance = Math.max(50, radius * 80)
   controls.update()
+}
+
+function splatPointSize(points: WorldgenSplatPoint[]): number {
+  if (!points.length) return 0.018
+  const sample = points
+    .filter((point) => point.scale > 0)
+    .slice(0, 4000)
+    .map((point) => point.scale)
+    .sort((a, b) => a - b)
+  const median = sample[Math.floor(sample.length / 2)] ?? 0.018
+  return Math.min(0.09, Math.max(0.008, median * 2.4))
+}
+
+function addSplatPoints(group: THREE.Group, points: WorldgenSplatPoint[], opacity = 0.96) {
+  const positions: number[] = []
+  const colors: number[] = []
+
+  for (const point of points) {
+    if (point.opacity <= 0.015) continue
+    const visibility = 0.35 + Math.min(1, point.opacity) * 0.65
+    positions.push(point.x, point.y, point.z)
+    colors.push(point.r * visibility, point.g * visibility, point.b * visibility)
+  }
+
+  const geometry = new THREE.BufferGeometry()
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3))
+  geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3))
+  group.add(
+    new THREE.Points(
+      geometry,
+      new THREE.PointsMaterial({
+        size: splatPointSize(points),
+        vertexColors: true,
+        sizeAttenuation: true,
+        transparent: true,
+        opacity,
+        depthWrite: false,
+      }),
+    ),
+  )
 }
 
 function disposeObject3D(object: THREE.Object3D) {
@@ -89,6 +182,7 @@ function addWorldgenPoints(
   selectedFrameIndex: number | null,
   showAllFrames: boolean,
   highlightedKey: string | null,
+  opacityScale = 1,
 ) {
   const grouped = pointsByFrame(result.points)
   for (const [frameIndex, framePoints] of grouped.entries()) {
@@ -115,7 +209,8 @@ function addWorldgenPoints(
           vertexColors: true,
           sizeAttenuation: true,
           transparent: true,
-          opacity: selected ? 1 : 0.32,
+          opacity: (selected ? 1 : 0.32) * opacityScale,
+          depthWrite: false,
         }),
       ),
     )
@@ -182,16 +277,18 @@ export default function WorldgenScene({ result }: WorldgenSceneProps) {
   const getFrame = useFrameSource()
   const containerRef = useRef<HTMLDivElement>(null)
   const handlesRef = useRef<SceneHandles | null>(null)
+  const fitKeyRef = useRef('')
   const imageCanvasRef = useRef<HTMLCanvasElement>(null)
   const imageRef = useRef<HTMLImageElement | null>(null)
   const [selectedFrameIndex, setSelectedFrameIndex] = useState<number | null>(null)
   const [showAllFrames, setShowAllFrames] = useState(true)
+  const [viewMode, setViewMode] = useState<WorldgenViewMode>('vggt')
   const [highlightedKey, setHighlightedKey] = useState<string | null>(null)
   const [frameImage, setFrameImage] = useState<VisFrame | null>(null)
   const [imageTick, setImageTick] = useState(0)
   const sceneKey = useMemo(
-    () => `${result?.id ?? 'empty'}:${selectedFrameIndex ?? 'none'}:${showAllFrames}:${highlightedKey ?? 'none'}`,
-    [highlightedKey, result?.id, selectedFrameIndex, showAllFrames],
+    () => `${result?.id ?? 'empty'}:${selectedFrameIndex ?? 'none'}:${showAllFrames}:${highlightedKey ?? 'none'}:${viewMode}`,
+    [highlightedKey, result?.id, selectedFrameIndex, showAllFrames, viewMode],
   )
 
   const selectedFrame = useMemo(() => {
@@ -208,8 +305,10 @@ export default function WorldgenScene({ result }: WorldgenSceneProps) {
   useEffect(() => {
     const firstFrame = result?.frames[0] ?? null
     setSelectedFrameIndex(firstFrame?.frameIndex ?? null)
+    setViewMode(result?.splat?.status === 'complete' && result.splatPoints.length ? 'both' : 'vggt')
     setHighlightedKey(null)
-  }, [result?.id])
+    fitKeyRef.current = ''
+  }, [result?.id, result?.splat?.status, result?.splatPoints.length])
 
   useEffect(() => {
     if (!getFrame || selectedFrameIndex == null) {
@@ -305,9 +404,29 @@ export default function WorldgenScene({ result }: WorldgenSceneProps) {
         }
       }
       if (nearest) setHighlightedKey(pointKey(nearest))
+      if (nearest && viewMode === 'splat') setViewMode('vggt')
     },
-    [selectedFrame, selectedPoints],
+    [selectedFrame, selectedPoints, viewMode],
   )
+
+  const resetView = useCallback(() => {
+    const handles = handlesRef.current
+    if (!handles) return
+    fitCamera(handles, result, viewMode)
+  }, [result, viewMode])
+
+  const zoomView = useCallback((factor: number) => {
+    const handles = handlesRef.current
+    if (!handles) return
+    const { camera, controls } = handles
+    const eye = new THREE.Vector3().subVectors(camera.position, controls.target)
+    const distance = Math.max(controls.minDistance || 0.01, Math.min(controls.maxDistance || 1000, eye.length() * factor))
+    if (!Number.isFinite(distance) || distance <= 0) return
+    eye.setLength(distance)
+    camera.position.copy(controls.target).add(eye)
+    camera.updateProjectionMatrix()
+    controls.update()
+  }, [])
 
   useEffect(() => {
     const container = containerRef.current
@@ -324,9 +443,16 @@ export default function WorldgenScene({ result }: WorldgenSceneProps) {
     renderer.setSize(container.clientWidth, container.clientHeight)
     container.appendChild(renderer.domElement)
 
-    const controls = new OrbitControls(camera, renderer.domElement)
-    controls.enableDamping = true
-    controls.dampingFactor = 0.08
+    const controls = new TrackballControls(camera, renderer.domElement)
+    controls.noZoom = false
+    controls.noPan = false
+    controls.noRotate = false
+    controls.rotateSpeed = 4.2
+    controls.zoomSpeed = 1.35
+    controls.panSpeed = 0.72
+    controls.dynamicDampingFactor = 0.12
+    controls.staticMoving = false
+    controls.target.set(0, 0, 0)
 
     scene.add(new THREE.AmbientLight(0xffffff, 0.7))
     const key = new THREE.DirectionalLight(0xffffff, 1.1)
@@ -347,6 +473,7 @@ export default function WorldgenScene({ result }: WorldgenSceneProps) {
       renderer.setSize(width, height)
       camera.aspect = width / height
       camera.updateProjectionMatrix()
+      controls.handleResize()
     })
     resizeObserver.observe(container)
 
@@ -384,29 +511,88 @@ export default function WorldgenScene({ result }: WorldgenSceneProps) {
     handles.dataGroup.clear()
 
     if (result) {
-      addWorldgenPoints(handles.dataGroup, result, selectedFrameIndex, showAllFrames, highlightedKey)
+      if (viewMode === 'splat' && result.splatPoints.length) {
+        addSplatPoints(handles.dataGroup, result.splatPoints)
+      } else if (viewMode === 'both' && result.splatPoints.length) {
+        addWorldgenPoints(handles.dataGroup, result, selectedFrameIndex, showAllFrames, highlightedKey, 0.72)
+        addSplatPoints(handles.dataGroup, result.splatPoints, 0.74)
+      } else {
+        addWorldgenPoints(handles.dataGroup, result, selectedFrameIndex, showAllFrames, highlightedKey)
+      }
       addCameras(handles.dataGroup, result, selectedFrameIndex)
     }
 
-    fitCamera(handles, result)
-  }, [sceneKey, result, selectedFrameIndex, showAllFrames, highlightedKey])
+    const nextFitKey = `${result?.id ?? 'empty'}:${viewMode}:${result?.splatPoints.length ?? 0}:${result?.points.length ?? 0}`
+    if (fitKeyRef.current !== nextFitKey) {
+      fitCamera(handles, result, viewMode)
+      fitKeyRef.current = nextFitKey
+    }
+  }, [sceneKey, result, selectedFrameIndex, showAllFrames, highlightedKey, viewMode])
+
+  const sceneSummary = useMemo(() => {
+    if (!result) return 'VGGT reconstruction'
+    if (viewMode === 'splat' && result.splat?.status === 'complete') {
+      return `${compactNumber(result.splat.gaussianCount)} Gaussians, ${compactNumber(result.splat.previewPointCount)} preview splats`
+    }
+    if (viewMode === 'both' && result.splat?.status === 'complete') {
+      return `${compactNumber(result.returnedPointCount)} VGGT points + ${compactNumber(result.splat.previewPointCount)} preview splats`
+    }
+    return `${compactNumber(result.frameCount)} frames, ${compactNumber(result.returnedPointCount)} rendered points`
+  }, [result, viewMode])
 
   return (
     <div className="scene-shell">
       <div className="scene-canvas" ref={containerRef} data-testid="worldgen-canvas" />
       <div className="scene-overlay">
         <span>{result ? `${result.markerStart}-${result.markerEnd}` : 'No worldgen result'}</span>
-        <span>
-          {result
-            ? `${compactNumber(result.frameCount)} frames, ${compactNumber(result.returnedPointCount)} rendered points`
-            : 'VGGT reconstruction'}
-        </span>
+        <span>{sceneSummary}</span>
         {result ? <span title={result.outputPath}>{shortPath(result.outputPath, 76)}</span> : null}
+      </div>
+      <div className="worldgen-view-tools" aria-label="Worldgen view controls">
+        <button type="button" onClick={() => zoomView(0.72)} title="Zoom in" aria-label="Zoom in">
+          <ZoomIn size={15} aria-hidden="true" />
+        </button>
+        <button type="button" onClick={() => zoomView(1.38)} title="Zoom out" aria-label="Zoom out">
+          <ZoomOut size={15} aria-hidden="true" />
+        </button>
+        <button type="button" onClick={resetView} title="Reset view" aria-label="Reset view">
+          <RotateCcw size={15} aria-hidden="true" />
+        </button>
       </div>
 
       {result && selectedFrame ? (
         <div className="worldgen-image-panel">
           <div className="worldgen-frame-controls">
+            {result.splat ? (
+              <div className="worldgen-mode-controls" role="group" aria-label="Worldgen display">
+                <button
+                  type="button"
+                  className={viewMode === 'splat' ? 'active' : ''}
+                  disabled={!result.splatPoints.length}
+                  onClick={() => setViewMode('splat')}
+                  title={result.splat.status === 'failed' ? result.splat.error : result.splat.plyPath}
+                >
+                  Splat
+                </button>
+                <button
+                  type="button"
+                  className={viewMode === 'both' ? 'active' : ''}
+                  disabled={!result.splatPoints.length}
+                  onClick={() => setViewMode('both')}
+                  title="VGGT point cloud and splat preview"
+                >
+                  Both
+                </button>
+                <button
+                  type="button"
+                  className={viewMode === 'vggt' ? 'active' : ''}
+                  onClick={() => setViewMode('vggt')}
+                  title="VGGT point cloud"
+                >
+                  VGGT
+                </button>
+              </div>
+            ) : null}
             <select
               value={selectedFrame.frameIndex}
               onChange={(event) => {

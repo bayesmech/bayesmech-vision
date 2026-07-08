@@ -1,20 +1,21 @@
-import { CornerDownLeft, Cpu, Sparkles, Terminal, UserRound } from 'lucide-react'
-import { FormEvent, KeyboardEvent, useMemo, useState } from 'react'
+import { CircleAlert, CornerDownLeft, Cpu, LoaderCircle, Sparkles, Terminal, UserRound } from 'lucide-react'
+import { FormEvent, KeyboardEvent, useEffect, useMemo, useRef, useState } from 'react'
 import type { RecordingEntry, VideoMarker, VisSummary } from '../types'
 import { compactNumber, secondsLabel } from '../lib/format'
-import { isCommand, type CommandResult } from '../lib/overlay'
+import { isCommand, type CommandProgress, type CommandResult } from '../lib/overlay'
 
 type ChatMessage = {
   id: string
   role: 'assistant' | 'user' | 'command'
   text: string
+  status?: 'pending' | 'ok' | 'error'
 }
 
 type AIChatProps = {
   selectedRecording: RecordingEntry | null
   summary: VisSummary | null
   markers: VideoMarker[]
-  onRunCommand: (text: string) => Promise<CommandResult>
+  onRunCommand: (text: string, onProgress?: (progress: CommandProgress) => void) => Promise<CommandResult>
 }
 
 function summaryLine(summary: VisSummary | null): string {
@@ -34,6 +35,7 @@ function markerLine(markers: VideoMarker[]): string {
 
 export default function AIChat({ selectedRecording, summary, markers, onRunCommand }: AIChatProps) {
   const [draft, setDraft] = useState('')
+  const messageListRef = useRef<HTMLDivElement>(null)
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: 'seed',
@@ -47,28 +49,68 @@ export default function AIChat({ selectedRecording, summary, markers, onRunComma
     return markerContext ? `${summaryLine(summary)} ${markerContext}` : summaryLine(summary)
   }, [markers, summary])
 
+  useEffect(() => {
+    const list = messageListRef.current
+    if (!list) return
+    list.scrollTop = list.scrollHeight
+  }, [messages])
+
   const submitDraft = async () => {
     const text = draft.trim()
     if (!text) return
     setDraft('')
-
-    // Commands (e.g. "/segmentation") are intercepted and run against the
-    // workspace instead of being sent to the assistant.
-    if (isCommand(text)) {
-      const result = await onRunCommand(text)
-      setMessages((current) => [
-        ...current,
-        { id: `user-${Date.now()}`, role: 'user', text },
-        { id: `command-${Date.now()}`, role: 'command', text: result.message },
-      ])
-      return
-    }
 
     const userMessage: ChatMessage = {
       id: `user-${Date.now()}`,
       role: 'user',
       text,
     }
+
+    // Commands (e.g. "/segmentation") are intercepted and run against the
+    // workspace instead of being sent to the assistant.
+    if (isCommand(text)) {
+      const commandId = `command-${Date.now()}`
+      let activeCommandId = commandId
+      setMessages((current) => [
+        ...current,
+        userMessage,
+        { id: commandId, role: 'command', status: 'pending', text: `Running ${text.split(/\s+/)[0]}...` },
+      ])
+      const handleProgress = (progress: CommandProgress) => {
+        const status = progress.ok === false ? 'error' : progress.ok === true ? 'ok' : 'pending'
+        if (progress.append) {
+          const nextId = `command-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
+          activeCommandId = nextId
+          setMessages((current) => [
+            ...current,
+            { id: nextId, role: 'command', status, text: progress.message },
+          ])
+          return
+        }
+        setMessages((current) => current.map((message) => (
+          message.id === activeCommandId
+            ? { ...message, status, text: progress.message }
+            : message
+        )))
+      }
+      try {
+        const result = await onRunCommand(text, handleProgress)
+        setMessages((current) => current.map((message) => (
+          message.id === activeCommandId
+            ? { ...message, status: result.ok ? 'ok' : 'error', text: result.message }
+            : message
+        )))
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Command failed.'
+        setMessages((current) => current.map((item) => (
+          item.id === activeCommandId
+            ? { ...item, status: 'error', text: message }
+            : item
+        )))
+      }
+      return
+    }
+
     const assistantMessage: ChatMessage = {
       id: `assistant-${Date.now()}`,
       role: 'assistant',
@@ -109,11 +151,19 @@ export default function AIChat({ selectedRecording, summary, markers, onRunComma
         <span>{context}</span>
       </div>
 
-      <div className="message-list" aria-live="polite">
+      <div className="message-list" ref={messageListRef} aria-live="polite">
         {messages.map((message) => {
-          const Icon = message.role === 'command' ? Terminal : message.role === 'assistant' ? Sparkles : UserRound
+          const Icon = message.status === 'pending'
+            ? LoaderCircle
+            : message.status === 'error'
+              ? CircleAlert
+              : message.role === 'command'
+                ? Terminal
+                : message.role === 'assistant'
+                  ? Sparkles
+                  : UserRound
           return (
-            <article className={`chat-message ${message.role}`} key={message.id}>
+            <article className={`chat-message ${message.role}${message.status ? ` ${message.status}` : ''}`} key={message.id}>
               <div className="message-avatar">
                 <Icon size={14} aria-hidden="true" />
               </div>

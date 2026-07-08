@@ -40,6 +40,40 @@ message VggtPointCloudFrame {
   bytes rgb_f32_le = 7;
   bytes uv_f32_le = 8;
   bytes confidence_f32_le = 9;
+  uint32 image_width = 10;
+  uint32 image_height = 11;
+}
+
+message VggtGaussianSplatPreviewPoint {
+  float x = 1;
+  float y = 2;
+  float z = 3;
+  float r = 4;
+  float g = 5;
+  float b = 6;
+  float opacity = 7;
+  float scale = 8;
+}
+
+message VggtGaussianSplat {
+  string status = 1;
+  string ply_path = 2;
+  string preview_json_path = 3;
+  string error = 4;
+  uint32 gaussian_count = 5;
+  uint32 preview_point_count = 6;
+  uint32 init_point_count = 7;
+  uint32 training_frame_count = 8;
+  uint32 max_steps = 9;
+  uint32 max_gaussians = 10;
+  float elapsed_sec = 11;
+  string trainer = 12;
+  string job_id = 13;
+  string stage = 14;
+  string message = 15;
+  float progress = 16;
+  uint32 current_step = 17;
+  repeated VggtGaussianSplatPreviewPoint preview_points = 18;
 }
 
 message VggtInferenceResponse {
@@ -59,4 +93,9 @@ message VggtInferenceResponse {
   string pointcloud_space = 14;
   float elapsed_sec = 15;
   string endpoint = 16;
+  VggtGaussianSplat gaussian_splat = 17;
+  uint32 resolution = 18;
+  string preprocess_mode = 19;
+  float confidence_threshold = 20;
+  uint32 max_points_per_frame = 21;
 }

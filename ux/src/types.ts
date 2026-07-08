@@ -174,6 +174,14 @@ export type WorldgenPoint = Vec3 & {
   v: number
 }
 
+export type WorldgenSplatPoint = Vec3 & {
+  r: number
+  g: number
+  b: number
+  opacity: number
+  scale: number
+}
+
 export type WorldgenCamera = Vec3 & {
   frameIndex: number
   frameNumber: number
@@ -191,6 +199,26 @@ export type WorldgenFrame = {
   returnedPointCount: number
 }
 
+export type WorldgenSplat = {
+  status: string
+  jobId?: string
+  stage?: string
+  message?: string
+  progress?: number
+  currentStep?: number
+  plyPath: string
+  previewJsonPath: string
+  error: string
+  gaussianCount: number
+  previewPointCount: number
+  initPointCount: number
+  trainingFrameCount: number
+  maxSteps: number
+  maxGaussians: number
+  elapsedSec: number
+  trainer: string
+}
+
 export type WorldgenResult = {
   id: string
   outputPath: string
@@ -206,6 +234,8 @@ export type WorldgenResult = {
   frames: WorldgenFrame[]
   points: WorldgenPoint[]
   cameras: WorldgenCamera[]
+  splat: WorldgenSplat | null
+  splatPoints: WorldgenSplatPoint[]
 }
 
 export type WorldgenRequest = {
@@ -219,6 +249,23 @@ export type WorldgenRequest = {
   confidenceThreshold?: number
   maxPointsPerFrame?: number
   windowSize?: number
+}
+
+export type WorldgenSplatStatus = {
+  jobId: string
+  status: string
+  stage?: string
+  message?: string
+  progress?: number
+  currentStep?: number
+  maxSteps?: number
+  gaussianCount?: number
+  previewPointCount?: number
+  elapsedSec?: number
+  error?: string
+  plyPath?: string
+  previewJsonPath?: string
+  points?: WorldgenSplatPoint[]
 }
 
 export type WorkspaceTabType = 'scene' | 'point-cloud' | 'planes' | 'video' | 'analysis' | 'worldgen'
@@ -266,6 +313,9 @@ export type BridgeApi = {
   readSegmentationMasks: (filePath: string, frameNumber: number) => Promise<SegMask[] | null>
   readSegmentationLabels: (filePath: string) => Promise<string[]>
   runWorldgen: (request: WorldgenRequest) => Promise<WorldgenResult>
+  readWorldgen: (filePath: string) => Promise<WorldgenResult>
+  pollWorldgenSplat: (jobId: string) => Promise<WorldgenSplatStatus>
+  saveWorldgenSplat: (filePath: string, splat: WorldgenSplatStatus) => Promise<WorldgenResult>
   revealPath: (filePath: string) => Promise<boolean>
   onOpenProject: (callback: () => void) => () => void
 }

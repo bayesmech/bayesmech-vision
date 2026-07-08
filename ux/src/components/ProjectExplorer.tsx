@@ -55,6 +55,8 @@ const iconForAnalysis = (key: string) => {
       return MessageSquare
     case 'reconstruction':
       return Box
+    case 'worldgen':
+      return ScanSearch
     default:
       return FileCode2
   }
@@ -64,6 +66,7 @@ export function tabTypeForAnalysis(key: string): WorkspaceTabType {
   if (key === 'point-cloud') return 'point-cloud'
   if (key === 'surface-planes') return 'planes'
   if (key === 'video' || key === 'rgb' || key === 'depth') return 'video'
+  if (key === 'worldgen') return 'worldgen'
   return 'analysis'
 }
 
@@ -157,7 +160,7 @@ export default function ProjectExplorer({
                     <button
                       type="button"
                       className={analysis.source === 'vis' ? 'analysis-chip is-native' : 'analysis-chip'}
-                      key={`${recording.id}:${analysis.key}`}
+                      key={`${recording.id}:${analysis.key}:${analysis.path}`}
                       onClick={() => onOpenAnalysis(recording, analysis)}
                       title={analysis.relativePath}
                     >

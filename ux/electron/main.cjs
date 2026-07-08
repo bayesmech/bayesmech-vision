@@ -1,5 +1,8 @@
 const electron = require('electron')
+const { spawn } = require('node:child_process')
 const fs = require('node:fs')
+const http = require('node:http')
+const https = require('node:https')
 const path = require('node:path')
 const protobuf = require('protobufjs')
 
@@ -11,7 +14,10 @@ const FRAME_SIZE_LIMIT = 10 * 1024 * 1024
 const MAX_SAMPLE_FRAMES = 96
 const MAX_POINTS_PER_FRAME = 220
 const MAX_WORLDGEN_PREVIEW_POINTS = 120000
+const DEFAULT_WORLDGEN_POINTS_PER_FRAME = 60000
 const DEFAULT_VGGT_ENDPOINT = 'https://anonymous-versus-underground-twice.trycloudflare.com'
+const DEFAULT_VGGT_HEALTH_TIMEOUT_MS = 15000
+const DEFAULT_VGGT_REQUEST_TIMEOUT_MS = 15 * 60 * 1000
 
 function parseEnvValue(value) {
   const trimmed = value.trim()
@@ -318,6 +324,40 @@ function artifactFor(dir, baseName, projectPath, def, suffix) {
   }
 }
 
+function worldgenArtifactsFor(dir, baseName, projectPath) {
+  let entries = []
+  try {
+    entries = fs.readdirSync(dir, { withFileTypes: true })
+  } catch {
+    return []
+  }
+
+  const prefix = `${baseName}.`
+  return entries
+    .filter((entry) => entry.isFile() && entry.name.startsWith(prefix) && entry.name.endsWith('.vggt.pb'))
+    .map((entry) => {
+      const artifactPath = path.join(dir, entry.name)
+      const stat = safeStat(artifactPath)
+      if (!stat?.isFile()) return null
+      const segment = entry.name.slice(prefix.length, -'.vggt.pb'.length)
+      const label = segment ? segment.replace(/To/g, '-') : 'Worldgen'
+      return {
+        key: 'worldgen',
+        title: segment ? `Worldgen ${label}` : 'Worldgen',
+        kind: 'worldgen',
+        source: 'artifact',
+        suffix: entry.name.slice(baseName.length + 1),
+        path: artifactPath,
+        relativePath: path.relative(projectPath, artifactPath),
+        sizeBytes: stat.size,
+        sizeLabel: byteSizeLabel(stat.size),
+        modifiedMs: stat.mtimeMs,
+      }
+    })
+    .filter(Boolean)
+    .sort((a, b) => b.modifiedMs - a.modifiedMs)
+}
+
 function analysesForVis(projectPath, visPath) {
   const dir = path.dirname(visPath)
   const baseName = path.basename(visPath).slice(0, -'.vis.pb'.length)
@@ -336,6 +376,8 @@ function analysesForVis(projectPath, visPath) {
       }
     }
   }
+
+  analyses.push(...worldgenArtifactsFor(dir, baseName, projectPath))
 
   return analyses
 }
@@ -1001,12 +1043,658 @@ function writeLengthDelimitedProto(filePath, payload) {
   fs.writeFileSync(filePath, Buffer.concat([header, Buffer.from(payload)]))
 }
 
+function readLengthDelimitedProto(filePath, type) {
+  const stat = fs.statSync(filePath)
+  if (stat.size < 4) throw new Error(`Invalid protobuf file: ${filePath}`)
+  const fd = fs.openSync(filePath, 'r')
+  try {
+    const header = Buffer.allocUnsafe(4)
+    fs.readSync(fd, header, 0, 4, 0)
+    const length = header.readUInt32BE(0)
+    if (length <= 0 || length > stat.size - 4) throw new Error(`Invalid protobuf length in ${filePath}`)
+    const payload = Buffer.allocUnsafe(length)
+    fs.readSync(fd, payload, 0, length, 4)
+    return type.decode(payload)
+  } finally {
+    fs.closeSync(fd)
+  }
+}
+
+function bytesBuffer(value) {
+  if (!value) return Buffer.alloc(0)
+  return Buffer.from(value)
+}
+
+function readFloat32(buffer, index, fallback = 0) {
+  const offset = index * 4
+  return offset + 4 <= buffer.length ? buffer.readFloatLE(offset) : fallback
+}
+
+function readLocalSplatPreview(filePath) {
+  if (!filePath || typeof filePath !== 'string') return null
+  try {
+    const resolved = path.resolve(filePath)
+    if (!fs.existsSync(resolved)) return null
+    return JSON.parse(fs.readFileSync(resolved, 'utf8'))
+  } catch {
+    return null
+  }
+}
+
+function savedSplatInfo(splat, preview = null) {
+  if (!splat) return null
+  const hasData = Boolean(
+    splat.status ||
+    splat.jobId ||
+    splat.plyPath ||
+    splat.previewJsonPath ||
+    splat.error ||
+    splat.gaussianCount ||
+    splat.previewPointCount,
+  )
+  if (!hasData) return null
+  const embeddedPreviewPoints = normalizeSplatPreview({ points: splat.previewPoints || [] }, {}).points
+  const localPreviewPoints = normalizeSplatPreview(preview, {}).points
+  const previewPoints = embeddedPreviewPoints.length ? embeddedPreviewPoints : localPreviewPoints
+  return {
+    status: String(splat.status || 'queued'),
+    jobId: String(splat.jobId || ''),
+    stage: String(splat.stage || ''),
+    message: String(splat.message || ''),
+    progress: Math.min(1, Math.max(0, finiteNumber(splat.progress))),
+    currentStep: finiteNumber(splat.currentStep),
+    plyPath: String(splat.plyPath || ''),
+    previewJsonPath: String(splat.previewJsonPath || ''),
+    error: String(splat.error || ''),
+    gaussianCount: finiteNumber(splat.gaussianCount),
+    previewPointCount: finiteNumber(splat.previewPointCount, previewPoints.length),
+    initPointCount: finiteNumber(splat.initPointCount),
+    trainingFrameCount: finiteNumber(splat.trainingFrameCount),
+    maxSteps: finiteNumber(splat.maxSteps),
+    maxGaussians: finiteNumber(splat.maxGaussians),
+    elapsedSec: finiteNumber(splat.elapsedSec),
+    trainer: String(splat.trainer || ''),
+    points: previewPoints,
+  }
+}
+
+function worldgenPreviewFromMessage(message, outputPath, splatInfo = null) {
+  const pointClouds = Array.isArray(message.pointClouds) ? message.pointClouds : []
+  const perFrameCap = Math.max(1, Math.floor(MAX_WORLDGEN_PREVIEW_POINTS / Math.max(1, pointClouds.length)))
+  const points = []
+  const frames = []
+  let totalPointCount = 0
+
+  for (const [cloudIndex, cloud] of pointClouds.entries()) {
+    const identifier = cloud.frameIdentifier || {}
+    const xyz = bytesBuffer(cloud.xyzF32Le)
+    const rgb = bytesBuffer(cloud.rgbF32Le)
+    const uv = bytesBuffer(cloud.uvF32Le)
+    const conf = bytesBuffer(cloud.confidenceF32Le)
+    const xyzCount = Math.floor(xyz.length / 12)
+    const rgbCount = Math.floor(rgb.length / 12)
+    const uvCount = Math.floor(uv.length / 8)
+    const confCount = Math.floor(conf.length / 4)
+    const pointTotal = Math.min(
+      xyzCount,
+      rgbCount || xyzCount,
+      uvCount || xyzCount,
+      confCount || xyzCount,
+    )
+    const pointCount = finiteNumber(cloud.pointCount, pointTotal)
+    totalPointCount += pointCount
+    const stride = Math.max(1, Math.ceil(pointTotal / perFrameCap))
+    let returnedPointCount = 0
+
+    frames.push({
+      sampledFrameIndex: finiteNumber(cloud.sampledFrameIndex, cloudIndex),
+      frameIndex: finiteNumber(cloud.sourceFrameIndex, cloudIndex),
+      frameNumber: finiteNumber(identifier.frameNumber, cloudIndex),
+      imageWidth: finiteNumber(cloud.imageWidth),
+      imageHeight: finiteNumber(cloud.imageHeight),
+      pointCount,
+      returnedPointCount: finiteNumber(cloud.returnedPointCount, pointTotal),
+    })
+
+    for (let index = 0; index < pointTotal; index += stride) {
+      points.push({
+        x: readFloat32(xyz, index * 3),
+        y: readFloat32(xyz, index * 3 + 1),
+        z: readFloat32(xyz, index * 3 + 2),
+        r: Math.min(1, Math.max(0, readFloat32(rgb, index * 3, 0.35))),
+        g: Math.min(1, Math.max(0, readFloat32(rgb, index * 3 + 1, 0.66))),
+        b: Math.min(1, Math.max(0, readFloat32(rgb, index * 3 + 2, 0.9))),
+        confidence: readFloat32(conf, index, 0),
+        frameIndex: finiteNumber(cloud.sourceFrameIndex, cloudIndex),
+        frameNumber: finiteNumber(identifier.frameNumber, cloudIndex),
+        framePointIndex: index,
+        u: readFloat32(uv, index * 2, 0),
+        v: readFloat32(uv, index * 2 + 1, 0),
+      })
+      returnedPointCount += 1
+    }
+
+    frames[frames.length - 1].returnedPointCount = returnedPointCount
+  }
+
+  const cameras = (Array.isArray(message.cameras) ? message.cameras : [])
+    .map((camera, index) => {
+      const identifier = camera.frameIdentifier || {}
+      const center = Array.isArray(camera.cameraCenter) ? camera.cameraCenter : []
+      if (center.length < 3) return null
+      return {
+        frameIndex: finiteNumber(camera.sourceFrameIndex, index),
+        frameNumber: finiteNumber(identifier.frameNumber, index),
+        x: finiteNumber(center[0]),
+        y: finiteNumber(center[1]),
+        z: finiteNumber(center[2]),
+        matrix: flattenNumbers(camera.cameraToWorld || []),
+        intrinsics: flattenNumbers(camera.intrinsics || []),
+      }
+    })
+    .filter(Boolean)
+
+  const id = message.requestId || path.basename(outputPath, '.vggt.pb')
+  return {
+    id,
+    outputPath,
+    markerStart: String(message.markerStart || ''),
+    markerEnd: String(message.markerEnd || ''),
+    startFrameIndex: finiteNumber(message.startFrameIndex),
+    endFrameIndex: finiteNumber(message.endFrameIndex),
+    frameCount: finiteNumber(message.frameCount, pointClouds.length),
+    pointCount: totalPointCount,
+    returnedPointCount: points.length,
+    model: String(message.model || 'VGGT-Omega'),
+    elapsedSec: finiteNumber(message.elapsedSec),
+    frames,
+    points,
+    cameras,
+    splat: splatInfo
+      ? {
+          status: splatInfo.status,
+          jobId: splatInfo.jobId,
+          stage: splatInfo.stage,
+          message: splatInfo.message,
+          progress: splatInfo.progress,
+          currentStep: splatInfo.currentStep,
+          plyPath: splatInfo.plyPath,
+          previewJsonPath: splatInfo.previewJsonPath,
+          error: splatInfo.error,
+          gaussianCount: splatInfo.gaussianCount,
+          previewPointCount: splatInfo.previewPointCount,
+          initPointCount: splatInfo.initPointCount,
+          trainingFrameCount: splatInfo.trainingFrameCount,
+          maxSteps: splatInfo.maxSteps,
+          maxGaussians: splatInfo.maxGaussians,
+          elapsedSec: splatInfo.elapsedSec,
+          trainer: splatInfo.trainer,
+        }
+      : null,
+    splatPoints: splatInfo?.points ?? [],
+  }
+}
+
+async function readWorldgen(filePath) {
+  if (!filePath || typeof filePath !== 'string' || !filePath.endsWith('.vggt.pb')) {
+    throw new Error('Expected a .vggt.pb file.')
+  }
+  const resolved = path.resolve(filePath)
+  const message = readLengthDelimitedProto(resolved, getVggtResponseType())
+  const preview = readLocalSplatPreview(message.gaussianSplat?.previewJsonPath)
+  let splatInfo = savedSplatInfo(message.gaussianSplat, preview)
+  let result = worldgenPreviewFromMessage(message, resolved, splatInfo)
+
+  if (splatInfo?.jobId && !result.splatPoints.length) {
+    try {
+      const remote = await pollWorldgenSplat(splatInfo.jobId)
+      splatInfo = {
+        ...splatInfo,
+        ...remote,
+        plyPath: remote.plyPath || splatInfo.plyPath,
+        previewJsonPath: remote.previewJsonPath || splatInfo.previewJsonPath,
+        points: remote.points || [],
+      }
+      result = worldgenPreviewFromMessage(message, resolved, splatInfo)
+      if (remote.status === 'complete' && remote.points?.length) {
+        result = await saveWorldgenSplat(resolved, remote)
+      }
+    } catch {
+      // Keep the saved VGGT point cloud usable even when the remote splat
+      // status endpoint is unavailable.
+    }
+  }
+
+  return result
+}
+
+async function saveWorldgenSplat(filePath, splat) {
+  if (!filePath || typeof filePath !== 'string' || !filePath.endsWith('.vggt.pb')) {
+    throw new Error('Expected a .vggt.pb file.')
+  }
+  const resolved = path.resolve(filePath)
+  const type = getVggtResponseType()
+  const message = readLengthDelimitedProto(resolved, type)
+  const previous = message.gaussianSplat || {}
+  const paths = worldgenSplatPaths(resolved)
+  let previewJsonPath = String(splat?.previewJsonPath || previous.previewJsonPath || '')
+  const points = Array.isArray(splat?.points) ? splat.points : []
+  const embeddedPoints = points.length ? points : (Array.isArray(previous.previewPoints) ? previous.previewPoints : [])
+
+  if (points.length) {
+    const preview = {
+      status: String(splat.status || previous.status || 'complete'),
+      ply_path: String(splat.plyPath || previous.plyPath || ''),
+      preview_json_path: paths.previewPath,
+      error: String(splat.error || previous.error || ''),
+      gaussian_count: finiteNumber(splat.gaussianCount, previous.gaussianCount || points.length),
+      preview_point_count: points.length,
+      init_point_count: finiteNumber(splat.initPointCount, previous.initPointCount),
+      training_frame_count: finiteNumber(splat.trainingFrameCount, previous.trainingFrameCount),
+      max_steps: finiteNumber(splat.maxSteps, previous.maxSteps),
+      max_gaussians: finiteNumber(splat.maxGaussians, previous.maxGaussians),
+      elapsed_sec: finiteNumber(splat.elapsedSec, previous.elapsedSec),
+      trainer: String(splat.trainer || previous.trainer || 'remote-vggt-service'),
+      points,
+    }
+    fs.writeFileSync(paths.previewPath, JSON.stringify(preview), 'utf8')
+    previewJsonPath = paths.previewPath
+  }
+
+  message.gaussianSplat = {
+    status: String(splat?.status || previous.status || 'queued'),
+    plyPath: String(splat?.plyPath || previous.plyPath || ''),
+    previewJsonPath,
+    error: String(splat?.error || previous.error || ''),
+    gaussianCount: finiteNumber(splat?.gaussianCount, previous.gaussianCount),
+    previewPointCount: finiteNumber(splat?.previewPointCount, previous.previewPointCount || points.length),
+    initPointCount: finiteNumber(splat?.initPointCount, previous.initPointCount),
+    trainingFrameCount: finiteNumber(splat?.trainingFrameCount, previous.trainingFrameCount),
+    maxSteps: finiteNumber(splat?.maxSteps, previous.maxSteps),
+    maxGaussians: finiteNumber(splat?.maxGaussians, previous.maxGaussians),
+    elapsedSec: finiteNumber(splat?.elapsedSec, previous.elapsedSec),
+    trainer: String(splat?.trainer || previous.trainer || 'remote-vggt-service'),
+    jobId: String(splat?.jobId || previous.jobId || ''),
+    stage: String(splat?.stage || previous.stage || ''),
+    message: String(splat?.message || previous.message || ''),
+    progress: Math.min(1, Math.max(0, finiteNumber(splat?.progress, previous.progress))),
+    currentStep: finiteNumber(splat?.currentStep, previous.currentStep),
+    previewPoints: embeddedPoints.map((point) => ({
+      x: finiteNumber(point.x),
+      y: finiteNumber(point.y),
+      z: finiteNumber(point.z),
+      r: Math.min(1, Math.max(0, finiteNumber(point.r, 0.7))),
+      g: Math.min(1, Math.max(0, finiteNumber(point.g, 0.7))),
+      b: Math.min(1, Math.max(0, finiteNumber(point.b, 0.7))),
+      opacity: Math.min(1, Math.max(0, finiteNumber(point.opacity, 0.8))),
+      scale: Math.max(0, finiteNumber(point.scale, 0.02)),
+    })),
+  }
+
+  const payload = type.encode(type.create(message)).finish()
+  writeLengthDelimitedProto(resolved, payload)
+  return readWorldgen(resolved)
+}
+
 function worldgenEndpoint() {
   return String(process.env.VGGT_ENDPOINT || DEFAULT_VGGT_ENDPOINT).replace(/\/+$/g, '')
 }
 
 function worldgenToken() {
   return String(process.env.VGGT_API_TOKEN || '').trim()
+}
+
+function worldgenSplatDisabled() {
+  return /^(0|false|no|off)$/i.test(String(process.env.WORLDGEN_SPLAT ?? '').trim())
+}
+
+function worldgenSplatPaths(vggtPath) {
+  const dir = path.dirname(vggtPath)
+  const name = path.basename(vggtPath)
+  const stem = name.endsWith('.vggt.pb') ? name.slice(0, -'.vggt.pb'.length) : path.parse(name).name
+  return {
+    workspacePath: path.join(dir, `${stem}.splat-workspace`),
+    plyPath: path.join(dir, `${stem}.splat.ply`),
+    previewPath: path.join(dir, `${stem}.splat.preview.json`),
+  }
+}
+
+function runProcess(command, args, options = {}) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(command, args, {
+      cwd: options.cwd,
+      env: options.env,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    })
+    const stdout = []
+    const stderr = []
+    child.stdout.on('data', (chunk) => stdout.push(Buffer.from(chunk)))
+    child.stderr.on('data', (chunk) => stderr.push(Buffer.from(chunk)))
+    child.on('error', reject)
+    child.on('close', (code) => {
+      const out = Buffer.concat(stdout).toString('utf8')
+      const err = Buffer.concat(stderr).toString('utf8')
+      if (code === 0) {
+        resolve({ stdout: out, stderr: err })
+      } else {
+        reject(new Error(`${command} exited with ${code}${err ? `: ${err.slice(-2000)}` : ''}`))
+      }
+    })
+  })
+}
+
+function runShellCommand(command, options = {}) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(command, [], {
+      cwd: options.cwd,
+      env: options.env,
+      shell: true,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    })
+    const stdout = []
+    const stderr = []
+    child.stdout.on('data', (chunk) => stdout.push(Buffer.from(chunk)))
+    child.stderr.on('data', (chunk) => stderr.push(Buffer.from(chunk)))
+    child.on('error', reject)
+    child.on('close', (code) => {
+      const out = Buffer.concat(stdout).toString('utf8')
+      const err = Buffer.concat(stderr).toString('utf8')
+      if (code === 0) {
+        resolve({ stdout: out, stderr: err })
+      } else {
+        reject(new Error(`restart command exited with ${code}${err ? `: ${err.slice(-2000)}` : ''}`))
+      }
+    })
+  })
+}
+
+async function fetchWithTimeout(url, options = {}, timeoutMs = DEFAULT_VGGT_REQUEST_TIMEOUT_MS) {
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), timeoutMs)
+  try {
+    return await fetch(url, { ...options, signal: controller.signal })
+  } catch (err) {
+    if (err?.name === 'AbortError') {
+      throw new Error(`request timed out after ${Math.round(timeoutMs / 1000)}s`)
+    }
+    throw err
+  } finally {
+    clearTimeout(timeout)
+  }
+}
+
+function nodeHttpRequest(urlString, options = {}) {
+  const method = options.method || 'GET'
+  const body = options.body ? Buffer.from(options.body) : null
+  const timeoutMs = Math.max(1000, Math.trunc(finiteNumber(options.timeoutMs, DEFAULT_VGGT_REQUEST_TIMEOUT_MS)))
+  const parsed = new URL(urlString)
+  const transport = parsed.protocol === 'https:' ? https : http
+  const headers = { ...(options.headers || {}) }
+  if (body && headers['Content-Length'] == null && headers['content-length'] == null) {
+    headers['Content-Length'] = String(body.length)
+  }
+
+  return new Promise((resolve, reject) => {
+    const req = transport.request(parsed, { method, headers }, (res) => {
+      const chunks = []
+      res.on('data', (chunk) => chunks.push(Buffer.from(chunk)))
+      res.on('end', () => {
+        const payload = Buffer.concat(chunks)
+        const status = Number(res.statusCode) || 0
+        resolve({
+          ok: status >= 200 && status < 300,
+          status,
+          headers: res.headers,
+          body: payload,
+          text: async () => payload.toString('utf8'),
+          json: async () => JSON.parse(payload.toString('utf8')),
+        })
+      })
+    })
+    req.setTimeout(timeoutMs, () => {
+      req.destroy(new Error(`request timed out after ${Math.round(timeoutMs / 1000)}s`))
+    })
+    req.on('error', reject)
+    if (body) req.write(body)
+    req.end()
+  })
+}
+
+function buildMultipartBody(parts) {
+  const boundary = `----BayesMechVision${Date.now().toString(36)}${Math.random().toString(36).slice(2)}`
+  const chunks = []
+  for (const part of parts) {
+    chunks.push(Buffer.from(`--${boundary}\r\n`, 'utf8'))
+    if (part.filename) {
+      chunks.push(Buffer.from(
+        `Content-Disposition: form-data; name="${part.name}"; filename="${part.filename}"\r\n` +
+        `Content-Type: ${part.contentType || 'application/octet-stream'}\r\n\r\n`,
+        'utf8',
+      ))
+      chunks.push(Buffer.from(part.value))
+      chunks.push(Buffer.from('\r\n', 'utf8'))
+    } else {
+      chunks.push(Buffer.from(
+        `Content-Disposition: form-data; name="${part.name}"\r\n\r\n${String(part.value)}\r\n`,
+        'utf8',
+      ))
+    }
+  }
+  chunks.push(Buffer.from(`--${boundary}--\r\n`, 'utf8'))
+  return {
+    body: Buffer.concat(chunks),
+    contentType: `multipart/form-data; boundary=${boundary}`,
+  }
+}
+
+async function readResponseDetail(response) {
+  const detail = await response.text().catch(() => '')
+  return detail ? `: ${detail.slice(0, 300)}` : ''
+}
+
+async function checkWorldgenHealth(endpoint, token) {
+  const timeoutMs = Math.max(1000, Math.trunc(finiteNumber(process.env.VGGT_HEALTH_TIMEOUT_MS, DEFAULT_VGGT_HEALTH_TIMEOUT_MS)))
+  let response
+  try {
+    response = await nodeHttpRequest(`${endpoint}/health`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/json',
+      },
+      timeoutMs,
+    })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'connection failed'
+    throw new Error(`Cannot reach VGGT model at ${endpoint}: ${message}`)
+  }
+
+  if (!response.ok) {
+    throw new Error(`VGGT model health check failed with HTTP ${response.status}${await readResponseDetail(response)}`)
+  }
+
+  const health = await response.json().catch(() => null)
+  if (health && health.ok === false) {
+    throw new Error(`VGGT model health check reported not ok: ${JSON.stringify(health).slice(0, 300)}`)
+  }
+  if (health && health.cuda_available === false) {
+    throw new Error('VGGT model is reachable but CUDA is not available on the model host.')
+  }
+  if (health && health.checkpoint_exists === false) {
+    throw new Error('VGGT model is reachable but its checkpoint is missing on the model host.')
+  }
+  return health
+}
+
+async function restartWorldgenModel() {
+  const command = String(process.env.VGGT_RESTART_COMMAND || '').trim()
+  if (!command) return false
+  const timeoutMs = Math.max(1000, Math.trunc(finiteNumber(process.env.VGGT_RESTART_TIMEOUT_MS, 120000)))
+  await Promise.race([
+    runShellCommand(command, {
+      cwd: findRepoRoot(),
+      env: { ...process.env },
+    }),
+    new Promise((_resolve, reject) => setTimeout(() => reject(new Error(`restart command timed out after ${Math.round(timeoutMs / 1000)}s`)), timeoutMs)),
+  ])
+  return true
+}
+
+async function ensureWorldgenModel(endpoint, token) {
+  try {
+    return await checkWorldgenHealth(endpoint, token)
+  } catch (firstError) {
+    const restarted = await restartWorldgenModel().catch((restartError) => {
+      const message = restartError instanceof Error ? restartError.message : 'restart failed'
+      throw new Error(`${firstError instanceof Error ? firstError.message : 'VGGT health check failed'} Restart failed: ${message}`)
+    })
+    if (!restarted) throw firstError
+    await new Promise((resolve) => setTimeout(resolve, 2500))
+    try {
+      return await checkWorldgenHealth(endpoint, token)
+    } catch (secondError) {
+      const message = secondError instanceof Error ? secondError.message : 'health check still failing'
+      throw new Error(`VGGT model restart ran, but the model is still unavailable. ${message}`)
+    }
+  }
+}
+
+function normalizeSplatPreview(preview, fallback = {}) {
+  const points = Array.isArray(preview?.points)
+    ? preview.points
+        .map((point) => ({
+          x: finiteNumber(point?.x),
+          y: finiteNumber(point?.y),
+          z: finiteNumber(point?.z),
+          r: Math.min(1, Math.max(0, finiteNumber(point?.r, 0.7))),
+          g: Math.min(1, Math.max(0, finiteNumber(point?.g, 0.7))),
+          b: Math.min(1, Math.max(0, finiteNumber(point?.b, 0.7))),
+          opacity: Math.min(1, Math.max(0, finiteNumber(point?.opacity, 0.8))),
+          scale: Math.max(0, finiteNumber(point?.scale, 0.02)),
+        }))
+        .filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y) && Number.isFinite(point.z))
+    : []
+
+  return {
+    status: String(preview?.status ?? fallback.status ?? 'complete'),
+    plyPath: String(preview?.ply_path ?? fallback.plyPath ?? ''),
+    previewJsonPath: String(preview?.preview_json_path ?? fallback.previewJsonPath ?? ''),
+    error: String(preview?.error ?? fallback.error ?? ''),
+    gaussianCount: finiteNumber(preview?.gaussian_count, fallback.gaussianCount ?? 0),
+    previewPointCount: finiteNumber(preview?.preview_point_count, points.length),
+    initPointCount: finiteNumber(preview?.init_point_count, fallback.initPointCount ?? 0),
+    trainingFrameCount: finiteNumber(preview?.training_frame_count, fallback.trainingFrameCount ?? 0),
+    maxSteps: finiteNumber(preview?.max_steps, fallback.maxSteps ?? 0),
+    maxGaussians: finiteNumber(preview?.max_gaussians, fallback.maxGaussians ?? 0),
+    elapsedSec: finiteNumber(preview?.elapsed_sec, fallback.elapsedSec ?? 0),
+    trainer: String(preview?.trainer ?? fallback.trainer ?? ''),
+    points,
+  }
+}
+
+function normalizeRemoteSplatJob(job, fallback = {}) {
+  const preview = job?.preview ?? {}
+  const previewPoints = normalizeSplatPreview(preview, {}).points
+  return {
+    jobId: String(job?.job_id ?? job?.jobId ?? fallback.jobId ?? ''),
+    status: String(job?.status ?? fallback.status ?? 'queued'),
+    stage: String(job?.stage ?? fallback.stage ?? ''),
+    message: String(job?.message ?? fallback.message ?? ''),
+    progress: Math.min(1, Math.max(0, finiteNumber(job?.progress, fallback.progress ?? 0))),
+    currentStep: finiteNumber(job?.current_step, fallback.currentStep ?? 0),
+    maxSteps: finiteNumber(job?.max_steps, fallback.maxSteps ?? 0),
+    gaussianCount: finiteNumber(job?.gaussian_count, fallback.gaussianCount ?? 0),
+    previewPointCount: finiteNumber(job?.preview_point_count ?? preview?.preview_point_count, previewPoints.length),
+    initPointCount: finiteNumber(job?.init_point_count, fallback.initPointCount ?? 0),
+    trainingFrameCount: finiteNumber(job?.training_frame_count, fallback.trainingFrameCount ?? 0),
+    elapsedSec: finiteNumber(job?.elapsed_sec, fallback.elapsedSec ?? 0),
+    plyPath: String(job?.ply_path ?? fallback.plyPath ?? ''),
+    previewJsonPath: String(job?.preview_json_path ?? fallback.previewJsonPath ?? ''),
+    error: String(job?.error ?? fallback.error ?? ''),
+    trainer: 'remote-vggt-service',
+    points: previewPoints,
+  }
+}
+
+async function pollWorldgenSplat(jobId) {
+  if (!jobId || typeof jobId !== 'string') throw new Error('Splat job id is required.')
+  const token = worldgenToken()
+  if (!token) throw new Error('VGGT_API_TOKEN is not set. Add it to the environment before starting the native app.')
+  const endpoint = worldgenEndpoint()
+  const response = await nodeHttpRequest(`${endpoint}/splat/${encodeURIComponent(jobId)}?include_preview=true`, {
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: 'application/json',
+    },
+    timeoutMs: Math.max(1000, Math.trunc(finiteNumber(process.env.VGGT_HEALTH_TIMEOUT_MS, DEFAULT_VGGT_HEALTH_TIMEOUT_MS))),
+  })
+  if (!response.ok) {
+    throw new Error(`Splat status failed with HTTP ${response.status}${await readResponseDetail(response)}`)
+  }
+  return normalizeRemoteSplatJob(await response.json(), { jobId })
+}
+
+async function runWorldgenSplat(vggtPath, recordingPath, options = {}) {
+  const paths = worldgenSplatPaths(vggtPath)
+  if (worldgenSplatDisabled()) {
+    return normalizeSplatPreview(null, {
+      status: 'skipped',
+      plyPath: paths.plyPath,
+      previewJsonPath: paths.previewPath,
+      error: 'WORLDGEN_SPLAT is disabled.',
+    })
+  }
+  if (options.windowSize > 0 && options.windowSize < options.frameCount) {
+    return normalizeSplatPreview(null, {
+      status: 'skipped',
+      plyPath: paths.plyPath,
+      previewJsonPath: paths.previewPath,
+      error: `Splat training requires one coherent VGGT window. Current VGGT window ${options.windowSize} splits ${options.frameCount} frames; unset VGGT_WINDOW or set it to 0.`,
+    })
+  }
+
+  const repoRoot = findRepoRoot()
+  const serverDir = path.join(repoRoot, 'server')
+  const scriptPath = path.join(serverDir, 'worldgen', 'scripts', 'train_vggt_splat.py')
+  if (!fs.existsSync(scriptPath)) {
+    return normalizeSplatPreview(null, {
+      status: 'failed',
+      plyPath: paths.plyPath,
+      previewJsonPath: paths.previewPath,
+      error: `Splat trainer not found at ${scriptPath}`,
+    })
+  }
+
+  const scriptArgs = [
+    scriptPath,
+    '--vggt-pb', vggtPath,
+    '--recording', recordingPath,
+    '--workspace', paths.workspacePath,
+    '--output-ply', paths.plyPath,
+    '--preview-json', paths.previewPath,
+  ]
+  const python = String(process.env.WORLDGEN_SPLAT_PYTHON || '').trim()
+  const command = python || 'uv'
+  const args = python ? scriptArgs : ['run', 'python', ...scriptArgs]
+
+  await runProcess(command, args, {
+    cwd: serverDir,
+    env: {
+      ...process.env,
+      PYTHONUNBUFFERED: '1',
+    },
+  })
+
+  if (!fs.existsSync(paths.previewPath)) {
+    throw new Error(`Splat trainer completed but did not write ${paths.previewPath}`)
+  }
+  const preview = JSON.parse(fs.readFileSync(paths.previewPath, 'utf8'))
+  return normalizeSplatPreview(preview, {
+    status: 'complete',
+    plyPath: paths.plyPath,
+    previewJsonPath: paths.previewPath,
+  })
 }
 
 function frameIdentifierFor(frame, fallbackFrameNumber) {
@@ -1018,7 +1706,7 @@ function frameIdentifierFor(frame, fallbackFrameNumber) {
   }
 }
 
-function worldgenPreview(responseJson, sourceFrames, outputPath, request) {
+function worldgenPreview(responseJson, sourceFrames, outputPath, request, splatInfo = null) {
   const metadata = responseJson?.metadata ?? {}
   const camera = responseJson?.camera ?? {}
   const pointClouds = Array.isArray(responseJson?.point_clouds) ? responseJson.point_clouds : []
@@ -1109,10 +1797,32 @@ function worldgenPreview(responseJson, sourceFrames, outputPath, request) {
     frames,
     points,
     cameras,
+    splat: splatInfo
+      ? {
+          status: splatInfo.status,
+          jobId: splatInfo.jobId,
+          stage: splatInfo.stage,
+          message: splatInfo.message,
+          progress: splatInfo.progress,
+          currentStep: splatInfo.currentStep,
+          plyPath: splatInfo.plyPath,
+          previewJsonPath: splatInfo.previewJsonPath,
+          error: splatInfo.error,
+          gaussianCount: splatInfo.gaussianCount,
+          previewPointCount: splatInfo.previewPointCount,
+          initPointCount: splatInfo.initPointCount,
+          trainingFrameCount: splatInfo.trainingFrameCount,
+          maxSteps: splatInfo.maxSteps,
+          maxGaussians: splatInfo.maxGaussians,
+          elapsedSec: splatInfo.elapsedSec,
+          trainer: splatInfo.trainer,
+        }
+      : null,
+    splatPoints: splatInfo?.points ?? [],
   }
 }
 
-function encodeWorldgenResponse(responseJson, sourceFrames, request, endpoint) {
+function encodeWorldgenResponse(responseJson, sourceFrames, request, endpoint, splatInfo = null) {
   const metadata = responseJson?.metadata ?? {}
   const camera = responseJson?.camera ?? {}
   const pointClouds = Array.isArray(responseJson?.point_clouds) ? responseJson.point_clouds : []
@@ -1129,6 +1839,7 @@ function encodeWorldgenResponse(responseJson, sourceFrames, request, endpoint) {
 
   const pointCloudFrames = pointClouds.map((cloud, index) => {
     const sourceFrame = sourceFrames[Number(cloud.sampled_frame_index) || index] ?? sourceFrames[index] ?? sourceFrames[0]
+    const imageSize = metadata.image_sizes_hw?.[index] ?? metadata.image_sizes_hw?.[Number(cloud.sampled_frame_index) || index] ?? []
     return {
       frameIdentifier: sourceFrame?.frameIdentifier,
       sourceFrameIndex: sourceFrame?.sourceFrameIndex ?? index,
@@ -1139,6 +1850,8 @@ function encodeWorldgenResponse(responseJson, sourceFrames, request, endpoint) {
       rgbF32Le: float32Bytes(cloud.rgb ?? []),
       uvF32Le: float32Bytes(cloud.uv ?? []),
       confidenceF32Le: float32Bytes(cloud.conf ?? []),
+      imageWidth: finiteNumber(imageSize[1]),
+      imageHeight: finiteNumber(imageSize[0]),
     }
   })
 
@@ -1159,6 +1872,31 @@ function encodeWorldgenResponse(responseJson, sourceFrames, request, endpoint) {
     pointcloudSpace: String(metadata.pointcloud_space ?? ''),
     elapsedSec: finiteNumber(metadata.elapsed_sec),
     endpoint,
+    gaussianSplat: splatInfo
+      ? {
+          status: splatInfo.status,
+          plyPath: splatInfo.plyPath,
+          previewJsonPath: splatInfo.previewJsonPath,
+          error: splatInfo.error,
+          gaussianCount: splatInfo.gaussianCount,
+          previewPointCount: splatInfo.previewPointCount,
+          initPointCount: splatInfo.initPointCount,
+          trainingFrameCount: splatInfo.trainingFrameCount,
+          maxSteps: splatInfo.maxSteps,
+          maxGaussians: splatInfo.maxGaussians,
+          elapsedSec: splatInfo.elapsedSec,
+          trainer: splatInfo.trainer,
+          jobId: splatInfo.jobId,
+          stage: splatInfo.stage,
+          message: splatInfo.message,
+          progress: splatInfo.progress,
+          currentStep: splatInfo.currentStep,
+        }
+      : undefined,
+    resolution: finiteNumber(metadata.resolution),
+    preprocessMode: String(metadata.preprocess_mode ?? ''),
+    confidenceThreshold: finiteNumber(metadata.conf_thresh),
+    maxPointsPerFrame: finiteNumber(request.maxPointsPerFrame),
   })
 }
 
@@ -1168,9 +1906,6 @@ async function runWorldgen(request) {
   }
   if (!request.recordingPath.endsWith('.vis.pb')) {
     throw new Error('Worldgen requires a .vis.pb recording.')
-  }
-  if (typeof fetch !== 'function' || typeof FormData !== 'function' || typeof Blob !== 'function') {
-    throw new Error('This Electron runtime does not provide fetch/FormData support.')
   }
 
   const token = worldgenToken()
@@ -1189,8 +1924,8 @@ async function runWorldgen(request) {
   const requestedFrameCount = lastIndex - firstIndex + 1
   if (requestedFrameCount <= 0) throw new Error('The selected marker range is empty.')
 
-  const form = new FormData()
   const sourceFrames = []
+  const frameUploads = []
   const fd = fs.openSync(resolved, 'r')
   try {
     for (let frameIndex = firstIndex; frameIndex <= lastIndex; frameIndex += 1) {
@@ -1199,7 +1934,12 @@ async function runWorldgen(request) {
       if (!jpeg) continue
       const frameIdentifier = frameIdentifierFor(frame, frameIndex)
       sourceFrames.push({ sourceFrameIndex: frameIndex, frameIdentifier })
-      form.append('frames', new Blob([jpeg], { type: 'image/jpeg' }), `frame_${String(frameIndex).padStart(6, '0')}.jpg`)
+      frameUploads.push({
+        name: 'frames',
+        filename: `frame_${String(frameIndex).padStart(6, '0')}.jpg`,
+        contentType: 'image/jpeg',
+        value: Buffer.from(jpeg),
+      })
     }
   } finally {
     fs.closeSync(fd)
@@ -1213,51 +1953,90 @@ async function runWorldgen(request) {
   const fps = duration > 0 && sourceFrames.length > 1 ? (sourceFrames.length - 1) / duration : 30
   const resolution = Math.max(1, Math.trunc(Number(request.resolution) || 512))
   const confidenceThreshold = Number.isFinite(Number(request.confidenceThreshold)) ? Number(request.confidenceThreshold) : 0.5
-  const maxPointsPerFrame = Math.max(0, Math.trunc(Number(request.maxPointsPerFrame) || Number(process.env.VGGT_MAX_POINTS_PER_FRAME) || 20000))
-  const windowSize = Math.max(1, Math.trunc(Number(request.windowSize) || Number(process.env.VGGT_WINDOW) || 1))
+  const defaultMaxPoints = finiteNumber(process.env.VGGT_MAX_POINTS_PER_FRAME, DEFAULT_WORLDGEN_POINTS_PER_FRAME)
+  const maxPointsPerFrame = Math.max(0, Math.trunc(finiteNumber(request.maxPointsPerFrame, defaultMaxPoints)))
+  const windowSize = Math.max(0, Math.trunc(finiteNumber(request.windowSize, finiteNumber(process.env.VGGT_WINDOW, 0))))
 
-  form.append('fps', String(fps))
-  form.append('max_frames', '0')
-  form.append('resolution', String(resolution))
-  form.append('preprocess_mode', 'balanced')
-  form.append('conf_thresh', String(confidenceThreshold))
-  form.append('window', String(windowSize))
-  form.append('max_points_per_frame', String(maxPointsPerFrame))
-  form.append('response_format', 'json')
+  const multipart = buildMultipartBody([
+    ...frameUploads,
+    { name: 'fps', value: String(fps) },
+    { name: 'max_frames', value: '0' },
+    { name: 'resolution', value: String(resolution) },
+    { name: 'preprocess_mode', value: 'balanced' },
+    { name: 'conf_thresh', value: String(confidenceThreshold) },
+    { name: 'window', value: String(windowSize) },
+    { name: 'max_points_per_frame', value: String(maxPointsPerFrame) },
+    { name: 'response_format', value: 'json' },
+    { name: 'start_splat', value: 'true' },
+  ])
 
   const endpoint = worldgenEndpoint()
-  const response = await fetch(`${endpoint}/infer`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      Accept: 'application/json',
-    },
-    body: form,
-  })
+  await ensureWorldgenModel(endpoint, token)
+
+  const requestTimeoutMs = Math.max(1000, Math.trunc(finiteNumber(process.env.VGGT_REQUEST_TIMEOUT_MS, DEFAULT_VGGT_REQUEST_TIMEOUT_MS)))
+  let response
+  try {
+    response = await nodeHttpRequest(`${endpoint}/infer`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/json',
+        'Content-Type': multipart.contentType,
+      },
+      body: multipart.body,
+      timeoutMs: requestTimeoutMs,
+    })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'connection failed'
+    throw new Error(`VGGT inference connection failed at ${endpoint}: ${message}`)
+  }
 
   if (!response.ok) {
-    const detail = await response.text().catch(() => '')
-    throw new Error(`VGGT request failed with HTTP ${response.status}${detail ? `: ${detail.slice(0, 300)}` : ''}`)
+    throw new Error(`VGGT request failed with HTTP ${response.status}${await readResponseDetail(response)}`)
   }
 
   const responseJson = await response.json()
   const safeSegment = `${safeFilePart(request.markerStart)}To${safeFilePart(request.markerEnd)}`
   const baseName = path.basename(resolved).slice(0, -'.vis.pb'.length)
   const outputPath = path.join(path.dirname(resolved), `${baseName}.${safeSegment}.vggt.pb`)
+  const settledRequest = {
+    ...request,
+    startFrameIndex: firstIndex,
+    endFrameIndex: lastIndex,
+    maxPointsPerFrame,
+  }
   const message = encodeWorldgenResponse(
     responseJson,
     sourceFrames,
-    { ...request, startFrameIndex: firstIndex, endFrameIndex: lastIndex },
+    settledRequest,
     endpoint,
   )
   const payload = getVggtResponseType().encode(message).finish()
   writeLengthDelimitedProto(outputPath, payload)
 
+  const splatInfo = responseJson?.splat_job
+    ? normalizeRemoteSplatJob(responseJson.splat_job)
+    : normalizeRemoteSplatJob(null, {
+        status: 'skipped',
+        message: 'VGGT response did not include a remote splat job.',
+      })
+
+  const messageWithSplat = encodeWorldgenResponse(
+    responseJson,
+    sourceFrames,
+    settledRequest,
+    endpoint,
+    splatInfo,
+  )
+  const payloadWithSplat = getVggtResponseType().encode(messageWithSplat).finish()
+  writeLengthDelimitedProto(outputPath, payloadWithSplat)
+
   return worldgenPreview(
     responseJson,
     sourceFrames,
     outputPath,
-    { ...request, startFrameIndex: firstIndex, endFrameIndex: lastIndex },
+    settledRequest,
+    splatInfo,
   )
 }
 
@@ -1303,6 +2082,9 @@ if (isElectronRuntime) {
   ipcMain.handle('seg:masks', (_event, filePath, frameNumber) => readSegmentationMasks(filePath, frameNumber))
   ipcMain.handle('seg:labels', (_event, filePath) => readSegmentationLabels(filePath))
   ipcMain.handle('worldgen:run', (_event, request) => runWorldgen(request))
+  ipcMain.handle('worldgen:read', (_event, filePath) => readWorldgen(filePath))
+  ipcMain.handle('worldgen:splat-status', (_event, jobId) => pollWorldgenSplat(jobId))
+  ipcMain.handle('worldgen:save-splat', (_event, filePath, splat) => saveWorldgenSplat(filePath, splat))
 
   ipcMain.handle('path:reveal', async (_event, filePath) => {
     if (!filePath || typeof filePath !== 'string') return false
@@ -1331,4 +2113,7 @@ module.exports = {
   readVisFrame,
   readSegmentationMasks,
   runWorldgen,
+  readWorldgen,
+  pollWorldgenSplat,
+  saveWorldgenSplat,
 }

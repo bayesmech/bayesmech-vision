@@ -6,6 +6,12 @@ export type CommandResult = {
   message: string
 }
 
+export type CommandProgress = {
+  message: string
+  ok?: boolean
+  append?: boolean
+}
+
 export type SegmentationCommand =
   | { action: 'show'; raw: string }
   | { action: 'list'; raw: string }
@@ -26,7 +32,7 @@ export type OverlayState = {
   // Optional label whose mask should remain visible while all other pixels dim.
   segmentationMaskLabel: string | null
   // Run a command string (e.g. "/segmentation"). Returns a status for display.
-  runCommand: (text: string) => Promise<CommandResult>
+  runCommand: (text: string, onProgress?: (progress: CommandProgress) => void) => Promise<CommandResult>
   // Fetch segmentation masks for a video frame number, or null when unavailable
   // (overlay disabled, no artifact, or no frame source).
   getSegmentation: (frameNumber: number) => Promise<SegMask[] | null>

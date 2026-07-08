@@ -137,24 +137,28 @@ def train_splat(workspace: Path, output_ply: Path, cfg: dict) -> None:
     output_ply:  Destination .ply path for the trained Gaussian model
     cfg:         Full pipeline config dict (uses cfg["gaussian_splatting"])
     """
+    gs_cfg = cfg["gaussian_splatting"]
+
+    # ── Load COLMAP dataset ────────────────────────────────────────────────
+    dataset = _load_colmap_dataset(workspace, gs_cfg["data_factor"])
+    if dataset is None:
+        log.error("  gsplat: dataset loading failed, skipping training")
+        return
+
+    train_splat_dataset(dataset, output_ply, cfg)
+
+
+def train_splat_dataset(dataset, output_ply: Path, cfg: dict) -> None:
+    """Train a 3DGS model from a dataset with COLMAP-compatible fields."""
     import os
     os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
 
     import torch
-    import torch.nn.functional as F
     from torch.optim import Adam
 
     try:
         from gsplat import rasterization
         from gsplat.strategy import MCMCStrategy
-        from gsplat.cuda import _C as _gsplat_C
-        if _gsplat_C is None:
-            raise RuntimeError(
-                "gsplat CUDA extensions are not compiled. "
-                "Reinstall with a matching wheel, e.g.:\n"
-                "  uv pip install gsplat --index-url https://docs.gsplat.studio/whl/pt27cu124\n"
-                "Check your CUDA version with: nvcc --version && python -c \"import torch; print(torch.version.cuda)\""
-            )
     except ImportError as e:
         log.error("gsplat not installed: %s", e)
         raise
@@ -167,12 +171,6 @@ def train_splat(workspace: Path, output_ply: Path, cfg: dict) -> None:
     max_steps = gs_cfg["max_steps"]
     max_gaussians = gs_cfg["mcmc_max_gaussians"]
     sh_degree = gs_cfg["sh_degree"]
-
-    # ── Load COLMAP dataset ────────────────────────────────────────────────
-    dataset = _load_colmap_dataset(workspace, data_factor)
-    if dataset is None:
-        log.error("  gsplat: dataset loading failed, skipping training")
-        return
 
     points = torch.from_numpy(dataset.points).float().to(device)
     point_colors = torch.from_numpy(dataset.points_rgb).float().to(device) / 255.0
@@ -295,7 +293,8 @@ def _init_gaussians(points, colors, device: str, sh_degree: int) -> dict:
 
     # Scale from nearest-neighbour distances (log space)
     dist = _knn_dist(points, k=4)
-    scales = torch.log(torch.sqrt(dist[:, 1:].mean(dim=-1, keepdim=True))).repeat(1, 3)
+    neighbour_dist = dist[:, 1:] if dist.shape[1] > 1 else dist
+    scales = torch.log(torch.sqrt(neighbour_dist.mean(dim=-1, keepdim=True).clamp_min(1e-6))).repeat(1, 3)
 
     # Identity quaternion [w=1, x=0, y=0, z=0]
     quats = torch.zeros(N, 4, device=device)
@@ -324,6 +323,21 @@ def _knn_dist(points, k: int = 4):
     """Compute k nearest-neighbour distances (brute-force, batched)."""
     import torch
     pts = points.float()
+    if len(pts) <= 1:
+        return torch.ones((len(pts), 1), device=points.device, dtype=points.dtype) * 0.01
+    k = min(k, len(pts))
+
+    if len(pts) > 50000:
+        try:
+            from sklearn.neighbors import NearestNeighbors
+            pts_np = pts.detach().cpu().numpy()
+            nn = NearestNeighbors(n_neighbors=k, algorithm="auto", n_jobs=-1)
+            nn.fit(pts_np)
+            dist, _ = nn.kneighbors(pts_np, return_distance=True)
+            return torch.from_numpy(dist).to(device=points.device, dtype=points.dtype)
+        except Exception as exc:
+            log.warning("  sklearn nearest-neighbour init failed (%s), falling back to torch cdist", exc)
+
     batch = min(4096, len(pts))
     dists = []
     for i in range(0, len(pts), batch):

@@ -67,6 +67,35 @@ preprocessed image space. If you pass `--seg-preprocessed`, each segmentation
 map must already have the exact same height and width as the VGGT-Omega output;
 the script validates this before attaching labels to points.
 
+## Gaussian Splatting from VGGT Output
+
+The native `/worldgen @MarkerA-@MarkerB` flow saves a
+`VggtInferenceResponse` protobuf first, then runs a local 3D Gaussian
+Splatting trainer:
+
+```bash
+cd server
+uv run python worldgen/scripts/train_vggt_splat.py \
+  --vggt-pb path/to/result.vggt.pb
+```
+
+The trainer uses VGGT's world-space point clouds for initialization and the
+same VGGT camera poses/intrinsics for photometric optimization. It reconstructs
+the exact center-cropped/resized RGB frames from the original `.vis.pb` so
+training pixels match VGGT's preprocessed camera model.
+
+Default constraints prioritize clean output over speed:
+
+- `WORLDGEN_SPLAT_STEPS=30000`
+- `WORLDGEN_SPLAT_MAX_INIT_POINTS=180000`
+- `WORLDGEN_SPLAT_MAX_GAUSSIANS=1000000`
+- `WORLDGEN_SPLAT_MIN_CONFIDENCE=0.55`
+- `WORLDGEN_SPLAT_DATA_FACTOR=1`
+
+Outputs are written next to the VGGT protobuf as `.splat.ply`,
+`.splat.preview.json`, and `.splat-workspace/`. Set `WORLDGEN_SPLAT=0` to keep
+only the VGGT point cloud response.
+
 ## Research Directions
 
 1. Auto-regressive inference when trying to do physics modeling, and optimizations on top of that auto-regressive model once it works.

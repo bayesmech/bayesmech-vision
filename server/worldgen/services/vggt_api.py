@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import gc
 import io
 import json
 import os
@@ -29,6 +30,7 @@ from scripts.infer_vggt_omega_video import (  # noqa: E402
     load_model,
     run_vggt_window,
 )
+from services.splat_jobs import get_splat_job, start_splat_job  # noqa: E402
 
 import torch  # noqa: E402
 
@@ -80,6 +82,19 @@ def get_model():
         return _model
 
 
+def unload_model() -> None:
+    global _model
+    with _model_lock:
+        _model = None
+    gc.collect()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+        try:
+            torch.cuda.ipc_collect()
+        except Exception:
+            pass
+
+
 def _finite_float(value: float) -> float | None:
     value = float(value)
     return value if np.isfinite(value) else None
@@ -108,6 +123,7 @@ def _run_inference(
     window: int,
     max_points_per_frame: int,
     response_format: Literal["json", "npz"],
+    start_splat: bool,
 ) -> Response:
     if resolution <= 0:
         raise ValueError("resolution must be positive")
@@ -130,6 +146,7 @@ def _run_inference(
     image_sizes: list[tuple[int, int]] = []
     pointclouds_json = []
     pointcloud_npz: list[tuple[str, dict[str, np.ndarray]]] = []
+    splat_frames: list[dict] = []
 
     with _infer_lock:
         for start in range(0, len(frame_paths), window_size):
@@ -147,6 +164,8 @@ def _run_inference(
                 )
                 rgb = result["images"][local_idx].permute(1, 2, 0).reshape(-1, 3).numpy()[pc["valid_mask"]].astype(np.float32)
                 conf = pc["conf"].reshape(-1)[pc["valid_mask"]].astype(np.float32) if pc["conf"] is not None else None
+                if conf is None:
+                    conf = np.ones(len(pc["xyz"]), dtype=np.float32)
 
                 extrinsic = result["extrinsics"][local_idx].numpy().astype(np.float32)
                 intrinsic = result["intrinsics"][local_idx].numpy().astype(np.float32)
@@ -168,6 +187,19 @@ def _run_inference(
                 if conf is not None:
                     arrays["conf"] = conf
                 pointcloud_npz.append((frame_name, arrays))
+                if start_splat:
+                    splat_frames.append(
+                        {
+                            "source_frame_index": int(frame_indices[global_idx]),
+                            "timestamp_sec": _finite_float(timestamps_sec[global_idx]),
+                            "image_rgb": np.clip(result["images"][local_idx].permute(1, 2, 0).numpy() * 255.0, 0, 255).astype(np.uint8),
+                            "xyz": arrays["xyz"],
+                            "rgb": arrays["rgb"],
+                            "conf": arrays["conf"],
+                            "camera_to_world": c2w,
+                            "intrinsics": intrinsic,
+                        }
+                    )
 
                 keep = _sample_indices(len(arrays["xyz"]), max_points_per_frame)
                 pointclouds_json.append(
@@ -186,6 +218,10 @@ def _run_inference(
 
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
+
+    if start_splat:
+        model = None
+        unload_model()
 
     metadata = {
         "model": "VGGT-Omega",
@@ -233,18 +269,20 @@ def _run_inference(
             headers={"Content-Disposition": "attachment; filename=vggt_omega_result.zip"},
         )
 
-    return JSONResponse(
-        {
-            "metadata": metadata,
-            "camera": {
-                "extrinsics": extrinsics.tolist(),
-                "intrinsics": intrinsics.tolist(),
-                "camera_to_world": c2w.tolist(),
-                "camera_centers": centers.tolist(),
-            },
-            "point_clouds": pointclouds_json,
-        }
-    )
+    payload = {
+        "metadata": metadata,
+        "camera": {
+            "extrinsics": extrinsics.tolist(),
+            "intrinsics": intrinsics.tolist(),
+            "camera_to_world": c2w.tolist(),
+            "camera_centers": centers.tolist(),
+        },
+        "point_clouds": pointclouds_json,
+    }
+    if start_splat:
+        job = start_splat_job(splat_frames, metadata, _infer_lock)
+        payload["splat_job"] = job
+    return JSONResponse(payload)
 
 
 def _safe_suffix(name: str | None, fallback: str = ".mp4") -> str:
@@ -278,6 +316,7 @@ async def infer_multipart(
     window: int = Form(default=0),
     max_points_per_frame: int = Form(default=20000),
     response_format: Literal["json", "npz"] = Form(default="json"),
+    start_splat: bool = Form(default=False),
     authorization: str | None = Header(default=None),
     x_vggt_token: str | None = Header(default=None),
 ):
@@ -318,6 +357,7 @@ async def infer_multipart(
             window=window,
             max_points_per_frame=max_points_per_frame,
             response_format=response_format,
+            start_splat=start_splat and response_format == "json",
         )
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
@@ -337,6 +377,7 @@ async def infer_video_bytes(
     window: int = Query(default=0),
     max_points_per_frame: int = Query(default=20000),
     response_format: Literal["json", "npz"] = Query(default="json"),
+    start_splat: bool = Query(default=False),
     authorization: str | None = Header(default=None),
     x_vggt_token: str | None = Header(default=None),
 ):
@@ -363,8 +404,23 @@ async def infer_video_bytes(
             window=window,
             max_points_per_frame=max_points_per_frame,
             response_format=response_format,
+            start_splat=start_splat and response_format == "json",
         )
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
     finally:
         shutil.rmtree(temp_dir, ignore_errors=True)
+
+
+@app.get("/splat/{job_id}")
+def splat_status(
+    job_id: str,
+    include_preview: bool = Query(default=False),
+    authorization: str | None = Header(default=None),
+    x_vggt_token: str | None = Header(default=None),
+):
+    _authorize(authorization, x_vggt_token)
+    job = get_splat_job(job_id, include_preview=include_preview)
+    if job is None:
+        raise HTTPException(status_code=404, detail="splat job not found")
+    return job

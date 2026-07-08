@@ -19,6 +19,7 @@ recordings
 recordings/
 server/segmentation/models/
 server/motioncap/models/
+logs/
 
 # Agent Excludes
 **/.claude

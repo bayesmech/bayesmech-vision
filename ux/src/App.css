@@ -711,6 +711,39 @@ button {
   white-space: nowrap;
 }
 
+.worldgen-view-tools {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  display: inline-flex;
+  overflow: hidden;
+  border: 1px solid rgba(58, 65, 75, 0.9);
+  border-radius: 6px;
+  background: rgba(16, 17, 20, 0.88);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.24);
+}
+
+.worldgen-view-tools button {
+  display: inline-grid;
+  width: 32px;
+  height: 30px;
+  place-items: center;
+  border: 0;
+  border-right: 1px solid rgba(58, 65, 75, 0.9);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.worldgen-view-tools button:last-child {
+  border-right: 0;
+}
+
+.worldgen-view-tools button:hover {
+  background: rgba(98, 210, 162, 0.14);
+  color: var(--text);
+}
+
 .worldgen-image-panel {
   position: absolute;
   top: 10px;
@@ -743,6 +776,41 @@ button {
   background: var(--bg);
   color: var(--text);
   font-size: 12px;
+}
+
+.worldgen-mode-controls {
+  display: inline-flex;
+  flex: 0 0 auto;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--bg);
+}
+
+.worldgen-mode-controls button {
+  height: 28px;
+  padding: 0 9px;
+  border: 0;
+  border-right: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.worldgen-mode-controls button:last-child {
+  border-right: 0;
+}
+
+.worldgen-mode-controls button.active {
+  background: rgba(98, 210, 162, 0.16);
+  color: var(--text);
+}
+
+.worldgen-mode-controls button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
 }
 
 .worldgen-frame-controls label {
@@ -1361,4 +1429,27 @@ button {
   color: var(--muted);
   font-family: var(--mono, ui-monospace, SFMono-Regular, Menlo, monospace);
   font-size: 12px;
+}
+
+.chat-message.pending .message-avatar svg {
+  animation: chat-spin 0.85s linear infinite;
+}
+
+.chat-message.pending p {
+  color: var(--text);
+}
+
+.chat-message.error .message-avatar {
+  color: #ff6b6b;
+}
+
+.chat-message.error p {
+  border-left-color: #ff6b6b;
+  color: #ffd9d9;
+}
+
+@keyframes chat-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }

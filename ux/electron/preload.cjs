@@ -9,6 +9,9 @@ contextBridge.exposeInMainWorld('bayesmech', {
   readSegmentationMasks: (filePath, frameNumber) => ipcRenderer.invoke('seg:masks', filePath, frameNumber),
   readSegmentationLabels: (filePath) => ipcRenderer.invoke('seg:labels', filePath),
   runWorldgen: (request) => ipcRenderer.invoke('worldgen:run', request),
+  readWorldgen: (filePath) => ipcRenderer.invoke('worldgen:read', filePath),
+  pollWorldgenSplat: (jobId) => ipcRenderer.invoke('worldgen:splat-status', jobId),
+  saveWorldgenSplat: (filePath, splat) => ipcRenderer.invoke('worldgen:save-splat', filePath, splat),
   revealPath: (filePath) => ipcRenderer.invoke('path:reveal', filePath),
   onOpenProject: (callback) => {
     const handler = () => callback()

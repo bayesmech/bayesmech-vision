@@ -26,6 +26,7 @@ import {
   parseSegmentationCommand,
   parseWorldgenCommand,
   type CommandResult,
+  type CommandProgress,
   type OverlayState,
 } from './lib/overlay'
 import { compactNumber, shortPath } from './lib/format'
@@ -41,6 +42,23 @@ const initialVideoState = (): VideoPlaybackState => ({
 
 function requestId() {
   return `request-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms))
+}
+
+function splatProgressMessage(splat: NonNullable<WorldgenResult['splat']>): string {
+  const pct = Math.round(Math.max(0, Math.min(1, splat.progress ?? 0)) * 100)
+  if (splat.status === 'complete') {
+    return `Gaussian splat complete: ${compactNumber(splat.gaussianCount)} Gaussians, ${compactNumber(splat.previewPointCount)} preview splats.`
+  }
+  if (splat.status === 'failed') {
+    return `Gaussian splat failed: ${splat.error || splat.message || 'unknown error'}`
+  }
+  const step = splat.currentStep && splat.maxSteps ? ` step ${splat.currentStep}/${splat.maxSteps}` : ''
+  const count = splat.gaussianCount ? `, ${compactNumber(splat.gaussianCount)} Gaussians` : ''
+  return `${splat.message || 'Optimizing Gaussian splat on the VGGT server.'}${step ? ` (${pct}%${step}${count})` : ` (${pct}%)`}`
 }
 
 function isCancelledProjectResponse(value: unknown): value is { cancelled: true; error?: string } {
@@ -203,15 +221,32 @@ export default function App() {
   }, [applyProject, bridge])
 
   const openAnalysis = async (recording: RecordingEntry, analysis: ProjectAnalysis) => {
-    if (recording.id !== selectedRecording?.id) {
-      await selectRecording(recording)
+    try {
+      if (recording.id !== selectedRecording?.id) {
+        await selectRecording(recording)
+      }
+      if (analysis.key === 'worldgen') {
+        if (!bridge?.readWorldgen) throw new Error('Worldgen loading requires the native Electron app.')
+        const result = await bridge.readWorldgen(analysis.path)
+        setWorldgenResults((current) => ({ ...current, [result.id]: result }))
+        setTabRequest({
+          requestId: requestId(),
+          type: 'worldgen',
+          title: analysis.title,
+          worldgenResultId: result.id,
+        })
+        return
+      }
+      setTabRequest({
+        requestId: requestId(),
+        type: tabTypeForAnalysis(analysis.key),
+        title: analysis.title,
+        analysisKey: analysis.key,
+      })
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to open analysis.'
+      setError(message)
     }
-    setTabRequest({
-      requestId: requestId(),
-      type: tabTypeForAnalysis(analysis.key),
-      title: analysis.title,
-      analysisKey: analysis.key,
-    })
   }
 
   const loadBrowserFiles = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -292,7 +327,7 @@ export default function App() {
   }, [bridge, selectedSegmentationArtifact])
 
   const runCommand = useCallback(
-    async (text: string): Promise<CommandResult> => {
+    async (text: string, onProgress?: (progress: CommandProgress) => void): Promise<CommandResult> => {
       const trimmed = text.trim()
       const worldgenCommand = parseWorldgenCommand(trimmed)
       if (worldgenCommand) {
@@ -335,9 +370,80 @@ export default function App() {
             title: `Worldgen ${result.markerStart}-${result.markerEnd}`,
             worldgenResultId: result.id,
           })
+          const splat = result.splat
+          const firstMessage = `VGGT point cloud ready: ${result.frameCount} frames, ${compactNumber(result.returnedPointCount)} rendered points. Saved ${shortPath(result.outputPath, 72)}.`
+          onProgress?.({ ok: true, message: firstMessage })
+          if (splat?.jobId && bridge.pollWorldgenSplat) {
+            onProgress?.({ append: true, message: splatProgressMessage(splat) })
+            let latestSplat = splat
+            let pollFailures = 0
+            for (;;) {
+              await sleep(2500)
+              let status
+              try {
+                status = await bridge.pollWorldgenSplat(splat.jobId)
+                pollFailures = 0
+              } catch (err) {
+                pollFailures += 1
+                const message = err instanceof Error ? err.message : 'status request failed'
+                if (pollFailures >= 120) {
+                  return { ok: false, message: `Gaussian splat status polling failed: ${message}` }
+                }
+                onProgress?.({ message: `Waiting for Gaussian splat status: ${message}` })
+                continue
+              }
+              latestSplat = {
+                ...latestSplat,
+                status: status.status,
+                stage: status.stage,
+                message: status.message,
+                progress: status.progress,
+                currentStep: status.currentStep,
+                maxSteps: status.maxSteps ?? latestSplat.maxSteps,
+                gaussianCount: status.gaussianCount ?? latestSplat.gaussianCount,
+                previewPointCount: status.previewPointCount ?? latestSplat.previewPointCount,
+                elapsedSec: status.elapsedSec ?? latestSplat.elapsedSec,
+                error: status.error ?? latestSplat.error,
+                plyPath: status.plyPath ?? latestSplat.plyPath,
+                previewJsonPath: status.previewJsonPath ?? latestSplat.previewJsonPath,
+              }
+              setWorldgenResults((current) => {
+                const existing = current[result.id] ?? result
+                return {
+                  ...current,
+                  [result.id]: {
+                    ...existing,
+                    splat: latestSplat,
+                    splatPoints: status.points?.length ? status.points : existing.splatPoints,
+                  },
+                }
+              })
+              if (status.status === 'complete') {
+                const persisted = bridge.saveWorldgenSplat
+                  ? await bridge.saveWorldgenSplat(result.outputPath, { ...latestSplat, jobId: splat.jobId, points: status.points })
+                  : null
+                if (persisted) {
+                  setWorldgenResults((current) => ({ ...current, [persisted.id]: persisted }))
+                }
+                const completeMessage = splatProgressMessage(latestSplat)
+                onProgress?.({ ok: true, message: completeMessage })
+                return { ok: true, message: completeMessage }
+              }
+              if (status.status === 'failed') {
+                if (bridge.saveWorldgenSplat) {
+                  await bridge.saveWorldgenSplat(result.outputPath, { ...latestSplat, jobId: splat.jobId, points: status.points })
+                }
+                const failedMessage = splatProgressMessage(latestSplat)
+                onProgress?.({ ok: false, message: failedMessage })
+                return { ok: false, message: failedMessage }
+              }
+              onProgress?.({ message: splatProgressMessage(latestSplat) })
+            }
+          }
+          const splatMessage = splat ? ` ${splatProgressMessage(splat)}` : ''
           return {
             ok: true,
-            message: `Worldgen complete: ${result.frameCount} frames, ${compactNumber(result.returnedPointCount)} rendered points. Saved ${shortPath(result.outputPath, 72)}.`,
+            message: `${firstMessage}${splatMessage}`,
           }
         } catch (err) {
           const message = err instanceof Error ? err.message : 'Worldgen failed.'
