@@ -1,0 +1,8 @@
+[project]
+name = "vggt-pretraining"
+version = "0.1.0"
+description = "Testing out VGGT inspired models for understanding dynamic scenes efficiently"
+requires-python = ">=3.14"
+dependencies = [
+    "huggingface-hub>=1.19.0",
+]
