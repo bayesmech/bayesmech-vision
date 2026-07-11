@@ -48,8 +48,8 @@ npm run devserver
 Run the streamlog server separately:
 
 ```sh
-cd server
-uv run streamlog/main.py
+cd server/streamlog
+cargo run
 ```
 
 ## Analyzer commands

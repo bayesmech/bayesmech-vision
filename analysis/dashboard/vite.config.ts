@@ -1,27 +1,36 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
+import { fileURLToPath, URL } from 'node:url';
+import { svelte } from '@sveltejs/vite-plugin-svelte';
+import { defineConfig } from 'vite';
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [svelte()],
+  resolve: {
+    alias: {
+      $lib: fileURLToPath(new URL('./src/lib', import.meta.url)),
+      $components: fileURLToPath(new URL('./src/components', import.meta.url)),
+      $workers: fileURLToPath(new URL('./src/workers', import.meta.url))
+    }
+  },
   server: {
-    allowedHosts: ['console.bayesmech.com'],
-    proxy: {
-      '/api': {
-        target: 'http://localhost:8080',
-        changeOrigin: true,
-      },
-      '/ws': {
-        target: 'ws://localhost:8080',
-        ws: true,
-      },
-      '/ar-stream': {
-        target: 'ws://localhost:8080',
-        ws: true,
-      },
+    fs: {
+      allow: [
+        fileURLToPath(new URL('.', import.meta.url)),
+        fileURLToPath(new URL('../..', import.meta.url))
+      ]
     },
+    proxy: {
+      '/streamlog': 'http://127.0.0.1:8080',
+      '/api': 'http://127.0.0.1:8080',
+      '/ws': {
+        target: 'ws://127.0.0.1:8080',
+        ws: true
+      }
+    }
   },
   build: {
-    outDir: 'dist',
-    emptyOutDir: true,
+    target: 'es2022'
   },
-})
+  worker: {
+    format: 'es'
+  }
+});

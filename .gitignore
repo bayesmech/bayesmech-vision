@@ -5,6 +5,7 @@ server/data/
 **/.env
 .secrets/
 **/node_modules
+**/target/
 
 # Client side excludes
 **/.vite/
