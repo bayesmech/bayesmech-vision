@@ -8,80 +8,39 @@ import {
   type KeyboardEvent,
   type SetStateAction,
 } from 'react'
-import { ChevronLeft, ChevronRight, Film, Pause, Play, Plus, Tag, Trash2 } from 'lucide-react'
-import type { VideoMarker, VideoPlaybackState, VisFrame, VisSummary } from '../types'
+import { Boxes, Film, LoaderCircle } from 'lucide-react'
+import type { VideoPlaybackState, VisFrame, VisSummary } from '../types'
 import { useFrameSource } from '../lib/frameSource'
 import { normalizeSegmentationLabel, useOverlay } from '../lib/overlay'
-import { decodeMasks, type DecodedOverlay } from '../lib/mask'
+import { colorForObject, decodeMasks, type DecodedOverlay } from '../lib/mask'
 
 type VideoPlayerProps = {
   summary: VisSummary | null
   videoState: VideoPlaybackState
   onVideoStateChange: Dispatch<SetStateAction<VideoPlaybackState>>
+  segmentationViewer?: boolean
 }
 
-const SPEEDS = [0.25, 0.5, 1, 2, 4]
 const MASK_ALPHA = 140 // 0..255
-const MARKER_COLORS = ['#5aa9e6', '#62d2a2', '#f0b35a', '#d7687d', '#a884e6', '#78c878']
 
-function clampFps(frameCount: number, durationSeconds: number): number {
-  if (!Number.isFinite(durationSeconds) || durationSeconds <= 0 || frameCount <= 1) return 30
-  const fps = (frameCount - 1) / durationSeconds
-  if (!Number.isFinite(fps) || fps <= 0) return 30
-  return Math.min(60, Math.max(1, fps))
-}
-
-function timeLabel(seconds: number): string {
-  if (!Number.isFinite(seconds) || seconds < 0) seconds = 0
-  const total = Math.floor(seconds)
-  const mm = Math.floor(total / 60)
-  const ss = total % 60
-  return `${mm}:${ss.toString().padStart(2, '0')}`
-}
-
-function titleCaseMarkerName(name: string, fallback = 'Marker'): string {
-  const words = name.match(/[A-Za-z0-9]+/g) ?? []
-  const value = words
-    .map((word) => {
-      if (/^\d+$/.test(word)) return word
-      return `${word.charAt(0).toUpperCase()}${word.slice(1).toLowerCase()}`
-    })
-    .join('')
-  return value || fallback
-}
-
-function uniqueMarkerReference(name: string, markers: VideoMarker[], exceptId?: string): string {
-  const base = titleCaseMarkerName(name)
-  const used = new Set(markers.filter((marker) => marker.id !== exceptId).map((marker) => marker.reference))
-  if (!used.has(base)) return base
-  let index = 2
-  while (used.has(`${base}${index}`)) index += 1
-  return `${base}${index}`
-}
-
-function createMarkerId(): string {
-  return `marker-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
-}
-
-export default function VideoPlayer({ summary, videoState, onVideoStateChange }: VideoPlayerProps) {
+export default function VideoPlayer({ summary, videoState, onVideoStateChange, segmentationViewer = false }: VideoPlayerProps) {
   const getFrame = useFrameSource()
   const overlay = useOverlay()
-  const segmentationOn = overlay?.segmentation ?? false
-  const segmentationMaskLabel = overlay?.segmentationMaskLabel ?? null
-  const { index, markers, playing, speed } = videoState
+  const getSegmentation = overlay?.getSegmentation
+  const getSegmentationLabels = overlay?.getSegmentationLabels
+  const segmentationOn = segmentationViewer || (overlay?.segmentation ?? false)
+  const [selectedEntity, setSelectedEntity] = useState<string | null>(null)
+  const segmentationMaskLabel = segmentationViewer ? selectedEntity : overlay?.segmentationMaskLabel ?? null
+  const { index, playing } = videoState
 
   const frameCount = summary?.frameCount ?? 0
-  const fps = useMemo(
-    () => clampFps(frameCount, summary?.durationSeconds ?? 0),
-    [frameCount, summary?.durationSeconds],
-  )
 
   const [frame, setFrame] = useState<VisFrame | null>(null)
   const [imageUrl, setImageUrl] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [overlays, setOverlays] = useState<DecodedOverlay[]>([])
-  const [markerDraft, setMarkerDraft] = useState('')
-  const [markerColor, setMarkerColor] = useState(MARKER_COLORS[0])
+  const [entityLabels, setEntityLabels] = useState<string[]>([])
+  const [labelsLoading, setLabelsLoading] = useState(false)
 
   // Caches keyed by frame index (images) / frame number (decoded overlays). In
   // browser mode image dataUrls are object URLs, so evictions must revoke them.
@@ -120,13 +79,6 @@ export default function VideoPlayer({ summary, videoState, onVideoStateChange }:
     [onVideoStateChange],
   )
 
-  const setVideoSpeed = useCallback(
-    (next: number) => {
-      onVideoStateChange((current) => ({ ...current, speed: next }))
-    },
-    [onVideoStateChange],
-  )
-
   // Reset when the recording (frame source) or file changes.
   useEffect(() => {
     clearCaches()
@@ -137,6 +89,31 @@ export default function VideoPlayer({ summary, videoState, onVideoStateChange }:
   }, [getFrame, summary?.path, clearCaches, setVideoPlaying])
 
   useEffect(() => () => clearCaches(), [clearCaches])
+
+  useEffect(() => {
+    setSelectedEntity(null)
+    if (!segmentationViewer || !getSegmentationLabels) {
+      setEntityLabels([])
+      setLabelsLoading(false)
+      return
+    }
+
+    let cancelled = false
+    setLabelsLoading(true)
+    getSegmentationLabels()
+      .then((labels) => {
+        if (!cancelled) setEntityLabels(labels)
+      })
+      .catch(() => {
+        if (!cancelled) setEntityLabels([])
+      })
+      .finally(() => {
+        if (!cancelled) setLabelsLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [getSegmentationLabels, segmentationViewer, summary?.path])
 
   useEffect(() => {
     if (frameCount > 0 && index > frameCount - 1) setVideoIndex(frameCount - 1)
@@ -190,7 +167,7 @@ export default function VideoPlayer({ summary, videoState, onVideoStateChange }:
 
   // Fetch + decode segmentation masks for the current frame when the overlay is on.
   useEffect(() => {
-    if (!segmentationOn || !overlay || !frame) {
+    if (!segmentationOn || !getSegmentation || !frame) {
       setOverlays([])
       return
     }
@@ -202,8 +179,7 @@ export default function VideoPlayer({ summary, videoState, onVideoStateChange }:
     }
 
     let cancelled = false
-    overlay
-      .getSegmentation(frameNumber)
+    getSegmentation(frameNumber)
       .then(async (masks) => {
         if (cancelled) return
         const decoded = masks && masks.length ? await decodeMasks(masks) : []
@@ -217,7 +193,7 @@ export default function VideoPlayer({ summary, videoState, onVideoStateChange }:
     return () => {
       cancelled = true
     }
-  }, [segmentationOn, overlay, frame])
+  }, [segmentationOn, getSegmentation, frame])
 
   const displayUrl = imageUrl ?? summary?.rgbPreview?.dataUrl ?? null
 
@@ -246,6 +222,19 @@ export default function VideoPlayer({ summary, videoState, onVideoStateChange }:
     const target = normalizeSegmentationLabel(segmentationMaskLabel)
     return overlays.filter((item) => normalizeSegmentationLabel(item.label) === target)
   }, [overlays, segmentationMaskLabel])
+
+  const listedEntities = useMemo(() => {
+    const unique = new Map<string, string>()
+    for (const label of entityLabels) {
+      const key = normalizeSegmentationLabel(label)
+      if (key) unique.set(key, label)
+    }
+    for (const item of overlays) {
+      const key = normalizeSegmentationLabel(item.label)
+      if (key && !unique.has(key)) unique.set(key, item.label)
+    }
+    return [...unique.values()]
+  }, [entityLabels, overlays])
 
   // Composite the base frame and any mask overlays onto the canvas.
   useEffect(() => {
@@ -312,34 +301,6 @@ export default function VideoPlayer({ summary, videoState, onVideoStateChange }:
     }
   }, [drawTick, segmentationMaskLabel, visibleOverlays])
 
-  // Playback loop: advance frames at fps * speed, stop at the end.
-  useEffect(() => {
-    if (!playing || frameCount <= 1) return
-    let raf = 0
-    let last = performance.now()
-    let acc = 0
-    const interval = 1000 / (fps * speed)
-    const tick = (now: number) => {
-      acc += now - last
-      last = now
-      if (acc >= interval) {
-        const steps = Math.floor(acc / interval)
-        acc -= steps * interval
-        setVideoIndex((prev) => {
-          const next = prev + steps
-          if (next >= frameCount - 1) {
-            setVideoPlaying(false)
-            return frameCount - 1
-          }
-          return next
-        })
-      }
-      raf = requestAnimationFrame(tick)
-    }
-    raf = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(raf)
-  }, [playing, speed, fps, frameCount, setVideoIndex, setVideoPlaying])
-
   const togglePlay = useCallback(() => {
     if (frameCount <= 1) return
     if (!playing && index >= frameCount - 1) setVideoIndex(0)
@@ -377,237 +338,102 @@ export default function VideoPlayer({ summary, videoState, onVideoStateChange }:
     [togglePlay, step],
   )
 
-  const currentSeconds = index / fps
-  const totalSeconds = summary && summary.durationSeconds > 0 ? summary.durationSeconds : (frameCount - 1) / fps
-  const sortedMarkers = useMemo(() => [...markers].sort((a, b) => a.frameIndex - b.frameIndex), [markers])
-  const markerSegments = useMemo(
-    () => sortedMarkers.slice(0, -1).map((marker, idx) => [marker, sortedMarkers[idx + 1]] as const),
-    [sortedMarkers],
-  )
-
-  const addMarker = useCallback(() => {
-    if (frameCount === 0) return
-    const name = titleCaseMarkerName(markerDraft, `Marker${markers.length + 1}`)
-    const marker: VideoMarker = {
-      id: createMarkerId(),
-      name,
-      reference: uniqueMarkerReference(name, markers),
-      frameIndex: index,
-      frameNumber: frame?.frameNumber ?? index,
-      seconds: currentSeconds,
-      color: markerColor,
-    }
-    onVideoStateChange((current) => ({
-      ...current,
-      markers: [...current.markers, marker].sort((a, b) => a.frameIndex - b.frameIndex),
-    }))
-    setMarkerDraft('')
-    setMarkerColor(MARKER_COLORS[(markers.length + 1) % MARKER_COLORS.length])
-  }, [currentSeconds, frame?.frameNumber, frameCount, index, markerColor, markerDraft, markers, onVideoStateChange])
-
-  const updateMarker = useCallback(
-    (id: string, patch: Partial<Pick<VideoMarker, 'color' | 'name'>>) => {
-      onVideoStateChange((current) => ({
-        ...current,
-        markers: current.markers
-          .map((marker) => {
-            if (marker.id !== id) return marker
-            const name = patch.name !== undefined ? titleCaseMarkerName(patch.name, marker.reference) : marker.name
-            return {
-              ...marker,
-              ...patch,
-              name,
-              reference: patch.name !== undefined ? uniqueMarkerReference(name, current.markers, id) : marker.reference,
-            }
-          })
-          .sort((a, b) => a.frameIndex - b.frameIndex),
-      }))
-    },
-    [onVideoStateChange],
-  )
-
-  const deleteMarker = useCallback(
-    (id: string) => {
-      onVideoStateChange((current) => ({
-        ...current,
-        markers: current.markers.filter((marker) => marker.id !== id),
-      }))
-    },
-    [onVideoStateChange],
-  )
-
   if (!summary || frameCount === 0) {
+    const EmptyIcon = segmentationViewer ? Boxes : Film
     return (
       <div className="empty-panel">
-        <Film size={28} aria-hidden="true" />
+        <EmptyIcon size={28} aria-hidden="true" />
         <span>No frames to play</span>
       </div>
     )
   }
 
-  return (
-    <div className="video-player" tabIndex={0} onKeyDown={onKeyDown}>
-      <div className="video-stage">
-        <canvas ref={canvasRef} className={displayUrl ? '' : 'is-empty'} />
-        {!displayUrl ? (
-          <div className="video-stage-empty">
-            <Film size={30} aria-hidden="true" />
-            <span>{frame && frame.dataUrl === null ? 'This frame has no decodable RGB image' : 'Loading frame…'}</span>
-          </div>
-        ) : null}
-        {segmentationOn ? (
-          <div className="video-overlay-badge">
-            {segmentationMaskLabel ? `mask: ${segmentationMaskLabel} (${visibleOverlays.length})` : `segmentation (${overlays.length})`}
-          </div>
-        ) : null}
-        {loading ? <div className="video-loading" aria-hidden="true" /> : null}
-      </div>
+  const videoStage = (
+    <div className="video-stage">
+      <canvas ref={canvasRef} className={displayUrl ? '' : 'is-empty'} />
+      {!displayUrl ? (
+        <div className="video-stage-empty">
+          <Film size={30} aria-hidden="true" />
+          <span>{frame && frame.dataUrl === null ? 'This frame has no decodable RGB image' : 'Loading frame…'}</span>
+        </div>
+      ) : null}
+      {segmentationOn ? (
+        <div className="video-overlay-badge">
+          {segmentationMaskLabel ? `mask: ${segmentationMaskLabel} (${visibleOverlays.length})` : `segmentation (${overlays.length})`}
+        </div>
+      ) : null}
+      {loading ? <div className="video-loading" aria-hidden="true" /> : null}
+    </div>
+  )
 
-      <div className="video-controls">
-        <button type="button" className="icon-button" onClick={() => step(-1)} title="Previous frame" disabled={index <= 0}>
-          <ChevronLeft size={16} aria-hidden="true" />
-        </button>
-        <button type="button" className="icon-button play-button" onClick={togglePlay} title={playing ? 'Pause' : 'Play'}>
-          {playing ? <Pause size={16} aria-hidden="true" /> : <Play size={16} aria-hidden="true" />}
-        </button>
+  if (!segmentationViewer) {
+    return (
+      <div className="video-player" tabIndex={0} onKeyDown={onKeyDown}>
+        {videoStage}
+      </div>
+    )
+  }
+
+  return (
+    <div className="segmentation-viewer" tabIndex={0} onKeyDown={onKeyDown}>
+      <div className="segmentation-video-pane">{videoStage}</div>
+      <aside className="segmentation-entities" aria-label="Segmented entities">
+        <header className="segmentation-entities-header">
+          <div>
+            <span className="eyebrow">Segmentation</span>
+            <h3>Entities</h3>
+          </div>
+          <span className="segmentation-entity-count">{listedEntities.length}</span>
+        </header>
+
         <button
           type="button"
-          className="icon-button"
-          onClick={() => step(1)}
-          title="Next frame"
-          disabled={index >= frameCount - 1}
+          className={selectedEntity === null ? 'segmentation-entity is-active' : 'segmentation-entity'}
+          aria-pressed={selectedEntity === null}
+          onClick={() => setSelectedEntity(null)}
         >
-          <ChevronRight size={16} aria-hidden="true" />
+          <span className="segmentation-all-icon"><Boxes size={14} aria-hidden="true" /></span>
+          <span className="segmentation-entity-copy">
+            <strong>All entities</strong>
+            <small>{overlays.length} {overlays.length === 1 ? 'mask' : 'masks'} in this frame</small>
+          </span>
         </button>
 
-        <input
-          className="video-seek"
-          type="range"
-          min={0}
-          max={frameCount - 1}
-          step={1}
-          value={index}
-          onChange={(event) => {
-            setVideoPlaying(false)
-            setVideoIndex(Number(event.target.value))
-          }}
-          aria-label="Seek"
-        />
-
-        <span className="video-time">
-          {timeLabel(currentSeconds)} / {timeLabel(totalSeconds)}
-        </span>
-        <span className="video-frame-count" title="Frame number">
-          {index + 1} / {frameCount}
-        </span>
-
-        <label className="video-speed" title="Playback speed">
-          <select value={speed} onChange={(event) => setVideoSpeed(Number(event.target.value))}>
-            {SPEEDS.map((value) => (
-              <option key={value} value={value}>
-                {value}x
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
-
-      <div className="video-marker-panel">
-        <div className="marker-create-row">
-          <div className="marker-panel-title">
-            <Tag size={14} aria-hidden="true" />
-            <span>Markers</span>
-          </div>
-          <input
-            className="marker-name-input"
-            value={markerDraft}
-            onChange={(event) => setMarkerDraft(event.target.value)}
-            placeholder="NameOfMarker"
-            spellCheck={false}
-          />
-          <input
-            className="marker-color-input"
-            type="color"
-            value={markerColor}
-            onChange={(event) => setMarkerColor(event.target.value)}
-            aria-label="Marker color"
-          />
-          <button type="button" className="toolbar-button marker-insert" onClick={addMarker} title="Insert marker">
-            <Plus size={14} aria-hidden="true" />
-            <span>Insert</span>
-          </button>
-        </div>
-
-        <div className="marker-track">
-          {sortedMarkers.map((marker) => (
-            <button
-              type="button"
-              className="marker-track-pin"
-              key={marker.id}
-              onClick={() => setVideoIndex(marker.frameIndex)}
-              style={{
-                left: `${frameCount > 1 ? (marker.frameIndex / (frameCount - 1)) * 100 : 0}%`,
-                backgroundColor: marker.color,
-              }}
-              title={`@${marker.reference}`}
-            />
-          ))}
-        </div>
-
-        <div className="marker-list">
-          {sortedMarkers.length === 0 ? (
-            <span className="marker-empty">No markers</span>
-          ) : (
-            sortedMarkers.map((marker) => (
-              <div className="marker-row" key={marker.id}>
-                <button
-                  type="button"
-                  className="marker-ref"
-                  onClick={() => setVideoIndex(marker.frameIndex)}
-                  title={`Frame ${marker.frameIndex + 1}`}
-                >
-                  <span className="marker-swatch" style={{ backgroundColor: marker.color }} />
-                  <span>@{marker.reference}</span>
-                </button>
-                <input
-                  className="marker-name-edit"
-                  value={marker.name}
-                  onChange={(event) => updateMarker(marker.id, { name: event.target.value })}
-                  spellCheck={false}
-                  aria-label="Marker name"
-                />
-                <input
-                  className="marker-color-input"
-                  type="color"
-                  value={marker.color}
-                  onChange={(event) => updateMarker(marker.id, { color: event.target.value })}
-                  aria-label="Marker color"
-                />
-                <span className="marker-time">{timeLabel(marker.seconds)}</span>
-                <button type="button" className="icon-button" onClick={() => deleteMarker(marker.id)} title="Delete marker">
-                  <Trash2 size={13} aria-hidden="true" />
-                </button>
-              </div>
-            ))
-          )}
-        </div>
-
-        {markerSegments.length ? (
-          <div className="marker-segments">
-            {markerSegments.map(([start, end]) => (
+        <div className="segmentation-entity-list">
+          {labelsLoading ? (
+            <div className="segmentation-entities-state">
+              <LoaderCircle className="spin" size={15} aria-hidden="true" />
+              <span>Reading entities…</span>
+            </div>
+          ) : null}
+          {!labelsLoading && listedEntities.length === 0 ? (
+            <div className="segmentation-entities-state">No named entities found.</div>
+          ) : null}
+          {listedEntities.map((label, index) => {
+            const normalized = normalizeSegmentationLabel(label)
+            const current = overlays.filter((item) => normalizeSegmentationLabel(item.label) === normalized)
+            const color = current[0]?.color ?? colorForObject(index)
+            const colorCss = `rgb(${color[0]} ${color[1]} ${color[2]})`
+            const active = selectedEntity !== null && normalizeSegmentationLabel(selectedEntity) === normalized
+            return (
               <button
                 type="button"
-                className="marker-segment"
-                key={`${start.id}-${end.id}`}
-                onClick={() => setVideoIndex(start.frameIndex)}
-                title={`${timeLabel(start.seconds)} - ${timeLabel(end.seconds)}`}
+                className={`${active ? 'segmentation-entity is-active' : 'segmentation-entity'}${current.length ? '' : ' is-absent'}`}
+                aria-pressed={active}
+                key={normalized}
+                onClick={() => setSelectedEntity(active ? null : label)}
+                title={current.length ? `${label}: ${current.length} mask${current.length === 1 ? '' : 's'} in this frame` : `${label}: not present in this frame`}
               >
-                @{start.reference}-@{end.reference}
+                <span className="segmentation-entity-swatch" style={{ backgroundColor: colorCss }} />
+                <span className="segmentation-entity-copy">
+                  <strong>{label}</strong>
+                  <small>{current.length ? `${current.length} ${current.length === 1 ? 'instance' : 'instances'} in frame` : 'Not in this frame'}</small>
+                </span>
               </button>
-            ))}
-          </div>
-        ) : null}
-      </div>
+            )
+          })}
+        </div>
+      </aside>
     </div>
   )
 }

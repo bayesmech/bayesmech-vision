@@ -1,4 +1,5 @@
 import { Bot, FileCode2, FolderOpen, PanelLeft, RefreshCw } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 
 type TopMenuProps = {
   projectName?: string
@@ -7,8 +8,6 @@ type TopMenuProps = {
   onOpenProject: () => void
   onOpenFiles: () => void
   onRescanProject: () => void
-  onOpenView: () => void
-  onOpenAnalysis: () => void
 }
 
 export default function TopMenu({
@@ -18,9 +17,35 @@ export default function TopMenu({
   onOpenProject,
   onOpenFiles,
   onRescanProject,
-  onOpenView,
-  onOpenAnalysis,
 }: TopMenuProps) {
+  const [fileMenuOpen, setFileMenuOpen] = useState(false)
+  const fileMenuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!fileMenuOpen) return
+
+    const closeOnOutsideClick = (event: MouseEvent) => {
+      if (!fileMenuRef.current?.contains(event.target as Node)) {
+        setFileMenuOpen(false)
+      }
+    }
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setFileMenuOpen(false)
+    }
+
+    document.addEventListener('mousedown', closeOnOutsideClick)
+    document.addEventListener('keydown', closeOnEscape)
+    return () => {
+      document.removeEventListener('mousedown', closeOnOutsideClick)
+      document.removeEventListener('keydown', closeOnEscape)
+    }
+  }, [fileMenuOpen])
+
+  const openProject = () => {
+    setFileMenuOpen(false)
+    onOpenProject()
+  }
+
   return (
     <header className="top-menu">
       <div className="app-mark">
@@ -29,15 +54,25 @@ export default function TopMenu({
       </div>
 
       <nav className="menu-strip" aria-label="Application menu">
-        <button type="button" className="menu-item" onClick={onOpenProject}>
-          File
-        </button>
-        <button type="button" className="menu-item" onClick={onOpenView}>
-          View
-        </button>
-        <button type="button" className="menu-item" onClick={onOpenAnalysis}>
-          Analysis
-        </button>
+        <div className="menu-dropdown" ref={fileMenuRef}>
+          <button
+            type="button"
+            className={fileMenuOpen ? 'menu-item is-open' : 'menu-item'}
+            aria-haspopup="menu"
+            aria-expanded={fileMenuOpen}
+            onClick={() => setFileMenuOpen((open) => !open)}
+          >
+            File
+          </button>
+          {fileMenuOpen && (
+            <div className="menu-popover" role="menu">
+              <button type="button" role="menuitem" onClick={openProject} disabled={loading}>
+                <FolderOpen size={14} aria-hidden="true" />
+                <span>Open</span>
+              </button>
+            </div>
+          )}
+        </div>
       </nav>
 
       <div className="top-actions">

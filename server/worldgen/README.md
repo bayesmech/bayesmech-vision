@@ -69,9 +69,11 @@ the script validates this before attaching labels to points.
 
 ## Gaussian Splatting from VGGT Output
 
-The native `/worldgen @MarkerA-@MarkerB` flow saves a
-`VggtInferenceResponse` protobuf first, then runs a local 3D Gaussian
-Splatting trainer:
+The native `/worldgen @MarkerA-@MarkerB` flow appends one length-delimited
+`VggtInferenceResponse` record to the recording's single `<name>.vggt.pb`
+file. Records carry their source frame numbers, so later marker ranges extend
+the same artifact and overlapping frames use the newest computation. The file
+can then be consumed by the 3D Gaussian Splatting trainer:
 
 ```bash
 cd server

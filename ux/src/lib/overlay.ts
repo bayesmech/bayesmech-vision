@@ -33,9 +33,12 @@ export type OverlayState = {
   segmentationMaskLabel: string | null
   // Run a command string (e.g. "/segmentation"). Returns a status for display.
   runCommand: (text: string, onProgress?: (progress: CommandProgress) => void) => Promise<CommandResult>
-  // Fetch segmentation masks for a video frame number, or null when unavailable
-  // (overlay disabled, no artifact, or no frame source).
+  // Fetch segmentation masks for a video frame number, or null when no artifact
+  // or frame source is available. The dedicated Segmentation tab uses this even
+  // when the optional overlay on the regular Video tab is disabled.
   getSegmentation: (frameNumber: number) => Promise<SegMask[] | null>
+  // All tracked entity labels in the selected recording's segmentation artifact.
+  getSegmentationLabels: () => Promise<string[]>
 }
 
 export const OverlayContext = createContext<OverlayState | null>(null)

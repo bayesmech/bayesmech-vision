@@ -7,6 +7,10 @@ option java_package = "com.bayesmech.vision";
 
 import "perceiver.proto";
 
+// On disk, one recording-level .vggt.pb file contains a length-delimited
+// stream of VggtInferenceResponse records. Each record is one computed frame
+// set; consumers merge records by frame_identifier.frame_number.
+
 message VggtInferenceRequest {
   string request_id = 1;
   string source_recording_path = 2;
@@ -52,7 +56,17 @@ message VggtGaussianSplatPreviewPoint {
   float g = 5;
   float b = 6;
   float opacity = 7;
-  float scale = 8;
+  float scale = 8;  // isotropic mean std dev (back-compat / fallback)
+  // Anisotropic Gaussian: per-axis linear std devs and orientation quaternion.
+  // When present, viewers render a true oriented ellipsoid; when absent they
+  // fall back to an isotropic Gaussian of radius `scale`.
+  float scale_x = 9;
+  float scale_y = 10;
+  float scale_z = 11;
+  float rot_x = 12;
+  float rot_y = 13;
+  float rot_z = 14;
+  float rot_w = 15;
 }
 
 message VggtGaussianSplat {

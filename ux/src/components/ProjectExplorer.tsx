@@ -1,23 +1,11 @@
 import {
-  Box,
-  Boxes,
-  BrainCircuit,
   ChevronRight,
-  CircleDot,
-  Cloud,
   Database,
   FileCode2,
-  Film,
   FolderOpen,
-  Image,
-  Layers3,
-  Map,
-  MessageSquare,
-  ScanSearch,
   Search,
-  Waves,
 } from 'lucide-react'
-import type { ProjectAnalysis, ProjectScanResult, RecordingEntry, WorkspaceTabType } from '../types'
+import type { ProjectScanResult, RecordingEntry } from '../types'
 import { dateTimeLabel, shortPath } from '../lib/format'
 
 type ProjectExplorerProps = {
@@ -28,46 +16,6 @@ type ProjectExplorerProps = {
   onOpenProject: () => void
   onOpenFiles: () => void
   onSelectRecording: (recording: RecordingEntry) => void
-  onOpenAnalysis: (recording: RecordingEntry, analysis: ProjectAnalysis) => void
-}
-
-const iconForAnalysis = (key: string) => {
-  switch (key) {
-    case 'video':
-      return Film
-    case 'rgb':
-      return Image
-    case 'depth':
-      return Waves
-    case 'point-cloud':
-      return Cloud
-    case 'surface-planes':
-      return Layers3
-    case 'segmentation':
-      return Boxes
-    case 'motioncap':
-      return CircleDot
-    case 'idoslam':
-      return Map
-    case 'genspark':
-      return BrainCircuit
-    case 'chat':
-      return MessageSquare
-    case 'reconstruction':
-      return Box
-    case 'worldgen':
-      return ScanSearch
-    default:
-      return FileCode2
-  }
-}
-
-export function tabTypeForAnalysis(key: string): WorkspaceTabType {
-  if (key === 'point-cloud') return 'point-cloud'
-  if (key === 'surface-planes') return 'planes'
-  if (key === 'video' || key === 'rgb' || key === 'depth') return 'video'
-  if (key === 'worldgen') return 'worldgen'
-  return 'analysis'
 }
 
 export default function ProjectExplorer({
@@ -78,7 +26,6 @@ export default function ProjectExplorer({
   onOpenProject,
   onOpenFiles,
   onSelectRecording,
-  onOpenAnalysis,
 }: ProjectExplorerProps) {
   const normalizedFilter = filter.trim().toLowerCase()
   const recordings = (project?.recordings ?? []).filter((recording) => {
@@ -93,10 +40,7 @@ export default function ProjectExplorer({
   return (
     <aside className="project-explorer">
       <div className="panel-header">
-        <div>
-          <div className="eyebrow">Explorer</div>
-          <h2>Project</h2>
-        </div>
+        <h2>Project</h2>
         <button type="button" className="icon-button" onClick={onOpenProject} title="Open project">
           <FolderOpen size={15} aria-hidden="true" />
         </button>
@@ -152,23 +96,6 @@ export default function ProjectExplorer({
               <div className="recording-meta">
                 <span>{dateTimeLabel(recording.modifiedMs)}</span>
                 <span title={recording.relativePath}>{shortPath(recording.relativePath, 46)}</span>
-              </div>
-              <div className="analysis-list">
-                {recording.analyses.map((analysis) => {
-                  const Icon = iconForAnalysis(analysis.key)
-                  return (
-                    <button
-                      type="button"
-                      className={analysis.source === 'vis' ? 'analysis-chip is-native' : 'analysis-chip'}
-                      key={`${recording.id}:${analysis.key}:${analysis.path}`}
-                      onClick={() => onOpenAnalysis(recording, analysis)}
-                      title={analysis.relativePath}
-                    >
-                      <Icon size={13} aria-hidden="true" />
-                      <span>{analysis.title}</span>
-                    </button>
-                  )
-                })}
               </div>
             </section>
           )

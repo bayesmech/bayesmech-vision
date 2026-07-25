@@ -138,6 +138,89 @@ export type VisFrame = {
   dataUrl: string | null
 }
 
+export type GpsSample = {
+  latitude: number
+  longitude: number
+  altitude: number
+  accuracy: number
+  bearing: number
+  speed: number
+  timestampMs: string
+}
+
+export type SensorSample = {
+  index: number
+  frameNumber: number
+  timestampNs: string
+  deviceId: string
+  linearAcceleration: Vec3 | null
+  angularVelocity: Vec3 | null
+  gravity: Vec3 | null
+  magneticField: Vec3 | null
+  cameraPose: Pose | null
+  gps: GpsSample | null
+}
+
+export type SensorDataSummary = {
+  path: string
+  frameCount: number
+  samples: SensorSample[]
+}
+
+export type IdoSlamPose = {
+  frameIndex: number
+  frameNumber: number
+  timestampNs: string
+  position: Vec3
+  eulerDegrees: Vec3
+}
+
+export type IdoSlamPairMotion = {
+  frameIndex: number
+  status: string
+  goodMatchCount: number
+  essentialInlierCount: number
+  essentialInlierRatio: number
+  translationMagnitude: number
+  rotationDeg: number
+}
+
+export type IdoSlamWidthEstimate = {
+  frameIndex: number
+  latitude: number
+  longitude: number
+  widthM: number
+  leftOffsetM: number
+  rightOffsetM: number
+  bikeFraction: number
+  method: string
+}
+
+export type IdoSlamCenterlinePoint = {
+  progressM: number
+  centerX: number
+  centerY: number
+  widthM: number
+  leftX: number
+  leftY: number
+  rightX: number
+  rightY: number
+}
+
+export type IdoSlamSummary = {
+  path: string
+  framePoses: IdoSlamPose[]
+  refinedFramePoses: IdoSlamPose[]
+  pairwiseMotion: IdoSlamPairMotion[]
+  planeWidthEstimates: IdoSlamWidthEstimate[]
+  triangulatedWidthEstimates: IdoSlamWidthEstimate[]
+  canonicalCenterline: IdoSlamCenterlinePoint[]
+  groundPointCount: number
+  pairDebugCount: number
+  correspondenceCount: number
+  inlierCount: number
+}
+
 export type SegMask = {
   objectId: number
   label: string
@@ -162,6 +245,29 @@ export type VideoPlaybackState = {
   markers: VideoMarker[]
 }
 
+export type ChatAnalysisParameter = {
+  name: string
+  value: string
+  unit: string
+}
+
+export type ChatAnalysis = {
+  title: string
+  text: string
+  parameters: ChatAnalysisParameter[]
+}
+
+export type SavedChatTurn = {
+  role: 'user' | 'assistant'
+  text: string
+  timestampNs: string
+}
+
+export type ChatThread = {
+  analysis: ChatAnalysis | null
+  turns: SavedChatTurn[]
+}
+
 export type WorldgenPoint = Vec3 & {
   r: number
   g: number
@@ -180,6 +286,17 @@ export type WorldgenSplatPoint = Vec3 & {
   b: number
   opacity: number
   scale: number
+  // Optional anisotropic Gaussian parameters. When present the splat renderer
+  // draws a true oriented ellipsoid; when absent it falls back to an isotropic
+  // Gaussian of radius `scale`. sx/sy/sz are linear world-space std devs;
+  // qx/qy/qz/qw is the orientation quaternion.
+  sx?: number
+  sy?: number
+  sz?: number
+  qx?: number
+  qy?: number
+  qz?: number
+  qw?: number
 }
 
 export type WorldgenCamera = Vec3 & {
@@ -268,7 +385,7 @@ export type WorldgenSplatStatus = {
   points?: WorldgenSplatPoint[]
 }
 
-export type WorkspaceTabType = 'scene' | 'point-cloud' | 'planes' | 'video' | 'analysis' | 'worldgen'
+export type WorkspaceTabType = 'scene' | 'point-cloud' | 'planes' | 'video' | 'sensors' | 'analysis' | 'worldgen'
 
 export type WorkspaceTabRequest = {
   requestId: string
@@ -310,8 +427,11 @@ export type BridgeApi = {
   scanProject: (projectPath: string) => Promise<ProjectScanResult>
   readVisSummary: (filePath: string) => Promise<VisSummary>
   readVisFrame: (filePath: string, frameIndex: number) => Promise<VisFrame | null>
+  readVisSensors: (filePath: string) => Promise<SensorDataSummary>
+  readIdoSlam: (filePath: string) => Promise<IdoSlamSummary>
   readSegmentationMasks: (filePath: string, frameNumber: number) => Promise<SegMask[] | null>
   readSegmentationLabels: (filePath: string) => Promise<string[]>
+  readChatThread: (recordingPath: string) => Promise<ChatThread>
   runWorldgen: (request: WorldgenRequest) => Promise<WorldgenResult>
   readWorldgen: (filePath: string) => Promise<WorldgenResult>
   pollWorldgenSplat: (jobId: string) => Promise<WorldgenSplatStatus>

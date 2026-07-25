@@ -259,7 +259,7 @@ export default function Scene3D({ summary, mode }: Scene3DProps) {
     handles.dataGroup.clear()
 
     if (summary) {
-      if (mode === 'scene' || mode === 'point-cloud') addPointCloud(handles.dataGroup, summary)
+      if (mode === 'scene' || mode === 'point-cloud' || mode === 'planes') addPointCloud(handles.dataGroup, summary)
       if (mode === 'scene' || mode === 'planes') addPlanes(handles.dataGroup, summary)
       addCameraPath(handles.dataGroup, summary)
     }
@@ -272,7 +272,7 @@ export default function Scene3D({ summary, mode }: Scene3DProps) {
       <div className="scene-canvas" ref={containerRef} data-testid="scene-canvas" />
       <div className="scene-overlay">
         <span>{summary ? summary.fileName : 'No recording selected'}</span>
-        <span>{mode === 'point-cloud' ? 'Point cloud' : mode === 'planes' ? 'Surface planes' : 'Scene'}</span>
+        <span>{mode === 'planes' ? 'Point cloud + surface estimates' : mode === 'point-cloud' ? 'Point cloud' : 'Scene'}</span>
       </div>
     </div>
   )

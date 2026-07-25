@@ -11,9 +11,14 @@ const { app, BrowserWindow, Menu, dialog, ipcMain, shell, nativeImage } = isElec
 
 const APP_NAME = 'BayesMech Vision'
 const FRAME_SIZE_LIMIT = 10 * 1024 * 1024
+const IDOSLAM_FRAME_SIZE_LIMIT = 512 * 1024 * 1024
 const MAX_SAMPLE_FRAMES = 96
 const MAX_POINTS_PER_FRAME = 220
-const MAX_WORLDGEN_PREVIEW_POINTS = 120000
+// Keep dense VGGT reconstructions detailed in the desktop viewer. The previous
+// 120k aggregate cap reduced the 10-frame table-tennis capture from 600k saved
+// points to only 12k per frame.
+const MAX_WORLDGEN_PREVIEW_POINTS = 1000000
+const MAX_WORLDGEN_SPLAT_PREVIEW_POINTS = 1000000
 const DEFAULT_WORLDGEN_POINTS_PER_FRAME = 60000
 const DEFAULT_VGGT_ENDPOINT = 'https://anonymous-versus-underground-twice.trycloudflare.com'
 const DEFAULT_VGGT_HEALTH_TIMEOUT_MS = 15000
@@ -68,8 +73,8 @@ const SKIPPED_DIRS = new Set([
 
 const BUILT_IN_ANALYSES = [
   { key: 'video', title: 'Video', kind: 'video', source: 'vis' },
-  { key: 'point-cloud', title: 'Point Clouds', kind: 'geometry', source: 'vis' },
   { key: 'surface-planes', title: 'Surface Estimates', kind: 'geometry', source: 'vis' },
+  { key: 'sensors', title: 'Sensor Data', kind: 'sensors', source: 'vis' },
 ]
 
 const ANALYSIS_DEFS = [
@@ -87,7 +92,7 @@ const ANALYSIS_DEFS = [
   },
   {
     key: 'idoslam',
-    title: 'Localization and Mapping',
+    title: 'Map Generation',
     kind: 'protobuf',
     suffixes: ['idoslam.pb'],
   },
@@ -127,6 +132,9 @@ let mainWindow = null
 let perceiverType = null
 let segmentationType = null
 let vggtResponseType = null
+let gensparkResponseType = null
+let chatHistoryType = null
+let idoSlamType = null
 
 function appIconPath() {
   const candidates = [
@@ -257,6 +265,33 @@ function getVggtResponseType() {
   return vggtResponseType
 }
 
+function getInsightgenTypes() {
+  if (gensparkResponseType && chatHistoryType) {
+    return { gensparkResponseType, chatHistoryType }
+  }
+
+  const protoDir = path.join(findRepoRoot(), 'proto')
+  const root = new protobuf.Root()
+  root.resolvePath = (_origin, target) => path.join(protoDir, target)
+  root.loadSync(['insightgen.proto'], { keepCase: false })
+  root.resolveAll()
+  gensparkResponseType = root.lookupType('bayesmech.vision.GensparkResponse')
+  chatHistoryType = root.lookupType('bayesmech.vision.ChatHistory')
+  return { gensparkResponseType, chatHistoryType }
+}
+
+function getIdoSlamType() {
+  if (idoSlamType) return idoSlamType
+
+  const protoDir = path.join(findRepoRoot(), 'proto')
+  const root = new protobuf.Root()
+  root.resolvePath = (_origin, target) => path.join(protoDir, target)
+  root.loadSync(['idoslam.proto'], { keepCase: false })
+  root.resolveAll()
+  idoSlamType = root.lookupType('bayesmech.vision.IdoSlamResponse')
+  return idoSlamType
+}
+
 function byteSizeLabel(bytes) {
   if (!Number.isFinite(bytes)) return '0 B'
   const units = ['B', 'KB', 'MB', 'GB']
@@ -332,30 +367,38 @@ function worldgenArtifactsFor(dir, baseName, projectPath) {
     return []
   }
 
-  const prefix = `${baseName}.`
-  return entries
-    .filter((entry) => entry.isFile() && entry.name.startsWith(prefix) && entry.name.endsWith('.vggt.pb'))
+  const canonicalName = `${baseName}.vggt.pb`
+  const candidates = entries
+    .filter((entry) => entry.isFile() && (
+      entry.name === canonicalName ||
+      (entry.name.startsWith(`${baseName}.`) && entry.name.endsWith('.vggt.pb'))
+    ))
     .map((entry) => {
       const artifactPath = path.join(dir, entry.name)
       const stat = safeStat(artifactPath)
-      if (!stat?.isFile()) return null
-      const segment = entry.name.slice(prefix.length, -'.vggt.pb'.length)
-      const label = segment ? segment.replace(/To/g, '-') : 'Worldgen'
-      return {
-        key: 'worldgen',
-        title: segment ? `Worldgen ${label}` : 'Worldgen',
-        kind: 'worldgen',
-        source: 'artifact',
-        suffix: entry.name.slice(baseName.length + 1),
-        path: artifactPath,
-        relativePath: path.relative(projectPath, artifactPath),
-        sizeBytes: stat.size,
-        sizeLabel: byteSizeLabel(stat.size),
-        modifiedMs: stat.mtimeMs,
-      }
+      return stat?.isFile() ? { entry, artifactPath, stat } : null
     })
     .filter(Boolean)
-    .sort((a, b) => b.modifiedMs - a.modifiedMs)
+    .sort((a, b) => b.stat.mtimeMs - a.stat.mtimeMs)
+
+  // New recordings have exactly one recording-level World Modeling stream. Until a
+  // legacy marker-pair project is migrated by its next generation, expose only
+  // its most recent old file as a compatibility fallback instead of showing a
+  // separate analysis entry for every marker pair.
+  const selected = candidates.find((candidate) => candidate.entry.name === canonicalName) ?? candidates[0]
+  if (!selected) return []
+  return [{
+    key: 'worldgen',
+    title: 'World Modeling',
+    kind: 'worldgen',
+    source: 'artifact',
+    suffix: selected.entry.name.slice(baseName.length + 1),
+    path: selected.artifactPath,
+    relativePath: path.relative(projectPath, selected.artifactPath),
+    sizeBytes: selected.stat.size,
+    sizeLabel: byteSizeLabel(selected.stat.size),
+    modifiedMs: selected.stat.mtimeMs,
+  }]
 }
 
 function analysesForVis(projectPath, visPath) {
@@ -473,7 +516,7 @@ function scanVisFiles(filePaths) {
   }
 }
 
-function readFrameIndex(filePath) {
+function readFrameIndex(filePath, sizeLimit = FRAME_SIZE_LIMIT) {
   const stat = fs.statSync(filePath)
   const offsets = []
   const header = Buffer.allocUnsafe(4)
@@ -487,7 +530,7 @@ function readFrameIndex(filePath) {
       if (bytesRead < 4) break
 
       const length = header.readUInt32BE(0)
-      if (length === 0 || length > FRAME_SIZE_LIMIT || position + 4 + length > stat.size) {
+      if (length === 0 || length > sizeLimit || position + 4 + length > stat.size) {
         errors += 1
         position += 1
         continue
@@ -903,6 +946,152 @@ function readVisFrame(filePath, frameIndex) {
   }
 }
 
+const sensorDataCache = new Map()
+
+function sensorGps(value) {
+  if (!value) return null
+  return {
+    latitude: finiteNumber(value.latitude),
+    longitude: finiteNumber(value.longitude),
+    altitude: finiteNumber(value.altitude),
+    accuracy: finiteNumber(value.accuracy),
+    bearing: finiteNumber(value.bearing),
+    speed: finiteNumber(value.speed),
+    timestampMs: timestampString(value.timestampMs),
+  }
+}
+
+function sensorSample(frame, index) {
+  const identifier = frame.frameIdentifier ?? {}
+  const imu = frame.imuData
+  return {
+    index,
+    frameNumber: finiteNumber(identifier.frameNumber),
+    timestampNs: timestampString(identifier.timestampNs),
+    deviceId: String(identifier.deviceId ?? ''),
+    linearAcceleration: imu?.linearAcceleration ? vector3(imu.linearAcceleration) : null,
+    angularVelocity: imu?.angularVelocity ? vector3(imu.angularVelocity) : null,
+    gravity: imu?.gravity ? vector3(imu.gravity) : null,
+    magneticField: imu?.magneticField ? vector3(imu.magneticField) : null,
+    cameraPose: pose(frame.cameraPose),
+    gps: sensorGps(frame.gpsLocation),
+  }
+}
+
+function readVisSensors(filePath) {
+  if (!filePath || !filePath.endsWith('.vis.pb')) {
+    throw new Error('Expected a .vis.pb file.')
+  }
+
+  const resolved = path.resolve(filePath)
+  const stat = fs.statSync(resolved)
+  const cacheKey = `${stat.size}:${stat.mtimeMs}`
+  const cached = sensorDataCache.get(resolved)
+  if (cached?.key === cacheKey) return cached.value
+
+  const { offsets } = readFrameIndex(resolved)
+  const frameType = getPerceiverType()
+  const samples = []
+  const fd = fs.openSync(resolved, 'r')
+  try {
+    for (let index = 0; index < offsets.length; index += 1) {
+      const frame = decodedFrameAt(resolved, offsets, index, fd)
+      if (frame) samples.push(sensorSample(frame, index))
+    }
+  } finally {
+    fs.closeSync(fd)
+  }
+
+  const value = { path: resolved, frameCount: offsets.length, samples }
+  sensorDataCache.set(resolved, { key: cacheKey, value })
+  return value
+}
+
+function idoSlamPose(value) {
+  return {
+    frameIndex: finiteNumber(value?.frameIndex),
+    frameNumber: finiteNumber(value?.frameId?.frameNumber),
+    timestampNs: timestampString(value?.frameId?.timestampNs),
+    position: vector3(value?.worldPose?.position),
+    eulerDegrees: vector3(value?.eulerDegrees),
+  }
+}
+
+function idoSlamWidthEstimate(value) {
+  return {
+    frameIndex: finiteNumber(value?.frameIndex),
+    latitude: finiteNumber(value?.latitude),
+    longitude: finiteNumber(value?.longitude),
+    widthM: finiteNumber(value?.widthM),
+    leftOffsetM: finiteNumber(value?.leftOffsetM),
+    rightOffsetM: finiteNumber(value?.rightOffsetM),
+    bikeFraction: finiteNumber(value?.bikeFraction),
+    method: String(value?.method ?? ''),
+  }
+}
+
+function idoSlamSummary(response, resolved) {
+  const pairDebug = Array.isArray(response.pairDebug) ? response.pairDebug : []
+  let correspondenceCount = 0
+  let inlierCount = 0
+  for (const pair of pairDebug) {
+    const correspondences = Array.isArray(pair.correspondences) ? pair.correspondences : []
+    correspondenceCount += correspondences.length
+    inlierCount += correspondences.filter((item) => item?.inlier).length
+  }
+
+  return {
+    path: resolved,
+    framePoses: (response.framePoses ?? []).map(idoSlamPose),
+    refinedFramePoses: (response.refinedFramePoses ?? []).map(idoSlamPose),
+    pairwiseMotion: (response.pairwiseMotion ?? []).map((item) => ({
+      frameIndex: finiteNumber(item.frameIndex),
+      status: String(item.status ?? ''),
+      goodMatchCount: finiteNumber(item.goodMatchCount),
+      essentialInlierCount: finiteNumber(item.essentialInlierCount),
+      essentialInlierRatio: finiteNumber(item.essentialInlierRatio),
+      translationMagnitude: finiteNumber(item.translationMagnitude),
+      rotationDeg: finiteNumber(item.rotationDeg),
+    })),
+    planeWidthEstimates: (response.planeWidthEstimates ?? []).map(idoSlamWidthEstimate),
+    triangulatedWidthEstimates: (response.triangulatedWidthEstimates ?? []).map(idoSlamWidthEstimate),
+    canonicalCenterline: (response.canonicalCenterline ?? []).map((item) => ({
+      progressM: finiteNumber(item.progressM),
+      centerX: finiteNumber(item.centerX),
+      centerY: finiteNumber(item.centerY),
+      widthM: finiteNumber(item.widthM),
+      leftX: finiteNumber(item.leftX),
+      leftY: finiteNumber(item.leftY),
+      rightX: finiteNumber(item.rightX),
+      rightY: finiteNumber(item.rightY),
+    })),
+    groundPointCount: Array.isArray(response.groundPoints) ? response.groundPoints.length : 0,
+    pairDebugCount: pairDebug.length,
+    correspondenceCount,
+    inlierCount,
+  }
+}
+
+function readIdoSlam(filePath) {
+  if (!filePath || !filePath.endsWith('.pb')) {
+    throw new Error('Expected an IDOSLAM .pb file.')
+  }
+
+  const resolved = path.resolve(filePath)
+  const { offsets } = readFrameIndex(resolved, IDOSLAM_FRAME_SIZE_LIMIT)
+  const item = offsets[offsets.length - 1]
+  if (!item) throw new Error(`IDOSLAM file has no protobuf records: ${resolved}`)
+
+  const payload = Buffer.allocUnsafe(item.length)
+  const fd = fs.openSync(resolved, 'r')
+  try {
+    fs.readSync(fd, payload, 0, item.length, item.offset)
+  } finally {
+    fs.closeSync(fd)
+  }
+  return idoSlamSummary(getIdoSlamType().decode(payload), resolved)
+}
+
 // Segmentation index: frame_number -> file offset of its SegmentationResponse,
 // plus a sorted frame list for nearest-frame lookup on random seeks. Cached per
 // resolved path; invalidated on size/mtime change.
@@ -1015,6 +1204,65 @@ function readSegmentationLabels(filePath) {
   return getSegmentationIndex(resolved).labels
 }
 
+function analysisFromInitialTurn(turn) {
+  const raw = String(turn?.text || '').trim()
+  if (!raw) return null
+  const titleMatch = /^##\s+([^\n]+)\n*/.exec(raw)
+  return {
+    title: titleMatch?.[1]?.trim() || 'AI Analysis',
+    text: titleMatch ? raw.slice(titleMatch[0].length).trim() : raw,
+    parameters: [],
+  }
+}
+
+function readChatThread(recordingPath) {
+  if (!recordingPath || typeof recordingPath !== 'string' || !recordingPath.endsWith('.vis.pb')) {
+    throw new Error('Expected a .vis.pb recording.')
+  }
+
+  const resolved = path.resolve(recordingPath)
+  const basePath = resolved.slice(0, -'.vis.pb'.length)
+  const gensparkPath = `${basePath}.genspark.pb`
+  const chatPath = `${basePath}.chat.pb`
+  const types = getInsightgenTypes()
+  let analysis = null
+  let chatHistory = null
+
+  if (fs.existsSync(gensparkPath)) {
+    const decoded = types.gensparkResponseType.decode(fs.readFileSync(gensparkPath))
+    const response = types.gensparkResponseType.toObject(decoded, { defaults: true, longs: String })
+    const summary = response.summary
+    if (summary && (summary.title || summary.text || summary.parameters?.length)) {
+      analysis = {
+        title: String(summary.title || 'AI Analysis'),
+        text: String(summary.text || ''),
+        parameters: (summary.parameters || []).map((parameter) => ({
+          name: String(parameter.name || ''),
+          value: String(parameter.value || ''),
+          unit: String(parameter.unit || ''),
+        })),
+      }
+    }
+  }
+
+  if (fs.existsSync(chatPath)) {
+    const decoded = types.chatHistoryType.decode(fs.readFileSync(chatPath))
+    chatHistory = types.chatHistoryType.toObject(decoded, { defaults: true, longs: String })
+    if (!analysis) analysis = analysisFromInitialTurn(chatHistory.initialTurn)
+  }
+
+  return {
+    analysis,
+    turns: (chatHistory?.turns || [])
+      .filter((turn) => String(turn.text || '').trim())
+      .map((turn) => ({
+        role: String(turn.role || '').toLowerCase() === 'user' ? 'user' : 'assistant',
+        text: String(turn.text || ''),
+        timestampNs: timestampString(turn.timestampNs),
+      })),
+  }
+}
+
 function flattenNumbers(value, output = []) {
   if (Array.isArray(value)) {
     for (const item of value) flattenNumbers(item, output)
@@ -1032,32 +1280,54 @@ function float32Bytes(values) {
   return buffer
 }
 
-function safeFilePart(value) {
-  const cleaned = String(value ?? '').replace(/[^A-Za-z0-9]+/g, '')
-  return cleaned || 'Marker'
-}
-
-function writeLengthDelimitedProto(filePath, payload) {
+function lengthDelimitedProtoRecord(payload) {
   const header = Buffer.allocUnsafe(4)
   header.writeUInt32BE(payload.length, 0)
-  fs.writeFileSync(filePath, Buffer.concat([header, Buffer.from(payload)]))
+  return Buffer.concat([header, Buffer.from(payload)])
 }
 
-function readLengthDelimitedProto(filePath, type) {
+function writeLengthDelimitedProtos(filePath, type, messages) {
+  if (!messages.length) throw new Error(`Cannot write an empty protobuf stream: ${filePath}`)
+  const records = messages.map((message) => lengthDelimitedProtoRecord(type.encode(type.create(message)).finish()))
+  const temporaryPath = `${filePath}.tmp-${process.pid}-${Date.now()}`
+  try {
+    fs.writeFileSync(temporaryPath, Buffer.concat(records))
+    fs.renameSync(temporaryPath, filePath)
+  } finally {
+    try {
+      if (fs.existsSync(temporaryPath)) fs.unlinkSync(temporaryPath)
+    } catch {
+      // Best-effort cleanup; the canonical stream was either replaced or the
+      // original file remains untouched.
+    }
+  }
+}
+
+function readLengthDelimitedProtos(filePath, type) {
   const stat = fs.statSync(filePath)
   if (stat.size < 4) throw new Error(`Invalid protobuf file: ${filePath}`)
   const fd = fs.openSync(filePath, 'r')
+  const messages = []
   try {
-    const header = Buffer.allocUnsafe(4)
-    fs.readSync(fd, header, 0, 4, 0)
-    const length = header.readUInt32BE(0)
-    if (length <= 0 || length > stat.size - 4) throw new Error(`Invalid protobuf length in ${filePath}`)
-    const payload = Buffer.allocUnsafe(length)
-    fs.readSync(fd, payload, 0, length, 4)
-    return type.decode(payload)
+    let position = 0
+    while (position < stat.size) {
+      if (stat.size - position < 4) throw new Error(`Truncated protobuf header in ${filePath}`)
+      const header = Buffer.allocUnsafe(4)
+      fs.readSync(fd, header, 0, 4, position)
+      const length = header.readUInt32BE(0)
+      position += 4
+      if (length <= 0 || length > stat.size - position) {
+        throw new Error(`Invalid protobuf length in ${filePath}`)
+      }
+      const payload = Buffer.allocUnsafe(length)
+      fs.readSync(fd, payload, 0, length, position)
+      messages.push(type.decode(payload))
+      position += length
+    }
   } finally {
     fs.closeSync(fd)
   }
+  return messages
 }
 
 function bytesBuffer(value) {
@@ -1116,6 +1386,156 @@ function savedSplatInfo(splat, preview = null) {
     trainer: String(splat.trainer || ''),
     points: previewPoints,
   }
+}
+
+function encodeSplatPreviewPoints(points) {
+  return (Array.isArray(points) ? points : []).map((point) => {
+    const encoded = {
+      x: finiteNumber(point.x),
+      y: finiteNumber(point.y),
+      z: finiteNumber(point.z),
+      r: Math.min(1, Math.max(0, finiteNumber(point.r, 0.7))),
+      g: Math.min(1, Math.max(0, finiteNumber(point.g, 0.7))),
+      b: Math.min(1, Math.max(0, finiteNumber(point.b, 0.7))),
+      opacity: Math.min(1, Math.max(0, finiteNumber(point.opacity, 0.8))),
+      scale: Math.max(0, finiteNumber(point.scale, 0.02)),
+    }
+    const sx = firstFinite(point.sx, point.scaleX)
+    const sy = firstFinite(point.sy, point.scaleY)
+    const sz = firstFinite(point.sz, point.scaleZ)
+    if (sx > 0 && sy > 0 && sz > 0) {
+      encoded.scaleX = sx
+      encoded.scaleY = sy
+      encoded.scaleZ = sz
+      encoded.rotX = finiteNumber(firstFinite(point.qx, point.rotX), 0)
+      encoded.rotY = finiteNumber(firstFinite(point.qy, point.rotY), 0)
+      encoded.rotZ = finiteNumber(firstFinite(point.qz, point.rotZ), 0)
+      encoded.rotW = finiteNumber(firstFinite(point.qw, point.rotW), 1)
+    }
+    return encoded
+  })
+}
+
+function worldgenFrameKey(frame) {
+  const identifier = frame?.frameIdentifier
+  const frameNumber = Number(identifier?.frameNumber)
+  if (identifier && Number.isFinite(frameNumber)) return `frame:${frameNumber}`
+  const timestampNs = timestampString(identifier?.timestampNs)
+  if (timestampNs && timestampNs !== '0') return `timestamp:${timestampNs}`
+  return `index:${finiteNumber(frame?.sourceFrameIndex)}`
+}
+
+function worldgenComputationKey(message) {
+  const frames = (Array.isArray(message?.pointClouds) && message.pointClouds.length
+    ? message.pointClouds
+    : message?.cameras || [])
+    .map(worldgenFrameKey)
+    .sort()
+  return frames.length ? frames.join('|') : `request:${String(message?.requestId || '')}`
+}
+
+function uniqueWorldgenMessages(messages) {
+  const byComputation = new Map()
+  for (const message of messages) {
+    const key = worldgenComputationKey(message)
+    // Recomputing the exact same frame set replaces its older record while a
+    // different marker range remains another record in the same file.
+    if (byComputation.has(key)) byComputation.delete(key)
+    byComputation.set(key, message)
+  }
+  return [...byComputation.values()]
+}
+
+function worldgenFrameSort(left, right) {
+  const byIndex = finiteNumber(left?.sourceFrameIndex) - finiteNumber(right?.sourceFrameIndex)
+  if (byIndex) return byIndex
+  return finiteNumber(left?.frameIdentifier?.frameNumber) - finiteNumber(right?.frameIdentifier?.frameNumber)
+}
+
+function aggregateWorldgenSplatInfo(messages) {
+  const activeMessages = uniqueWorldgenMessages(messages)
+  const lastPreviewPathIndex = new Map()
+  activeMessages.forEach((message, index) => {
+    const previewPath = String(message?.gaussianSplat?.previewJsonPath || '')
+    if (previewPath) lastPreviewPathIndex.set(path.resolve(previewPath), index)
+  })
+
+  const infos = activeMessages
+    .map((message, index) => {
+      const splat = message?.gaussianSplat
+      const hasEmbeddedPoints = Array.isArray(splat?.previewPoints) && splat.previewPoints.length > 0
+      const previewPath = String(splat?.previewJsonPath || '')
+      const resolvedPreviewPath = previewPath ? path.resolve(previewPath) : ''
+      const canUseLocalPreview = !hasEmbeddedPoints && resolvedPreviewPath && lastPreviewPathIndex.get(resolvedPreviewPath) === index
+      const info = savedSplatInfo(splat, canUseLocalPreview ? readLocalSplatPreview(resolvedPreviewPath) : null)
+      return info ? { info, message } : null
+    })
+    .filter(Boolean)
+
+  if (!infos.length) return null
+  const latest = infos[infos.length - 1].info
+  const pointSources = infos.map((entry) => entry.info.points).filter((points) => points.length)
+  const points = []
+  const perSourceCap = Math.max(1, Math.floor(MAX_WORLDGEN_SPLAT_PREVIEW_POINTS / Math.max(1, pointSources.length)))
+  for (const source of pointSources) {
+    const stride = Math.max(1, Math.ceil(source.length / perSourceCap))
+    let added = 0
+    for (let index = 0; index < source.length && added < perSourceCap; index += stride) {
+      points.push(source[index])
+      added += 1
+    }
+  }
+
+  const computedFrames = new Set()
+  for (const message of activeMessages) {
+    for (const frame of [...(message.pointClouds || []), ...(message.cameras || [])]) {
+      computedFrames.add(worldgenFrameKey(frame))
+    }
+  }
+  const sum = (field) => infos.reduce((total, entry) => total + finiteNumber(entry.info[field]), 0)
+  return {
+    ...latest,
+    status: points.length && latest.status === 'skipped' ? 'complete' : latest.status,
+    gaussianCount: sum('gaussianCount'),
+    previewPointCount: points.length,
+    initPointCount: sum('initPointCount'),
+    trainingFrameCount: computedFrames.size,
+    maxGaussians: sum('maxGaussians'),
+    elapsedSec: sum('elapsedSec'),
+    points,
+  }
+}
+
+function worldgenPreviewFromMessages(messages, outputPath) {
+  const activeMessages = uniqueWorldgenMessages(messages)
+  if (!activeMessages.length) throw new Error(`World Modeling file has no protobuf records: ${outputPath}`)
+  const latest = activeMessages[activeMessages.length - 1]
+  const camerasByFrame = new Map()
+  const cloudsByFrame = new Map()
+  for (const message of activeMessages) {
+    for (const camera of message.cameras || []) camerasByFrame.set(worldgenFrameKey(camera), camera)
+    for (const cloud of message.pointClouds || []) cloudsByFrame.set(worldgenFrameKey(cloud), cloud)
+  }
+
+  const cameras = [...camerasByFrame.values()].sort(worldgenFrameSort)
+  const pointClouds = [...cloudsByFrame.values()].sort(worldgenFrameSort)
+  const sourceIndices = [...cameras, ...pointClouds]
+    .map((frame) => finiteNumber(frame.sourceFrameIndex))
+    .filter(Number.isFinite)
+  const frameKeys = new Set([...camerasByFrame.keys(), ...cloudsByFrame.keys()])
+  const combined = {
+    ...latest,
+    requestId: path.basename(outputPath, '.vggt.pb'),
+    markerStart: '',
+    markerEnd: '',
+    startFrameIndex: sourceIndices.length ? Math.min(...sourceIndices) : 0,
+    endFrameIndex: sourceIndices.length ? Math.max(...sourceIndices) : 0,
+    frameCount: frameKeys.size,
+    cameras,
+    pointClouds,
+    elapsedSec: activeMessages.reduce((total, message) => total + finiteNumber(message.elapsedSec), 0),
+  }
+  return worldgenPreviewFromMessage(combined, outputPath, aggregateWorldgenSplatInfo(activeMessages))
 }
 
 function worldgenPreviewFromMessage(message, outputPath, splatInfo = null) {
@@ -1240,23 +1660,38 @@ async function readWorldgen(filePath) {
     throw new Error('Expected a .vggt.pb file.')
   }
   const resolved = path.resolve(filePath)
-  const message = readLengthDelimitedProto(resolved, getVggtResponseType())
-  const preview = readLocalSplatPreview(message.gaussianSplat?.previewJsonPath)
-  let splatInfo = savedSplatInfo(message.gaussianSplat, preview)
-  let result = worldgenPreviewFromMessage(message, resolved, splatInfo)
+  const messages = readLengthDelimitedProtos(resolved, getVggtResponseType())
+  let result = worldgenPreviewFromMessages(messages, resolved)
+  const splatInfo = result.splat
 
-  if (splatInfo?.jobId && !result.splatPoints.length) {
+  if (splatInfo?.jobId && !['complete', 'failed', 'skipped'].includes(splatInfo.status)) {
     try {
       const remote = await pollWorldgenSplat(splatInfo.jobId)
-      splatInfo = {
-        ...splatInfo,
-        ...remote,
-        plyPath: remote.plyPath || splatInfo.plyPath,
-        previewJsonPath: remote.previewJsonPath || splatInfo.previewJsonPath,
-        points: remote.points || [],
+      let jobMessageIndex = messages.length - 1
+      for (let index = messages.length - 1; index >= 0; index -= 1) {
+        if (String(messages[index]?.gaussianSplat?.jobId || '') === splatInfo.jobId) {
+          jobMessageIndex = index
+          break
+        }
       }
-      result = worldgenPreviewFromMessage(message, resolved, splatInfo)
-      if (remote.status === 'complete' && remote.points?.length) {
+      const previous = messages[jobMessageIndex].gaussianSplat || {}
+      messages[jobMessageIndex].gaussianSplat = {
+        ...previous,
+        status: remote.status,
+        stage: remote.stage || previous.stage,
+        message: remote.message || previous.message,
+        progress: remote.progress,
+        currentStep: remote.currentStep,
+        plyPath: remote.plyPath || previous.plyPath,
+        previewJsonPath: remote.previewJsonPath || previous.previewJsonPath,
+        error: remote.error || previous.error,
+        gaussianCount: remote.gaussianCount || previous.gaussianCount,
+        previewPointCount: remote.previewPointCount || previous.previewPointCount,
+        elapsedSec: remote.elapsedSec || previous.elapsedSec,
+        previewPoints: remote.points?.length ? remote.points : previous.previewPoints,
+      }
+      result = worldgenPreviewFromMessages(messages, resolved)
+      if (remote.status === 'complete' || remote.status === 'failed') {
         result = await saveWorldgenSplat(resolved, remote)
       }
     } catch {
@@ -1274,7 +1709,18 @@ async function saveWorldgenSplat(filePath, splat) {
   }
   const resolved = path.resolve(filePath)
   const type = getVggtResponseType()
-  const message = readLengthDelimitedProto(resolved, type)
+  const messages = readLengthDelimitedProtos(resolved, type)
+  let messageIndex = messages.length - 1
+  const jobId = String(splat?.jobId || '')
+  if (jobId) {
+    for (let index = messages.length - 1; index >= 0; index -= 1) {
+      if (String(messages[index]?.gaussianSplat?.jobId || '') === jobId) {
+        messageIndex = index
+        break
+      }
+    }
+  }
+  const message = messages[messageIndex]
   const previous = message.gaussianSplat || {}
   const paths = worldgenSplatPaths(resolved)
   let previewJsonPath = String(splat?.previewJsonPath || previous.previewJsonPath || '')
@@ -1319,20 +1765,11 @@ async function saveWorldgenSplat(filePath, splat) {
     message: String(splat?.message || previous.message || ''),
     progress: Math.min(1, Math.max(0, finiteNumber(splat?.progress, previous.progress))),
     currentStep: finiteNumber(splat?.currentStep, previous.currentStep),
-    previewPoints: embeddedPoints.map((point) => ({
-      x: finiteNumber(point.x),
-      y: finiteNumber(point.y),
-      z: finiteNumber(point.z),
-      r: Math.min(1, Math.max(0, finiteNumber(point.r, 0.7))),
-      g: Math.min(1, Math.max(0, finiteNumber(point.g, 0.7))),
-      b: Math.min(1, Math.max(0, finiteNumber(point.b, 0.7))),
-      opacity: Math.min(1, Math.max(0, finiteNumber(point.opacity, 0.8))),
-      scale: Math.max(0, finiteNumber(point.scale, 0.02)),
-    })),
+    previewPoints: encodeSplatPreviewPoints(embeddedPoints),
   }
 
-  const payload = type.encode(type.create(message)).finish()
-  writeLengthDelimitedProto(resolved, payload)
+  messages[messageIndex] = message
+  writeLengthDelimitedProtos(resolved, type, messages)
   return readWorldgen(resolved)
 }
 
@@ -1559,19 +1996,59 @@ async function ensureWorldgenModel(endpoint, token) {
   }
 }
 
+// First finite value among candidates, else undefined. Used to accept the three
+// naming conventions for anisotropic splat fields: renderer (sx/qw), decoded proto
+// camelCase (scaleX/rotW), and on-disk preview JSON snake_case (scale_x/rot_w).
+function firstFinite(...values) {
+  for (const value of values) {
+    const number = Number(value)
+    if (Number.isFinite(number)) return number
+  }
+  return undefined
+}
+
+// Normalize a splat point to the renderer's field names, carrying anisotropic
+// Gaussian parameters (per-axis std devs + orientation quaternion) when present.
+// Presence is gated on all three scales being > 0 — a real std dev is strictly
+// positive, so proto3's zero-default for absent scalars reads correctly as "no
+// anisotropy" and the viewer falls back to an isotropic splat of radius `scale`.
+function normalizeSplatPoint(point) {
+  const base = {
+    x: finiteNumber(point?.x),
+    y: finiteNumber(point?.y),
+    z: finiteNumber(point?.z),
+    r: Math.min(1, Math.max(0, finiteNumber(point?.r, 0.7))),
+    g: Math.min(1, Math.max(0, finiteNumber(point?.g, 0.7))),
+    b: Math.min(1, Math.max(0, finiteNumber(point?.b, 0.7))),
+    opacity: Math.min(1, Math.max(0, finiteNumber(point?.opacity, 0.8))),
+    scale: Math.max(0, finiteNumber(point?.scale, 0.02)),
+  }
+  const sx = firstFinite(point?.sx, point?.scaleX, point?.scale_x)
+  const sy = firstFinite(point?.sy, point?.scaleY, point?.scale_y)
+  const sz = firstFinite(point?.sz, point?.scaleZ, point?.scale_z)
+  if (sx > 0 && sy > 0 && sz > 0) {
+    base.sx = sx
+    base.sy = sy
+    base.sz = sz
+    const qx = firstFinite(point?.qx, point?.rotX, point?.rot_x)
+    const qy = firstFinite(point?.qy, point?.rotY, point?.rot_y)
+    const qz = firstFinite(point?.qz, point?.rotZ, point?.rot_z)
+    const qw = firstFinite(point?.qw, point?.rotW, point?.rot_w)
+    const validQuat =
+      qx !== undefined && qy !== undefined && qz !== undefined && qw !== undefined &&
+      qx * qx + qy * qy + qz * qz + qw * qw > 1e-8
+    base.qx = validQuat ? qx : 0
+    base.qy = validQuat ? qy : 0
+    base.qz = validQuat ? qz : 0
+    base.qw = validQuat ? qw : 1
+  }
+  return base
+}
+
 function normalizeSplatPreview(preview, fallback = {}) {
   const points = Array.isArray(preview?.points)
     ? preview.points
-        .map((point) => ({
-          x: finiteNumber(point?.x),
-          y: finiteNumber(point?.y),
-          z: finiteNumber(point?.z),
-          r: Math.min(1, Math.max(0, finiteNumber(point?.r, 0.7))),
-          g: Math.min(1, Math.max(0, finiteNumber(point?.g, 0.7))),
-          b: Math.min(1, Math.max(0, finiteNumber(point?.b, 0.7))),
-          opacity: Math.min(1, Math.max(0, finiteNumber(point?.opacity, 0.8))),
-          scale: Math.max(0, finiteNumber(point?.scale, 0.02)),
-        }))
+        .map(normalizeSplatPoint)
         .filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y) && Number.isFinite(point.z))
     : []
 
@@ -1891,6 +2368,7 @@ function encodeWorldgenResponse(responseJson, sourceFrames, request, endpoint, s
           message: splatInfo.message,
           progress: splatInfo.progress,
           currentStep: splatInfo.currentStep,
+          previewPoints: encodeSplatPreviewPoints(splatInfo.points),
         }
       : undefined,
     resolution: finiteNumber(metadata.resolution),
@@ -1900,12 +2378,47 @@ function encodeWorldgenResponse(responseJson, sourceFrames, request, endpoint, s
   })
 }
 
+function legacyWorldgenPaths(recordingPath, canonicalPath) {
+  const dir = path.dirname(recordingPath)
+  const baseName = path.basename(recordingPath).slice(0, -'.vis.pb'.length)
+  let entries = []
+  try {
+    entries = fs.readdirSync(dir, { withFileTypes: true })
+  } catch {
+    return []
+  }
+  return entries
+    .filter((entry) => entry.isFile() && entry.name.startsWith(`${baseName}.`) && entry.name.endsWith('.vggt.pb'))
+    .map((entry) => path.join(dir, entry.name))
+    .filter((filePath) => path.resolve(filePath) !== path.resolve(canonicalPath))
+    .map((filePath) => ({ filePath, modifiedMs: safeStat(filePath)?.mtimeMs ?? 0 }))
+    .sort((left, right) => left.modifiedMs - right.modifiedMs)
+    .map((entry) => entry.filePath)
+}
+
+function persistWorldgenComputation(recordingPath, outputPath, message) {
+  const type = getVggtResponseType()
+  let history = []
+  if (fs.existsSync(outputPath)) {
+    history = readLengthDelimitedProtos(outputPath, type)
+  } else {
+    // First write to the canonical file also folds in old marker-pair files so
+    // projects created by earlier builds keep all of their computed frames.
+    for (const legacyPath of legacyWorldgenPaths(recordingPath, outputPath)) {
+      history.push(...readLengthDelimitedProtos(legacyPath, type))
+    }
+  }
+  const nextHistory = uniqueWorldgenMessages([...history, message])
+  writeLengthDelimitedProtos(outputPath, type, nextHistory)
+  return nextHistory
+}
+
 async function runWorldgen(request) {
   if (!request?.recordingPath || typeof request.recordingPath !== 'string') {
-    throw new Error('Worldgen requires a selected recording.')
+    throw new Error('World Modeling requires a selected recording.')
   }
   if (!request.recordingPath.endsWith('.vis.pb')) {
-    throw new Error('Worldgen requires a .vis.pb recording.')
+    throw new Error('World Modeling requires a .vis.pb recording.')
   }
 
   const token = worldgenToken()
@@ -1996,24 +2509,14 @@ async function runWorldgen(request) {
   }
 
   const responseJson = await response.json()
-  const safeSegment = `${safeFilePart(request.markerStart)}To${safeFilePart(request.markerEnd)}`
   const baseName = path.basename(resolved).slice(0, -'.vis.pb'.length)
-  const outputPath = path.join(path.dirname(resolved), `${baseName}.${safeSegment}.vggt.pb`)
+  const outputPath = path.join(path.dirname(resolved), `${baseName}.vggt.pb`)
   const settledRequest = {
     ...request,
     startFrameIndex: firstIndex,
     endFrameIndex: lastIndex,
     maxPointsPerFrame,
   }
-  const message = encodeWorldgenResponse(
-    responseJson,
-    sourceFrames,
-    settledRequest,
-    endpoint,
-  )
-  const payload = getVggtResponseType().encode(message).finish()
-  writeLengthDelimitedProto(outputPath, payload)
-
   const splatInfo = responseJson?.splat_job
     ? normalizeRemoteSplatJob(responseJson.splat_job)
     : normalizeRemoteSplatJob(null, {
@@ -2021,23 +2524,15 @@ async function runWorldgen(request) {
         message: 'VGGT response did not include a remote splat job.',
       })
 
-  const messageWithSplat = encodeWorldgenResponse(
+  const message = encodeWorldgenResponse(
     responseJson,
     sourceFrames,
     settledRequest,
     endpoint,
     splatInfo,
   )
-  const payloadWithSplat = getVggtResponseType().encode(messageWithSplat).finish()
-  writeLengthDelimitedProto(outputPath, payloadWithSplat)
-
-  return worldgenPreview(
-    responseJson,
-    sourceFrames,
-    outputPath,
-    settledRequest,
-    splatInfo,
-  )
+  const history = persistWorldgenComputation(resolved, outputPath, message)
+  return worldgenPreviewFromMessages(history, outputPath)
 }
 
 if (isElectronRuntime) {
@@ -2078,9 +2573,12 @@ if (isElectronRuntime) {
   ipcMain.handle('vis:summary', (_event, filePath) => readVisSummary(filePath))
 
   ipcMain.handle('vis:frame', (_event, filePath, frameIndex) => readVisFrame(filePath, frameIndex))
+  ipcMain.handle('vis:sensors', (_event, filePath) => readVisSensors(filePath))
+  ipcMain.handle('idoslam:read', (_event, filePath) => readIdoSlam(filePath))
 
   ipcMain.handle('seg:masks', (_event, filePath, frameNumber) => readSegmentationMasks(filePath, frameNumber))
   ipcMain.handle('seg:labels', (_event, filePath) => readSegmentationLabels(filePath))
+  ipcMain.handle('chat:thread', (_event, recordingPath) => readChatThread(recordingPath))
   ipcMain.handle('worldgen:run', (_event, request) => runWorldgen(request))
   ipcMain.handle('worldgen:read', (_event, filePath) => readWorldgen(filePath))
   ipcMain.handle('worldgen:splat-status', (_event, jobId) => pollWorldgenSplat(jobId))
@@ -2111,7 +2609,10 @@ module.exports = {
   scanVisFiles,
   readVisSummary,
   readVisFrame,
+  readVisSensors,
+  readIdoSlam,
   readSegmentationMasks,
+  readChatThread,
   runWorldgen,
   readWorldgen,
   pollWorldgenSplat,

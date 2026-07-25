@@ -1,8 +1,19 @@
 import { Activity, Boxes, Database, FileCode2, MapPinned, ScanLine } from 'lucide-react'
 import type { Dispatch, SetStateAction } from 'react'
-import type { ProjectAnalysis, RecordingEntry, VideoPlaybackState, VisSummary, WorkspaceTab, WorldgenResult } from '../types'
+import type {
+  IdoSlamSummary,
+  ProjectAnalysis,
+  RecordingEntry,
+  SensorDataSummary,
+  VideoPlaybackState,
+  VisSummary,
+  WorkspaceTab,
+  WorldgenResult,
+} from '../types'
 import { compactNumber, shortPath } from '../lib/format'
 import Scene3D from './Scene3D'
+import MapGenerationPanel from './MapGenerationPanel'
+import SensorDataPanel from './SensorDataPanel'
 import VideoPlayer from './VideoPlayer'
 import WorldgenScene from './WorldgenScene'
 
@@ -12,6 +23,8 @@ type PanelProps = {
   summary: VisSummary | null
   videoState: VideoPlaybackState
   onVideoStateChange: Dispatch<SetStateAction<VideoPlaybackState>>
+  getSensorData: () => Promise<SensorDataSummary | null>
+  getIdoSlamData: () => Promise<IdoSlamSummary | null>
   worldgenResults: Record<string, WorldgenResult>
 }
 
@@ -83,12 +96,47 @@ export default function VisualizationPanel({
   summary,
   videoState,
   onVideoStateChange,
+  getSensorData,
+  getIdoSlamData,
   worldgenResults,
 }: PanelProps) {
   if (tab.type === 'video') return <VideoPlayer summary={summary} videoState={videoState} onVideoStateChange={onVideoStateChange} />
-  if (tab.type === 'worldgen') return <WorldgenScene result={tab.worldgenResultId ? worldgenResults[tab.worldgenResultId] ?? null : null} />
+  if (tab.type === 'sensors') {
+    return <SensorDataPanel currentFrameIndex={videoState.index} getSensorData={getSensorData} />
+  }
+  if (tab.analysisKey === 'idoslam') {
+    return (
+      <MapGenerationPanel
+        currentFrameIndex={videoState.index}
+        getSensorData={getSensorData}
+        getIdoSlamData={getIdoSlamData}
+      />
+    )
+  }
+  if (tab.analysisKey === 'segmentation') {
+    return (
+      <VideoPlayer
+        summary={summary}
+        videoState={videoState}
+        onVideoStateChange={onVideoStateChange}
+        segmentationViewer
+      />
+    )
+  }
+  if (tab.type === 'worldgen') {
+    const result = tab.worldgenResultId
+      ? worldgenResults[tab.worldgenResultId] ?? null
+      : Object.values(worldgenResults)[0] ?? null
+    return (
+      <WorldgenScene
+        result={result}
+        currentFrameIndex={videoState.index}
+        onVideoStateChange={onVideoStateChange}
+      />
+    )
+  }
   if (tab.type === 'scene') return <Scene3D summary={summary} mode="scene" />
-  if (tab.type === 'point-cloud') return <Scene3D summary={summary} mode="point-cloud" />
+  if (tab.type === 'point-cloud') return <Scene3D summary={summary} mode="planes" />
   if (tab.type === 'planes') return <Scene3D summary={summary} mode="planes" />
   return <AnalysisPanel recording={selectedRecording} summary={summary} tab={tab} />
 }

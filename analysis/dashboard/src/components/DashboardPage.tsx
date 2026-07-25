@@ -55,7 +55,7 @@ const DASHBOARD_TABS: {
   },
   {
     id: 'localization-mapping',
-    label: 'Localization + Mapping',
+    label: 'Map Generation',
     shortcut: '5',
     description: 'Inspect SLAM maps, SIFT road features, and projected road boundaries.',
   },

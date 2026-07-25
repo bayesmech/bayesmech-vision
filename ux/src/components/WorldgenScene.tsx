@@ -1,13 +1,37 @@
-import { MouseEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  MouseEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type Dispatch,
+  type KeyboardEvent,
+  type SetStateAction,
+} from 'react'
 import { RotateCcw, ZoomIn, ZoomOut } from 'lucide-react'
 import * as THREE from 'three'
 import { TrackballControls } from 'three/examples/jsm/controls/TrackballControls.js'
-import type { VisFrame, WorldgenCamera, WorldgenFrame, WorldgenPoint, WorldgenResult, WorldgenSplatPoint } from '../types'
+import type {
+  VideoPlaybackState,
+  VisFrame,
+  WorldgenCamera,
+  WorldgenPoint,
+  WorldgenResult,
+  WorldgenSplatPoint,
+} from '../types'
 import { compactNumber, shortPath } from '../lib/format'
 import { useFrameSource } from '../lib/frameSource'
+import {
+  createSplatRenderer,
+  type SplatHandle,
+  type SplatRenderJobState,
+} from '../lib/splatRenderer'
 
 type WorldgenSceneProps = {
   result: WorldgenResult | null
+  currentFrameIndex: number
+  onVideoStateChange: Dispatch<SetStateAction<VideoPlaybackState>>
 }
 
 type SceneHandles = {
@@ -15,11 +39,21 @@ type SceneHandles = {
   renderer: THREE.WebGLRenderer
   controls: TrackballControls
   dataGroup: THREE.Group
+  pointCloudGroup: THREE.Group
+  cameraGroup: THREE.Group
   resizeObserver: ResizeObserver
   animationId: number
+  splat: SplatHandle | null
 }
 
-type WorldgenViewMode = 'splat' | 'both' | 'vggt'
+type WorldgenViewMode = 'splat' | 'vggt'
+
+type RenderedPointCloud = {
+  resultId: string
+  allFrames: boolean
+  frameIndex: number | null
+  pointCount: number
+}
 
 function pointKey(point: Pick<WorldgenPoint, 'frameIndex' | 'framePointIndex'>): string {
   return `${point.frameIndex}:${point.framePointIndex}`
@@ -41,10 +75,19 @@ function transformCameraLocal(camera: WorldgenCamera, x: number, y: number, z: n
 
 type ScenePoint = Pick<WorldgenPoint | WorldgenSplatPoint, 'x' | 'y' | 'z'>
 
-function finiteScenePoints(points: ScenePoint[]): THREE.Vector3[] {
-  return points
-    .filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y) && Number.isFinite(point.z))
-    .map((point) => new THREE.Vector3(point.x, point.y, point.z))
+function finiteScenePoints(points: ScenePoint[], maxSamples = 12_000): THREE.Vector3[] {
+  // Camera fitting only needs a representative robust box. Sampling keeps this
+  // UI-side calculation bounded even when the splat preview has hundreds of
+  // thousands of Gaussians; the full render data stays untouched in the worker.
+  const stride = Math.max(1, Math.ceil(points.length / maxSamples))
+  const finite: THREE.Vector3[] = []
+  for (let index = 0; index < points.length; index += stride) {
+    const point = points[index]
+    if (Number.isFinite(point.x) && Number.isFinite(point.y) && Number.isFinite(point.z)) {
+      finite.push(new THREE.Vector3(point.x, point.y, point.z))
+    }
+  }
+  return finite
 }
 
 function quantile(values: number[], amount: number): number {
@@ -69,11 +112,11 @@ function robustPointBox(points: ScenePoint[], low = 0.01, high = 0.99): THREE.Bo
 
 function activeFitBox(result: WorldgenResult, viewMode: WorldgenViewMode): THREE.Box3 | null {
   const boxes: THREE.Box3[] = []
-  if ((viewMode === 'vggt' || viewMode === 'both') && result.points.length) {
+  if (viewMode === 'vggt' && result.points.length) {
     const box = robustPointBox(result.points, 0.01, 0.99)
     if (box) boxes.push(box)
   }
-  if ((viewMode === 'splat' || viewMode === 'both') && result.splatPoints.length) {
+  if (viewMode === 'splat' && result.splatPoints.length) {
     const box = robustPointBox(result.splatPoints, 0.10, 0.90)
     if (box) boxes.push(box)
   }
@@ -88,6 +131,7 @@ function activeFitBox(result: WorldgenResult, viewMode: WorldgenViewMode): THREE
 
 function fitCamera(handles: SceneHandles, result: WorldgenResult | null, viewMode: WorldgenViewMode) {
   const { camera, controls } = handles
+  camera.up.set(0, 1, 0)
   if (!result || (result.points.length === 0 && result.splatPoints.length === 0)) {
     camera.position.set(2.8, 2.0, 3.4)
     controls.target.set(0, 0, 0)
@@ -116,44 +160,16 @@ function fitCamera(handles: SceneHandles, result: WorldgenResult | null, viewMod
   controls.update()
 }
 
-function splatPointSize(points: WorldgenSplatPoint[]): number {
-  if (!points.length) return 0.018
-  const sample = points
-    .filter((point) => point.scale > 0)
-    .slice(0, 4000)
-    .map((point) => point.scale)
-    .sort((a, b) => a - b)
-  const median = sample[Math.floor(sample.length / 2)] ?? 0.018
-  return Math.min(0.09, Math.max(0.008, median * 2.4))
-}
-
-function addSplatPoints(group: THREE.Group, points: WorldgenSplatPoint[], opacity = 0.96) {
-  const positions: number[] = []
-  const colors: number[] = []
-
-  for (const point of points) {
-    if (point.opacity <= 0.015) continue
-    const visibility = 0.35 + Math.min(1, point.opacity) * 0.65
-    positions.push(point.x, point.y, point.z)
-    colors.push(point.r * visibility, point.g * visibility, point.b * visibility)
-  }
-
-  const geometry = new THREE.BufferGeometry()
-  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3))
-  geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3))
-  group.add(
-    new THREE.Points(
-      geometry,
-      new THREE.PointsMaterial({
-        size: splatPointSize(points),
-        vertexColors: true,
-        sizeAttenuation: true,
-        transparent: true,
-        opacity,
-        depthWrite: false,
-      }),
-    ),
-  )
+// Render Gaussians as true (anisotropic-capable) EWA splats. The returned handle
+// observes camera changes while a worker prepares the next depth-sorted frame.
+function addSplatPoints(
+  group: THREE.Group,
+  points: WorldgenSplatPoint[],
+  onJobStateChange: (state: SplatRenderJobState) => void,
+): SplatHandle | null {
+  const handle = createSplatRenderer(points, 1, onJobStateChange)
+  if (handle) group.add(handle.object)
+  return handle
 }
 
 function disposeObject3D(object: THREE.Object3D) {
@@ -178,16 +194,14 @@ function pointsByFrame(points: WorldgenPoint[]): Map<number, WorldgenPoint[]> {
 
 function addWorldgenPoints(
   group: THREE.Group,
-  result: WorldgenResult,
+  grouped: Map<number, WorldgenPoint[]>,
   selectedFrameIndex: number | null,
   showAllFrames: boolean,
   highlightedKey: string | null,
   opacityScale = 1,
 ) {
-  const grouped = pointsByFrame(result.points)
   for (const [frameIndex, framePoints] of grouped.entries()) {
     if (!showAllFrames && selectedFrameIndex !== frameIndex) continue
-    const selected = selectedFrameIndex == null || selectedFrameIndex === frameIndex
     const positions: number[] = []
     const colors: number[] = []
 
@@ -205,18 +219,22 @@ function addWorldgenPoints(
       new THREE.Points(
         geometry,
         new THREE.PointsMaterial({
-          size: selected ? 0.022 : 0.014,
+          size: showAllFrames ? 0.014 : 0.022,
           vertexColors: true,
           sizeAttenuation: true,
           transparent: true,
-          opacity: (selected ? 1 : 0.32) * opacityScale,
+          opacity: (showAllFrames ? 0.38 : 1) * opacityScale,
           depthWrite: false,
         }),
       ),
     )
   }
 
-  const highlighted = result.points.find((point) => highlightedKey === pointKey(point))
+  const separator = highlightedKey?.lastIndexOf(':') ?? -1
+  const highlightedFrameIndex = separator >= 0 ? Number(highlightedKey?.slice(0, separator)) : Number.NaN
+  const highlighted = Number.isFinite(highlightedFrameIndex)
+    ? grouped.get(highlightedFrameIndex)?.find((point) => highlightedKey === pointKey(point))
+    : undefined
   if (highlighted) {
     const marker = new THREE.Mesh(
       new THREE.SphereGeometry(0.055, 18, 18),
@@ -269,46 +287,60 @@ function addCameras(group: THREE.Group, result: WorldgenResult, selectedFrameInd
   }
 }
 
-function frameLabel(frame: WorldgenFrame): string {
-  return `Frame ${frame.frameNumber || frame.frameIndex + 1}`
-}
-
-export default function WorldgenScene({ result }: WorldgenSceneProps) {
+export default function WorldgenScene({ result, currentFrameIndex, onVideoStateChange }: WorldgenSceneProps) {
   const getFrame = useFrameSource()
   const containerRef = useRef<HTMLDivElement>(null)
   const handlesRef = useRef<SceneHandles | null>(null)
   const fitKeyRef = useRef('')
+  const initializedResultRef = useRef<string | null>(null)
   const imageCanvasRef = useRef<HTMLCanvasElement>(null)
   const imageRef = useRef<HTMLImageElement | null>(null)
-  const [selectedFrameIndex, setSelectedFrameIndex] = useState<number | null>(null)
-  const [showAllFrames, setShowAllFrames] = useState(true)
+  const [showAllFrames, setShowAllFrames] = useState(false)
   const [viewMode, setViewMode] = useState<WorldgenViewMode>('vggt')
+  const [splatJob, setSplatJob] = useState<SplatRenderJobState | null>(null)
   const [highlightedKey, setHighlightedKey] = useState<string | null>(null)
   const [frameImage, setFrameImage] = useState<VisFrame | null>(null)
   const [imageTick, setImageTick] = useState(0)
-  const sceneKey = useMemo(
-    () => `${result?.id ?? 'empty'}:${selectedFrameIndex ?? 'none'}:${showAllFrames}:${highlightedKey ?? 'none'}:${viewMode}`,
-    [highlightedKey, result?.id, selectedFrameIndex, showAllFrames, viewMode],
-  )
+  const [renderedPointCloud, setRenderedPointCloud] = useState<RenderedPointCloud | null>(null)
 
   const selectedFrame = useMemo(() => {
     if (!result?.frames.length) return null
-    if (selectedFrameIndex == null) return result.frames[0]
-    return result.frames.find((frame) => frame.frameIndex === selectedFrameIndex) ?? result.frames[0]
-  }, [result, selectedFrameIndex])
+    return result.frames.find((frame) => frame.frameIndex === currentFrameIndex) ?? null
+  }, [currentFrameIndex, result])
+  const selectedFrameIndex = selectedFrame?.frameIndex ?? null
 
-  const selectedPoints = useMemo(() => {
-    if (!result || !selectedFrame) return []
-    return result.points.filter((point) => point.frameIndex === selectedFrame.frameIndex)
-  }, [result, selectedFrame])
+  const groupedPoints = useMemo(() => pointsByFrame(result?.points ?? []), [result?.points])
+  const selectedPoints = selectedFrameIndex == null ? [] : groupedPoints.get(selectedFrameIndex) ?? []
+  const renderedFrameIndex = showAllFrames ? null : selectedFrameIndex
 
   useEffect(() => {
-    const firstFrame = result?.frames[0] ?? null
-    setSelectedFrameIndex(firstFrame?.frameIndex ?? null)
-    setViewMode(result?.splat?.status === 'complete' && result.splatPoints.length ? 'both' : 'vggt')
+    setViewMode(result?.splat?.status === 'complete' && result.splatPoints.length ? 'splat' : 'vggt')
+    setShowAllFrames(false)
+    setSplatJob(null)
     setHighlightedKey(null)
     fitKeyRef.current = ''
   }, [result?.id, result?.splat?.status, result?.splatPoints.length])
+
+  useEffect(() => {
+    if (!result) {
+      initializedResultRef.current = null
+      return
+    }
+    if (!result.frames.length || initializedResultRef.current === result.id) return
+    initializedResultRef.current = result.id
+    if (result.frames.some((frame) => frame.frameIndex === currentFrameIndex)) return
+
+    const nearestFrame = result.frames.reduce((nearest, frame) => (
+      Math.abs(frame.frameIndex - currentFrameIndex) < Math.abs(nearest.frameIndex - currentFrameIndex)
+        ? frame
+        : nearest
+    ))
+    onVideoStateChange((current) => ({
+      ...current,
+      index: nearestFrame.frameIndex,
+      playing: false,
+    }))
+  }, [currentFrameIndex, onVideoStateChange, result])
 
   useEffect(() => {
     if (!getFrame || selectedFrameIndex == null) {
@@ -428,6 +460,58 @@ export default function WorldgenScene({ result }: WorldgenSceneProps) {
     controls.update()
   }, [])
 
+  const navigateView = useCallback((event: KeyboardEvent<HTMLDivElement>) => {
+    const key = event.key.toLowerCase()
+    const movementKey = key === 'w' || key === 'a' || key === 's' || key === 'd'
+    const lookKey = event.key === 'ArrowLeft' || event.key === 'ArrowRight' || event.key === 'ArrowUp' || event.key === 'ArrowDown'
+    if (!movementKey && !lookKey) return
+    const handles = handlesRef.current
+    if (!handles) return
+
+    event.preventDefault()
+    event.stopPropagation()
+    const { camera, controls } = handles
+    const worldUp = new THREE.Vector3(0, 1, 0)
+    const distance = Math.max(0.1, camera.position.distanceTo(controls.target))
+
+    // TrackballControls owns the pose while the mouse is active. Read the
+    // camera's actual post-trackball orientation here so keyboard movement
+    // continues from exactly what is on screen, including pitch and roll.
+    camera.updateMatrixWorld(true)
+    const forward = new THREE.Vector3()
+    camera.getWorldDirection(forward).normalize()
+    const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion).normalize()
+
+    if (movementKey) {
+      if (forward.lengthSq() < 1e-8) forward.set(0, 0, -1)
+      const direction = new THREE.Vector3()
+      if (key === 'w') direction.copy(forward)
+      if (key === 's') direction.copy(forward).multiplyScalar(-1)
+      if (key === 'd') direction.copy(right)
+      if (key === 'a') direction.copy(right).multiplyScalar(-1)
+      const step = Math.max(0.025, Math.min(2, distance * 0.055))
+      direction.multiplyScalar(step)
+      camera.position.add(direction)
+      controls.target.add(direction)
+    } else {
+      const radians = THREE.MathUtils.degToRad(3.2)
+      const nextDirection = forward.multiplyScalar(distance)
+      if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+        nextDirection.applyAxisAngle(worldUp, event.key === 'ArrowLeft' ? radians : -radians)
+      } else {
+        if (right.lengthSq() > 1e-8) {
+          const candidate = nextDirection.clone().applyAxisAngle(right, event.key === 'ArrowUp' ? radians : -radians)
+          if (Math.abs(candidate.clone().normalize().dot(worldUp)) < 0.985) nextDirection.copy(candidate)
+        }
+      }
+      controls.target.copy(camera.position).add(nextDirection)
+    }
+
+    // Do not reset camera.up: TrackballControls may have established a rolled
+    // pose, and snapping it back to world-up is the jump this path must avoid.
+    controls.update()
+  }, [])
+
   useEffect(() => {
     const container = containerRef.current
     if (!container) return
@@ -451,7 +535,11 @@ export default function WorldgenScene({ result }: WorldgenSceneProps) {
     controls.zoomSpeed = 1.35
     controls.panSpeed = 0.72
     controls.dynamicDampingFactor = 0.12
-    controls.staticMoving = false
+    // The camera should remain where the pointer leaves it. Inertial trackball
+    // rotation can otherwise continue into the first WASD event and move the
+    // camera a second time from stale mouse deltas.
+    controls.staticMoving = true
+    controls.keys = ['', '', '']
     controls.target.set(0, 0, 0)
 
     scene.add(new THREE.AmbientLight(0xffffff, 0.7))
@@ -465,6 +553,9 @@ export default function WorldgenScene({ result }: WorldgenSceneProps) {
     scene.add(new THREE.AxesHelper(0.85))
 
     const dataGroup = new THREE.Group()
+    const pointCloudGroup = new THREE.Group()
+    const cameraGroup = new THREE.Group()
+    dataGroup.add(pointCloudGroup, cameraGroup)
     scene.add(dataGroup)
 
     const resizeObserver = new ResizeObserver(() => {
@@ -477,8 +568,17 @@ export default function WorldgenScene({ result }: WorldgenSceneProps) {
     })
     resizeObserver.observe(container)
 
+    const viewportPx = new THREE.Vector2()
     const render = () => {
       controls.update()
+      const splat = handlesRef.current?.splat
+      if (splat) {
+        renderer.getDrawingBufferSize(viewportPx)
+        splat.update(camera, viewportPx)
+        // The two data layers are mutually exclusive. A stale/hidden splat means
+        // the worker is still preparing the latest POV, so show the point cloud.
+        handlesRef.current!.pointCloudGroup.visible = !splat.object.visible
+      }
       renderer.render(scene, camera)
       handlesRef.current!.animationId = window.requestAnimationFrame(render)
     }
@@ -488,14 +588,23 @@ export default function WorldgenScene({ result }: WorldgenSceneProps) {
       renderer,
       controls,
       dataGroup,
+      pointCloudGroup,
+      cameraGroup,
       resizeObserver,
       animationId: window.requestAnimationFrame(render),
+      splat: null,
     }
+    container.focus({ preventScroll: true })
 
     return () => {
       const handles = handlesRef.current
       if (!handles) return
       window.cancelAnimationFrame(handles.animationId)
+      const splat = handles.splat
+      handles.splat = null
+      splat?.dispose()
+      disposeObject3D(handles.pointCloudGroup)
+      disposeObject3D(handles.cameraGroup)
       handles.resizeObserver.disconnect()
       handles.controls.dispose()
       handles.renderer.dispose()
@@ -507,48 +616,158 @@ export default function WorldgenScene({ result }: WorldgenSceneProps) {
   useEffect(() => {
     const handles = handlesRef.current
     if (!handles) return
-    disposeObject3D(handles.dataGroup)
-    handles.dataGroup.clear()
-
-    if (result) {
-      if (viewMode === 'splat' && result.splatPoints.length) {
-        addSplatPoints(handles.dataGroup, result.splatPoints)
-      } else if (viewMode === 'both' && result.splatPoints.length) {
-        addWorldgenPoints(handles.dataGroup, result, selectedFrameIndex, showAllFrames, highlightedKey, 0.72)
-        addSplatPoints(handles.dataGroup, result.splatPoints, 0.74)
-      } else {
-        addWorldgenPoints(handles.dataGroup, result, selectedFrameIndex, showAllFrames, highlightedKey)
+    let confirmationFrame = 0
+    const renderFrame = window.requestAnimationFrame(() => {
+      disposeObject3D(handles.pointCloudGroup)
+      handles.pointCloudGroup.clear()
+      if (result) {
+        addWorldgenPoints(handles.pointCloudGroup, groupedPoints, renderedFrameIndex, showAllFrames, highlightedKey)
       }
-      addCameras(handles.dataGroup, result, selectedFrameIndex)
+
+      // Confirm on the following animation frame. The WebGL render loop has
+      // drawn the replacement geometry by then, so this state describes what
+      // is actually on the canvas rather than what the timeline requested.
+      confirmationFrame = window.requestAnimationFrame(() => {
+        if (handlesRef.current !== handles) return
+        setRenderedPointCloud(result
+          ? {
+              resultId: result.id,
+              allFrames: showAllFrames,
+              frameIndex: renderedFrameIndex,
+              pointCount: showAllFrames
+                ? result.points.length
+                : groupedPoints.get(renderedFrameIndex ?? -1)?.length ?? 0,
+            }
+          : null)
+      })
+    })
+    return () => {
+      window.cancelAnimationFrame(renderFrame)
+      if (confirmationFrame) window.cancelAnimationFrame(confirmationFrame)
+    }
+  }, [result?.id, groupedPoints, renderedFrameIndex, showAllFrames, highlightedKey])
+
+  useEffect(() => {
+    const handles = handlesRef.current
+    if (!handles) return
+    disposeObject3D(handles.cameraGroup)
+    handles.cameraGroup.clear()
+    if (result) addCameras(handles.cameraGroup, result, selectedFrameIndex)
+  }, [result?.id, result?.cameras, selectedFrameIndex])
+
+  useEffect(() => {
+    const handles = handlesRef.current
+    if (!handles) return
+
+    const previous = handles.splat
+    if (previous) {
+      handles.dataGroup.remove(previous.object)
+      previous.dispose()
+      handles.splat = null
+    }
+    setSplatJob(null)
+    handles.pointCloudGroup.visible = true
+
+    if (!result || viewMode !== 'splat' || !result.splatPoints.length) return
+
+    setSplatJob({ phase: 'preparing', message: 'Preparing Gaussian data in the background' })
+    let handle: SplatHandle | null = null
+    const onJobStateChange = (state: SplatRenderJobState) => {
+      if (handlesRef.current !== handles || handles.splat !== handle) return
+      setSplatJob(state)
+      handles.pointCloudGroup.visible = state.phase !== 'ready'
+    }
+    handle = addSplatPoints(handles.dataGroup, result.splatPoints, onJobStateChange)
+    handles.splat = handle
+    if (!handle) {
+      setSplatJob({ phase: 'failed', message: 'No Gaussian splat data is available; showing the point cloud' })
     }
 
+    return () => {
+      if (handle && handles.splat === handle) {
+        handles.dataGroup.remove(handle.object)
+        handle.dispose()
+        handles.splat = null
+        handles.pointCloudGroup.visible = true
+      }
+    }
+  }, [result?.id, result?.splatPoints, viewMode])
+
+  useEffect(() => {
+    const handles = handlesRef.current
+    if (!handles) return
     const nextFitKey = `${result?.id ?? 'empty'}:${viewMode}:${result?.splatPoints.length ?? 0}:${result?.points.length ?? 0}`
     if (fitKeyRef.current !== nextFitKey) {
       fitCamera(handles, result, viewMode)
       fitKeyRef.current = nextFitKey
     }
-  }, [sceneKey, result, selectedFrameIndex, showAllFrames, highlightedKey, viewMode])
+  }, [result, viewMode])
+
+  const renderedPointCloudIsCurrent = Boolean(
+    result &&
+    renderedPointCloud?.resultId === result.id &&
+    renderedPointCloud.allFrames === showAllFrames &&
+    (showAllFrames || renderedPointCloud.frameIndex === selectedFrameIndex),
+  )
+  const splatIsRendered = viewMode === 'splat' && splatJob?.phase === 'ready'
+  const renderedPointCloudLabel = renderedPointCloud?.allFrames
+    ? `Rendered all frames · ${compactNumber(renderedPointCloud.pointCount)} points`
+    : renderedPointCloud?.frameIndex != null
+      ? `Rendered frame ${renderedPointCloud.frameIndex + 1} · ${compactNumber(renderedPointCloud.pointCount)} points`
+      : 'No VGGT point cloud rendered'
+  const requestedPointCloudLabel = showAllFrames
+    ? 'Requested all frames'
+    : selectedFrame
+      ? `Requested frame ${selectedFrame.frameIndex + 1}`
+      : `Requested frame ${currentFrameIndex + 1} · no VGGT data`
 
   const sceneSummary = useMemo(() => {
     if (!result) return 'VGGT reconstruction'
-    if (viewMode === 'splat' && result.splat?.status === 'complete') {
+    if (splatIsRendered && result.splat?.status === 'complete') {
       return `${compactNumber(result.splat.gaussianCount)} Gaussians, ${compactNumber(result.splat.previewPointCount)} preview splats`
     }
-    if (viewMode === 'both' && result.splat?.status === 'complete') {
-      return `${compactNumber(result.returnedPointCount)} VGGT points + ${compactNumber(result.splat.previewPointCount)} preview splats`
+    if (renderedPointCloud?.resultId === result.id) {
+      if (renderedPointCloud.allFrames) {
+        return `${compactNumber(renderedPointCloud.pointCount)} rendered VGGT points, all frames`
+      }
+      if (renderedPointCloud.frameIndex != null) {
+        return `Rendered frame ${renderedPointCloud.frameIndex + 1}, ${compactNumber(renderedPointCloud.pointCount)} points`
+      }
     }
-    return `${compactNumber(result.frameCount)} frames, ${compactNumber(result.returnedPointCount)} rendered points`
-  }, [result, viewMode])
+    return 'Preparing VGGT point cloud'
+  }, [renderedPointCloud, result, splatIsRendered])
+
+  const visibleSplatJob = viewMode === 'splat' && splatJob?.phase !== 'ready' ? splatJob : null
 
   return (
-    <div className="scene-shell">
-      <div className="scene-canvas" ref={containerRef} data-testid="worldgen-canvas" />
+    <div className="worldgen-player" onKeyDown={navigateView}>
+      <div className={`scene-shell${visibleSplatJob ? ' has-render-job' : ''}`}>
+      <div
+        className="scene-canvas"
+        ref={containerRef}
+        data-testid="worldgen-canvas"
+        tabIndex={0}
+        onPointerDown={(event) => event.currentTarget.focus({ preventScroll: true })}
+        aria-label="World Modeling 3D view. Use W A S D to move and arrow keys to look around."
+      />
       <div className="scene-overlay">
-        <span>{result ? `${result.markerStart}-${result.markerEnd}` : 'No worldgen result'}</span>
+        <span>{result ? 'World Modeling' : 'No world model'}</span>
         <span>{sceneSummary}</span>
         {result ? <span title={result.outputPath}>{shortPath(result.outputPath, 76)}</span> : null}
       </div>
-      <div className="worldgen-view-tools" aria-label="Worldgen view controls">
+      {visibleSplatJob ? (
+        <div
+          className={`worldgen-background-job ${visibleSplatJob.phase}`}
+          role="status"
+          aria-live="polite"
+        >
+          <span className="worldgen-background-job-indicator" aria-hidden="true" />
+          <span>
+            {visibleSplatJob.phase === 'failed' ? visibleSplatJob.message : `Background job: ${visibleSplatJob.message}`}
+          </span>
+        </div>
+      ) : null}
+      <div className="worldgen-view-tools" aria-label="World Modeling view controls">
         <button type="button" onClick={() => zoomView(0.72)} title="Zoom in" aria-label="Zoom in">
           <ZoomIn size={15} aria-hidden="true" />
         </button>
@@ -559,12 +778,31 @@ export default function WorldgenScene({ result }: WorldgenSceneProps) {
           <RotateCcw size={15} aria-hidden="true" />
         </button>
       </div>
+      <div className="worldgen-navigation-hint">WASD move · arrows look</div>
+      <div
+        className={`worldgen-render-state${!splatIsRendered && !renderedPointCloudIsCurrent ? ' is-stale' : ''}`}
+        role="status"
+        aria-live="polite"
+      >
+        <span className="worldgen-render-state-dot" aria-hidden="true" />
+        <strong>{splatIsRendered ? 'Rendered Gaussian splat · global reconstruction' : renderedPointCloudLabel}</strong>
+        {splatIsRendered ? (
+          <span>Timeline frame {currentFrameIndex + 1}</span>
+        ) : !renderedPointCloudIsCurrent ? (
+          <span>{requestedPointCloudLabel} · updating…</span>
+        ) : null}
+      </div>
+      {result && !selectedFrame ? (
+        <div className="worldgen-frame-unavailable" role="status">
+          Frame {currentFrameIndex + 1} has no generated VGGT or Gaussian data
+        </div>
+      ) : null}
 
-      {result && selectedFrame ? (
+      {result ? (
         <div className="worldgen-image-panel">
           <div className="worldgen-frame-controls">
             {result.splat ? (
-              <div className="worldgen-mode-controls" role="group" aria-label="Worldgen display">
+              <div className="worldgen-mode-controls" role="group" aria-label="World Modeling display">
                 <button
                   type="button"
                   className={viewMode === 'splat' ? 'active' : ''}
@@ -576,15 +814,6 @@ export default function WorldgenScene({ result }: WorldgenSceneProps) {
                 </button>
                 <button
                   type="button"
-                  className={viewMode === 'both' ? 'active' : ''}
-                  disabled={!result.splatPoints.length}
-                  onClick={() => setViewMode('both')}
-                  title="VGGT point cloud and splat preview"
-                >
-                  Both
-                </button>
-                <button
-                  type="button"
                   className={viewMode === 'vggt' ? 'active' : ''}
                   onClick={() => setViewMode('vggt')}
                   title="VGGT point cloud"
@@ -593,32 +822,23 @@ export default function WorldgenScene({ result }: WorldgenSceneProps) {
                 </button>
               </div>
             ) : null}
-            <select
-              value={selectedFrame.frameIndex}
-              onChange={(event) => {
-                setSelectedFrameIndex(Number(event.target.value))
-                setHighlightedKey(null)
-              }}
-              title="Frame"
-            >
-              {result.frames.map((frame) => (
-                <option key={frame.frameIndex} value={frame.frameIndex}>
-                  {frameLabel(frame)}
-                </option>
-              ))}
-            </select>
             <label>
               <input type="checkbox" checked={showAllFrames} onChange={(event) => setShowAllFrames(event.target.checked)} />
               <span>All frames</span>
             </label>
           </div>
-          <canvas ref={imageCanvasRef} className="worldgen-image-canvas" onClick={handleImageClick} />
-          <div className="worldgen-frame-meta">
-            <span>{compactNumber(selectedPoints.length)} image points</span>
-            <span>{selectedFrame.imageWidth}x{selectedFrame.imageHeight}</span>
-          </div>
+          {selectedFrame ? (
+            <>
+              <canvas ref={imageCanvasRef} className="worldgen-image-canvas" onClick={handleImageClick} />
+              <div className="worldgen-frame-meta">
+                <span>{compactNumber(selectedPoints.length)} image points</span>
+                <span>{selectedFrame.imageWidth}x{selectedFrame.imageHeight}</span>
+              </div>
+            </>
+          ) : null}
         </div>
       ) : null}
+      </div>
     </div>
   )
 }

@@ -5,8 +5,9 @@ const tabTitles: Record<WorkspaceTabType, string> = {
   'point-cloud': 'Point Cloud',
   planes: 'Surface Estimates',
   video: 'Video',
+  sensors: 'Sensor Data',
   analysis: 'Analysis',
-  worldgen: 'Worldgen',
+  worldgen: 'World Modeling',
 }
 
 export function createId(prefix: string): string {
@@ -54,6 +55,14 @@ export function findTabByType(node: LayoutNode, type: WorkspaceTabType): { leafI
     return tab ? { leafId: node.id, tabId: tab.id } : null
   }
   return findTabByType(node.first, type) ?? findTabByType(node.second, type)
+}
+
+export function findTabByAnalysisKey(node: LayoutNode, analysisKey: string): { leafId: string; tabId: string } | null {
+  if (node.type === 'leaf') {
+    const tab = node.tabs.find((item) => item.analysisKey === analysisKey)
+    return tab ? { leafId: node.id, tabId: tab.id } : null
+  }
+  return findTabByAnalysisKey(node.first, analysisKey) ?? findTabByAnalysisKey(node.second, analysisKey)
 }
 
 export function hasTabOfType(node: LayoutNode, type: WorkspaceTabType): boolean {
@@ -111,6 +120,27 @@ export function addTabToLeaf(node: LayoutNode, leafId: string, request: Workspac
 
 export function activateTab(node: LayoutNode, leafId: string, tabId: string): LayoutNode {
   return updateLeaf(node, leafId, (leaf) => ({ ...leaf, activeTabId: tabId }))
+}
+
+export function refreshTab(
+  node: LayoutNode,
+  leafId: string,
+  tabId: string,
+  request: WorkspaceTabRequest,
+): LayoutNode {
+  return updateLeaf(node, leafId, (leaf) => ({
+    ...leaf,
+    activeTabId: tabId,
+    tabs: leaf.tabs.map((tab) => tab.id === tabId
+      ? {
+          ...tab,
+          type: request.type,
+          title: request.title,
+          analysisKey: request.analysisKey,
+          worldgenResultId: request.worldgenResultId,
+        }
+      : tab),
+  }))
 }
 
 export function closeTab(node: LayoutNode, leafId: string, tabId: string): LayoutNode {

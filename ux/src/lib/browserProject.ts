@@ -3,7 +3,19 @@ import perceiverProto from '../../../proto/perceiver.proto?raw'
 import primitivesProto from '../../../proto/primitives.proto?raw'
 import spatialProto from '../../../proto/spatial.proto?raw'
 import segmentationProto from '../../../proto/segmentation.proto?raw'
-import type { ProjectAnalysis, ProjectScanResult, RecordingEntry, SegMask, VisFrame, VisSummary } from '../types'
+import insightgenProto from '../../../proto/insightgen.proto?raw'
+import idoSlamProto from '../../../proto/idoslam.proto?raw'
+import type {
+  ChatThread,
+  IdoSlamSummary,
+  ProjectAnalysis,
+  ProjectScanResult,
+  RecordingEntry,
+  SegMask,
+  SensorDataSummary,
+  VisFrame,
+  VisSummary,
+} from '../types'
 
 const FRAME_SIZE_LIMIT = 10 * 1024 * 1024
 const MAX_SAMPLE_FRAMES = 96
@@ -11,14 +23,14 @@ const MAX_POINTS_PER_FRAME = 220
 
 const BUILT_IN_ANALYSES = [
   { key: 'video', title: 'Video', kind: 'video', source: 'vis' as const },
-  { key: 'point-cloud', title: 'Point Clouds', kind: 'geometry', source: 'vis' as const },
   { key: 'surface-planes', title: 'Surface Estimates', kind: 'geometry', source: 'vis' as const },
+  { key: 'sensors', title: 'Sensor Data', kind: 'sensors', source: 'vis' as const },
 ]
 
 const ANALYSIS_DEFS = [
   { key: 'segmentation', title: 'Segmentation', kind: 'protobuf', suffixes: ['segmentation.pb', 'seg.pb'] },
   { key: 'motioncap', title: 'Motion Capture', kind: 'protobuf', suffixes: ['motioncap.pb', 'motion.pb'] },
-  { key: 'idoslam', title: 'Localization and Mapping', kind: 'protobuf', suffixes: ['idoslam.pb'] },
+  { key: 'idoslam', title: 'Map Generation', kind: 'protobuf', suffixes: ['idoslam.pb'] },
   { key: 'genspark', title: 'AI Analysis', kind: 'protobuf', suffixes: ['genspark.pb'] },
   { key: 'chat', title: 'Follow-up Chat', kind: 'protobuf', suffixes: ['chat.pb'] },
   { key: 'reconstruction', title: '3D Reconstruction', kind: 'protobuf', suffixes: ['reconstruct.pb', 'recon.pb'] },
@@ -37,6 +49,9 @@ type FrameIndexEntry = {
 }
 
 let perceiverType: protobuf.Type | null = null
+let gensparkResponseType: protobuf.Type | null = null
+let chatHistoryType: protobuf.Type | null = null
+let idoSlamType: protobuf.Type | null = null
 
 function stripProtoHeader(source: string): string {
   return source
@@ -69,6 +84,38 @@ function getPerceiverType(): protobuf.Type {
   root.resolveAll()
   perceiverType = root.lookupType('bayesmech.vision.PerceiverDataFrame')
   return perceiverType
+}
+
+function getInsightgenTypes(): { genspark: protobuf.Type; chat: protobuf.Type } {
+  if (gensparkResponseType && chatHistoryType) {
+    return { genspark: gensparkResponseType, chat: chatHistoryType }
+  }
+
+  const root = new protobuf.Root()
+  protobuf.parse(insightgenProto, root, { keepCase: false })
+  root.resolveAll()
+  gensparkResponseType = root.lookupType('bayesmech.vision.GensparkResponse')
+  chatHistoryType = root.lookupType('bayesmech.vision.ChatHistory')
+  return { genspark: gensparkResponseType, chat: chatHistoryType }
+}
+
+function getIdoSlamType(): protobuf.Type {
+  if (idoSlamType) return idoSlamType
+
+  const schema = [
+    'syntax = "proto3";',
+    'package bayesmech.vision;',
+    stripProtoHeader(primitivesProto),
+    stripProtoHeader(spatialProto),
+    stripProtoHeader(perceiverProto),
+    stripProtoHeader(idoSlamProto),
+  ].join('\n\n')
+
+  const root = new protobuf.Root()
+  protobuf.parse(schema, root, { keepCase: false })
+  root.resolveAll()
+  idoSlamType = root.lookupType('bayesmech.vision.IdoSlamResponse')
+  return idoSlamType
 }
 
 function byteSizeLabel(bytes: number): string {
@@ -574,6 +621,167 @@ export async function readBrowserVisSummary(recording: RecordingEntry, file: Fil
   }
 }
 
+const sensorDataCacheByFile = new WeakMap<File, Promise<SensorDataSummary>>()
+
+export function readBrowserVisSensors(recording: RecordingEntry, file: File): Promise<SensorDataSummary> {
+  let cached = sensorDataCacheByFile.get(file)
+  if (cached) return cached
+
+  cached = (async () => {
+    const { offsets } = await cachedFrameIndex(file)
+    const frameType = getPerceiverType()
+    const samples: SensorDataSummary['samples'] = []
+
+    for (let index = 0; index < offsets.length; index += 1) {
+      const item = offsets[index]
+      const payload = new Uint8Array(await file.slice(item.offset, item.offset + item.length).arrayBuffer())
+      let frame: Record<string, unknown>
+      try {
+        frame = frameType.decode(payload) as unknown as Record<string, unknown>
+      } catch {
+        continue
+      }
+
+      const identifier = frame.frameIdentifier as {
+        timestampNs?: unknown
+        frameNumber?: unknown
+        deviceId?: unknown
+      } | undefined
+      const imu = frame.imuData as {
+        linearAcceleration?: unknown
+        angularVelocity?: unknown
+        gravity?: unknown
+        magneticField?: unknown
+      } | undefined
+      const gps = frame.gpsLocation as {
+        latitude?: unknown
+        longitude?: unknown
+        altitude?: unknown
+        accuracy?: unknown
+        bearing?: unknown
+        speed?: unknown
+        timestampMs?: unknown
+      } | undefined
+
+      samples.push({
+        index,
+        frameNumber: finiteNumber(identifier?.frameNumber),
+        timestampNs: timestampString(identifier?.timestampNs),
+        deviceId: String(identifier?.deviceId ?? ''),
+        linearAcceleration: imu?.linearAcceleration ? vector3(imu.linearAcceleration) : null,
+        angularVelocity: imu?.angularVelocity ? vector3(imu.angularVelocity) : null,
+        gravity: imu?.gravity ? vector3(imu.gravity) : null,
+        magneticField: imu?.magneticField ? vector3(imu.magneticField) : null,
+        cameraPose: pose(frame.cameraPose),
+        gps: gps
+          ? {
+              latitude: finiteNumber(gps.latitude),
+              longitude: finiteNumber(gps.longitude),
+              altitude: finiteNumber(gps.altitude),
+              accuracy: finiteNumber(gps.accuracy),
+              bearing: finiteNumber(gps.bearing),
+              speed: finiteNumber(gps.speed),
+              timestampMs: timestampString(gps.timestampMs),
+            }
+          : null,
+      })
+    }
+
+    return { path: recording.path, frameCount: offsets.length, samples }
+  })()
+
+  sensorDataCacheByFile.set(file, cached)
+  return cached
+}
+
+function browserIdoSlamSummary(response: Record<string, unknown>, path: string): IdoSlamSummary {
+  const asArray = (value: unknown): Array<Record<string, unknown>> => Array.isArray(value) ? value : []
+  const poseValue = (value: Record<string, unknown>) => {
+    const frameId = value.frameId as Record<string, unknown> | undefined
+    const worldPose = value.worldPose as Record<string, unknown> | undefined
+    return {
+      frameIndex: finiteNumber(value.frameIndex),
+      frameNumber: finiteNumber(frameId?.frameNumber),
+      timestampNs: timestampString(frameId?.timestampNs),
+      position: vector3(worldPose?.position),
+      eulerDegrees: vector3(value.eulerDegrees),
+    }
+  }
+  const widthValue = (value: Record<string, unknown>) => ({
+    frameIndex: finiteNumber(value.frameIndex),
+    latitude: finiteNumber(value.latitude),
+    longitude: finiteNumber(value.longitude),
+    widthM: finiteNumber(value.widthM),
+    leftOffsetM: finiteNumber(value.leftOffsetM),
+    rightOffsetM: finiteNumber(value.rightOffsetM),
+    bikeFraction: finiteNumber(value.bikeFraction),
+    method: String(value.method ?? ''),
+  })
+  const pairDebug = asArray(response.pairDebug)
+  const correspondences = pairDebug.flatMap((pair) => asArray(pair.correspondences))
+
+  return {
+    path,
+    framePoses: asArray(response.framePoses).map(poseValue),
+    refinedFramePoses: asArray(response.refinedFramePoses).map(poseValue),
+    pairwiseMotion: asArray(response.pairwiseMotion).map((item) => ({
+      frameIndex: finiteNumber(item.frameIndex),
+      status: String(item.status ?? ''),
+      goodMatchCount: finiteNumber(item.goodMatchCount),
+      essentialInlierCount: finiteNumber(item.essentialInlierCount),
+      essentialInlierRatio: finiteNumber(item.essentialInlierRatio),
+      translationMagnitude: finiteNumber(item.translationMagnitude),
+      rotationDeg: finiteNumber(item.rotationDeg),
+    })),
+    planeWidthEstimates: asArray(response.planeWidthEstimates).map(widthValue),
+    triangulatedWidthEstimates: asArray(response.triangulatedWidthEstimates).map(widthValue),
+    canonicalCenterline: asArray(response.canonicalCenterline).map((item) => ({
+      progressM: finiteNumber(item.progressM),
+      centerX: finiteNumber(item.centerX),
+      centerY: finiteNumber(item.centerY),
+      widthM: finiteNumber(item.widthM),
+      leftX: finiteNumber(item.leftX),
+      leftY: finiteNumber(item.leftY),
+      rightX: finiteNumber(item.rightX),
+      rightY: finiteNumber(item.rightY),
+    })),
+    groundPointCount: asArray(response.groundPoints).length,
+    pairDebugCount: pairDebug.length,
+    correspondenceCount: correspondences.length,
+    inlierCount: correspondences.filter((item) => Boolean(item.inlier)).length,
+  }
+}
+
+const idoSlamCacheByFile = new WeakMap<File, Promise<IdoSlamSummary>>()
+
+export function readBrowserIdoSlam(path: string, file: File): Promise<IdoSlamSummary> {
+  let cached = idoSlamCacheByFile.get(file)
+  if (cached) return cached
+
+  cached = (async () => {
+    const bytes = new Uint8Array(await file.arrayBuffer())
+    let offset = 0
+    let latest: Record<string, unknown> | null = null
+    const responseType = getIdoSlamType()
+    while (offset + 4 <= bytes.length) {
+      const length = readUint32BE(bytes, offset)
+      offset += 4
+      if (length <= 0 || offset + length > bytes.length) break
+      try {
+        latest = responseType.decode(bytes.subarray(offset, offset + length)) as unknown as Record<string, unknown>
+      } catch {
+        // Retain the latest valid record.
+      }
+      offset += length
+    }
+    if (!latest) throw new Error('IDOSLAM file has no protobuf records.')
+    return browserIdoSlamSummary(latest, path)
+  })()
+
+  idoSlamCacheByFile.set(file, cached)
+  return cached
+}
+
 // Cache each File's decoded frame-offset index so random-access seeking does not
 // rescan the whole file on every request.
 const frameIndexCacheByFile = new WeakMap<File, Promise<{ offsets: FrameIndexEntry[]; errors: number }>>()
@@ -751,4 +959,66 @@ export async function readBrowserSegmentationMasks(file: File, frameNumber: numb
 export async function readBrowserSegmentationLabels(file: File): Promise<string[]> {
   const { labels } = await cachedSegmentationIndex(file)
   return labels
+}
+
+export async function readBrowserChatThread(
+  gensparkFile?: File,
+  chatFile?: File,
+): Promise<ChatThread> {
+  const types = getInsightgenTypes()
+  let analysis: ChatThread['analysis'] = null
+  let chatHistory: Record<string, unknown> | null = null
+
+  if (gensparkFile) {
+    const payload = new Uint8Array(await gensparkFile.arrayBuffer())
+    const response = types.genspark.toObject(types.genspark.decode(payload), {
+      defaults: true,
+      longs: String,
+    }) as Record<string, unknown>
+    const summary = response.summary as Record<string, unknown> | null
+    const parameters = (summary?.parameters as Array<Record<string, unknown>> | undefined) ?? []
+    if (summary && (summary.title || summary.text || parameters.length)) {
+      analysis = {
+        title: String(summary.title || 'AI Analysis'),
+        text: String(summary.text || ''),
+        parameters: parameters.map((parameter) => ({
+          name: String(parameter.name || ''),
+          value: String(parameter.value || ''),
+          unit: String(parameter.unit || ''),
+        })),
+      }
+    }
+  }
+
+  if (chatFile) {
+    const payload = new Uint8Array(await chatFile.arrayBuffer())
+    chatHistory = types.chat.toObject(types.chat.decode(payload), {
+      defaults: true,
+      longs: String,
+    }) as Record<string, unknown>
+    if (!analysis) {
+      const initialTurn = chatHistory.initialTurn as Record<string, unknown> | null
+      const raw = String(initialTurn?.text || '').trim()
+      if (raw) {
+        const titleMatch = /^##\s+([^\n]+)\n*/.exec(raw)
+        analysis = {
+          title: titleMatch?.[1]?.trim() || 'AI Analysis',
+          text: titleMatch ? raw.slice(titleMatch[0].length).trim() : raw,
+          parameters: [],
+        }
+      }
+    }
+  }
+
+  const turns = (chatHistory?.turns as Array<Record<string, unknown>> | undefined) ?? []
+  return {
+    analysis,
+    turns: turns
+      .filter((turn) => String(turn.text || '').trim())
+      .map((turn) => ({
+        role: String(turn.role || '').toLowerCase() === 'user' ? 'user' as const : 'assistant' as const,
+        text: String(turn.text || ''),
+        timestampNs: timestampString(turn.timestampNs),
+      })),
+  }
 }

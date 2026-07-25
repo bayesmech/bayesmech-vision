@@ -1,21 +1,26 @@
 import { ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import AIChat from './components/AIChat'
-import ProjectExplorer, { tabTypeForAnalysis } from './components/ProjectExplorer'
+import ProjectExplorer from './components/ProjectExplorer'
 import SplitWorkspace from './components/SplitWorkspace'
 import TopMenu from './components/TopMenu'
 import type {
-  ProjectAnalysis,
+  ChatThread,
+  IdoSlamSummary,
   ProjectScanResult,
   RecordingEntry,
   SegMask,
+  SensorDataSummary,
   VideoPlaybackState,
   VisSummary,
   WorkspaceTabRequest,
   WorldgenResult,
 } from './types'
 import {
+  readBrowserChatThread,
+  readBrowserIdoSlam,
   readBrowserSegmentationLabels,
   readBrowserSegmentationMasks,
+  readBrowserVisSensors,
   readBrowserVisFrame,
   readBrowserVisSummary,
   scanBrowserFiles,
@@ -82,6 +87,9 @@ export default function App() {
   const [tabRequest, setTabRequest] = useState<WorkspaceTabRequest | null>(null)
   const [videoState, setVideoState] = useState<VideoPlaybackState>(() => initialVideoState())
   const [worldgenResults, setWorldgenResults] = useState<Record<string, WorldgenResult>>({})
+  const [chatThread, setChatThread] = useState<ChatThread | null>(null)
+  const [chatThreadLoading, setChatThreadLoading] = useState(false)
+  const [chatThreadError, setChatThreadError] = useState<string | null>(null)
 
   const selectRecording = useCallback(
     async (recording: RecordingEntry) => {
@@ -220,35 +228,6 @@ export default function App() {
     }
   }, [applyProject, bridge])
 
-  const openAnalysis = async (recording: RecordingEntry, analysis: ProjectAnalysis) => {
-    try {
-      if (recording.id !== selectedRecording?.id) {
-        await selectRecording(recording)
-      }
-      if (analysis.key === 'worldgen') {
-        if (!bridge?.readWorldgen) throw new Error('Worldgen loading requires the native Electron app.')
-        const result = await bridge.readWorldgen(analysis.path)
-        setWorldgenResults((current) => ({ ...current, [result.id]: result }))
-        setTabRequest({
-          requestId: requestId(),
-          type: 'worldgen',
-          title: analysis.title,
-          worldgenResultId: result.id,
-        })
-        return
-      }
-      setTabRequest({
-        requestId: requestId(),
-        type: tabTypeForAnalysis(analysis.key),
-        title: analysis.title,
-        analysisKey: analysis.key,
-      })
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to open analysis.'
-      setError(message)
-    }
-  }
-
   const loadBrowserFiles = async (event: ChangeEvent<HTMLInputElement>) => {
     const files = event.currentTarget.files
     if (!files?.length) return
@@ -270,14 +249,6 @@ export default function App() {
     }
   }
 
-  const openDefaultView = () => {
-    setTabRequest({
-      requestId: requestId(),
-      type: 'video',
-      title: 'Video',
-    })
-  }
-
   // Random-access frame fetch for the video player: routes to the in-browser
   // decoder (no-bridge mode) or the Electron main process for the selected file.
   const getFrame = useCallback<FrameGetter>(
@@ -292,23 +263,96 @@ export default function App() {
     [selectedRecording, bridge],
   )
 
+  const getSensorData = useCallback(async (): Promise<SensorDataSummary | null> => {
+    const recording = selectedRecording
+    if (!recording) return null
+    const browserFile = browserFilesRef.current.get(recording.path)
+    if (browserFile) return readBrowserVisSensors(recording, browserFile)
+    if (bridge?.readVisSensors) return bridge.readVisSensors(recording.path)
+    return null
+  }, [bridge, selectedRecording])
+
+  const getIdoSlamData = useCallback(async (): Promise<IdoSlamSummary | null> => {
+    const analysis = selectedRecording?.analyses.find((item) => item.key === 'idoslam')
+    if (!analysis) return null
+    const browserFile = browserFilesRef.current.get(analysis.path)
+    if (browserFile) return readBrowserIdoSlam(analysis.path, browserFile)
+    if (bridge?.readIdoSlam) return bridge.readIdoSlam(analysis.path)
+    return null
+  }, [bridge, selectedRecording])
+
   // Overlay/command state shared by the AI chat box and the video command bar.
   const [segmentationOn, setSegmentationOn] = useState(false)
   const [segmentationMaskLabel, setSegmentationMaskLabel] = useState<string | null>(null)
 
-  // Overlays reset whenever the selected recording changes.
+  // Recording-scoped view state resets whenever the selected recording changes.
+  // World Modeling is an always-open tab when its artifact exists, so load it without
+  // requiring a second explorer action.
   useEffect(() => {
     setSegmentationOn(false)
     setSegmentationMaskLabel(null)
     setVideoState(initialVideoState())
     setWorldgenResults({})
-  }, [selectedRecording?.id])
+    const worldgen = selectedRecording?.analyses.find((analysis) => analysis.key === 'worldgen')
+    if (!worldgen || !bridge?.readWorldgen) return
+    let cancelled = false
+    bridge.readWorldgen(worldgen.path)
+      .then((result) => {
+        if (!cancelled) setWorldgenResults({ [result.id]: result })
+      })
+      .catch((err) => {
+        if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load World Modeling.')
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [bridge, selectedRecording])
+
+  useEffect(() => {
+    setChatThread(null)
+    setChatThreadError(null)
+    setChatThreadLoading(false)
+    if (!selectedRecording) return
+
+    const genspark = selectedRecording.analyses.find((analysis) => analysis.key === 'genspark')
+    const chat = selectedRecording.analyses.find((analysis) => analysis.key === 'chat')
+    if (!genspark && !chat) return
+
+    let cancelled = false
+    let request: Promise<ChatThread> | null = null
+    const gensparkFile = genspark ? browserFilesRef.current.get(genspark.path) : undefined
+    const chatFile = chat ? browserFilesRef.current.get(chat.path) : undefined
+    if (gensparkFile || chatFile) {
+      request = readBrowserChatThread(gensparkFile, chatFile)
+    } else if (bridge?.readChatThread) {
+      request = bridge.readChatThread(selectedRecording.path)
+    }
+    if (!request) return
+
+    setChatThreadLoading(true)
+    request
+      .then((thread) => {
+        if (!cancelled) setChatThread(thread)
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setChatThreadError(err instanceof Error ? err.message : 'Failed to load the saved chat thread.')
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setChatThreadLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [bridge, selectedRecording])
 
   const openSegmentationView = useCallback(() => {
     setTabRequest({
       requestId: requestId(),
-      type: 'video',
-      title: 'Video',
+      type: 'analysis',
+      title: 'Segmentation',
+      analysisKey: 'segmentation',
     })
   }, [])
 
@@ -333,9 +377,9 @@ export default function App() {
       if (worldgenCommand) {
         if (worldgenCommand.action === 'invalid') return { ok: false, message: worldgenCommand.message }
         if (!selectedRecording) return { ok: false, message: 'No recording is selected.' }
-        if (!bridge?.runWorldgen) return { ok: false, message: 'Worldgen requires the native Electron app.' }
+        if (!bridge?.runWorldgen) return { ok: false, message: 'World Modeling requires the native Electron app.' }
         if (selectedRecording.path.startsWith('browser://')) {
-          return { ok: false, message: 'Worldgen requires a local filesystem recording, not browser preview mode.' }
+          return { ok: false, message: 'World Modeling requires a local filesystem recording, not browser preview mode.' }
         }
 
         const markers = videoState.markers
@@ -350,7 +394,7 @@ export default function App() {
           return { ok: false, message: `Marker not found: ${missing}.${available}` }
         }
         if (startMarker.id === endMarker.id) {
-          return { ok: false, message: 'Worldgen needs two different markers.' }
+          return { ok: false, message: 'World Modeling needs two different markers.' }
         }
 
         const worldgenRequestId = requestId()
@@ -363,11 +407,11 @@ export default function App() {
             startFrameIndex: startMarker.frameIndex,
             endFrameIndex: endMarker.frameIndex,
           })
-          setWorldgenResults((current) => ({ ...current, [result.id]: result }))
+          setWorldgenResults({ [result.id]: result })
           setTabRequest({
             requestId: requestId(),
             type: 'worldgen',
-            title: `Worldgen ${result.markerStart}-${result.markerEnd}`,
+            title: 'World Modeling',
             worldgenResultId: result.id,
           })
           const splat = result.splat
@@ -423,7 +467,7 @@ export default function App() {
                   ? await bridge.saveWorldgenSplat(result.outputPath, { ...latestSplat, jobId: splat.jobId, points: status.points })
                   : null
                 if (persisted) {
-                  setWorldgenResults((current) => ({ ...current, [persisted.id]: persisted }))
+                  setWorldgenResults({ [persisted.id]: persisted })
                 }
                 const completeMessage = splatProgressMessage(latestSplat)
                 onProgress?.({ ok: true, message: completeMessage })
@@ -446,7 +490,7 @@ export default function App() {
             message: `${firstMessage}${splatMessage}`,
           }
         } catch (err) {
-          const message = err instanceof Error ? err.message : 'Worldgen failed.'
+          const message = err instanceof Error ? err.message : 'World Modeling failed.'
           return { ok: false, message }
         }
       }
@@ -499,11 +543,12 @@ export default function App() {
     [bridge, getSegmentationLabels, openSegmentationView, selectedRecording, selectedSegmentationArtifact, videoState.markers],
   )
 
-  // Segmentation masks for a video frame number, routed like getFrame. Returns
-  // null when the overlay is off, no artifact exists, or no source is available.
+  // Segmentation masks for a video frame number, routed like getFrame. Fetching
+  // is independent of the regular Video tab's optional overlay because the
+  // dedicated Segmentation tab always renders masks.
   const getSegmentation = useCallback(
     async (frameNumber: number): Promise<SegMask[] | null> => {
-      if (!segmentationOn || !selectedRecording) return null
+      if (!selectedRecording) return null
       const seg = selectedRecording.analyses.find((analysis) => analysis.key === 'segmentation')
       if (!seg) return null
       const browserFile = browserFilesRef.current.get(seg.path)
@@ -511,21 +556,13 @@ export default function App() {
       if (bridge?.readSegmentationMasks) return bridge.readSegmentationMasks(seg.path, frameNumber)
       return null
     },
-    [segmentationOn, selectedRecording, bridge],
+    [selectedRecording, bridge],
   )
 
   const overlay = useMemo<OverlayState>(
-    () => ({ segmentation: segmentationOn, segmentationMaskLabel, runCommand, getSegmentation }),
-    [segmentationOn, segmentationMaskLabel, runCommand, getSegmentation],
+    () => ({ segmentation: segmentationOn, segmentationMaskLabel, runCommand, getSegmentation, getSegmentationLabels }),
+    [segmentationOn, segmentationMaskLabel, runCommand, getSegmentation, getSegmentationLabels],
   )
-
-  const openGenericAnalysis = () => {
-    setTabRequest({
-      requestId: requestId(),
-      type: 'analysis',
-      title: selectedRecording ? `${selectedRecording.fileStem} Analysis` : 'Analysis',
-    })
-  }
 
   const status = useMemo(() => {
     if (loadingProject) return 'Scanning project'
@@ -546,8 +583,6 @@ export default function App() {
         onOpenProject={openProject}
         onOpenFiles={openFiles}
         onRescanProject={rescanProject}
-        onOpenView={openDefaultView}
-        onOpenAnalysis={openGenericAnalysis}
       />
 
       <input
@@ -576,7 +611,6 @@ export default function App() {
           onOpenProject={openProject}
           onOpenFiles={openFiles}
           onSelectRecording={selectRecording}
-          onOpenAnalysis={openAnalysis}
         />
 
         <div className="editor-region">
@@ -584,6 +618,9 @@ export default function App() {
             selectedRecording={selectedRecording}
             summary={summary}
             markers={videoState.markers}
+            savedThread={chatThread}
+            savedThreadLoading={chatThreadLoading}
+            savedThreadError={chatThreadError}
             onRunCommand={runCommand}
           />
           <SplitWorkspace
@@ -591,6 +628,8 @@ export default function App() {
             summary={summary}
             tabRequest={tabRequest}
             getFrame={getFrame}
+            getSensorData={getSensorData}
+            getIdoSlamData={getIdoSlamData}
             overlay={overlay}
             videoState={videoState}
             onVideoStateChange={setVideoState}

@@ -110,17 +110,72 @@ def _default_output_paths(vggt_pb: Path) -> tuple[Path, Path, Path]:
 
 
 def read_vggt_response(path: Path) -> vggt_pb2.VggtInferenceResponse:
+    messages: list[vggt_pb2.VggtInferenceResponse] = []
     with open(path, "rb") as handle:
-        header = handle.read(4)
-        if len(header) != 4:
-            raise ValueError(f"{path} is not a length-delimited protobuf file")
-        (length,) = struct.unpack(">I", header)
-        payload = handle.read(length)
-        if len(payload) != length:
-            raise ValueError(f"{path} ended before the declared VGGT payload length")
-    message = vggt_pb2.VggtInferenceResponse()
-    message.ParseFromString(payload)
-    return message
+        while True:
+            header = handle.read(4)
+            if not header:
+                break
+            if len(header) != 4:
+                raise ValueError(f"{path} ended inside a VGGT record header")
+            (length,) = struct.unpack(">I", header)
+            payload = handle.read(length)
+            if len(payload) != length:
+                raise ValueError(f"{path} ended before a declared VGGT record length")
+            message = vggt_pb2.VggtInferenceResponse()
+            message.ParseFromString(payload)
+            messages.append(message)
+
+    if not messages:
+        raise ValueError(f"{path} has no length-delimited VGGT records")
+    if len(messages) == 1:
+        return messages[0]
+
+    # The recording-level file stores one record per computation. Keep the
+    # newest value for an overlapping frame, then give the merged camera/cloud
+    # pairs one shared sampled index so downstream training can consume them as
+    # a normal VggtInferenceResponse.
+    def frame_key(frame) -> tuple[str, int]:
+        if frame.HasField("frame_identifier"):
+            return ("frame", int(frame.frame_identifier.frame_number))
+        return ("index", int(frame.source_frame_index))
+
+    cameras = {}
+    clouds = {}
+    for message in messages:
+        cameras.update({frame_key(camera): camera for camera in message.cameras})
+        clouds.update({frame_key(cloud): cloud for cloud in message.point_clouds})
+
+    def source_index(key: tuple[str, int]) -> int:
+        frame = cameras.get(key) or clouds.get(key)
+        return int(frame.source_frame_index)
+
+    ordered_keys = sorted(set(cameras) | set(clouds), key=lambda key: (source_index(key), key))
+    merged = vggt_pb2.VggtInferenceResponse()
+    merged.CopyFrom(messages[-1])
+    del merged.cameras[:]
+    del merged.point_clouds[:]
+    for sampled_index, key in enumerate(ordered_keys):
+        camera = cameras.get(key)
+        if camera is not None:
+            target = merged.cameras.add()
+            target.CopyFrom(camera)
+            target.sampled_frame_index = sampled_index
+        cloud = clouds.get(key)
+        if cloud is not None:
+            target = merged.point_clouds.add()
+            target.CopyFrom(cloud)
+            target.sampled_frame_index = sampled_index
+
+    source_indices = [source_index(key) for key in ordered_keys]
+    merged.request_id = path.name.removesuffix(".vggt.pb")
+    merged.marker_start = ""
+    merged.marker_end = ""
+    merged.start_frame_index = min(source_indices, default=0)
+    merged.end_frame_index = max(source_indices, default=0)
+    merged.frame_count = len(ordered_keys)
+    merged.elapsed_sec = sum(float(message.elapsed_sec) for message in messages)
+    return merged
 
 
 def read_recording_frames(recording: Path, wanted_indices: set[int]) -> dict[int, perceiver_pb2.PerceiverDataFrame]:
@@ -382,7 +437,14 @@ def write_preview_json(
         raise ValueError(f"Could not load trained splat PLY from {ply_path}")
 
     means = splats["means"].detach().cpu().numpy()
-    scales = np.exp(splats["scales"].detach().cpu().numpy()).mean(axis=1)
+    # Per-axis linear std devs (stored as log in the PLY). Keep all three so
+    # viewers can render true anisotropic ellipsoids; `scale` remains the
+    # isotropic mean for back-compat / isotropic fallback.
+    scales3 = np.exp(splats["scales"].detach().cpu().numpy())  # (N, 3)
+    scale_iso = scales3.mean(axis=1)
+    # Orientation quaternion, stored (w, x, y, z) in the PLY (rot_0 = w).
+    quats = splats["quats"].detach().cpu().numpy()  # (N, 4)
+    quats = quats / (np.linalg.norm(quats, axis=1, keepdims=True) + 1e-9)
     opacities = _sigmoid(splats["opacities"].detach().cpu().numpy())
     sh0 = splats["sh0"].detach().cpu().numpy()[:, 0, :]
     colors = np.clip(sh0 * _SH_C0 + 0.5, 0.0, 1.0)
@@ -400,7 +462,14 @@ def write_preview_json(
             "g": float(colors[i, 1]),
             "b": float(colors[i, 2]),
             "opacity": float(opacities[i]),
-            "scale": float(scales[i]),
+            "scale": float(scale_iso[i]),
+            "scale_x": float(scales3[i, 0]),
+            "scale_y": float(scales3[i, 1]),
+            "scale_z": float(scales3[i, 2]),
+            "rot_w": float(quats[i, 0]),
+            "rot_x": float(quats[i, 1]),
+            "rot_y": float(quats[i, 2]),
+            "rot_z": float(quats[i, 3]),
         }
         for i in keep
     ]

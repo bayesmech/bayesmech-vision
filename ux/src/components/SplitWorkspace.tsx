@@ -1,9 +1,11 @@
-import { Columns2, CopyPlus, PanelTop, Plus, Rows2, X } from 'lucide-react'
-import { PointerEvent, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react'
+import { PanelTop } from 'lucide-react'
+import { PointerEvent, useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react'
 import type {
   LayoutNode,
   LeafNode,
+  IdoSlamSummary,
   RecordingEntry,
+  SensorDataSummary,
   VideoPlaybackState,
   VisSummary,
   WorldgenResult,
@@ -13,23 +15,28 @@ import type {
 import {
   activateTab,
   addTabToLeaf,
-  closeTab,
-  createInitialLayout,
+  createLeaf,
+  createTab,
+  findTabByAnalysisKey,
   findTabByType,
   firstLeafId,
-  splitLeaf,
+  refreshTab,
   updateSplitRatio,
   visitLeaves,
 } from '../lib/workspace'
+import { analysisKeyForTab, iconForAnalysis, tabTypeForAnalysis } from '../lib/analysisTabs'
 import VisualizationPanel from './VisualizationPanels'
 import { FrameSourceContext, type FrameGetter } from '../lib/frameSource'
 import { OverlayContext, type OverlayState } from '../lib/overlay'
+import WorkspaceTimeline from './WorkspaceTimeline'
 
 type SplitWorkspaceProps = {
   selectedRecording: RecordingEntry | null
   summary: VisSummary | null
   tabRequest: WorkspaceTabRequest | null
   getFrame: FrameGetter
+  getSensorData: () => Promise<SensorDataSummary | null>
+  getIdoSlamData: () => Promise<IdoSlamSummary | null>
   overlay: OverlayState
   videoState: VideoPlaybackState
   onVideoStateChange: Dispatch<SetStateAction<VideoPlaybackState>>
@@ -45,9 +52,8 @@ type LeafProps = {
   onVideoStateChange: Dispatch<SetStateAction<VideoPlaybackState>>
   onSelectLeaf: (leafId: string) => void
   onActivateTab: (leafId: string, tabId: string) => void
-  onCloseTab: (leafId: string, tabId: string) => void
-  onAddTab: (leafId: string, type: WorkspaceTabType) => void
-  onSplit: (leafId: string, direction: 'row' | 'column') => void
+  getSensorData: () => Promise<SensorDataSummary | null>
+  getIdoSlamData: () => Promise<IdoSlamSummary | null>
   worldgenResults: Record<string, WorldgenResult>
 }
 
@@ -55,9 +61,17 @@ function tabLabel(type: WorkspaceTabType) {
   if (type === 'point-cloud') return 'Point Cloud'
   if (type === 'planes') return 'Surface Estimates'
   if (type === 'video') return 'Video'
+  if (type === 'sensors') return 'Sensor Data'
   if (type === 'analysis') return 'Analysis'
-  if (type === 'worldgen') return 'Worldgen'
+  if (type === 'worldgen') return 'World Modeling'
   return 'Scene 3D'
+}
+
+function createRecordingLayout(recording: RecordingEntry | null): LayoutNode {
+  const tabs = (recording?.analyses ?? [])
+    .filter((analysis) => !['genspark', 'chat', 'point-cloud'].includes(analysis.key))
+    .map((analysis) => createTab(tabTypeForAnalysis(analysis.key), analysis.title, analysis.key))
+  return createLeaf(tabs.length ? tabs : [createTab('video', 'Video', 'video')])
 }
 
 function WorkspaceLeaf({
@@ -69,70 +83,33 @@ function WorkspaceLeaf({
   onVideoStateChange,
   onSelectLeaf,
   onActivateTab,
-  onCloseTab,
-  onAddTab,
-  onSplit,
+  getSensorData,
+  getIdoSlamData,
   worldgenResults,
 }: LeafProps) {
-  const [newTabType, setNewTabType] = useState<WorkspaceTabType>('video')
   const activeTab = leaf.tabs.find((tab) => tab.id === leaf.activeTabId) ?? leaf.tabs[0]
 
   return (
     <section className={selected ? 'workspace-leaf is-selected' : 'workspace-leaf'} onPointerDown={() => onSelectLeaf(leaf.id)}>
       <div className="tab-strip">
         <div className="tabs" role="tablist">
-          {leaf.tabs.map((tab) => (
-            <button
-              type="button"
-              role="tab"
-              aria-selected={tab.id === activeTab.id}
-              className={tab.id === activeTab.id ? 'tab is-active' : 'tab'}
-              key={tab.id}
-              onClick={() => onActivateTab(leaf.id, tab.id)}
-              title={tab.title}
-            >
-              <span>{tab.title}</span>
-              {leaf.tabs.length > 1 ? (
-                <span
-                  className="tab-close"
-                  role="button"
-                  tabIndex={0}
-                  title="Close tab"
-                  onClick={(event) => {
-                    event.stopPropagation()
-                    onCloseTab(leaf.id, tab.id)
-                  }}
-                >
-                  <X size={12} aria-hidden="true" />
-                </span>
-              ) : null}
-            </button>
-          ))}
-        </div>
-
-        <div className="tab-actions">
-          <label className="tab-select" title="New tab type">
-            <CopyPlus size={13} aria-hidden="true" />
-            <select
-              value={newTabType}
-              onChange={(event) => setNewTabType(event.target.value as WorkspaceTabType)}
-            >
-              <option value="video">Video</option>
-              <option value="point-cloud">Point Cloud</option>
-              <option value="planes">Surface Estimates</option>
-              <option value="worldgen">Worldgen</option>
-              <option value="analysis">Analysis</option>
-            </select>
-          </label>
-          <button type="button" className="icon-button" onClick={() => onAddTab(leaf.id, newTabType)} title="Add tab">
-            <Plus size={14} aria-hidden="true" />
-          </button>
-          <button type="button" className="icon-button" onClick={() => onSplit(leaf.id, 'row')} title="Split right">
-            <Columns2 size={14} aria-hidden="true" />
-          </button>
-          <button type="button" className="icon-button" onClick={() => onSplit(leaf.id, 'column')} title="Split down">
-            <Rows2 size={14} aria-hidden="true" />
-          </button>
+          {leaf.tabs.map((tab) => {
+            const Icon = iconForAnalysis(analysisKeyForTab(tab.type, tab.analysisKey))
+            return (
+              <button
+                type="button"
+                role="tab"
+                aria-selected={tab.id === activeTab.id}
+                className={tab.id === activeTab.id ? 'tab is-active' : 'tab'}
+                key={tab.id}
+                onClick={() => onActivateTab(leaf.id, tab.id)}
+                title={tab.title}
+              >
+                <Icon className="tab-icon" size={14} aria-hidden="true" />
+                <span>{tab.title}</span>
+              </button>
+            )
+          })}
         </div>
       </div>
 
@@ -144,12 +121,14 @@ function WorkspaceLeaf({
             summary={summary}
             videoState={videoState}
             onVideoStateChange={onVideoStateChange}
+            getSensorData={getSensorData}
+            getIdoSlamData={getIdoSlamData}
             worldgenResults={worldgenResults}
           />
         ) : (
           <div className="empty-panel">
             <PanelTop size={28} aria-hidden="true" />
-            <span>{tabLabel(newTabType)}</span>
+            <span>{tabLabel('video')}</span>
           </div>
         )}
       </div>
@@ -166,10 +145,9 @@ type NodeProps = {
   onVideoStateChange: Dispatch<SetStateAction<VideoPlaybackState>>
   onSelectLeaf: (leafId: string) => void
   onActivateTab: (leafId: string, tabId: string) => void
-  onCloseTab: (leafId: string, tabId: string) => void
-  onAddTab: (leafId: string, type: WorkspaceTabType) => void
-  onSplit: (leafId: string, direction: 'row' | 'column') => void
   onResizeSplit: (splitId: string, ratio: number) => void
+  getSensorData: () => Promise<SensorDataSummary | null>
+  getIdoSlamData: () => Promise<IdoSlamSummary | null>
   worldgenResults: Record<string, WorldgenResult>
 }
 
@@ -182,10 +160,9 @@ function WorkspaceNode({
   onVideoStateChange,
   onSelectLeaf,
   onActivateTab,
-  onCloseTab,
-  onAddTab,
-  onSplit,
   onResizeSplit,
+  getSensorData,
+  getIdoSlamData,
   worldgenResults,
 }: NodeProps) {
   const splitRef = useRef<HTMLDivElement>(null)
@@ -201,9 +178,8 @@ function WorkspaceNode({
         onVideoStateChange={onVideoStateChange}
         onSelectLeaf={onSelectLeaf}
         onActivateTab={onActivateTab}
-        onCloseTab={onCloseTab}
-        onAddTab={onAddTab}
-        onSplit={onSplit}
+        getSensorData={getSensorData}
+        getIdoSlamData={getIdoSlamData}
         worldgenResults={worldgenResults}
       />
     )
@@ -248,10 +224,9 @@ function WorkspaceNode({
           onVideoStateChange={onVideoStateChange}
           onSelectLeaf={onSelectLeaf}
           onActivateTab={onActivateTab}
-          onCloseTab={onCloseTab}
-          onAddTab={onAddTab}
-          onSplit={onSplit}
           onResizeSplit={onResizeSplit}
+          getSensorData={getSensorData}
+          getIdoSlamData={getIdoSlamData}
           worldgenResults={worldgenResults}
         />
       </div>
@@ -266,10 +241,9 @@ function WorkspaceNode({
           onVideoStateChange={onVideoStateChange}
           onSelectLeaf={onSelectLeaf}
           onActivateTab={onActivateTab}
-          onCloseTab={onCloseTab}
-          onAddTab={onAddTab}
-          onSplit={onSplit}
           onResizeSplit={onResizeSplit}
+          getSensorData={getSensorData}
+          getIdoSlamData={getIdoSlamData}
           worldgenResults={worldgenResults}
         />
       </div>
@@ -282,15 +256,23 @@ export default function SplitWorkspace({
   summary,
   tabRequest,
   getFrame,
+  getSensorData,
+  getIdoSlamData,
   overlay,
   videoState,
   onVideoStateChange,
   worldgenResults,
 }: SplitWorkspaceProps) {
-  const initialLayout = useMemo(() => createInitialLayout(), [])
-  const [layout, setLayout] = useState<LayoutNode>(initialLayout)
-  const [selectedLeafId, setSelectedLeafId] = useState(() => firstLeafId(initialLayout))
+  const [layout, setLayout] = useState<LayoutNode>(() => createRecordingLayout(selectedRecording))
+  const [selectedLeafId, setSelectedLeafId] = useState(() => firstLeafId(layout))
   const consumedRequestRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    const nextLayout = createRecordingLayout(selectedRecording)
+    setLayout(nextLayout)
+    setSelectedLeafId(firstLeafId(nextLayout))
+    consumedRequestRef.current = null
+  }, [selectedRecording])
 
   useEffect(() => {
     let leafStillExists = false
@@ -300,61 +282,49 @@ export default function SplitWorkspace({
     if (!leafStillExists) setSelectedLeafId(firstLeafId(layout))
   }, [layout, selectedLeafId])
 
-  // Video is a singleton: a request to open one focuses the existing tab.
-  const focusExistingVideo = (): boolean => {
-    const existing = findTabByType(layout, 'video')
-    if (!existing) return false
-    setSelectedLeafId(existing.leafId)
-    setLayout((current) => activateTab(current, existing.leafId, existing.tabId))
-    return true
-  }
-
   useEffect(() => {
     if (!tabRequest || consumedRequestRef.current === tabRequest.requestId) return
     consumedRequestRef.current = tabRequest.requestId
-    if (tabRequest.type === 'video' && focusExistingVideo()) return
-    if (tabRequest.type === 'worldgen') {
-      const video = findTabByType(layout, 'video')
-      if (video) {
-        setSelectedLeafId(video.leafId)
-        setLayout((current) => addTabToLeaf(current, video.leafId, tabRequest))
-        return
-      }
+    const existing = tabRequest.analysisKey
+      ? findTabByAnalysisKey(layout, tabRequest.analysisKey)
+      : findTabByType(layout, tabRequest.type)
+    if (existing) {
+      setSelectedLeafId(existing.leafId)
+      setLayout((current) => tabRequest.worldgenResultId
+        ? refreshTab(current, existing.leafId, existing.tabId, tabRequest)
+        : activateTab(current, existing.leafId, existing.tabId))
+      return
     }
-    setLayout((current) => addTabToLeaf(current, selectedLeafId, tabRequest))
+    const targetLeafId = findTabByType(layout, 'video')?.leafId ?? selectedLeafId
+    setSelectedLeafId(targetLeafId)
+    setLayout((current) => addTabToLeaf(current, targetLeafId, tabRequest))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedLeafId, tabRequest])
-
-  const addTab = (leafId: string, type: WorkspaceTabType) => {
-    if (type === 'video' && focusExistingVideo()) return
-    setLayout((current) =>
-      addTabToLeaf(current, leafId, {
-        requestId: `local-${Date.now()}`,
-        type,
-        title: tabLabel(type),
-      }),
-    )
-  }
 
   return (
     <FrameSourceContext.Provider value={getFrame}>
       <OverlayContext.Provider value={overlay}>
       <section className="visual-workspace">
-        <WorkspaceNode
-          node={layout}
-          selectedLeafId={selectedLeafId}
-          selectedRecording={selectedRecording}
+        <div className="workspace-viewers">
+          <WorkspaceNode
+            node={layout}
+            selectedLeafId={selectedLeafId}
+            selectedRecording={selectedRecording}
+            summary={summary}
+            videoState={videoState}
+            onVideoStateChange={onVideoStateChange}
+            onSelectLeaf={setSelectedLeafId}
+            onActivateTab={(leafId, tabId) => setLayout((current) => activateTab(current, leafId, tabId))}
+            onResizeSplit={(splitId, ratio) => setLayout((current) => updateSplitRatio(current, splitId, ratio))}
+            getSensorData={getSensorData}
+            getIdoSlamData={getIdoSlamData}
+            worldgenResults={worldgenResults}
+          />
+        </div>
+        <WorkspaceTimeline
           summary={summary}
           videoState={videoState}
           onVideoStateChange={onVideoStateChange}
-          onSelectLeaf={setSelectedLeafId}
-          onActivateTab={(leafId, tabId) => setLayout((current) => activateTab(current, leafId, tabId))}
-          onCloseTab={(leafId, tabId) => setLayout((current) => closeTab(current, leafId, tabId))}
-          onAddTab={addTab}
-          onSplit={(leafId, direction) => {
-            setLayout((current) => splitLeaf(current, leafId, direction))
-          }}
-          onResizeSplit={(splitId, ratio) => setLayout((current) => updateSplitRatio(current, splitId, ratio))}
           worldgenResults={worldgenResults}
         />
       </section>

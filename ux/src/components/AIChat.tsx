@@ -1,6 +1,6 @@
 import { CircleAlert, CornerDownLeft, Cpu, LoaderCircle, Sparkles, Terminal, UserRound } from 'lucide-react'
 import { FormEvent, KeyboardEvent, useEffect, useMemo, useRef, useState } from 'react'
-import type { RecordingEntry, VideoMarker, VisSummary } from '../types'
+import type { ChatThread, RecordingEntry, VideoMarker, VisSummary } from '../types'
 import { compactNumber, secondsLabel } from '../lib/format'
 import { isCommand, type CommandProgress, type CommandResult } from '../lib/overlay'
 
@@ -15,6 +15,9 @@ type AIChatProps = {
   selectedRecording: RecordingEntry | null
   summary: VisSummary | null
   markers: VideoMarker[]
+  savedThread: ChatThread | null
+  savedThreadLoading: boolean
+  savedThreadError: string | null
   onRunCommand: (text: string, onProgress?: (progress: CommandProgress) => void) => Promise<CommandResult>
 }
 
@@ -33,27 +36,41 @@ function markerLine(markers: VideoMarker[]): string {
   return `Markers: ${markerRefs.join(', ')}.${segmentRefs.length ? ` Segments: ${segmentRefs.join(', ')}.` : ''}`
 }
 
-export default function AIChat({ selectedRecording, summary, markers, onRunCommand }: AIChatProps) {
+export default function AIChat({
+  selectedRecording,
+  summary,
+  markers,
+  savedThread,
+  savedThreadLoading,
+  savedThreadError,
+  onRunCommand,
+}: AIChatProps) {
   const [draft, setDraft] = useState('')
   const messageListRef = useRef<HTMLDivElement>(null)
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: 'seed',
-      role: 'assistant',
-      text: 'Load a recording and ask about the scene, geometry, or available analysis artifacts.',
-    },
-  ])
+  const [messages, setMessages] = useState<ChatMessage[]>([])
 
   const context = useMemo(() => {
     const markerContext = markerLine(markers)
     return markerContext ? `${summaryLine(summary)} ${markerContext}` : summaryLine(summary)
   }, [markers, summary])
 
+  const savedMessages = useMemo<ChatMessage[]>(() => (savedThread?.turns ?? []).map((turn, index) => ({
+    id: `saved-${turn.timestampNs}-${index}`,
+    role: turn.role,
+    text: turn.text,
+  })), [savedThread])
+  const visibleMessages = useMemo(() => [...savedMessages, ...messages], [messages, savedMessages])
+
+  useEffect(() => {
+    setDraft('')
+    setMessages([])
+  }, [selectedRecording?.id])
+
   useEffect(() => {
     const list = messageListRef.current
     if (!list) return
     list.scrollTop = list.scrollHeight
-  }, [messages])
+  }, [savedThread, savedThreadLoading, visibleMessages])
 
   const submitDraft = async () => {
     const text = draft.trim()
@@ -136,23 +153,53 @@ export default function AIChat({ selectedRecording, summary, markers, onRunComma
   return (
     <section className="chat-panel">
       <div className="panel-header">
-        <div>
-          <div className="eyebrow">AI</div>
-          <h2>Chat</h2>
-        </div>
+        <h2>Chat</h2>
         <div className="context-token" title={selectedRecording?.path ?? 'No recording selected'}>
           <Cpu size={14} aria-hidden="true" />
           <span>{selectedRecording?.fileStem ?? 'No file'}</span>
         </div>
       </div>
 
-      <div className="chat-context">
-        <Sparkles size={14} aria-hidden="true" />
-        <span>{context}</span>
-      </div>
-
       <div className="message-list" ref={messageListRef} aria-live="polite">
-        {messages.map((message) => {
+        {savedThreadLoading ? (
+          <div className="chat-thread-state">
+            <LoaderCircle className="spin" size={15} aria-hidden="true" />
+            <span>Loading saved analysis and chat…</span>
+          </div>
+        ) : null}
+        {savedThreadError ? (
+          <div className="chat-thread-state is-error">
+            <CircleAlert size={15} aria-hidden="true" />
+            <span>{savedThreadError}</span>
+          </div>
+        ) : null}
+        {savedThread?.analysis ? (
+          <article className="chat-analysis-section">
+            <header>
+              <span className="chat-analysis-mark">
+                <Sparkles size={14} aria-hidden="true" />
+                Genspark analysis
+              </span>
+              <span>Initial context</span>
+            </header>
+            <h3>{savedThread.analysis.title}</h3>
+            {savedThread.analysis.text ? <p>{savedThread.analysis.text}</p> : null}
+            {savedThread.analysis.parameters.length ? (
+              <div className="chat-analysis-parameters">
+                {savedThread.analysis.parameters.map((parameter, index) => (
+                  <div key={`${parameter.name}-${index}`}>
+                    <span>{parameter.name}</span>
+                    <strong>
+                      {parameter.value}
+                      {parameter.unit ? <small> {parameter.unit}</small> : null}
+                    </strong>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+          </article>
+        ) : null}
+        {visibleMessages.map((message) => {
           const Icon = message.status === 'pending'
             ? LoaderCircle
             : message.status === 'error'
