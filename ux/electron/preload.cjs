@@ -10,6 +10,7 @@ contextBridge.exposeInMainWorld('bayesmech', {
   readIdoSlam: (filePath) => ipcRenderer.invoke('idoslam:read', filePath),
   readSegmentationMasks: (filePath, frameNumber) => ipcRenderer.invoke('seg:masks', filePath, frameNumber),
   readSegmentationLabels: (filePath) => ipcRenderer.invoke('seg:labels', filePath),
+  readMotionCapture: (filePath, frameNumber) => ipcRenderer.invoke('motioncap:frame', filePath, frameNumber),
   readChatThread: (recordingPath) => ipcRenderer.invoke('chat:thread', recordingPath),
   loadChatWorkspace: (videoId, recordingPath) => ipcRenderer.invoke('chat-workspace:load', videoId, recordingPath),
   createChatSession: (videoId, recordingPath) => ipcRenderer.invoke('chat-workspace:create', videoId, recordingPath),
@@ -20,9 +21,5 @@ contextBridge.exposeInMainWorld('bayesmech', {
   pollWorldgenSplat: (jobId) => ipcRenderer.invoke('worldgen:splat-status', jobId),
   saveWorldgenSplat: (filePath, splat) => ipcRenderer.invoke('worldgen:save-splat', filePath, splat),
   revealPath: (filePath) => ipcRenderer.invoke('path:reveal', filePath),
-  onOpenProject: (callback) => {
-    const handler = () => callback()
-    ipcRenderer.on('menu:open-project', handler)
-    return () => ipcRenderer.removeListener('menu:open-project', handler)
-  },
+  performWindowAction: (action) => ipcRenderer.invoke('window:action', action),
 })

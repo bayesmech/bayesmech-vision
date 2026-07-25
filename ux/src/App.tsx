@@ -6,6 +6,7 @@ import TopMenu from './components/TopMenu'
 import type {
   ChatThread,
   IdoSlamSummary,
+  MotionCaptureOverlay,
   ProjectScanResult,
   RecordingEntry,
   SavedChatTurn,
@@ -18,11 +19,13 @@ import type {
   WorkspaceChatMessage,
   WorkspaceChatSession,
   WorkspaceTabRequest,
+  WindowAction,
   WorldgenResult,
 } from './types'
 import {
   readBrowserChatThread,
   readBrowserIdoSlam,
+  readBrowserMotionCapture,
   readBrowserSegmentationLabels,
   readBrowserSegmentationMasks,
   readBrowserVisSensors,
@@ -43,6 +46,7 @@ import { compactNumber, shortPath } from './lib/format'
 import { recordingDisplayName, recordingVideoId } from './lib/recordingNames'
 
 const LAST_PROJECT_KEY = 'bayesmech:lastProject'
+const PROJECT_PATHS_KEY = 'bayesmech:projectPaths'
 const BROWSER_CHAT_WORKSPACE_KEY = 'bayesmech:chat-workspace'
 
 const initialVideoState = (): VideoPlaybackState => ({
@@ -143,6 +147,24 @@ function markersEqual(left: VideoMarker[], right: VideoMarker[]) {
   })
 }
 
+function mergeProjectScanResults(results: ProjectScanResult[]): ProjectScanResult {
+  const recordingsByPath = new Map<string, RecordingEntry>()
+  for (const result of results) {
+    for (const recording of result.recordings) {
+      recordingsByPath.set(recording.path, { ...recording, id: recording.path })
+    }
+  }
+  const recordings = [...recordingsByPath.values()]
+  const sourceResults = results.filter((result) => result.recordings.length > 0)
+  const errors = results.map((result) => result.error).filter(Boolean)
+  return {
+    rootPath: sourceResults.length === 1 ? sourceResults[0].rootPath : 'workspace://videos',
+    name: recordings.length === 1 ? sourceResults[0]?.name ?? 'Video Workspace' : `${recordings.length} videos`,
+    recordings,
+    error: recordings.length ? undefined : errors[0] ?? 'No .vis.pb recordings are loaded.',
+  }
+}
+
 export default function App() {
   const bridge = window.bayesmech
   const bridgeAvailable = Boolean(bridge)
@@ -166,6 +188,9 @@ export default function App() {
   const [chatThreadLoading, setChatThreadLoading] = useState(false)
   const [chatThreadError, setChatThreadError] = useState<string | null>(null)
   const selectedRecordingRef = useRef<RecordingEntry | null>(null)
+  const projectRef = useRef<ProjectScanResult | null>(null)
+  const projectRootsRef = useRef<string[]>([])
+  const restoredProjectsRef = useRef(false)
   const chatSaveQueueRef = useRef<Promise<unknown>>(Promise.resolve())
 
   const loadRecordingWorkspace = useCallback(
@@ -253,9 +278,28 @@ export default function App() {
   )
 
   const applyProject = useCallback(
-    async (nextProject: ProjectScanResult) => {
-      setProject(nextProject)
-      if (nextProject.rootPath && !nextProject.rootPath.startsWith('browser://')) {
+    async (
+      nextProject: ProjectScanResult,
+      options: { replace?: boolean; remember?: boolean } = {},
+    ) => {
+      const replace = options.replace ?? false
+      const remember = options.remember ?? true
+      const combinedProject = mergeProjectScanResults(
+        replace || !projectRef.current
+          ? [nextProject]
+          : [projectRef.current, nextProject],
+      )
+      projectRef.current = combinedProject
+      setProject(combinedProject)
+      if (
+        remember
+        && nextProject.rootPath
+        && !nextProject.rootPath.startsWith('browser://')
+        && !nextProject.rootPath.startsWith('workspace://')
+      ) {
+        const roots = [...new Set([...projectRootsRef.current, nextProject.rootPath])]
+        projectRootsRef.current = roots
+        localStorage.setItem(PROJECT_PATHS_KEY, JSON.stringify(roots))
         localStorage.setItem(LAST_PROJECT_KEY, nextProject.rootPath)
       }
       if (nextProject.error) setError(nextProject.error)
@@ -266,7 +310,7 @@ export default function App() {
           loadedWorkspaces[recordingVideoId(recording)] = workspace
         }),
       )
-      setChatWorkspaces(loadedWorkspaces)
+      setChatWorkspaces((current) => (replace ? loadedWorkspaces : { ...current, ...loadedWorkspaces }))
       const firstFailure = workspaceResults.find((result) => result.status === 'rejected')
       if (firstFailure?.status === 'rejected') {
         setChatThreadError(
@@ -275,11 +319,13 @@ export default function App() {
             : 'Failed to load a saved chat workspace.',
         )
       }
-      const firstRecording = nextProject.recordings[0] ?? null
+      const firstRecording = nextProject.recordings[0]
+        ? { ...nextProject.recordings[0], id: nextProject.recordings[0].path }
+        : null
       if (firstRecording) {
         const workspace = loadedWorkspaces[recordingVideoId(firstRecording)]
         await selectRecording(firstRecording, workspace?.activeChatId, workspace)
-      } else {
+      } else if (combinedProject.recordings.length === 0) {
         selectedRecordingRef.current = null
         setSelectedRecording(null)
         setSelectedChatId(null)
@@ -300,8 +346,6 @@ export default function App() {
     try {
       const response = await bridge.selectProject()
       if (isCancelledProjectResponse(response)) return
-      browserFilesRef.current = new Map()
-      setBrowserSourceFiles([])
       await applyProject(response)
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to open project.'
@@ -322,9 +366,7 @@ export default function App() {
     try {
       const response = await bridge.selectVisFiles()
       if (isCancelledProjectResponse(response)) return
-      browserFilesRef.current = new Map()
-      setBrowserSourceFiles([])
-      await applyProject(response)
+      await applyProject(response, { remember: false })
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to open .vis.pb files.'
       setError(message)
@@ -334,18 +376,19 @@ export default function App() {
   }, [applyProject, bridge])
 
   const rescanProject = useCallback(async () => {
-    if (!project?.rootPath) return
+    if (!project) return
     setLoadingProject(true)
     setError(null)
     try {
-      if (project.rootPath.startsWith('browser://')) {
+      if (!bridge) {
         const scanned = scanBrowserFiles(browserSourceFiles)
         browserFilesRef.current = scanned.filesByPath
-        await applyProject(scanned.project)
+        await applyProject(scanned.project, { replace: true, remember: false })
       } else {
-        if (!bridge) throw new Error('Electron bridge is not available.')
-        const nextProject = await bridge.scanProject(project.rootPath)
-        await applyProject(nextProject)
+        const roots = projectRootsRef.current
+        if (!roots.length) return
+        const scans = await Promise.all(roots.map((rootPath) => bridge.scanProject(rootPath)))
+        await applyProject(mergeProjectScanResults(scans), { replace: true, remember: false })
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to rescan project.'
@@ -353,37 +396,39 @@ export default function App() {
     } finally {
       setLoadingProject(false)
     }
-  }, [applyProject, bridge, browserSourceFiles, project?.rootPath])
+  }, [applyProject, bridge, browserSourceFiles, project])
 
   useEffect(() => {
-    if (!bridge) return
-    return bridge.onOpenProject(() => {
-      void openProject()
-    })
-  }, [bridge, openProject])
-
-  useEffect(() => {
-    if (!bridge) return
+    if (!bridge || restoredProjectsRef.current) return
+    restoredProjectsRef.current = true
+    let projectPaths: string[] = []
+    try {
+      const parsed = JSON.parse(localStorage.getItem(PROJECT_PATHS_KEY) || '[]')
+      if (Array.isArray(parsed)) projectPaths = parsed.filter((item): item is string => typeof item === 'string')
+    } catch {
+      localStorage.removeItem(PROJECT_PATHS_KEY)
+    }
     const lastProject = localStorage.getItem(LAST_PROJECT_KEY)
-    if (!lastProject) return
+    if (!projectPaths.length && lastProject) projectPaths = [lastProject]
+    projectPaths = [...new Set(projectPaths)]
+    if (!projectPaths.length) return
+    projectRootsRef.current = projectPaths
 
-    let cancelled = false
     setLoadingProject(true)
-    bridge
-      .scanProject(lastProject)
-      .then((nextProject) => {
-        if (!cancelled) void applyProject(nextProject)
+    Promise.allSettled(projectPaths.map((projectPath) => bridge.scanProject(projectPath)))
+      .then((results) => {
+        const scans = results
+          .filter((result): result is PromiseFulfilledResult<ProjectScanResult> => result.status === 'fulfilled')
+          .map((result) => result.value)
+        if (scans.length) void applyProject(mergeProjectScanResults(scans), { replace: true, remember: false })
       })
       .catch(() => {
-        if (!cancelled) localStorage.removeItem(LAST_PROJECT_KEY)
+        localStorage.removeItem(LAST_PROJECT_KEY)
+        localStorage.removeItem(PROJECT_PATHS_KEY)
       })
       .finally(() => {
-        if (!cancelled) setLoadingProject(false)
+        setLoadingProject(false)
       })
-
-    return () => {
-      cancelled = true
-    }
   }, [applyProject, bridge])
 
   const loadBrowserFiles = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -394,10 +439,19 @@ export default function App() {
     setError(null)
     try {
       const sourceFiles = Array.from(files)
-      const scanned = scanBrowserFiles(sourceFiles)
-      setBrowserSourceFiles(sourceFiles)
+      const mergedFiles = [...browserSourceFiles]
+      const knownFiles = new Set(mergedFiles.map((file) => `${file.webkitRelativePath || file.name}:${file.size}:${file.lastModified}`))
+      for (const file of sourceFiles) {
+        const key = `${file.webkitRelativePath || file.name}:${file.size}:${file.lastModified}`
+        if (!knownFiles.has(key)) {
+          knownFiles.add(key)
+          mergedFiles.push(file)
+        }
+      }
+      const scanned = scanBrowserFiles(mergedFiles)
+      setBrowserSourceFiles(mergedFiles)
       browserFilesRef.current = scanned.filesByPath
-      await applyProject(scanned.project)
+      await applyProject(scanned.project, { replace: true, remember: false })
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to load selected .vis.pb files.'
       setError(message)
@@ -566,7 +620,9 @@ export default function App() {
       if (!project) return
       const closingIndex = project.recordings.findIndex((item) => item.id === recording.id)
       const remaining = project.recordings.filter((item) => item.id !== recording.id)
-      setProject({ ...project, recordings: remaining })
+      const nextProject = mergeProjectScanResults([{ ...project, recordings: remaining }])
+      projectRef.current = nextProject
+      setProject(nextProject)
       const videoId = recordingVideoId(recording)
       setChatWorkspaces((current) => {
         const next = { ...current }
@@ -588,6 +644,24 @@ export default function App() {
       }
     },
     [chatWorkspaces, project, selectRecording],
+  )
+
+  const performWindowAction = useCallback(
+    (action: WindowAction) => {
+      if (bridge?.performWindowAction) {
+        void bridge.performWindowAction(action)
+        return
+      }
+      if (action === 'reload') {
+        window.location.reload()
+      } else if (action === 'toggle-fullscreen') {
+        if (document.fullscreenElement) void document.exitFullscreen()
+        else void document.documentElement.requestFullscreen()
+      } else if (action === 'close') {
+        window.close()
+      }
+    },
+    [bridge],
   )
 
   useEffect(() => {
@@ -905,9 +979,35 @@ export default function App() {
     [selectedRecording, bridge],
   )
 
+  const getMotionCapture = useCallback(
+    async (frameNumber: number): Promise<MotionCaptureOverlay | null> => {
+      const motionCapture = selectedRecording?.analyses.find((analysis) => analysis.key === 'motioncap')
+      if (!motionCapture) return null
+      const browserFile = browserFilesRef.current.get(motionCapture.path)
+      if (browserFile) return readBrowserMotionCapture(browserFile, frameNumber)
+      if (bridge?.readMotionCapture) return bridge.readMotionCapture(motionCapture.path, frameNumber)
+      return null
+    },
+    [bridge, selectedRecording],
+  )
+
   const overlay = useMemo<OverlayState>(
-    () => ({ segmentation: segmentationOn, segmentationMaskLabel, runCommand, getSegmentation, getSegmentationLabels }),
-    [segmentationOn, segmentationMaskLabel, runCommand, getSegmentation, getSegmentationLabels],
+    () => ({
+      segmentation: segmentationOn,
+      segmentationMaskLabel,
+      runCommand,
+      getSegmentation,
+      getSegmentationLabels,
+      getMotionCapture,
+    }),
+    [
+      segmentationOn,
+      segmentationMaskLabel,
+      runCommand,
+      getSegmentation,
+      getSegmentationLabels,
+      getMotionCapture,
+    ],
   )
 
   const status = useMemo(() => {
@@ -933,6 +1033,7 @@ export default function App() {
         onOpenProject={openProject}
         onOpenFiles={openFiles}
         onRescanProject={rescanProject}
+        onWindowAction={performWindowAction}
       />
 
       <input

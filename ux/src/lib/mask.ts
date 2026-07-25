@@ -7,6 +7,12 @@ export type DecodedMask = {
   mask: Uint8Array
 }
 
+export type DecodedHeatmap = {
+  width: number
+  height: number
+  values: Uint8Array
+}
+
 function base64ToBytes(base64: string): Uint8Array {
   const binary = atob(base64)
   const bytes = new Uint8Array(binary.length)
@@ -47,6 +53,25 @@ export async function decodeMask(maskData: string): Promise<DecodedMask | null> 
     mask[i] = (byte >> (7 - (i & 7))) & 1
   }
   return { width, height, mask }
+}
+
+// Motion capture uses the same 8-byte dimensions header as masks, followed by
+// zlib-compressed uint8 intensity values rather than packed mask bits.
+export async function decodeMotionHeatmap(heatmapData: string): Promise<DecodedHeatmap | null> {
+  const raw = base64ToBytes(heatmapData)
+  if (raw.length < 8) return null
+  const view = new DataView(raw.buffer, raw.byteOffset, raw.byteLength)
+  const height = view.getUint32(0, true)
+  const width = view.getUint32(4, true)
+  const total = width * height
+  if (total <= 0 || total > 64_000_000) return null
+  try {
+    const values = await inflate(raw.subarray(8))
+    if (values.length < total) return null
+    return { width, height, values: values.subarray(0, total) }
+  } catch {
+    return null
+  }
 }
 
 // Distinct, readable overlay colors. Indexed by object id so an object keeps its

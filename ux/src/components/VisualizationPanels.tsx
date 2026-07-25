@@ -123,6 +123,16 @@ export default function VisualizationPanel({
       />
     )
   }
+  if (tab.analysisKey === 'motioncap') {
+    return (
+      <VideoPlayer
+        summary={summary}
+        videoState={videoState}
+        onVideoStateChange={onVideoStateChange}
+        motionCaptureViewer
+      />
+    )
+  }
   if (tab.type === 'worldgen') {
     const result = tab.worldgenResultId
       ? worldgenResults[tab.worldgenResultId] ?? null

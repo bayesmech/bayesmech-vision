@@ -132,6 +132,7 @@ const ANALYSIS_DEFS = [
 let mainWindow = null
 let perceiverType = null
 let segmentationType = null
+let motionCaptureType = null
 let vggtResponseType = null
 let gensparkResponseType = null
 let chatHistoryType = null
@@ -164,6 +165,7 @@ function createWindow() {
     backgroundColor: '#101114',
     title: APP_NAME,
     icon,
+    autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
@@ -172,6 +174,7 @@ function createWindow() {
     },
   })
   if (icon) mainWindow.setIcon(icon)
+  mainWindow.setMenuBarVisibility(false)
 
   if (process.env.VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL)
@@ -181,38 +184,7 @@ function createWindow() {
 }
 
 function installMenu() {
-  const template = [
-    {
-      label: 'File',
-      submenu: [
-        {
-          label: 'Open Project...',
-          accelerator: 'CmdOrCtrl+O',
-          click: () => mainWindow?.webContents.send('menu:open-project'),
-        },
-        { type: 'separator' },
-        { role: 'quit' },
-      ],
-    },
-    {
-      label: 'View',
-      submenu: [
-        { role: 'reload' },
-        { role: 'toggleDevTools' },
-        { type: 'separator' },
-        { role: 'resetZoom' },
-        { role: 'zoomIn' },
-        { role: 'zoomOut' },
-        { type: 'separator' },
-        { role: 'togglefullscreen' },
-      ],
-    },
-    {
-      label: 'Window',
-      submenu: [{ role: 'minimize' }, { role: 'close' }],
-    },
-  ]
-  Menu.setApplicationMenu(Menu.buildFromTemplate(template))
+  Menu.setApplicationMenu(null)
 }
 
 function findRepoRoot() {
@@ -252,6 +224,18 @@ function getSegmentationType() {
   root.resolveAll()
   segmentationType = root.lookupType('bayesmech.vision.SegmentationResponse')
   return segmentationType
+}
+
+function getMotionCaptureType() {
+  if (motionCaptureType) return motionCaptureType
+
+  const protoDir = path.join(findRepoRoot(), 'proto')
+  const root = new protobuf.Root()
+  root.resolvePath = (_origin, target) => path.join(protoDir, target)
+  root.loadSync(['motioncap.proto'], { keepCase: false })
+  root.resolveAll()
+  motionCaptureType = root.lookupType('bayesmech.vision.MotionCaptureResponse')
+  return motionCaptureType
 }
 
 function getVggtResponseType() {
@@ -1203,6 +1187,122 @@ function readSegmentationLabels(filePath) {
   }
   const resolved = path.resolve(filePath)
   return getSegmentationIndex(resolved).labels
+}
+
+const motionCaptureIndexCache = new Map()
+
+function motionCaptureTrails(tracks, heatmapIndex, kind) {
+  const tailStart = Math.max(0, heatmapIndex - 30)
+  return (tracks || [])
+    .map((track) => {
+      const points = (track.positions || [])
+        .map((point) => ({
+          frameIndex: finiteNumber(point.frameIdx),
+          cx: finiteNumber(point.cx),
+          cy: finiteNumber(point.cy),
+          interpolated: Boolean(point.interpolated),
+        }))
+        .filter((point) => point.frameIndex >= tailStart && point.frameIndex <= heatmapIndex)
+        .sort((left, right) => left.frameIndex - right.frameIndex)
+      if (!points.length) return null
+      return {
+        trackId: finiteNumber(track.trackId),
+        label: normalizedLabel(track.label),
+        kind,
+        detectedFrames: finiteNumber(track.detectedFrames),
+        totalPositions: finiteNumber(track.totalPositions),
+        presenceFraction: finiteNumber(track.presenceFraction),
+        points,
+      }
+    })
+    .filter(Boolean)
+}
+
+function getMotionCaptureIndex(resolved) {
+  const stat = fs.statSync(resolved)
+  const key = `${stat.size}:${stat.mtimeMs}`
+  const cached = motionCaptureIndexCache.get(resolved)
+  if (cached && cached.key === key) return cached.index
+
+  const { offsets } = readFrameIndex(resolved, IDOSLAM_FRAME_SIZE_LIMIT)
+  const type = getMotionCaptureType()
+  const byFrame = new Map()
+  let tracks = []
+  let segmentationTracks = []
+  let heatmapIndex = 0
+  const fd = fs.openSync(resolved, 'r')
+  try {
+    for (const item of offsets) {
+      const payload = Buffer.allocUnsafe(item.length)
+      fs.readSync(fd, payload, 0, item.length, item.offset)
+      let response
+      try {
+        response = type.decode(payload)
+      } catch {
+        continue
+      }
+      const responseTracks = Array.isArray(response.tracks) ? response.tracks : []
+      const responseSegmentationTracks = Array.isArray(response.segmentationTrajectories)
+        ? response.segmentationTrajectories
+        : []
+      const isSummary = responseTracks.length > 0
+        || responseSegmentationTracks.length > 0
+        || finiteNumber(response.totalFrames) > 0
+      if (isSummary) {
+        if (responseTracks.length) tracks = responseTracks
+        if (responseSegmentationTracks.length) segmentationTracks = responseSegmentationTracks
+        continue
+      }
+      const frameNumber = finiteNumber(response.frameIdentifier?.frameNumber)
+      byFrame.set(frameNumber, { item, heatmapIndex })
+      heatmapIndex += 1
+    }
+  } finally {
+    fs.closeSync(fd)
+  }
+  const index = {
+    byFrame,
+    sortedFrames: [...byFrame.keys()].sort((a, b) => a - b),
+    tracks,
+    segmentationTracks,
+  }
+  motionCaptureIndexCache.set(resolved, { key, index })
+  return index
+}
+
+function readMotionCapture(filePath, frameNumber) {
+  if (!filePath || !filePath.endsWith('.pb')) {
+    throw new Error('Expected a motion capture .pb file.')
+  }
+  const resolved = path.resolve(filePath)
+  const index = getMotionCaptureIndex(resolved)
+  const targetFrame = nearestSegFrame(index.sortedFrames, Math.trunc(Number(frameNumber) || 0))
+  if (targetFrame == null) return null
+  const indexedFrame = index.byFrame.get(targetFrame)
+  if (!indexedFrame) return null
+
+  const fd = fs.openSync(resolved, 'r')
+  let response
+  try {
+    const payload = Buffer.allocUnsafe(indexedFrame.item.length)
+    fs.readSync(fd, payload, 0, indexedFrame.item.length, indexedFrame.item.offset)
+    response = getMotionCaptureType().decode(payload)
+  } finally {
+    fs.closeSync(fd)
+  }
+  const heatmapBytes = response.heatmap?.heatmapData
+  return {
+    frameNumber: targetFrame,
+    heatmapIndex: indexedFrame.heatmapIndex,
+    heatmapData: heatmapBytes?.length ? Buffer.from(heatmapBytes).toString('base64') : null,
+    maxMotionRaw: finiteNumber(response.heatmap?.maxMotionRaw),
+    stabilizationMethod: finiteNumber(response.methodUsed),
+    stabilizationConfidence: finiteNumber(response.stabilizationConfidence),
+    tracks: [
+      ...motionCaptureTrails(index.tracks, indexedFrame.heatmapIndex, 'motion'),
+      ...motionCaptureTrails(index.segmentationTracks, indexedFrame.heatmapIndex, 'segmentation'),
+    ],
+  }
 }
 
 function analysisFromInitialTurn(turn) {
@@ -2845,6 +2945,7 @@ if (isElectronRuntime) {
 
   ipcMain.handle('seg:masks', (_event, filePath, frameNumber) => readSegmentationMasks(filePath, frameNumber))
   ipcMain.handle('seg:labels', (_event, filePath) => readSegmentationLabels(filePath))
+  ipcMain.handle('motioncap:frame', (_event, filePath, frameNumber) => readMotionCapture(filePath, frameNumber))
   ipcMain.handle('chat:thread', (_event, recordingPath) => readChatThread(recordingPath))
   ipcMain.handle('chat-workspace:load', (_event, videoId, recordingPath) => loadChatWorkspace(videoId, recordingPath))
   ipcMain.handle('chat-workspace:create', (_event, videoId, recordingPath) => createChatSession(videoId, recordingPath))
@@ -2859,6 +2960,39 @@ if (isElectronRuntime) {
     if (!filePath || typeof filePath !== 'string') return false
     shell.showItemInFolder(filePath)
     return true
+  })
+
+  ipcMain.handle('window:action', (event, action) => {
+    const window = BrowserWindow.fromWebContents(event.sender)
+    if (!window) return false
+    switch (action) {
+      case 'reload':
+        window.webContents.reload()
+        return true
+      case 'toggle-devtools':
+        window.webContents.toggleDevTools()
+        return true
+      case 'reset-zoom':
+        window.webContents.setZoomFactor(1)
+        return true
+      case 'zoom-in':
+        window.webContents.setZoomFactor(Math.min(3, window.webContents.getZoomFactor() * 1.1))
+        return true
+      case 'zoom-out':
+        window.webContents.setZoomFactor(Math.max(0.4, window.webContents.getZoomFactor() / 1.1))
+        return true
+      case 'toggle-fullscreen':
+        window.setFullScreen(!window.isFullScreen())
+        return true
+      case 'minimize':
+        window.minimize()
+        return true
+      case 'close':
+        window.close()
+        return true
+      default:
+        return false
+    }
   })
 
   app.whenReady().then(() => {
@@ -2883,6 +3017,7 @@ module.exports = {
   readVisSensors,
   readIdoSlam,
   readSegmentationMasks,
+  readMotionCapture,
   readChatThread,
   loadChatWorkspace,
   createChatSession,

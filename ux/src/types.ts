@@ -228,6 +228,33 @@ export type SegMask = {
   maskData: string
 }
 
+export type MotionCapturePoint = {
+  frameIndex: number
+  cx: number
+  cy: number
+  interpolated: boolean
+}
+
+export type MotionCaptureTrack = {
+  trackId: number
+  label: string
+  kind: 'motion' | 'segmentation'
+  detectedFrames: number
+  totalPositions: number
+  presenceFraction: number
+  points: MotionCapturePoint[]
+}
+
+export type MotionCaptureOverlay = {
+  frameNumber: number
+  heatmapIndex: number
+  heatmapData: string | null
+  maxMotionRaw: number
+  stabilizationMethod: number
+  stabilizationConfidence: number
+  tracks: MotionCaptureTrack[]
+}
+
 export type VideoMarker = {
   id: string
   name: string
@@ -446,6 +473,16 @@ export type SplitNode = {
 
 export type LayoutNode = LeafNode | SplitNode
 
+export type WindowAction =
+  | 'reload'
+  | 'toggle-devtools'
+  | 'reset-zoom'
+  | 'zoom-in'
+  | 'zoom-out'
+  | 'toggle-fullscreen'
+  | 'minimize'
+  | 'close'
+
 export type BridgeApi = {
   selectProject: () => Promise<SelectProjectResponse>
   selectVisFiles: () => Promise<SelectProjectResponse>
@@ -456,6 +493,7 @@ export type BridgeApi = {
   readIdoSlam: (filePath: string) => Promise<IdoSlamSummary>
   readSegmentationMasks: (filePath: string, frameNumber: number) => Promise<SegMask[] | null>
   readSegmentationLabels: (filePath: string) => Promise<string[]>
+  readMotionCapture: (filePath: string, frameNumber: number) => Promise<MotionCaptureOverlay | null>
   readChatThread: (recordingPath: string) => Promise<ChatThread>
   loadChatWorkspace: (videoId: string, recordingPath: string) => Promise<VideoChatWorkspace>
   createChatSession: (videoId: string, recordingPath: string) => Promise<VideoChatWorkspace>
@@ -470,7 +508,7 @@ export type BridgeApi = {
   pollWorldgenSplat: (jobId: string) => Promise<WorldgenSplatStatus>
   saveWorldgenSplat: (filePath: string, splat: WorldgenSplatStatus) => Promise<WorldgenResult>
   revealPath: (filePath: string) => Promise<boolean>
-  onOpenProject: (callback: () => void) => () => void
+  performWindowAction: (action: WindowAction) => Promise<boolean>
 }
 
 declare global {

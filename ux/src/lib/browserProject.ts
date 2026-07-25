@@ -3,11 +3,14 @@ import perceiverProto from '../../../proto/perceiver.proto?raw'
 import primitivesProto from '../../../proto/primitives.proto?raw'
 import spatialProto from '../../../proto/spatial.proto?raw'
 import segmentationProto from '../../../proto/segmentation.proto?raw'
+import motionCaptureProto from '../../../proto/motioncap.proto?raw'
 import insightgenProto from '../../../proto/insightgen.proto?raw'
 import idoSlamProto from '../../../proto/idoslam.proto?raw'
 import type {
   ChatThread,
   IdoSlamSummary,
+  MotionCaptureOverlay,
+  MotionCaptureTrack,
   ProjectAnalysis,
   ProjectScanResult,
   RecordingEntry,
@@ -52,6 +55,7 @@ let perceiverType: protobuf.Type | null = null
 let gensparkResponseType: protobuf.Type | null = null
 let chatHistoryType: protobuf.Type | null = null
 let idoSlamType: protobuf.Type | null = null
+let motionCaptureType: protobuf.Type | null = null
 
 function stripProtoHeader(source: string): string {
   return source
@@ -116,6 +120,23 @@ function getIdoSlamType(): protobuf.Type {
   root.resolveAll()
   idoSlamType = root.lookupType('bayesmech.vision.IdoSlamResponse')
   return idoSlamType
+}
+
+function getMotionCaptureType(): protobuf.Type {
+  if (motionCaptureType) return motionCaptureType
+  const schema = [
+    'syntax = "proto3";',
+    'package bayesmech.vision;',
+    stripProtoHeader(primitivesProto),
+    stripProtoHeader(spatialProto),
+    stripProtoHeader(perceiverProto),
+    stripProtoHeader(motionCaptureProto),
+  ].join('\n\n')
+  const root = new protobuf.Root()
+  protobuf.parse(schema, root, { keepCase: false })
+  root.resolveAll()
+  motionCaptureType = root.lookupType('bayesmech.vision.MotionCaptureResponse')
+  return motionCaptureType
 }
 
 function byteSizeLabel(bytes: number): string {
@@ -275,7 +296,10 @@ function readUint32BE(bytes: Uint8Array, offset: number): number {
   )
 }
 
-async function readFrameIndex(file: File): Promise<{ offsets: FrameIndexEntry[]; errors: number }> {
+async function readFrameIndex(
+  file: File,
+  sizeLimit = FRAME_SIZE_LIMIT,
+): Promise<{ offsets: FrameIndexEntry[]; errors: number }> {
   const reader = file.stream().getReader()
   const offsets: FrameIndexEntry[] = []
   let pending = new Uint8Array()
@@ -291,7 +315,7 @@ async function readFrameIndex(file: File): Promise<{ offsets: FrameIndexEntry[];
       const frameStart = pendingStartOffset + cursor
       const length = readUint32BE(combined, cursor)
 
-      if (length === 0 || length > FRAME_SIZE_LIMIT || frameStart + 4 + length > file.size) {
+      if (length === 0 || length > sizeLimit || frameStart + 4 + length > file.size) {
         errors += 1
         cursor += 1
         continue
@@ -959,6 +983,122 @@ export async function readBrowserSegmentationMasks(file: File, frameNumber: numb
 export async function readBrowserSegmentationLabels(file: File): Promise<string[]> {
   const { labels } = await cachedSegmentationIndex(file)
   return labels
+}
+
+type BrowserMotionCaptureIndex = {
+  byFrame: Map<number, { item: FrameIndexEntry; heatmapIndex: number }>
+  sortedFrames: number[]
+  tracks: Array<Record<string, unknown>>
+  segmentationTracks: Array<Record<string, unknown>>
+}
+
+const motionCaptureIndexCacheByFile = new WeakMap<File, Promise<BrowserMotionCaptureIndex>>()
+
+function browserMotionCaptureTrails(
+  sourceTracks: Array<Record<string, unknown>>,
+  heatmapIndex: number,
+  kind: MotionCaptureTrack['kind'],
+): MotionCaptureTrack[] {
+  const tailStart = Math.max(0, heatmapIndex - 30)
+  return sourceTracks.flatMap((track) => {
+    const positions = (track.positions as Array<Record<string, unknown>> | undefined) ?? []
+    const points = positions
+      .map((point) => ({
+        frameIndex: finiteNumber(point.frameIdx),
+        cx: finiteNumber(point.cx),
+        cy: finiteNumber(point.cy),
+        interpolated: Boolean(point.interpolated),
+      }))
+      .filter((point) => point.frameIndex >= tailStart && point.frameIndex <= heatmapIndex)
+      .sort((left, right) => left.frameIndex - right.frameIndex)
+    if (!points.length) return []
+    return [{
+      trackId: finiteNumber(track.trackId),
+      label: String(track.label ?? '').trim(),
+      kind,
+      detectedFrames: finiteNumber(track.detectedFrames),
+      totalPositions: finiteNumber(track.totalPositions),
+      presenceFraction: finiteNumber(track.presenceFraction),
+      points,
+    }]
+  })
+}
+
+async function buildBrowserMotionCaptureIndex(file: File): Promise<BrowserMotionCaptureIndex> {
+  const { offsets } = await readFrameIndex(file, 512 * 1024 * 1024)
+  const type = getMotionCaptureType()
+  const byFrame = new Map<number, { item: FrameIndexEntry; heatmapIndex: number }>()
+  let tracks: Array<Record<string, unknown>> = []
+  let segmentationTracks: Array<Record<string, unknown>> = []
+  let heatmapIndex = 0
+  for (const item of offsets) {
+    const payload = new Uint8Array(await file.slice(item.offset, item.offset + item.length).arrayBuffer())
+    let response: Record<string, unknown>
+    try {
+      response = type.decode(payload) as unknown as Record<string, unknown>
+    } catch {
+      continue
+    }
+    const responseTracks = (response.tracks as Array<Record<string, unknown>> | undefined) ?? []
+    const responseSegmentationTracks = (
+      response.segmentationTrajectories as Array<Record<string, unknown>> | undefined
+    ) ?? []
+    const isSummary = responseTracks.length > 0
+      || responseSegmentationTracks.length > 0
+      || finiteNumber(response.totalFrames) > 0
+    if (isSummary) {
+      if (responseTracks.length) tracks = responseTracks
+      if (responseSegmentationTracks.length) segmentationTracks = responseSegmentationTracks
+      continue
+    }
+    const identifier = response.frameIdentifier as Record<string, unknown> | undefined
+    byFrame.set(finiteNumber(identifier?.frameNumber), { item, heatmapIndex })
+    heatmapIndex += 1
+  }
+  return {
+    byFrame,
+    sortedFrames: [...byFrame.keys()].sort((left, right) => left - right),
+    tracks,
+    segmentationTracks,
+  }
+}
+
+function cachedBrowserMotionCaptureIndex(file: File): Promise<BrowserMotionCaptureIndex> {
+  let cached = motionCaptureIndexCacheByFile.get(file)
+  if (!cached) {
+    cached = buildBrowserMotionCaptureIndex(file)
+    motionCaptureIndexCacheByFile.set(file, cached)
+  }
+  return cached
+}
+
+export async function readBrowserMotionCapture(
+  file: File,
+  frameNumber: number,
+): Promise<MotionCaptureOverlay | null> {
+  const index = await cachedBrowserMotionCaptureIndex(file)
+  const targetFrame = nearestSegFrame(index.sortedFrames, Math.trunc(Number(frameNumber) || 0))
+  if (targetFrame == null) return null
+  const indexedFrame = index.byFrame.get(targetFrame)
+  if (!indexedFrame) return null
+  const payload = new Uint8Array(
+    await file.slice(indexedFrame.item.offset, indexedFrame.item.offset + indexedFrame.item.length).arrayBuffer(),
+  )
+  const response = getMotionCaptureType().decode(payload) as unknown as Record<string, unknown>
+  const heatmap = response.heatmap as Record<string, unknown> | undefined
+  const heatmapBytes = heatmap?.heatmapData as Uint8Array | undefined
+  return {
+    frameNumber: targetFrame,
+    heatmapIndex: indexedFrame.heatmapIndex,
+    heatmapData: heatmapBytes?.length ? bytesToBase64(heatmapBytes) : null,
+    maxMotionRaw: finiteNumber(heatmap?.maxMotionRaw),
+    stabilizationMethod: finiteNumber(response.methodUsed),
+    stabilizationConfidence: finiteNumber(response.stabilizationConfidence),
+    tracks: [
+      ...browserMotionCaptureTrails(index.tracks, indexedFrame.heatmapIndex, 'motion'),
+      ...browserMotionCaptureTrails(index.segmentationTracks, indexedFrame.heatmapIndex, 'segmentation'),
+    ],
+  }
 }
 
 export async function readBrowserChatThread(

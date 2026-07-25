@@ -8,26 +8,52 @@ import {
   type KeyboardEvent,
   type SetStateAction,
 } from 'react'
-import { Boxes, Film, LoaderCircle } from 'lucide-react'
-import type { VideoPlaybackState, VisFrame, VisSummary } from '../types'
+import { Activity, Boxes, Film, LoaderCircle } from 'lucide-react'
+import type { MotionCaptureOverlay, VideoPlaybackState, VisFrame, VisSummary } from '../types'
 import { useFrameSource } from '../lib/frameSource'
 import { normalizeSegmentationLabel, useOverlay } from '../lib/overlay'
-import { colorForObject, decodeMasks, type DecodedOverlay } from '../lib/mask'
+import {
+  colorForObject,
+  decodeMasks,
+  decodeMotionHeatmap,
+  type DecodedHeatmap,
+  type DecodedOverlay,
+} from '../lib/mask'
 
 type VideoPlayerProps = {
   summary: VisSummary | null
   videoState: VideoPlaybackState
   onVideoStateChange: Dispatch<SetStateAction<VideoPlaybackState>>
   segmentationViewer?: boolean
+  motionCaptureViewer?: boolean
 }
 
 const MASK_ALPHA = 140 // 0..255
 
-export default function VideoPlayer({ summary, videoState, onVideoStateChange, segmentationViewer = false }: VideoPlayerProps) {
+function trackColor(trackId: number, segmentation: boolean): [number, number, number] {
+  return colorForObject(trackId + (segmentation ? 5 : 0))
+}
+
+function jetColor(value: number): [number, number, number] {
+  const normalized = Math.max(0, Math.min(1, value / 255))
+  const channel = (center: number) => Math.round(
+    Math.max(0, Math.min(1, 1.5 - Math.abs(4 * normalized - center))) * 255,
+  )
+  return [channel(3), channel(2), channel(1)]
+}
+
+export default function VideoPlayer({
+  summary,
+  videoState,
+  onVideoStateChange,
+  segmentationViewer = false,
+  motionCaptureViewer = false,
+}: VideoPlayerProps) {
   const getFrame = useFrameSource()
   const overlay = useOverlay()
   const getSegmentation = overlay?.getSegmentation
   const getSegmentationLabels = overlay?.getSegmentationLabels
+  const getMotionCapture = overlay?.getMotionCapture
   const segmentationOn = segmentationViewer || (overlay?.segmentation ?? false)
   const [selectedEntity, setSelectedEntity] = useState<string | null>(null)
   const segmentationMaskLabel = segmentationViewer ? selectedEntity : overlay?.segmentationMaskLabel ?? null
@@ -41,11 +67,18 @@ export default function VideoPlayer({ summary, videoState, onVideoStateChange, s
   const [overlays, setOverlays] = useState<DecodedOverlay[]>([])
   const [entityLabels, setEntityLabels] = useState<string[]>([])
   const [labelsLoading, setLabelsLoading] = useState(false)
+  const [motionCapture, setMotionCapture] = useState<MotionCaptureOverlay | null>(null)
+  const [motionHeatmap, setMotionHeatmap] = useState<DecodedHeatmap | null>(null)
+  const [motionLoading, setMotionLoading] = useState(false)
 
   // Caches keyed by frame index (images) / frame number (decoded overlays). In
   // browser mode image dataUrls are object URLs, so evictions must revoke them.
   const cacheRef = useRef<Map<number, VisFrame>>(new Map())
   const overlayCacheRef = useRef<Map<number, DecodedOverlay[]>>(new Map())
+  const motionCacheRef = useRef<Map<number, {
+    overlay: MotionCaptureOverlay | null
+    heatmap: DecodedHeatmap | null
+  }>>(new Map())
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const baseImgRef = useRef<HTMLImageElement | null>(null)
   const [drawTick, setDrawTick] = useState(0)
@@ -56,6 +89,7 @@ export default function VideoPlayer({ summary, videoState, onVideoStateChange, s
     }
     cacheRef.current.clear()
     overlayCacheRef.current.clear()
+    motionCacheRef.current.clear()
   }, [])
 
   const setVideoIndex = useCallback(
@@ -85,6 +119,8 @@ export default function VideoPlayer({ summary, videoState, onVideoStateChange, s
     setFrame(null)
     setImageUrl(null)
     setOverlays([])
+    setMotionCapture(null)
+    setMotionHeatmap(null)
     setVideoPlaying(false)
   }, [getFrame, summary?.path, clearCaches, setVideoPlaying])
 
@@ -195,6 +231,50 @@ export default function VideoPlayer({ summary, videoState, onVideoStateChange, s
     }
   }, [segmentationOn, getSegmentation, frame])
 
+  // Motion capture is a synchronized video overlay: every displayed video
+  // frame requests the nearest motion record, then decodes its heatmap while
+  // retaining the recent track tails returned with that record.
+  useEffect(() => {
+    if (!motionCaptureViewer || !getMotionCapture || !frame) {
+      setMotionCapture(null)
+      setMotionHeatmap(null)
+      setMotionLoading(false)
+      return
+    }
+    const cached = motionCacheRef.current.get(frame.frameNumber)
+    if (cached) {
+      setMotionCapture(cached.overlay)
+      setMotionHeatmap(cached.heatmap)
+      return
+    }
+
+    let cancelled = false
+    setMotionLoading(true)
+    getMotionCapture(frame.frameNumber)
+      .then(async (motion) => {
+        if (cancelled) return
+        const heatmap = motion?.heatmapData
+          ? await decodeMotionHeatmap(motion.heatmapData)
+          : null
+        if (cancelled) return
+        motionCacheRef.current.set(frame.frameNumber, { overlay: motion, heatmap })
+        setMotionCapture(motion)
+        setMotionHeatmap(heatmap)
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setMotionCapture(null)
+          setMotionHeatmap(null)
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setMotionLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [frame, getMotionCapture, motionCaptureViewer])
+
   const displayUrl = imageUrl ?? summary?.rgbPreview?.dataUrl ?? null
 
   // Decode the base image off the current URL, then trigger a canvas redraw.
@@ -254,6 +334,30 @@ export default function VideoPlayer({ summary, videoState, onVideoStateChange, s
     ctx.clearRect(0, 0, w, h)
     ctx.drawImage(img, 0, 0, w, h)
 
+    if (motionHeatmap) {
+      const heatmapCanvas = document.createElement('canvas')
+      heatmapCanvas.width = motionHeatmap.width
+      heatmapCanvas.height = motionHeatmap.height
+      const heatmapContext = heatmapCanvas.getContext('2d')
+      if (heatmapContext) {
+        const heatmapImage = heatmapContext.createImageData(motionHeatmap.width, motionHeatmap.height)
+        for (let index = 0; index < motionHeatmap.values.length; index += 1) {
+          const value = motionHeatmap.values[index]
+          const target = index * 4
+          const [r, g, b] = jetColor(value)
+          heatmapImage.data[target] = r
+          heatmapImage.data[target + 1] = g
+          heatmapImage.data[target + 2] = b
+          heatmapImage.data[target + 3] = value === 0 ? 0 : Math.min(172, 32 + value * 0.58)
+        }
+        heatmapContext.putImageData(heatmapImage, 0, 0)
+        ctx.save()
+        ctx.imageSmoothingEnabled = true
+        ctx.drawImage(heatmapCanvas, 0, 0, w, h)
+        ctx.restore()
+      }
+    }
+
     const maskCanvasFor = (ov: DecodedOverlay, alpha = MASK_ALPHA) => {
       const tmp = document.createElement('canvas')
       tmp.width = ov.width
@@ -299,7 +403,63 @@ export default function VideoPlayer({ summary, videoState, onVideoStateChange, s
       if (!tmp) continue
       ctx.drawImage(tmp, 0, 0, w, h)
     }
-  }, [drawTick, segmentationMaskLabel, visibleOverlays])
+
+    if (motionCapture) {
+      ctx.save()
+      ctx.lineCap = 'round'
+      ctx.lineJoin = 'round'
+      for (const track of motionCapture.tracks) {
+        const segmentation = track.kind === 'segmentation'
+        const [r, g, b] = trackColor(track.trackId, segmentation)
+        const color = `rgb(${r} ${g} ${b})`
+        const points = track.points
+        for (let pointIndex = 1; pointIndex < points.length; pointIndex += 1) {
+          const previous = points[pointIndex - 1]
+          const point = points[pointIndex]
+          const fade = Math.max(0.18, pointIndex / Math.max(1, points.length - 1))
+          ctx.globalAlpha = fade
+          ctx.strokeStyle = color
+          ctx.lineWidth = segmentation ? 4 : 2.5
+          ctx.beginPath()
+          ctx.moveTo(previous.cx, previous.cy)
+          ctx.lineTo(point.cx, point.cy)
+          ctx.stroke()
+        }
+        const current = [...points].reverse().find((point) => point.frameIndex === motionCapture.heatmapIndex)
+        if (!current) continue
+        ctx.globalAlpha = 1
+        ctx.strokeStyle = color
+        ctx.fillStyle = color
+        ctx.lineWidth = 3
+        if (segmentation) {
+          ctx.save()
+          ctx.translate(current.cx, current.cy)
+          ctx.rotate(Math.PI / 4)
+          ctx.strokeRect(-7, -7, 14, 14)
+          ctx.restore()
+        } else if (current.interpolated) {
+          ctx.beginPath()
+          ctx.moveTo(current.cx - 7, current.cy - 7)
+          ctx.lineTo(current.cx + 7, current.cy + 7)
+          ctx.moveTo(current.cx + 7, current.cy - 7)
+          ctx.lineTo(current.cx - 7, current.cy + 7)
+          ctx.stroke()
+        } else {
+          ctx.beginPath()
+          ctx.arc(current.cx, current.cy, 7, 0, Math.PI * 2)
+          ctx.stroke()
+        }
+        const label = track.label || `${segmentation ? 'S' : 'T'}${track.trackId}`
+        ctx.font = '600 13px Inter, sans-serif'
+        ctx.lineWidth = 4
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.8)'
+        ctx.strokeText(label, current.cx + 10, current.cy - 10)
+        ctx.fillStyle = color
+        ctx.fillText(label, current.cx + 10, current.cy - 10)
+      }
+      ctx.restore()
+    }
+  }, [drawTick, motionCapture, motionHeatmap, segmentationMaskLabel, visibleOverlays])
 
   const togglePlay = useCallback(() => {
     if (frameCount <= 1) return
@@ -339,7 +499,7 @@ export default function VideoPlayer({ summary, videoState, onVideoStateChange, s
   )
 
   if (!summary || frameCount === 0) {
-    const EmptyIcon = segmentationViewer ? Boxes : Film
+    const EmptyIcon = motionCaptureViewer ? Activity : segmentationViewer ? Boxes : Film
     return (
       <div className="empty-panel">
         <EmptyIcon size={28} aria-hidden="true" />
@@ -362,7 +522,16 @@ export default function VideoPlayer({ summary, videoState, onVideoStateChange, s
           {segmentationMaskLabel ? `mask: ${segmentationMaskLabel} (${visibleOverlays.length})` : `segmentation (${overlays.length})`}
         </div>
       ) : null}
-      {loading ? <div className="video-loading" aria-hidden="true" /> : null}
+      {motionCaptureViewer ? (
+        <div className="video-overlay-badge motion-capture">
+          {motionLoading
+            ? 'motion capture · loading'
+            : `motion capture · heatmap · ${motionCapture?.tracks.length ?? 0} ${
+                motionCapture?.tracks.length === 1 ? 'track' : 'tracks'
+              }`}
+        </div>
+      ) : null}
+      {loading || motionLoading ? <div className="video-loading" aria-hidden="true" /> : null}
     </div>
   )
 

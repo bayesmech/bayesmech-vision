@@ -1,5 +1,5 @@
 import { createContext, useContext } from 'react'
-import type { SegMask } from '../types'
+import type { MotionCaptureOverlay, SegMask } from '../types'
 
 export type CommandResult = {
   ok: boolean
@@ -39,6 +39,8 @@ export type OverlayState = {
   getSegmentation: (frameNumber: number) => Promise<SegMask[] | null>
   // All tracked entity labels in the selected recording's segmentation artifact.
   getSegmentationLabels: () => Promise<string[]>
+  // Heatmap and recent track tails synchronized to a video frame.
+  getMotionCapture: (frameNumber: number) => Promise<MotionCaptureOverlay | null>
 }
 
 export const OverlayContext = createContext<OverlayState | null>(null)
