@@ -3,6 +3,7 @@ const { spawn } = require('node:child_process')
 const fs = require('node:fs')
 const http = require('node:http')
 const https = require('node:https')
+const os = require('node:os')
 const path = require('node:path')
 const protobuf = require('protobufjs')
 
@@ -1261,6 +1262,272 @@ function readChatThread(recordingPath) {
         timestampNs: timestampString(turn.timestampNs),
       })),
   }
+}
+
+const CHAT_WORKSPACE_VERSION = 1
+
+function safeWorkspaceId(value, fallback) {
+  const cleaned = String(value || '')
+    .trim()
+    .replace(/[^A-Za-z0-9._-]+/g, '-')
+    .replace(/^[.-]+|[.-]+$/g, '')
+    .slice(0, 160)
+  return cleaned || fallback
+}
+
+function workspaceVideoDirectory(videoId) {
+  return path.join(os.homedir(), '.bayesmech', safeWorkspaceId(videoId, 'video'))
+}
+
+function readJsonFile(filePath, fallback) {
+  try {
+    return JSON.parse(fs.readFileSync(filePath, 'utf8'))
+  } catch {
+    return fallback
+  }
+}
+
+function writeJsonAtomic(filePath, value) {
+  fs.mkdirSync(path.dirname(filePath), { recursive: true })
+  const temporaryPath = path.join(
+    path.dirname(filePath),
+    `.${path.basename(filePath)}.${process.pid}.${Date.now()}.tmp`,
+  )
+  fs.writeFileSync(temporaryPath, `${JSON.stringify(value, null, 2)}\n`, 'utf8')
+  fs.renameSync(temporaryPath, filePath)
+}
+
+function defaultChatTitle(createdAt) {
+  return new Date(createdAt).toLocaleString(undefined, {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  })
+}
+
+function normalizeWorkspaceMessage(message, index = 0) {
+  const role = message?.role === 'user' || message?.role === 'command' ? message.role : 'assistant'
+  const status = ['pending', 'ok', 'error'].includes(message?.status) ? message.status : undefined
+  const createdAt = Number.isFinite(Date.parse(message?.createdAt))
+    ? new Date(message.createdAt).toISOString()
+    : new Date().toISOString()
+  return {
+    id: safeWorkspaceId(message?.id, `message-${Date.now()}-${index}`),
+    role,
+    text: String(message?.text || ''),
+    createdAt,
+    ...(status ? { status } : {}),
+  }
+}
+
+function normalizeWorkspaceMarker(marker, index = 0) {
+  return {
+    id: safeWorkspaceId(marker?.id, `marker-${index + 1}`),
+    name: String(marker?.name || `Marker ${index + 1}`),
+    reference: String(marker?.reference || `Marker${index + 1}`),
+    frameIndex: Math.max(0, Math.trunc(Number(marker?.frameIndex) || 0)),
+    frameNumber: Math.max(0, Math.trunc(Number(marker?.frameNumber) || 0)),
+    seconds: Math.max(0, Number(marker?.seconds) || 0),
+    color: String(marker?.color || '#5aa9e6'),
+  }
+}
+
+function normalizeChatSession(session) {
+  const now = new Date().toISOString()
+  const createdAt = Number.isFinite(Date.parse(session?.createdAt))
+    ? new Date(session.createdAt).toISOString()
+    : now
+  const updatedAt = Number.isFinite(Date.parse(session?.updatedAt))
+    ? new Date(session.updatedAt).toISOString()
+    : now
+  return {
+    id: safeWorkspaceId(session?.id, `chat-${Date.now()}`),
+    title: String(session?.title || '').trim() || defaultChatTitle(createdAt),
+    createdAt,
+    updatedAt,
+    messages: Array.isArray(session?.messages)
+      ? session.messages.map(normalizeWorkspaceMessage)
+      : [],
+    markers: Array.isArray(session?.markers)
+      ? session.markers.map(normalizeWorkspaceMarker)
+      : [],
+  }
+}
+
+function writeChatSession(videoDirectory, session) {
+  const normalized = normalizeChatSession(session)
+  const chatDirectory = path.join(videoDirectory, normalized.id)
+  fs.mkdirSync(chatDirectory, { recursive: true })
+  writeJsonAtomic(path.join(chatDirectory, 'meta.json'), {
+    version: CHAT_WORKSPACE_VERSION,
+    id: normalized.id,
+    title: normalized.title,
+    createdAt: normalized.createdAt,
+    updatedAt: normalized.updatedAt,
+  })
+  writeJsonAtomic(path.join(chatDirectory, 'chat.json'), {
+    version: CHAT_WORKSPACE_VERSION,
+    messages: normalized.messages,
+  })
+  writeJsonAtomic(path.join(chatDirectory, 'markers.json'), {
+    version: CHAT_WORKSPACE_VERSION,
+    markers: normalized.markers,
+  })
+  return normalized
+}
+
+function readChatSession(videoDirectory, entryName) {
+  const chatId = safeWorkspaceId(entryName, '')
+  if (!chatId || chatId !== entryName) return null
+  const chatDirectory = path.join(videoDirectory, chatId)
+  const meta = readJsonFile(path.join(chatDirectory, 'meta.json'), null)
+  if (!meta || meta.id !== chatId) return null
+  const chat = readJsonFile(path.join(chatDirectory, 'chat.json'), {})
+  const markers = readJsonFile(path.join(chatDirectory, 'markers.json'), {})
+  return normalizeChatSession({
+    ...meta,
+    messages: chat.messages,
+    markers: markers.markers,
+  })
+}
+
+function chatIdForDate(createdAt = new Date()) {
+  const compact = createdAt.toISOString().replace(/\D/g, '').slice(0, 17)
+  return `chat-${compact}-${Math.random().toString(36).slice(2, 7)}`
+}
+
+function legacyChatMessages(recordingPath) {
+  try {
+    return readChatThread(recordingPath).turns.map((turn, index) => {
+      const timestampMs = Math.trunc(Number(turn.timestampNs) / 1e6)
+      const createdAt = Number.isFinite(timestampMs) && timestampMs > 0
+        ? new Date(timestampMs).toISOString()
+        : new Date().toISOString()
+      return normalizeWorkspaceMessage({
+        id: `legacy-${index + 1}`,
+        role: turn.role,
+        text: turn.text,
+        createdAt,
+      }, index)
+    })
+  } catch {
+    return []
+  }
+}
+
+function workspaceManifest(videoId, recordingPath, activeChatId, chats) {
+  return {
+    version: CHAT_WORKSPACE_VERSION,
+    videoId: String(videoId),
+    recordingPath: path.resolve(recordingPath),
+    activeChatId,
+    chatOrder: chats.map((chat) => chat.id),
+  }
+}
+
+function writeWorkspaceManifest(videoDirectory, videoId, recordingPath, activeChatId, chats) {
+  writeJsonAtomic(
+    path.join(videoDirectory, 'video.json'),
+    workspaceManifest(videoId, recordingPath, activeChatId, chats),
+  )
+}
+
+function loadChatWorkspace(videoId, recordingPath) {
+  if (!recordingPath || typeof recordingPath !== 'string' || !recordingPath.endsWith('.vis.pb')) {
+    throw new Error('Expected a .vis.pb recording.')
+  }
+
+  const normalizedVideoId = String(videoId || path.basename(recordingPath, '.vis.pb'))
+  const videoDirectory = workspaceVideoDirectory(normalizedVideoId)
+  fs.mkdirSync(videoDirectory, { recursive: true })
+  const manifest = readJsonFile(path.join(videoDirectory, 'video.json'), {})
+  const entries = fs.readdirSync(videoDirectory, { withFileTypes: true })
+  const discovered = new Map()
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue
+    const session = readChatSession(videoDirectory, entry.name)
+    if (session) discovered.set(session.id, session)
+  }
+  const orderedIds = Array.isArray(manifest.chatOrder) ? manifest.chatOrder.map(String) : []
+  const chats = [
+    ...orderedIds.map((id) => discovered.get(id)).filter(Boolean),
+    ...[...discovered.values()].filter((chat) => !orderedIds.includes(chat.id)),
+  ]
+  chats.sort((left, right) => {
+    const leftIndex = orderedIds.indexOf(left.id)
+    const rightIndex = orderedIds.indexOf(right.id)
+    if (leftIndex >= 0 && rightIndex >= 0) return leftIndex - rightIndex
+    if (leftIndex >= 0) return -1
+    if (rightIndex >= 0) return 1
+    return left.createdAt.localeCompare(right.createdAt)
+  })
+
+  if (chats.length === 0) {
+    const createdAt = new Date()
+    chats.push(writeChatSession(videoDirectory, {
+      id: chatIdForDate(createdAt),
+      title: defaultChatTitle(createdAt.toISOString()),
+      createdAt: createdAt.toISOString(),
+      updatedAt: createdAt.toISOString(),
+      messages: legacyChatMessages(recordingPath),
+      markers: [],
+    }))
+  }
+
+  const activeChatId = chats.some((chat) => chat.id === manifest.activeChatId)
+    ? manifest.activeChatId
+    : chats[0].id
+  writeWorkspaceManifest(videoDirectory, normalizedVideoId, recordingPath, activeChatId, chats)
+  return {
+    version: CHAT_WORKSPACE_VERSION,
+    videoId: normalizedVideoId,
+    recordingPath: path.resolve(recordingPath),
+    activeChatId,
+    chats,
+  }
+}
+
+function createChatSession(videoId, recordingPath) {
+  const workspace = loadChatWorkspace(videoId, recordingPath)
+  const videoDirectory = workspaceVideoDirectory(videoId)
+  const createdAt = new Date()
+  const session = writeChatSession(videoDirectory, {
+    id: chatIdForDate(createdAt),
+    title: defaultChatTitle(createdAt.toISOString()),
+    createdAt: createdAt.toISOString(),
+    updatedAt: createdAt.toISOString(),
+    messages: [],
+    markers: [],
+  })
+  const chats = [...workspace.chats, session]
+  writeWorkspaceManifest(videoDirectory, videoId, recordingPath, session.id, chats)
+  return { ...workspace, activeChatId: session.id, chats }
+}
+
+function saveChatSession(videoId, recordingPath, session) {
+  const workspace = loadChatWorkspace(videoId, recordingPath)
+  const videoDirectory = workspaceVideoDirectory(videoId)
+  const saved = writeChatSession(videoDirectory, session)
+  const chats = workspace.chats.some((chat) => chat.id === saved.id)
+    ? workspace.chats.map((chat) => (chat.id === saved.id ? saved : chat))
+    : [...workspace.chats, saved]
+  const activeChatId = chats.some((chat) => chat.id === workspace.activeChatId)
+    ? workspace.activeChatId
+    : saved.id
+  writeWorkspaceManifest(videoDirectory, videoId, recordingPath, activeChatId, chats)
+  return true
+}
+
+function setActiveChatSession(videoId, recordingPath, chatId) {
+  const workspace = loadChatWorkspace(videoId, recordingPath)
+  if (!workspace.chats.some((chat) => chat.id === chatId)) return false
+  writeWorkspaceManifest(
+    workspaceVideoDirectory(videoId),
+    videoId,
+    recordingPath,
+    chatId,
+    workspace.chats,
+  )
+  return true
 }
 
 function flattenNumbers(value, output = []) {
@@ -2579,6 +2846,10 @@ if (isElectronRuntime) {
   ipcMain.handle('seg:masks', (_event, filePath, frameNumber) => readSegmentationMasks(filePath, frameNumber))
   ipcMain.handle('seg:labels', (_event, filePath) => readSegmentationLabels(filePath))
   ipcMain.handle('chat:thread', (_event, recordingPath) => readChatThread(recordingPath))
+  ipcMain.handle('chat-workspace:load', (_event, videoId, recordingPath) => loadChatWorkspace(videoId, recordingPath))
+  ipcMain.handle('chat-workspace:create', (_event, videoId, recordingPath) => createChatSession(videoId, recordingPath))
+  ipcMain.handle('chat-workspace:save', (_event, videoId, recordingPath, session) => saveChatSession(videoId, recordingPath, session))
+  ipcMain.handle('chat-workspace:activate', (_event, videoId, recordingPath, chatId) => setActiveChatSession(videoId, recordingPath, chatId))
   ipcMain.handle('worldgen:run', (_event, request) => runWorldgen(request))
   ipcMain.handle('worldgen:read', (_event, filePath) => readWorldgen(filePath))
   ipcMain.handle('worldgen:splat-status', (_event, jobId) => pollWorldgenSplat(jobId))
@@ -2613,6 +2884,10 @@ module.exports = {
   readIdoSlam,
   readSegmentationMasks,
   readChatThread,
+  loadChatWorkspace,
+  createChatSession,
+  saveChatSession,
+  setActiveChatSession,
   runWorldgen,
   readWorldgen,
   pollWorldgenSplat,

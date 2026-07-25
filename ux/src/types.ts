@@ -268,6 +268,31 @@ export type ChatThread = {
   turns: SavedChatTurn[]
 }
 
+export type WorkspaceChatMessage = {
+  id: string
+  role: 'user' | 'assistant' | 'command'
+  text: string
+  createdAt: string
+  status?: 'pending' | 'ok' | 'error'
+}
+
+export type WorkspaceChatSession = {
+  id: string
+  title: string
+  createdAt: string
+  updatedAt: string
+  messages: WorkspaceChatMessage[]
+  markers: VideoMarker[]
+}
+
+export type VideoChatWorkspace = {
+  version: 1
+  videoId: string
+  recordingPath: string
+  activeChatId: string
+  chats: WorkspaceChatSession[]
+}
+
 export type WorldgenPoint = Vec3 & {
   r: number
   g: number
@@ -432,6 +457,14 @@ export type BridgeApi = {
   readSegmentationMasks: (filePath: string, frameNumber: number) => Promise<SegMask[] | null>
   readSegmentationLabels: (filePath: string) => Promise<string[]>
   readChatThread: (recordingPath: string) => Promise<ChatThread>
+  loadChatWorkspace: (videoId: string, recordingPath: string) => Promise<VideoChatWorkspace>
+  createChatSession: (videoId: string, recordingPath: string) => Promise<VideoChatWorkspace>
+  saveChatSession: (
+    videoId: string,
+    recordingPath: string,
+    session: WorkspaceChatSession,
+  ) => Promise<boolean>
+  setActiveChatSession: (videoId: string, recordingPath: string, chatId: string) => Promise<boolean>
   runWorldgen: (request: WorldgenRequest) => Promise<WorldgenResult>
   readWorldgen: (filePath: string) => Promise<WorldgenResult>
   pollWorldgenSplat: (jobId: string) => Promise<WorldgenSplatStatus>

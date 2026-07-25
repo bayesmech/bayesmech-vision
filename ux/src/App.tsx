@@ -8,10 +8,15 @@ import type {
   IdoSlamSummary,
   ProjectScanResult,
   RecordingEntry,
+  SavedChatTurn,
   SegMask,
   SensorDataSummary,
+  VideoChatWorkspace,
+  VideoMarker,
   VideoPlaybackState,
   VisSummary,
+  WorkspaceChatMessage,
+  WorkspaceChatSession,
   WorkspaceTabRequest,
   WorldgenResult,
 } from './types'
@@ -35,8 +40,10 @@ import {
   type OverlayState,
 } from './lib/overlay'
 import { compactNumber, shortPath } from './lib/format'
+import { recordingDisplayName, recordingVideoId } from './lib/recordingNames'
 
 const LAST_PROJECT_KEY = 'bayesmech:lastProject'
+const BROWSER_CHAT_WORKSPACE_KEY = 'bayesmech:chat-workspace'
 
 const initialVideoState = (): VideoPlaybackState => ({
   index: 0,
@@ -70,6 +77,72 @@ function isCancelledProjectResponse(value: unknown): value is { cancelled: true;
   return Boolean(value && typeof value === 'object' && 'cancelled' in value)
 }
 
+function newChatId() {
+  return `chat-${new Date().toISOString().replace(/\D/g, '').slice(0, 17)}-${Math.random().toString(36).slice(2, 7)}`
+}
+
+function initialChatTitle(createdAt: string) {
+  return new Date(createdAt).toLocaleString(undefined, {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  })
+}
+
+function legacyMessages(turns: SavedChatTurn[]): WorkspaceChatMessage[] {
+  return turns.map((turn, index) => {
+    const timestampMs = Math.trunc(Number(turn.timestampNs) / 1e6)
+    return {
+      id: `legacy-${index + 1}`,
+      role: turn.role,
+      text: turn.text,
+      createdAt: Number.isFinite(timestampMs) && timestampMs > 0
+        ? new Date(timestampMs).toISOString()
+        : new Date().toISOString(),
+    }
+  })
+}
+
+function createBrowserWorkspace(
+  recording: RecordingEntry,
+  turns: SavedChatTurn[] = [],
+): VideoChatWorkspace {
+  const createdAt = new Date().toISOString()
+  const chat: WorkspaceChatSession = {
+    id: newChatId(),
+    title: initialChatTitle(createdAt),
+    createdAt,
+    updatedAt: createdAt,
+    messages: legacyMessages(turns),
+    markers: [],
+  }
+  return {
+    version: 1,
+    videoId: recordingVideoId(recording),
+    recordingPath: recording.path,
+    activeChatId: chat.id,
+    chats: [chat],
+  }
+}
+
+function browserWorkspaceKey(videoId: string) {
+  return `${BROWSER_CHAT_WORKSPACE_KEY}:${videoId}`
+}
+
+function markersEqual(left: VideoMarker[], right: VideoMarker[]) {
+  if (left.length !== right.length) return false
+  return left.every((marker, index) => {
+    const other = right[index]
+    return other
+      && marker.id === other.id
+      && marker.name === other.name
+      && marker.reference === other.reference
+      && marker.frameIndex === other.frameIndex
+      && marker.frameNumber === other.frameNumber
+      && marker.seconds === other.seconds
+      && marker.color === other.color
+  })
+}
+
 export default function App() {
   const bridge = window.bayesmech
   const bridgeAvailable = Boolean(bridge)
@@ -88,29 +161,95 @@ export default function App() {
   const [videoState, setVideoState] = useState<VideoPlaybackState>(() => initialVideoState())
   const [worldgenResults, setWorldgenResults] = useState<Record<string, WorldgenResult>>({})
   const [chatThread, setChatThread] = useState<ChatThread | null>(null)
+  const [chatWorkspaces, setChatWorkspaces] = useState<Record<string, VideoChatWorkspace>>({})
+  const [selectedChatId, setSelectedChatId] = useState<string | null>(null)
   const [chatThreadLoading, setChatThreadLoading] = useState(false)
   const [chatThreadError, setChatThreadError] = useState<string | null>(null)
+  const selectedRecordingRef = useRef<RecordingEntry | null>(null)
+  const chatSaveQueueRef = useRef<Promise<unknown>>(Promise.resolve())
+
+  const loadRecordingWorkspace = useCallback(
+    async (recording: RecordingEntry): Promise<VideoChatWorkspace> => {
+      const videoId = recordingVideoId(recording)
+      if (bridge?.loadChatWorkspace) {
+        return bridge.loadChatWorkspace(videoId, recording.path)
+      }
+
+      const storageKey = browserWorkspaceKey(videoId)
+      try {
+        const saved = JSON.parse(localStorage.getItem(storageKey) || 'null') as VideoChatWorkspace | null
+        if (saved?.version === 1 && saved.chats?.length) return saved
+      } catch {
+        localStorage.removeItem(storageKey)
+      }
+
+      const genspark = recording.analyses.find((analysis) => analysis.key === 'genspark')
+      const chat = recording.analyses.find((analysis) => analysis.key === 'chat')
+      const gensparkFile = genspark ? browserFilesRef.current.get(genspark.path) : undefined
+      const chatFile = chat ? browserFilesRef.current.get(chat.path) : undefined
+      const thread = gensparkFile || chatFile
+        ? await readBrowserChatThread(gensparkFile, chatFile)
+        : null
+      const workspace = createBrowserWorkspace(recording, thread?.turns)
+      localStorage.setItem(storageKey, JSON.stringify(workspace))
+      return workspace
+    },
+    [bridge],
+  )
 
   const selectRecording = useCallback(
-    async (recording: RecordingEntry) => {
+    async (
+      recording: RecordingEntry,
+      preferredChatId?: string,
+      knownWorkspace?: VideoChatWorkspace,
+    ) => {
+      const previousRecordingId = selectedRecordingRef.current?.id
+      selectedRecordingRef.current = recording
       setSelectedRecording(recording)
       setSummary(null)
       setLoadingSummary(true)
       setError(null)
+      setChatThreadLoading(true)
+      let workspace = knownWorkspace
       try {
+        workspace = workspace ?? await loadRecordingWorkspace(recording)
+        const resolvedWorkspace = workspace
+        const videoId = recordingVideoId(recording)
+        setChatWorkspaces((current) => ({ ...current, [videoId]: resolvedWorkspace }))
+        const session = resolvedWorkspace.chats.find((chat) => chat.id === preferredChatId)
+          ?? resolvedWorkspace.chats.find((chat) => chat.id === resolvedWorkspace.activeChatId)
+          ?? resolvedWorkspace.chats[0]
+        setSelectedChatId(session?.id ?? null)
+        setVideoState((current) => previousRecordingId === recording.id
+          ? { ...current, playing: false, markers: session?.markers ?? [] }
+          : { ...initialVideoState(), markers: session?.markers ?? [] })
+        if (session) {
+          if (bridge?.setActiveChatSession) {
+            void bridge.setActiveChatSession(videoId, recording.path, session.id)
+          } else {
+            localStorage.setItem(
+              browserWorkspaceKey(videoId),
+              JSON.stringify({ ...resolvedWorkspace, activeChatId: session.id }),
+            )
+          }
+        }
+
         const browserFile = browserFilesRef.current.get(recording.path)
         const nextSummary = browserFile
           ? await readBrowserVisSummary(recording, browserFile)
-          : await bridge!.readVisSummary(recording.path)
+          : await bridge?.readVisSummary(recording.path)
+        if (!nextSummary) throw new Error('No recording reader is available.')
         setSummary(nextSummary)
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to read .vis.pb summary.'
         setError(message)
+        setChatThreadError(message)
       } finally {
         setLoadingSummary(false)
+        setChatThreadLoading(false)
       }
     },
-    [bridge],
+    [bridge, loadRecordingWorkspace],
   )
 
   const applyProject = useCallback(
@@ -120,15 +259,34 @@ export default function App() {
         localStorage.setItem(LAST_PROJECT_KEY, nextProject.rootPath)
       }
       if (nextProject.error) setError(nextProject.error)
+      const loadedWorkspaces: Record<string, VideoChatWorkspace> = {}
+      const workspaceResults = await Promise.allSettled(
+        nextProject.recordings.map(async (recording) => {
+          const workspace = await loadRecordingWorkspace(recording)
+          loadedWorkspaces[recordingVideoId(recording)] = workspace
+        }),
+      )
+      setChatWorkspaces(loadedWorkspaces)
+      const firstFailure = workspaceResults.find((result) => result.status === 'rejected')
+      if (firstFailure?.status === 'rejected') {
+        setChatThreadError(
+          firstFailure.reason instanceof Error
+            ? firstFailure.reason.message
+            : 'Failed to load a saved chat workspace.',
+        )
+      }
       const firstRecording = nextProject.recordings[0] ?? null
       if (firstRecording) {
-        await selectRecording(firstRecording)
+        const workspace = loadedWorkspaces[recordingVideoId(firstRecording)]
+        await selectRecording(firstRecording, workspace?.activeChatId, workspace)
       } else {
+        selectedRecordingRef.current = null
         setSelectedRecording(null)
+        setSelectedChatId(null)
         setSummary(null)
       }
     },
-    [selectRecording],
+    [loadRecordingWorkspace, selectRecording],
   )
 
   const openProject = useCallback(async () => {
@@ -249,6 +407,195 @@ export default function App() {
     }
   }
 
+  const activeWorkspace = useMemo(() => (
+    selectedRecording
+      ? chatWorkspaces[recordingVideoId(selectedRecording)] ?? null
+      : null
+  ), [chatWorkspaces, selectedRecording])
+  const activeChat = useMemo(() => (
+    activeWorkspace?.chats.find((chat) => chat.id === selectedChatId) ?? null
+  ), [activeWorkspace, selectedChatId])
+
+  const persistChatSession = useCallback(
+    (recording: RecordingEntry, session: WorkspaceChatSession) => {
+      const videoId = recordingVideoId(recording)
+      const savedSession = {
+        ...session,
+        updatedAt: new Date().toISOString(),
+      }
+      setChatWorkspaces((current) => {
+        const workspace = current[videoId]
+        if (!workspace) return current
+        const chats = workspace.chats.some((chat) => chat.id === savedSession.id)
+          ? workspace.chats.map((chat) => (chat.id === savedSession.id ? savedSession : chat))
+          : [...workspace.chats, savedSession]
+        const nextWorkspace = { ...workspace, chats }
+        if (!bridge?.saveChatSession) {
+          localStorage.setItem(browserWorkspaceKey(videoId), JSON.stringify(nextWorkspace))
+        }
+        return { ...current, [videoId]: nextWorkspace }
+      })
+      if (bridge?.saveChatSession) {
+        chatSaveQueueRef.current = chatSaveQueueRef.current
+          .catch(() => undefined)
+          .then(() => bridge.saveChatSession(videoId, recording.path, savedSession))
+          .catch((err) => {
+            setChatThreadError(err instanceof Error ? err.message : 'Failed to save the chat session.')
+          })
+      }
+    },
+    [bridge],
+  )
+
+  const selectChat = useCallback(
+    (recording: RecordingEntry, chat: WorkspaceChatSession) => {
+      const videoId = recordingVideoId(recording)
+      const workspace = chatWorkspaces[videoId]
+      if (selectedRecordingRef.current?.id !== recording.id) {
+        void selectRecording(recording, chat.id, workspace)
+        return
+      }
+      setSelectedChatId(chat.id)
+      setVideoState((current) => ({ ...current, playing: false, markers: chat.markers }))
+      setChatWorkspaces((current) => {
+        const currentWorkspace = current[videoId]
+        if (!currentWorkspace) return current
+        const nextWorkspace = { ...currentWorkspace, activeChatId: chat.id }
+        if (!bridge?.setActiveChatSession) {
+          localStorage.setItem(browserWorkspaceKey(videoId), JSON.stringify(nextWorkspace))
+        }
+        return { ...current, [videoId]: nextWorkspace }
+      })
+      if (bridge?.setActiveChatSession) {
+        void bridge.setActiveChatSession(videoId, recording.path, chat.id)
+      }
+    },
+    [bridge, chatWorkspaces, selectRecording],
+  )
+
+  const createChat = useCallback(
+    async (recording: RecordingEntry) => {
+      const videoId = recordingVideoId(recording)
+      setChatThreadLoading(true)
+      setChatThreadError(null)
+      try {
+        let workspace: VideoChatWorkspace
+        if (bridge?.createChatSession) {
+          workspace = await bridge.createChatSession(videoId, recording.path)
+        } else {
+          const current = chatWorkspaces[videoId] ?? createBrowserWorkspace(recording)
+          const createdAt = new Date().toISOString()
+          const chat: WorkspaceChatSession = {
+            id: newChatId(),
+            title: initialChatTitle(createdAt),
+            createdAt,
+            updatedAt: createdAt,
+            messages: [],
+            markers: [],
+          }
+          workspace = {
+            ...current,
+            activeChatId: chat.id,
+            chats: [...current.chats, chat],
+          }
+          localStorage.setItem(browserWorkspaceKey(videoId), JSON.stringify(workspace))
+        }
+        setChatWorkspaces((current) => ({ ...current, [videoId]: workspace }))
+        const chat = workspace.chats.find((item) => item.id === workspace.activeChatId)
+          ?? workspace.chats.at(-1)
+        if (!chat) return
+        if (selectedRecordingRef.current?.id === recording.id) {
+          setSelectedChatId(chat.id)
+          setVideoState((current) => ({ ...current, playing: false, markers: [] }))
+        } else {
+          await selectRecording(recording, chat.id, workspace)
+        }
+      } catch (err) {
+        setChatThreadError(err instanceof Error ? err.message : 'Failed to create a new chat.')
+      } finally {
+        setChatThreadLoading(false)
+      }
+    },
+    [bridge, chatWorkspaces, selectRecording],
+  )
+
+  const renameChat = useCallback(
+    (recording: RecordingEntry, chat: WorkspaceChatSession, title: string) => {
+      persistChatSession(recording, { ...chat, title })
+    },
+    [persistChatSession],
+  )
+
+  const saveActiveMessages = useCallback(
+    (messages: WorkspaceChatMessage[]) => {
+      if (!selectedRecording || !activeChat) return
+      const recording = selectedRecording
+      const videoId = recordingVideoId(recording)
+      const chatId = activeChat.id
+      setChatWorkspaces((current) => {
+        const workspace = current[videoId]
+        const currentChat = workspace?.chats.find((chat) => chat.id === chatId)
+        if (!workspace || !currentChat) return current
+        const savedSession = {
+          ...currentChat,
+          messages,
+          updatedAt: new Date().toISOString(),
+        }
+        const nextWorkspace = {
+          ...workspace,
+          chats: workspace.chats.map((chat) => (chat.id === chatId ? savedSession : chat)),
+        }
+        if (bridge?.saveChatSession) {
+          chatSaveQueueRef.current = chatSaveQueueRef.current
+            .catch(() => undefined)
+            .then(() => bridge.saveChatSession(videoId, recording.path, savedSession))
+            .catch((err) => {
+              setChatThreadError(err instanceof Error ? err.message : 'Failed to save chat messages.')
+            })
+        } else {
+          localStorage.setItem(browserWorkspaceKey(videoId), JSON.stringify(nextWorkspace))
+        }
+        return { ...current, [videoId]: nextWorkspace }
+      })
+    },
+    [activeChat, bridge, selectedRecording],
+  )
+
+  const closeRecording = useCallback(
+    (recording: RecordingEntry) => {
+      if (!project) return
+      const closingIndex = project.recordings.findIndex((item) => item.id === recording.id)
+      const remaining = project.recordings.filter((item) => item.id !== recording.id)
+      setProject({ ...project, recordings: remaining })
+      const videoId = recordingVideoId(recording)
+      setChatWorkspaces((current) => {
+        const next = { ...current }
+        delete next[videoId]
+        return next
+      })
+      if (selectedRecordingRef.current?.id !== recording.id) return
+      const nextRecording = remaining[Math.min(Math.max(closingIndex, 0), remaining.length - 1)]
+      if (nextRecording) {
+        const nextWorkspace = chatWorkspaces[recordingVideoId(nextRecording)]
+        void selectRecording(nextRecording, nextWorkspace?.activeChatId, nextWorkspace)
+      } else {
+        selectedRecordingRef.current = null
+        setSelectedRecording(null)
+        setSelectedChatId(null)
+        setSummary(null)
+        setChatThread(null)
+        setVideoState(initialVideoState())
+      }
+    },
+    [chatWorkspaces, project, selectRecording],
+  )
+
+  useEffect(() => {
+    if (!selectedRecording || !activeChat) return
+    if (markersEqual(activeChat.markers, videoState.markers)) return
+    persistChatSession(selectedRecording, { ...activeChat, markers: videoState.markers })
+  }, [activeChat, persistChatSession, selectedRecording, videoState.markers])
+
   // Random-access frame fetch for the video player: routes to the in-browser
   // decoder (no-bridge mode) or the Electron main process for the selected file.
   const getFrame = useCallback<FrameGetter>(
@@ -291,7 +638,6 @@ export default function App() {
   useEffect(() => {
     setSegmentationOn(false)
     setSegmentationMaskLabel(null)
-    setVideoState(initialVideoState())
     setWorldgenResults({})
     const worldgen = selectedRecording?.analyses.find((analysis) => analysis.key === 'worldgen')
     if (!worldgen || !bridge?.readWorldgen) return
@@ -577,7 +923,11 @@ export default function App() {
   return (
     <div className="app-shell">
       <TopMenu
-        projectName={project?.name}
+        projectName={
+          project?.recordings.length === 1
+            ? recordingDisplayName(project.recordings[0])
+            : project?.name
+        }
         loading={loadingProject || loadingSummary}
         runtimeLabel={bridgeAvailable ? 'Electron' : 'Browser'}
         onOpenProject={openProject}
@@ -606,11 +956,17 @@ export default function App() {
         <ProjectExplorer
           project={project}
           selectedRecordingId={selectedRecording?.id}
+          selectedChatId={selectedChatId ?? undefined}
+          chatWorkspaces={chatWorkspaces}
           filter={filter}
           onFilterChange={setFilter}
           onOpenProject={openProject}
           onOpenFiles={openFiles}
           onSelectRecording={selectRecording}
+          onSelectChat={selectChat}
+          onCreateChat={createChat}
+          onRenameChat={renameChat}
+          onCloseRecording={closeRecording}
         />
 
         <div className="editor-region">
@@ -618,9 +974,11 @@ export default function App() {
             selectedRecording={selectedRecording}
             summary={summary}
             markers={videoState.markers}
-            savedThread={chatThread}
-            savedThreadLoading={chatThreadLoading}
-            savedThreadError={chatThreadError}
+            analysis={chatThread?.analysis ?? null}
+            chatSession={activeChat}
+            chatLoading={chatThreadLoading}
+            chatError={chatThreadError}
+            onMessagesChange={saveActiveMessages}
             onRunCommand={runCommand}
           />
           <SplitWorkspace

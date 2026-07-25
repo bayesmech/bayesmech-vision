@@ -1,23 +1,26 @@
 import { CircleAlert, CornerDownLeft, Cpu, LoaderCircle, Sparkles, Terminal, UserRound } from 'lucide-react'
 import { FormEvent, KeyboardEvent, useEffect, useMemo, useRef, useState } from 'react'
-import type { ChatThread, RecordingEntry, VideoMarker, VisSummary } from '../types'
+import type {
+  ChatAnalysis,
+  RecordingEntry,
+  VideoMarker,
+  VisSummary,
+  WorkspaceChatMessage,
+  WorkspaceChatSession,
+} from '../types'
 import { compactNumber, secondsLabel } from '../lib/format'
 import { isCommand, type CommandProgress, type CommandResult } from '../lib/overlay'
-
-type ChatMessage = {
-  id: string
-  role: 'assistant' | 'user' | 'command'
-  text: string
-  status?: 'pending' | 'ok' | 'error'
-}
+import { recordingDisplayName } from '../lib/recordingNames'
 
 type AIChatProps = {
   selectedRecording: RecordingEntry | null
   summary: VisSummary | null
   markers: VideoMarker[]
-  savedThread: ChatThread | null
-  savedThreadLoading: boolean
-  savedThreadError: string | null
+  analysis: ChatAnalysis | null
+  chatSession: WorkspaceChatSession | null
+  chatLoading: boolean
+  chatError: string | null
+  onMessagesChange: (messages: WorkspaceChatMessage[]) => void
   onRunCommand: (text: string, onProgress?: (progress: CommandProgress) => void) => Promise<CommandResult>
 }
 
@@ -40,47 +43,54 @@ export default function AIChat({
   selectedRecording,
   summary,
   markers,
-  savedThread,
-  savedThreadLoading,
-  savedThreadError,
+  analysis,
+  chatSession,
+  chatLoading,
+  chatError,
+  onMessagesChange,
   onRunCommand,
 }: AIChatProps) {
   const [draft, setDraft] = useState('')
   const messageListRef = useRef<HTMLDivElement>(null)
-  const [messages, setMessages] = useState<ChatMessage[]>([])
+  const [messages, setMessages] = useState<WorkspaceChatMessage[]>([])
 
   const context = useMemo(() => {
     const markerContext = markerLine(markers)
     return markerContext ? `${summaryLine(summary)} ${markerContext}` : summaryLine(summary)
   }, [markers, summary])
 
-  const savedMessages = useMemo<ChatMessage[]>(() => (savedThread?.turns ?? []).map((turn, index) => ({
-    id: `saved-${turn.timestampNs}-${index}`,
-    role: turn.role,
-    text: turn.text,
-  })), [savedThread])
-  const visibleMessages = useMemo(() => [...savedMessages, ...messages], [messages, savedMessages])
-
   useEffect(() => {
     setDraft('')
-    setMessages([])
-  }, [selectedRecording?.id])
+    setMessages(chatSession?.messages ?? [])
+  }, [chatSession?.id])
 
   useEffect(() => {
     const list = messageListRef.current
     if (!list) return
     list.scrollTop = list.scrollHeight
-  }, [savedThread, savedThreadLoading, visibleMessages])
+  }, [analysis, chatLoading, messages])
+
+  const updateMessages = (
+    update: (current: WorkspaceChatMessage[]) => WorkspaceChatMessage[],
+  ) => {
+    setMessages((current) => {
+      const next = update(current)
+      onMessagesChange(next)
+      return next
+    })
+  }
 
   const submitDraft = async () => {
     const text = draft.trim()
-    if (!text) return
+    if (!text || !chatSession) return
     setDraft('')
+    const createdAt = new Date().toISOString()
 
-    const userMessage: ChatMessage = {
+    const userMessage: WorkspaceChatMessage = {
       id: `user-${Date.now()}`,
       role: 'user',
       text,
+      createdAt,
     }
 
     // Commands (e.g. "/segmentation") are intercepted and run against the
@@ -88,23 +98,35 @@ export default function AIChat({
     if (isCommand(text)) {
       const commandId = `command-${Date.now()}`
       let activeCommandId = commandId
-      setMessages((current) => [
+      updateMessages((current) => [
         ...current,
         userMessage,
-        { id: commandId, role: 'command', status: 'pending', text: `Running ${text.split(/\s+/)[0]}...` },
+        {
+          id: commandId,
+          role: 'command',
+          status: 'pending',
+          text: `Running ${text.split(/\s+/)[0]}...`,
+          createdAt,
+        },
       ])
       const handleProgress = (progress: CommandProgress) => {
         const status = progress.ok === false ? 'error' : progress.ok === true ? 'ok' : 'pending'
         if (progress.append) {
           const nextId = `command-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
           activeCommandId = nextId
-          setMessages((current) => [
+          updateMessages((current) => [
             ...current,
-            { id: nextId, role: 'command', status, text: progress.message },
+            {
+              id: nextId,
+              role: 'command',
+              status,
+              text: progress.message,
+              createdAt: new Date().toISOString(),
+            },
           ])
           return
         }
-        setMessages((current) => current.map((message) => (
+        updateMessages((current) => current.map((message) => (
           message.id === activeCommandId
             ? { ...message, status, text: progress.message }
             : message
@@ -112,14 +134,14 @@ export default function AIChat({
       }
       try {
         const result = await onRunCommand(text, handleProgress)
-        setMessages((current) => current.map((message) => (
+        updateMessages((current) => current.map((message) => (
           message.id === activeCommandId
             ? { ...message, status: result.ok ? 'ok' : 'error', text: result.message }
             : message
         )))
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Command failed.'
-        setMessages((current) => current.map((item) => (
+        updateMessages((current) => current.map((item) => (
           item.id === activeCommandId
             ? { ...item, status: 'error', text: message }
             : item
@@ -128,14 +150,15 @@ export default function AIChat({
       return
     }
 
-    const assistantMessage: ChatMessage = {
+    const assistantMessage: WorkspaceChatMessage = {
       id: `assistant-${Date.now()}`,
       role: 'assistant',
       text: selectedRecording
-        ? `Current recording: ${selectedRecording.name}. ${context}`
+        ? `Current recording: ${recordingDisplayName(selectedRecording)}. ${context}`
         : 'No project recording is selected yet.',
+      createdAt: new Date().toISOString(),
     }
-    setMessages((current) => [...current, userMessage, assistantMessage])
+    updateMessages((current) => [...current, userMessage, assistantMessage])
   }
 
   const handleSubmit = (event: FormEvent) => {
@@ -156,24 +179,24 @@ export default function AIChat({
         <h2>Chat</h2>
         <div className="context-token" title={selectedRecording?.path ?? 'No recording selected'}>
           <Cpu size={14} aria-hidden="true" />
-          <span>{selectedRecording?.fileStem ?? 'No file'}</span>
+          <span>{chatSession?.title ?? 'No chat'}</span>
         </div>
       </div>
 
       <div className="message-list" ref={messageListRef} aria-live="polite">
-        {savedThreadLoading ? (
+        {chatLoading ? (
           <div className="chat-thread-state">
             <LoaderCircle className="spin" size={15} aria-hidden="true" />
-            <span>Loading saved analysis and chat…</span>
+            <span>Loading saved chat…</span>
           </div>
         ) : null}
-        {savedThreadError ? (
+        {chatError ? (
           <div className="chat-thread-state is-error">
             <CircleAlert size={15} aria-hidden="true" />
-            <span>{savedThreadError}</span>
+            <span>{chatError}</span>
           </div>
         ) : null}
-        {savedThread?.analysis ? (
+        {analysis ? (
           <article className="chat-analysis-section">
             <header>
               <span className="chat-analysis-mark">
@@ -182,11 +205,11 @@ export default function AIChat({
               </span>
               <span>Initial context</span>
             </header>
-            <h3>{savedThread.analysis.title}</h3>
-            {savedThread.analysis.text ? <p>{savedThread.analysis.text}</p> : null}
-            {savedThread.analysis.parameters.length ? (
+            <h3>{analysis.title}</h3>
+            {analysis.text ? <p>{analysis.text}</p> : null}
+            {analysis.parameters.length ? (
               <div className="chat-analysis-parameters">
-                {savedThread.analysis.parameters.map((parameter, index) => (
+                {analysis.parameters.map((parameter, index) => (
                   <div key={`${parameter.name}-${index}`}>
                     <span>{parameter.name}</span>
                     <strong>
@@ -199,7 +222,7 @@ export default function AIChat({
             ) : null}
           </article>
         ) : null}
-        {visibleMessages.map((message) => {
+        {messages.map((message) => {
           const Icon = message.status === 'pending'
             ? LoaderCircle
             : message.status === 'error'
@@ -225,10 +248,11 @@ export default function AIChat({
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
           onKeyDown={handleKeyDown}
+          disabled={!chatSession}
           placeholder="Ask about this recording, /segmentation, or /worldgen @MarkerA-@MarkerB"
           rows={3}
         />
-        <button type="submit" className="send-button" title="Send message">
+        <button type="submit" className="send-button" title="Send message" disabled={!chatSession}>
           <CornerDownLeft size={16} aria-hidden="true" />
         </button>
       </form>
