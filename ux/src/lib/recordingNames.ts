@@ -61,5 +61,6 @@ export function recordingTimestampMs(recording: RecordingEntry): number {
 }
 
 export function recordingVideoId(recording: RecordingEntry): string {
+  if (recording.path && !recording.path.startsWith('browser://')) return recording.path
   return recording.fileStem || recording.id
 }

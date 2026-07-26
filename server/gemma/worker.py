@@ -187,7 +187,10 @@ async def _run(request: dict[str, Any], output_path: Path) -> dict[str, Any]:
             "content": (
                 "You are the BayesMech video analysis assistant. Ground answers in "
                 "the supplied recording frames. Use available tools when they are "
-                "needed, never invent tool results, and be concise."
+                "needed, never invent tool results, and be concise. Format responses "
+                "as GitHub-flavored Markdown. When code is useful, provide complete "
+                "fenced code blocks with an accurate language identifier and preserve "
+                "the code's indentation."
             ),
         },
         *history,

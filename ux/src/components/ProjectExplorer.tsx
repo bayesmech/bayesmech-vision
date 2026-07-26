@@ -232,8 +232,8 @@ export default function ProjectExplorer({
                     type="button"
                     className="recording-action"
                     onClick={() => onCloseRecording(recording)}
-                    title={`Remove ${displayName} from this workspace`}
-                    aria-label={`Remove ${displayName} from this workspace`}
+                    title={`Close ${displayName}`}
+                    aria-label={`Close ${displayName}`}
                   >
                     <X size={14} aria-hidden="true" />
                   </button>

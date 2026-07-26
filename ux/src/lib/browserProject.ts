@@ -1119,6 +1119,19 @@ export async function readBrowserMotionCapture(
   }
 }
 
+function browserToolArguments(value: unknown): Record<string, unknown> {
+  const raw = String(value || '').trim()
+  if (!raw) return {}
+  try {
+    const parsed: unknown = JSON.parse(raw)
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? parsed as Record<string, unknown>
+      : { value: parsed }
+  } catch {
+    return { raw }
+  }
+}
+
 export async function readBrowserChatThread(
   gensparkFile?: File,
   chatFile?: File,
@@ -1135,15 +1148,30 @@ export async function readBrowserChatThread(
     }) as Record<string, unknown>
     const summary = response.summary as Record<string, unknown> | null
     const parameters = (summary?.parameters as Array<Record<string, unknown>> | undefined) ?? []
-    if (summary && (summary.title || summary.text || parameters.length)) {
+    const responseTurns = (response.turns as Array<Record<string, unknown>> | undefined) ?? []
+    const turns = responseTurns.map((turn) => ({
+      text: String(turn.text || ''),
+      toolCalls: (
+        (turn.toolCalls as Array<Record<string, unknown>> | undefined) ?? []
+      ).map((call) => ({
+        name: String(call.toolName || ''),
+        arguments: browserToolArguments(call.argumentsJson),
+        result: String(call.result || ''),
+      })),
+    }))
+    if (
+      (summary && (summary.title || summary.text || parameters.length))
+      || turns.length
+    ) {
       analysis = {
-        title: String(summary.title || 'AI Analysis'),
-        text: String(summary.text || ''),
+        title: String(summary?.title || 'Genspark analysis'),
+        text: String(summary?.text || ''),
         parameters: parameters.map((parameter) => ({
           name: String(parameter.name || ''),
           value: String(parameter.value || ''),
           unit: String(parameter.unit || ''),
         })),
+        turns,
       }
     }
   }
@@ -1163,6 +1191,7 @@ export async function readBrowserChatThread(
           title: titleMatch?.[1]?.trim() || 'AI Analysis',
           text: titleMatch ? raw.slice(titleMatch[0].length).trim() : raw,
           parameters: [],
+          turns: [],
         }
       }
     }

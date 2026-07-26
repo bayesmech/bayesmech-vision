@@ -13,6 +13,15 @@ const {
   scanProject,
 } = require('./main.cjs')
 
+const stateRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'bayesmech-control-state-'))
+const previousStateHome = process.env.BAYESMECH_STATE_HOME
+process.env.BAYESMECH_STATE_HOME = stateRoot
+test.after(() => {
+  if (previousStateHome === undefined) delete process.env.BAYESMECH_STATE_HOME
+  else process.env.BAYESMECH_STATE_HOME = previousStateHome
+  fs.rmSync(stateRoot, { recursive: true, force: true })
+})
+
 test('project display names persist without renaming their directories', (t) => {
   const recordingsRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'bayesmech-project-name-'))
   t.after(() => fs.rmSync(recordingsRoot, { recursive: true, force: true }))
@@ -59,7 +68,7 @@ test('devices attach to a regular project without changing its primary recording
   )
   assert.deepEqual(
     withCar.recordings[0].analyses.map((analysis) => analysis.title),
-    ['Control', 'Video Car'],
+    ['Control'],
   )
 
   const withPhone = addDeviceToProject(recordingPath, 'phone_camera')
@@ -70,7 +79,7 @@ test('devices attach to a regular project without changing its primary recording
   )
   assert.deepEqual(
     withPhone.recordings[0].analyses.map((analysis) => analysis.title),
-    ['Control', 'Video Car', 'Video Phone'],
+    ['Control', 'Video Phone'],
   )
   const phone = withPhone.recordings[0].controlProject.devices[1]
   assert.ok(fs.statSync(path.join(withPhone.rootPath, phone.recordingFile)).isFile())
@@ -82,11 +91,11 @@ test('devices attach to a regular project without changing its primary recording
   )
   assert.deepEqual(
     withSecondCar.recordings[0].analyses.map((analysis) => analysis.title),
-    ['Control', 'Video Car 1', 'Video Phone', 'Video Car 2'],
+    ['Control', 'Video Phone'],
   )
 })
 
-test('robot preset creates one manifest-backed project with device video tabs', (t) => {
+test('robot preset keeps car video in Control and adds augmented video tabs', (t) => {
   const recordingsRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'bayesmech-control-'))
   t.after(() => fs.rmSync(recordingsRoot, { recursive: true, force: true }))
 
@@ -119,7 +128,6 @@ test('robot preset creates one manifest-backed project with device video tabs', 
   )
   assert.deepEqual(recording.analyses.map((analysis) => analysis.title), [
     'Control',
-    'Video Car',
   ])
 
   const manifest = readControlProject(recording.controlProject.manifestPath)
@@ -130,7 +138,6 @@ test('robot preset creates one manifest-backed project with device video tabs', 
   assert.equal(rescanned.recordings.length, 1)
   assert.deepEqual(rescanned.recordings[0].analyses.map((analysis) => analysis.title), [
     'Control',
-    'Video Car',
     'Video Phone',
   ])
 })

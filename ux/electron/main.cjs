@@ -1,5 +1,6 @@
 const electron = require('electron')
 const { spawn } = require('node:child_process')
+const crypto = require('node:crypto')
 const fs = require('node:fs')
 const http = require('node:http')
 const https = require('node:https')
@@ -582,17 +583,19 @@ function recordingForControlProject(projectPath, controlPath, index) {
     if (!streamStat?.isFile()) continue
     streamSize += streamStat.size
     streamModifiedMs = Math.max(streamModifiedMs, streamStat.mtimeMs)
-    analyses.push({
-      key: `video:${device.deviceId}`,
-      title: controlVideoTitle(device, enabledDevices),
-      kind: 'video',
-      source: 'vis',
-      path: streamPath,
-      relativePath: path.relative(projectPath, streamPath),
-      sizeBytes: streamStat.size,
-      sizeLabel: byteSizeLabel(streamStat.size),
-      modifiedMs: streamStat.mtimeMs,
-    })
+    if (device.deviceType !== 'ROBOT_CAR_DEVICE') {
+      analyses.push({
+        key: `video:${device.deviceId}`,
+        title: controlVideoTitle(device, enabledDevices),
+        kind: 'video',
+        source: 'vis',
+        path: streamPath,
+        relativePath: path.relative(projectPath, streamPath),
+        sizeBytes: streamStat.size,
+        sizeLabel: byteSizeLabel(streamStat.size),
+        modifiedMs: streamStat.mtimeMs,
+      })
+    }
   }
 
   return {
@@ -603,6 +606,7 @@ function recordingForControlProject(projectPath, controlPath, index) {
       fileStem: manifest.projectId || path.basename(manifest.directoryPath),
       path: primaryPath,
       directoryPath: manifest.directoryPath,
+      projectRootPath: projectPath,
       relativePath: path.relative(projectPath, manifest.directoryPath),
       sizeBytes: streamSize,
       sizeLabel: byteSizeLabel(streamSize),
@@ -738,6 +742,7 @@ function scanProject(projectPath) {
       fileStem: baseName,
       path: visPath,
       directoryPath: dir,
+      projectRootPath: rootPath,
       relativePath: path.relative(rootPath, visPath),
       sizeBytes: visStat?.size ?? 0,
       sizeLabel: byteSizeLabel(visStat?.size ?? 0),
@@ -1062,6 +1067,7 @@ function renameProject(recordingPath, requestedName) {
     version: 1,
     displayName,
   })
+  savePersistentProjectState(directoryPath, { displayName })
   return scanProject(directoryPath)
 }
 
@@ -1935,6 +1941,20 @@ function analysisFromInitialTurn(turn) {
     title: titleMatch?.[1]?.trim() || 'AI Analysis',
     text: titleMatch ? raw.slice(titleMatch[0].length).trim() : raw,
     parameters: [],
+    turns: [],
+  }
+}
+
+function parseToolArguments(argumentsJson) {
+  const raw = String(argumentsJson || '').trim()
+  if (!raw) return {}
+  try {
+    const parsed = JSON.parse(raw)
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? parsed
+      : { value: parsed }
+  } catch {
+    return { raw }
   }
 }
 
@@ -1953,17 +1973,33 @@ function readChatThread(recordingPath) {
 
   if (fs.existsSync(gensparkPath)) {
     const decoded = types.gensparkResponseType.decode(fs.readFileSync(gensparkPath))
-    const response = types.gensparkResponseType.toObject(decoded, { defaults: true, longs: String })
+    const response = types.gensparkResponseType.toObject(decoded, {
+      defaults: true,
+      longs: String,
+      arrays: true,
+    })
     const summary = response.summary
-    if (summary && (summary.title || summary.text || summary.parameters?.length)) {
+    const turns = (response.turns || []).map((turn) => ({
+      text: String(turn.text || ''),
+      toolCalls: (turn.toolCalls || []).map((call) => ({
+        name: String(call.toolName || ''),
+        arguments: parseToolArguments(call.argumentsJson),
+        result: String(call.result || ''),
+      })),
+    }))
+    if (
+      (summary && (summary.title || summary.text || summary.parameters?.length))
+      || turns.length
+    ) {
       analysis = {
-        title: String(summary.title || 'AI Analysis'),
-        text: String(summary.text || ''),
-        parameters: (summary.parameters || []).map((parameter) => ({
+        title: String(summary?.title || 'Genspark analysis'),
+        text: String(summary?.text || ''),
+        parameters: (summary?.parameters || []).map((parameter) => ({
           name: String(parameter.name || ''),
           value: String(parameter.value || ''),
           unit: String(parameter.unit || ''),
         })),
+        turns,
       }
     }
   }
@@ -1987,6 +2023,7 @@ function readChatThread(recordingPath) {
 }
 
 const CHAT_WORKSPACE_VERSION = 1
+const DESKTOP_WORKSPACE_VERSION = 2
 
 function safeWorkspaceId(value, fallback) {
   const cleaned = String(value || '')
@@ -1997,8 +2034,37 @@ function safeWorkspaceId(value, fallback) {
   return cleaned || fallback
 }
 
-function workspaceVideoDirectory(videoId) {
-  return path.join(os.homedir(), '.bayesmech', safeWorkspaceId(videoId, 'video'))
+function bayesmechStateDirectory() {
+  return path.resolve(
+    process.env.BAYESMECH_STATE_HOME || path.join(os.homedir(), '.bayesmech'),
+  )
+}
+
+function stateKeyForPath(filePath, fallback = 'project') {
+  const resolved = path.resolve(filePath)
+  const name = safeWorkspaceId(path.basename(resolved), fallback).slice(0, 72)
+  const digest = crypto.createHash('sha256').update(resolved).digest('hex').slice(0, 16)
+  return `${name}-${digest}`
+}
+
+function persistentProjectDirectory(projectPath) {
+  return path.join(
+    bayesmechStateDirectory(),
+    'projects',
+    stateKeyForPath(projectPath),
+  )
+}
+
+function projectStateFile(projectPath) {
+  return path.join(persistentProjectDirectory(projectPath), 'project.json')
+}
+
+function normalizeProjectPaths(values) {
+  if (!Array.isArray(values)) return []
+  return [...new Set(values
+    .filter((value) => typeof value === 'string' && value.trim())
+    .filter((value) => !value.startsWith('browser://') && !value.startsWith('workspace://'))
+    .map((value) => path.resolve(value)))]
 }
 
 function readJsonFile(filePath, fallback) {
@@ -2019,11 +2085,186 @@ function writeJsonAtomic(filePath, value) {
   fs.renameSync(temporaryPath, filePath)
 }
 
+function loadDesktopWorkspaceState() {
+  const stored = readJsonFile(path.join(bayesmechStateDirectory(), 'workspace.json'), {})
+  const loadedProjectPaths = normalizeProjectPaths(
+    stored.loadedProjectPaths ?? stored.projectPaths,
+  )
+  const requestedActivePath = typeof stored.activeProjectPath === 'string' && stored.activeProjectPath
+    ? path.resolve(stored.activeProjectPath)
+    : ''
+  return {
+    version: DESKTOP_WORKSPACE_VERSION,
+    loadedProjectPaths,
+    activeProjectPath: loadedProjectPaths.includes(requestedActivePath)
+      ? requestedActivePath
+      : loadedProjectPaths[0] ?? '',
+    updatedAt: String(stored.updatedAt || ''),
+  }
+}
+
+function saveDesktopWorkspaceState(projectPaths, activeProjectPath = '') {
+  const loadedProjectPaths = normalizeProjectPaths(projectPaths)
+  const resolvedActivePath = typeof activeProjectPath === 'string' && activeProjectPath
+    ? path.resolve(activeProjectPath)
+    : ''
+  const state = {
+    version: DESKTOP_WORKSPACE_VERSION,
+    loadedProjectPaths,
+    activeProjectPath: loadedProjectPaths.includes(resolvedActivePath)
+      ? resolvedActivePath
+      : loadedProjectPaths[0] ?? '',
+    updatedAt: new Date().toISOString(),
+  }
+  writeJsonAtomic(path.join(bayesmechStateDirectory(), 'workspace.json'), state)
+  return state
+}
+
+function normalizePersistentRecording(recording) {
+  const recordingPath = typeof recording?.recordingPath === 'string' && recording.recordingPath
+    ? path.resolve(recording.recordingPath)
+    : ''
+  if (!recordingPath) return null
+  return {
+    videoId: String(recording.videoId || path.basename(recordingPath, '.vis.pb')),
+    recordingPath,
+    activeChatId: safeWorkspaceId(recording.activeChatId, ''),
+    updatedAt: String(recording.updatedAt || ''),
+  }
+}
+
+function loadPersistentProjectState(projectPath) {
+  const rootPath = path.resolve(projectPath)
+  const stored = readJsonFile(projectStateFile(rootPath), {})
+  const recordings = Array.isArray(stored.recordings)
+    ? stored.recordings.map(normalizePersistentRecording).filter(Boolean)
+    : []
+  const requestedRecordingPath = typeof stored.activeRecordingPath === 'string' && stored.activeRecordingPath
+    ? path.resolve(stored.activeRecordingPath)
+    : ''
+  return {
+    version: DESKTOP_WORKSPACE_VERSION,
+    projectId: stateKeyForPath(rootPath),
+    rootPath,
+    displayName: String(stored.displayName || ''),
+    activeRecordingPath: requestedRecordingPath,
+    activeChatId: safeWorkspaceId(stored.activeChatId, ''),
+    recordings,
+    updatedAt: String(stored.updatedAt || ''),
+  }
+}
+
+function savePersistentProjectState(projectPath, patch = {}) {
+  const rootPath = path.resolve(projectPath)
+  const current = loadPersistentProjectState(rootPath)
+  const activeRecordingPath = typeof patch.activeRecordingPath === 'string'
+    ? patch.activeRecordingPath ? path.resolve(patch.activeRecordingPath) : ''
+    : current.activeRecordingPath
+  const activeChatId = patch.activeChatId === undefined
+    ? current.activeChatId
+    : safeWorkspaceId(patch.activeChatId, '')
+  const recordings = Array.isArray(patch.recordings)
+    ? patch.recordings.map(normalizePersistentRecording).filter(Boolean)
+    : current.recordings
+  const state = {
+    ...current,
+    displayName: patch.displayName === undefined
+      ? current.displayName
+      : String(patch.displayName || '').trim(),
+    activeRecordingPath,
+    activeChatId,
+    recordings,
+    updatedAt: new Date().toISOString(),
+  }
+  writeJsonAtomic(projectStateFile(rootPath), state)
+  return state
+}
+
+function registerPersistentRecording(videoId, recordingPath, activeChatId) {
+  const resolvedRecordingPath = path.resolve(recordingPath)
+  const rootPath = path.dirname(resolvedRecordingPath)
+  const project = loadPersistentProjectState(rootPath)
+  const entry = {
+    videoId: String(videoId || path.basename(resolvedRecordingPath, '.vis.pb')),
+    recordingPath: resolvedRecordingPath,
+    activeChatId: safeWorkspaceId(activeChatId, ''),
+    updatedAt: new Date().toISOString(),
+  }
+  const recordings = project.recordings.some(
+    (recording) => recording.recordingPath === resolvedRecordingPath,
+  )
+    ? project.recordings.map((recording) => (
+        recording.recordingPath === resolvedRecordingPath ? entry : recording
+      ))
+    : [...project.recordings, entry]
+  savePersistentProjectState(rootPath, { recordings })
+}
+
+function legacyWorkspaceVideoDirectory(videoId) {
+  return path.join(bayesmechStateDirectory(), safeWorkspaceId(videoId, 'video'))
+}
+
+function migrateLegacyChatWorkspace(videoId, recordingPath, videoDirectory) {
+  if (fs.existsSync(videoDirectory)) return
+  const legacyIds = [
+    videoId,
+    path.basename(recordingPath, '.vis.pb'),
+  ]
+  const legacyDirectories = [...new Set(legacyIds)].map(legacyWorkspaceVideoDirectory)
+  try {
+    for (const entry of fs.readdirSync(bayesmechStateDirectory(), { withFileTypes: true })) {
+      if (!entry.isDirectory() || entry.name === 'projects') continue
+      legacyDirectories.push(path.join(bayesmechStateDirectory(), entry.name))
+    }
+  } catch {
+    // A new state directory has no legacy chat folders to inspect.
+  }
+  for (const legacyDirectory of [...new Set(legacyDirectories)]) {
+    const legacyManifest = readJsonFile(path.join(legacyDirectory, 'video.json'), null)
+    if (!safeStat(legacyDirectory)?.isDirectory() || !legacyManifest) continue
+    if (
+      legacyManifest.recordingPath
+      && path.resolve(legacyManifest.recordingPath) !== path.resolve(recordingPath)
+    ) continue
+    fs.mkdirSync(path.dirname(videoDirectory), { recursive: true })
+    fs.cpSync(legacyDirectory, videoDirectory, { recursive: true })
+    return
+  }
+}
+
+function workspaceVideoDirectory(videoId, recordingPath) {
+  if (!recordingPath || typeof recordingPath !== 'string') {
+    throw new Error('A recording path is required for project-scoped chat state.')
+  }
+  const resolvedRecordingPath = path.resolve(recordingPath)
+  const projectDirectory = persistentProjectDirectory(path.dirname(resolvedRecordingPath))
+  const videoDirectory = path.join(
+    projectDirectory,
+    'recordings',
+    stateKeyForPath(resolvedRecordingPath, safeWorkspaceId(videoId, 'video')),
+  )
+  migrateLegacyChatWorkspace(videoId, resolvedRecordingPath, videoDirectory)
+  return videoDirectory
+}
+
 function defaultChatTitle(createdAt) {
   return new Date(createdAt).toLocaleString(undefined, {
     dateStyle: 'medium',
     timeStyle: 'short',
   })
+}
+
+function normalizeWorkspaceToolCall(call) {
+  const argumentsValue = call?.arguments
+  return {
+    name: String(call?.name || 'Tool call'),
+    arguments: argumentsValue && typeof argumentsValue === 'object' && !Array.isArray(argumentsValue)
+      ? argumentsValue
+      : typeof argumentsValue === 'string'
+        ? parseToolArguments(argumentsValue)
+        : {},
+    result: call?.result ?? null,
+  }
 }
 
 function normalizeWorkspaceMessage(message, index = 0) {
@@ -2038,6 +2279,9 @@ function normalizeWorkspaceMessage(message, index = 0) {
     text: String(message?.text || ''),
     createdAt,
     ...(status ? { status } : {}),
+    ...(Array.isArray(message?.toolCalls) && message.toolCalls.length
+      ? { toolCalls: message.toolCalls.map(normalizeWorkspaceToolCall) }
+      : {}),
   }
 }
 
@@ -2072,6 +2316,7 @@ function normalizeChatSession(session) {
     markers: Array.isArray(session?.markers)
       ? session.markers.map(normalizeWorkspaceMarker)
       : [],
+    ...(session?.source === 'legacy-chat-pb' ? { source: session.source } : {}),
   }
 }
 
@@ -2085,6 +2330,7 @@ function writeChatSession(videoDirectory, session) {
     title: normalized.title,
     createdAt: normalized.createdAt,
     updatedAt: normalized.updatedAt,
+    ...(normalized.source ? { source: normalized.source } : {}),
   })
   writeJsonAtomic(path.join(chatDirectory, 'chat.json'), {
     version: CHAT_WORKSPACE_VERSION,
@@ -2136,6 +2382,21 @@ function legacyChatMessages(recordingPath) {
   }
 }
 
+function legacyChatPath(recordingPath) {
+  return `${path.resolve(recordingPath).slice(0, -'.vis.pb'.length)}.chat.pb`
+}
+
+function legacyChatTitle(messages) {
+  const firstUserText = messages
+    .find((message) => message.role === 'user')
+    ?.text.replace(/\s+/g, ' ')
+    .trim()
+  if (!firstUserText) return 'Imported legacy chat'
+  return firstUserText.length > 72
+    ? `${firstUserText.slice(0, 69).trimEnd()}…`
+    : firstUserText
+}
+
 function workspaceManifest(videoId, recordingPath, activeChatId, chats) {
   return {
     version: CHAT_WORKSPACE_VERSION,
@@ -2151,6 +2412,7 @@ function writeWorkspaceManifest(videoDirectory, videoId, recordingPath, activeCh
     path.join(videoDirectory, 'video.json'),
     workspaceManifest(videoId, recordingPath, activeChatId, chats),
   )
+  registerPersistentRecording(videoId, recordingPath, activeChatId)
 }
 
 function loadChatWorkspace(videoId, recordingPath) {
@@ -2159,7 +2421,7 @@ function loadChatWorkspace(videoId, recordingPath) {
   }
 
   const normalizedVideoId = String(videoId || path.basename(recordingPath, '.vis.pb'))
-  const videoDirectory = workspaceVideoDirectory(normalizedVideoId)
+  const videoDirectory = workspaceVideoDirectory(normalizedVideoId, recordingPath)
   fs.mkdirSync(videoDirectory, { recursive: true })
   const manifest = readJsonFile(path.join(videoDirectory, 'video.json'), {})
   const entries = fs.readdirSync(videoDirectory, { withFileTypes: true })
@@ -2183,6 +2445,43 @@ function loadChatWorkspace(videoId, recordingPath) {
     return left.createdAt.localeCompare(right.createdAt)
   })
 
+  let importedLegacyChatId = ''
+  const sourceChatPath = legacyChatPath(recordingPath)
+  const importReceiptPath = path.join(videoDirectory, 'legacy-chat-import.json')
+  if (fs.existsSync(sourceChatPath) && !fs.existsSync(importReceiptPath)) {
+    const existingImport = chats.find((chat) => (
+      chat.source === 'legacy-chat-pb'
+      || chat.messages.some((message) => message.id.startsWith('legacy-'))
+    ))
+    if (existingImport) {
+      importedLegacyChatId = existingImport.id
+    } else {
+      const messages = legacyChatMessages(recordingPath)
+      if (messages.length) {
+        const createdAt = messages[0].createdAt
+        const imported = writeChatSession(videoDirectory, {
+          id: `legacy-chat-${stateKeyForPath(sourceChatPath, 'chat').slice(-16)}`,
+          title: legacyChatTitle(messages),
+          createdAt,
+          updatedAt: messages.at(-1)?.createdAt ?? createdAt,
+          messages,
+          markers: [],
+          source: 'legacy-chat-pb',
+        })
+        chats.push(imported)
+        importedLegacyChatId = imported.id
+      }
+    }
+    if (importedLegacyChatId) {
+      writeJsonAtomic(importReceiptPath, {
+        version: 1,
+        sourcePath: sourceChatPath,
+        importedChatId: importedLegacyChatId,
+        importedAt: new Date().toISOString(),
+      })
+    }
+  }
+
   if (chats.length === 0 && !Array.isArray(manifest.chatOrder)) {
     const createdAt = new Date()
     chats.push(writeChatSession(videoDirectory, {
@@ -2190,14 +2489,15 @@ function loadChatWorkspace(videoId, recordingPath) {
       title: defaultChatTitle(createdAt.toISOString()),
       createdAt: createdAt.toISOString(),
       updatedAt: createdAt.toISOString(),
-      messages: legacyChatMessages(recordingPath),
+      messages: [],
       markers: [],
     }))
   }
 
-  const activeChatId = chats.some((chat) => chat.id === manifest.activeChatId)
-    ? manifest.activeChatId
-    : chats[0]?.id ?? ''
+  const activeChatId = importedLegacyChatId
+    || (chats.some((chat) => chat.id === manifest.activeChatId)
+      ? manifest.activeChatId
+      : chats[0]?.id ?? '')
   writeWorkspaceManifest(videoDirectory, normalizedVideoId, recordingPath, activeChatId, chats)
   return {
     version: CHAT_WORKSPACE_VERSION,
@@ -2210,7 +2510,7 @@ function loadChatWorkspace(videoId, recordingPath) {
 
 function createChatSession(videoId, recordingPath) {
   const workspace = loadChatWorkspace(videoId, recordingPath)
-  const videoDirectory = workspaceVideoDirectory(videoId)
+  const videoDirectory = workspaceVideoDirectory(videoId, recordingPath)
   const createdAt = new Date()
   const session = writeChatSession(videoDirectory, {
     id: chatIdForDate(createdAt),
@@ -2222,6 +2522,10 @@ function createChatSession(videoId, recordingPath) {
   })
   const chats = [...workspace.chats, session]
   writeWorkspaceManifest(videoDirectory, videoId, recordingPath, session.id, chats)
+  savePersistentProjectState(path.dirname(path.resolve(recordingPath)), {
+    activeRecordingPath: recordingPath,
+    activeChatId: session.id,
+  })
   return { ...workspace, activeChatId: session.id, chats }
 }
 
@@ -2234,7 +2538,7 @@ function deleteChatSession(videoId, recordingPath, chatId) {
   const deleteIndex = workspace.chats.findIndex((chat) => chat.id === normalizedChatId)
   if (deleteIndex < 0) throw new Error('Chat not found.')
 
-  const videoDirectory = workspaceVideoDirectory(videoId)
+  const videoDirectory = workspaceVideoDirectory(videoId, recordingPath)
   const chatDirectory = path.join(videoDirectory, normalizedChatId)
   fs.rmSync(chatDirectory, { recursive: true, force: false })
   const chats = workspace.chats.filter((chat) => chat.id !== normalizedChatId)
@@ -2242,12 +2546,16 @@ function deleteChatSession(videoId, recordingPath, chatId) {
     ? chats[Math.min(deleteIndex, chats.length - 1)]?.id ?? ''
     : workspace.activeChatId
   writeWorkspaceManifest(videoDirectory, videoId, recordingPath, activeChatId, chats)
+  savePersistentProjectState(path.dirname(path.resolve(recordingPath)), {
+    activeRecordingPath: recordingPath,
+    activeChatId,
+  })
   return { ...workspace, activeChatId, chats }
 }
 
 function saveChatSession(videoId, recordingPath, session) {
   const workspace = loadChatWorkspace(videoId, recordingPath)
-  const videoDirectory = workspaceVideoDirectory(videoId)
+  const videoDirectory = workspaceVideoDirectory(videoId, recordingPath)
   const saved = writeChatSession(videoDirectory, session)
   const chats = workspace.chats.some((chat) => chat.id === saved.id)
     ? workspace.chats.map((chat) => (chat.id === saved.id ? saved : chat))
@@ -2263,12 +2571,16 @@ function setActiveChatSession(videoId, recordingPath, chatId) {
   const workspace = loadChatWorkspace(videoId, recordingPath)
   if (!workspace.chats.some((chat) => chat.id === chatId)) return false
   writeWorkspaceManifest(
-    workspaceVideoDirectory(videoId),
+    workspaceVideoDirectory(videoId, recordingPath),
     videoId,
     recordingPath,
     chatId,
     workspace.chats,
   )
+  savePersistentProjectState(path.dirname(path.resolve(recordingPath)), {
+    activeRecordingPath: recordingPath,
+    activeChatId: chatId,
+  })
   return true
 }
 
@@ -4244,6 +4556,16 @@ if (isElectronRuntime) {
   ipcMain.handle('project:rename', (_event, recordingPath, displayName) => (
     renameProject(recordingPath, displayName)
   ))
+  ipcMain.handle('workspace:load', () => loadDesktopWorkspaceState())
+  ipcMain.handle('workspace:save', (_event, projectPaths, activeProjectPath) => (
+    saveDesktopWorkspaceState(projectPaths, activeProjectPath)
+  ))
+  ipcMain.handle('project-state:load', (_event, projectPath) => (
+    loadPersistentProjectState(projectPath)
+  ))
+  ipcMain.handle('project-state:save', (_event, projectPath, patch) => (
+    savePersistentProjectState(projectPath, patch)
+  ))
   ipcMain.handle('control-service:ensure', () => ensureStreamlogRunning())
 
   ipcMain.handle('vis:select-files', async () => {
@@ -4367,6 +4689,11 @@ module.exports = {
   createControlProject,
   addDeviceToProject,
   renameProject,
+  loadDesktopWorkspaceState,
+  saveDesktopWorkspaceState,
+  loadPersistentProjectState,
+  savePersistentProjectState,
+  workspaceVideoDirectory,
   ensureStreamlogRunning,
   stopManagedStreamlog,
   readControlProject,

@@ -67,6 +67,7 @@ export type RecordingEntry = {
   fileStem: string
   path: string
   directoryPath: string
+  projectRootPath?: string
   relativePath: string
   sizeBytes: number
   sizeLabel: string
@@ -319,10 +320,22 @@ export type ChatAnalysisParameter = {
   unit: string
 }
 
+export type ChatToolCall = {
+  name: string
+  arguments: Record<string, unknown>
+  result: unknown
+}
+
+export type ChatAnalysisTurn = {
+  text: string
+  toolCalls: ChatToolCall[]
+}
+
 export type ChatAnalysis = {
   title: string
   text: string
   parameters: ChatAnalysisParameter[]
+  turns: ChatAnalysisTurn[]
 }
 
 export type SavedChatTurn = {
@@ -342,6 +355,7 @@ export type WorkspaceChatMessage = {
   text: string
   createdAt: string
   status?: 'pending' | 'ok' | 'error'
+  toolCalls?: ChatToolCall[]
 }
 
 export type WorkspaceChatSession = {
@@ -351,6 +365,7 @@ export type WorkspaceChatSession = {
   updatedAt: string
   messages: WorkspaceChatMessage[]
   markers: VideoMarker[]
+  source?: 'legacy-chat-pb'
 }
 
 export type AgentChatRequest = {
@@ -361,11 +376,7 @@ export type AgentChatRequest = {
   history: Array<Pick<WorkspaceChatMessage, 'role' | 'text'>>
 }
 
-export type AgentToolCall = {
-  name: string
-  arguments: Record<string, unknown>
-  result: unknown
-}
+export type AgentToolCall = ChatToolCall
 
 export type AgentChatResult = {
   jobId: string
@@ -381,6 +392,31 @@ export type VideoChatWorkspace = {
   recordingPath: string
   activeChatId: string
   chats: WorkspaceChatSession[]
+}
+
+export type PersistentRecordingState = {
+  videoId: string
+  recordingPath: string
+  activeChatId: string
+  updatedAt: string
+}
+
+export type PersistentProjectState = {
+  version: 2
+  projectId: string
+  rootPath: string
+  displayName: string
+  activeRecordingPath: string
+  activeChatId: string
+  recordings: PersistentRecordingState[]
+  updatedAt: string
+}
+
+export type DesktopWorkspaceState = {
+  version: 2
+  loadedProjectPaths: string[]
+  activeProjectPath: string
+  updatedAt: string
 }
 
 export type WorldgenPoint = Vec3 & {
@@ -665,6 +701,16 @@ export type BridgeApi = {
     recordingPath: string,
     displayName: string,
   ) => Promise<ProjectScanResult>
+  loadWorkspaceState: () => Promise<DesktopWorkspaceState>
+  saveWorkspaceState: (
+    projectPaths: string[],
+    activeProjectPath: string,
+  ) => Promise<DesktopWorkspaceState>
+  loadProjectState: (projectPath: string) => Promise<PersistentProjectState>
+  saveProjectState: (
+    projectPath: string,
+    patch: Partial<Pick<PersistentProjectState, 'displayName' | 'activeRecordingPath' | 'activeChatId'>>,
+  ) => Promise<PersistentProjectState>
   ensureControlService: () => Promise<{
     endpoint: string
     ready: boolean

@@ -56,11 +56,10 @@ uv run streamlog/main.py
 
 ## Live device control
 
-The desktop UX creates control workspaces from the robot button beside the
-**Project** heading. Choose **Robot Car**, **Robot Hand**, or **Drone Control**.
-The app creates `recordings/YYYYMMDD_HHMMSS_<preset>/`, opens it as the current
-project with a fresh chat, and shows its project-scoped **Control** tab. Ordinary
-recording projects do not get a Control tab.
+Create or open a project, then use **Add Device** beside **Chat** to attach a
+**Robot Car**, **Phone Camera**, **Robot Hand**, or **Drone**. The project keeps
+its existing chat and gains a project-scoped **Control** tab only after a
+control device is attached.
 
 Each directory contains a protobuf `.control.pb` manifest. It records the
 project preset plus every primary or augmented device's role, host, control
@@ -104,11 +103,29 @@ robot's one-second watchdog remains the final safety backstop.
 
 Robot frames are saved to the primary device's `.vis.pb`; a simultaneous phone
 stream is saved to a different `.phone.vis.pb` in the same project. The scanner
-groups both files under one project entry and adds **Video Car** and
-**Video Phone** tabs as those streams appear. Robot frames include
+groups both files under one project entry. Car video stays in **Control** so it
+is not duplicated in a redundant Video Car tab; an augmented stream gets its
+own **Video Phone** tab as it appears. Robot frames include
 `ultrasonic_sensor_data`, with `normalized_distance` clamped to `0..1` against
 the sensor's four-metre range, as well as the raw metre value and validity
 metadata.
+
+Desktop state is stored under `~/.bayesmech/`. `workspace.json` records the
+project folders currently loaded in the workspace and the active project.
+Each path-keyed directory under `~/.bayesmech/projects/` keeps that project's
+active recording, active chat, markers, and chat history. Closing a project
+removes it only from `workspace.json`; opening the folder again restores its
+saved state and chats. Existing flat `~/.bayesmech/<video-id>/` chat state is
+copied into the project-scoped layout the first time that recording is opened.
+Legacy `.chat.pb` files are also imported once as ordinary project chats. The
+source file is retained, while an import receipt prevents a deliberately
+deleted chat from being recreated on the next launch.
+
+Genspark analysis shows every stored turn in full, followed by the continuing
+project chat. Tool calls in either section are collapsed initially and can be
+expanded to inspect their complete input parameters and output. Chat content
+uses GitHub-flavoured Markdown, including tables and syntax-preserving fenced
+code blocks, so locally generated Gemma answers can contain usable code.
 
 The normalized device API is:
 

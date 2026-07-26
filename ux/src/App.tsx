@@ -48,8 +48,8 @@ import {
 import { compactNumber, shortPath } from './lib/format'
 import { recordingDisplayName, recordingVideoId } from './lib/recordingNames'
 
-const LAST_PROJECT_KEY = 'bayesmech:lastProject'
-const PROJECT_PATHS_KEY = 'bayesmech:projectPaths'
+const LEGACY_LAST_PROJECT_KEY = 'bayesmech:lastProject'
+const LEGACY_PROJECT_PATHS_KEY = 'bayesmech:projectPaths'
 const BROWSER_CHAT_WORKSPACE_KEY = 'bayesmech:chat-workspace'
 
 const initialVideoState = (): VideoPlaybackState => ({
@@ -157,6 +157,30 @@ function markersEqual(left: VideoMarker[], right: VideoMarker[]) {
   })
 }
 
+function compactToolValue(value: unknown, limit = 4000): string {
+  let serialized: string
+  try {
+    serialized = typeof value === 'string' ? value : JSON.stringify(value)
+  } catch {
+    serialized = String(value)
+  }
+  return serialized.length > limit
+    ? `${serialized.slice(0, limit)}… (${serialized.length - limit} chars omitted)`
+    : serialized
+}
+
+function chatHistoryText(message: WorkspaceChatMessage): string {
+  if (!message.toolCalls?.length) return message.text
+  const toolTrace = message.toolCalls.map((call) => (
+    [
+      `Tool: ${call.name}`,
+      `Input: ${compactToolValue(call.arguments)}`,
+      `Output: ${compactToolValue(call.result)}`,
+    ].join('\n')
+  )).join('\n\n')
+  return `${message.text}\n\n${toolTrace}`.trim()
+}
+
 function mergeProjectScanResults(results: ProjectScanResult[]): ProjectScanResult {
   const recordingsByPath = new Map<string, RecordingEntry>()
   for (const result of results) {
@@ -173,6 +197,10 @@ function mergeProjectScanResults(results: ProjectScanResult[]): ProjectScanResul
     recordings,
     error: recordings.length ? undefined : errors[0] ?? 'No .vis.pb recordings are loaded.',
   }
+}
+
+function recordingProjectRoot(recording: RecordingEntry): string {
+  return recording.projectRootPath || recording.directoryPath
 }
 
 export default function App() {
@@ -307,6 +335,23 @@ export default function App() {
             )
           }
         }
+        if (bridge?.saveWorkspaceState && bridge.saveProjectState) {
+          const projectRoot = recordingProjectRoot(recording)
+          void Promise.all([
+            bridge.saveWorkspaceState(projectRootsRef.current, projectRoot),
+            bridge.saveProjectState(projectRoot, {
+              displayName: recordingDisplayName(recording),
+              activeRecordingPath: recording.path,
+              activeChatId: session?.id ?? '',
+            }),
+          ]).catch((stateError) => {
+            setChatThreadError(
+              stateError instanceof Error
+                ? `Project state could not be saved: ${stateError.message}`
+                : 'Project state could not be saved.',
+            )
+          })
+        }
 
         const browserFile = browserFilesRef.current.get(recording.path)
         const nextSummary = browserFile
@@ -329,7 +374,11 @@ export default function App() {
   const applyProject = useCallback(
     async (
       nextProject: ProjectScanResult,
-      options: { replace?: boolean; remember?: boolean } = {},
+      options: {
+        replace?: boolean
+        remember?: boolean
+        preferredRecordingPath?: string
+      } = {},
     ) => {
       const replace = options.replace ?? false
       const remember = options.remember ?? true
@@ -348,8 +397,15 @@ export default function App() {
       ) {
         const roots = [...new Set([...projectRootsRef.current, nextProject.rootPath])]
         projectRootsRef.current = roots
-        localStorage.setItem(PROJECT_PATHS_KEY, JSON.stringify(roots))
-        localStorage.setItem(LAST_PROJECT_KEY, nextProject.rootPath)
+        if (bridge?.saveWorkspaceState) {
+          void bridge.saveWorkspaceState(roots, nextProject.rootPath).catch((stateError) => {
+            setError(
+              stateError instanceof Error
+                ? `Workspace state could not be saved: ${stateError.message}`
+                : 'Workspace state could not be saved.',
+            )
+          })
+        }
       }
       if (nextProject.error) setError(nextProject.error)
       const loadedWorkspaces: Record<string, VideoChatWorkspace> = {}
@@ -368,8 +424,27 @@ export default function App() {
             : 'Failed to load a saved chat workspace.',
         )
       }
-      const firstRecording = nextProject.recordings[0]
-        ? { ...nextProject.recordings[0], id: nextProject.recordings[0].path }
+      let preferredRecordingPath = options.preferredRecordingPath
+      if (
+        !preferredRecordingPath
+        && bridge?.loadProjectState
+        && nextProject.rootPath
+        && !nextProject.rootPath.startsWith('browser://')
+        && !nextProject.rootPath.startsWith('workspace://')
+      ) {
+        try {
+          preferredRecordingPath = (
+            await bridge.loadProjectState(nextProject.rootPath)
+          ).activeRecordingPath
+        } catch {
+          // A project without saved state simply opens its first recording.
+        }
+      }
+      const firstRecordingSource = nextProject.recordings.find(
+        (recording) => recording.path === preferredRecordingPath,
+      ) ?? nextProject.recordings[0]
+      const firstRecording = firstRecordingSource
+        ? { ...firstRecordingSource, id: firstRecordingSource.path }
         : null
       if (firstRecording) {
         const workspace = loadedWorkspaces[recordingVideoId(firstRecording)]
@@ -381,7 +456,7 @@ export default function App() {
         setSummary(null)
       }
     },
-    [loadRecordingWorkspace, selectRecording],
+    [bridge, loadRecordingWorkspace, selectRecording],
   )
 
   const openProject = useCallback(async () => {
@@ -562,12 +637,20 @@ export default function App() {
       if (!bridge) {
         const scanned = scanBrowserFiles(browserSourceFiles)
         browserFilesRef.current = scanned.filesByPath
-        await applyProject(scanned.project, { replace: true, remember: false })
+        await applyProject(scanned.project, {
+          replace: true,
+          remember: false,
+          preferredRecordingPath: selectedRecordingRef.current?.path,
+        })
       } else {
         const roots = projectRootsRef.current
         if (!roots.length) return
         const scans = await Promise.all(roots.map((rootPath) => bridge.scanProject(rootPath)))
-        await applyProject(mergeProjectScanResults(scans), { replace: true, remember: false })
+        await applyProject(mergeProjectScanResults(scans), {
+          replace: true,
+          remember: false,
+          preferredRecordingPath: selectedRecordingRef.current?.path,
+        })
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to rescan project.'
@@ -578,36 +661,72 @@ export default function App() {
   }, [applyProject, bridge, browserSourceFiles, project])
 
   useEffect(() => {
-    if (!bridge || restoredProjectsRef.current) return
+    if (
+      !bridge?.loadWorkspaceState
+      || !bridge.saveWorkspaceState
+      || restoredProjectsRef.current
+    ) return
     restoredProjectsRef.current = true
-    let projectPaths: string[] = []
-    try {
-      const parsed = JSON.parse(localStorage.getItem(PROJECT_PATHS_KEY) || '[]')
-      if (Array.isArray(parsed)) projectPaths = parsed.filter((item): item is string => typeof item === 'string')
-    } catch {
-      localStorage.removeItem(PROJECT_PATHS_KEY)
-    }
-    const lastProject = localStorage.getItem(LAST_PROJECT_KEY)
-    if (!projectPaths.length && lastProject) projectPaths = [lastProject]
-    projectPaths = [...new Set(projectPaths)]
-    if (!projectPaths.length) return
-    projectRootsRef.current = projectPaths
-
     setLoadingProject(true)
-    Promise.allSettled(projectPaths.map((projectPath) => bridge.scanProject(projectPath)))
-      .then((results) => {
+    const restoreWorkspace = async () => {
+      try {
+        let workspaceState = await bridge.loadWorkspaceState()
+        let projectPaths = workspaceState.loadedProjectPaths
+        if (!projectPaths.length) {
+          try {
+            const parsed = JSON.parse(
+              localStorage.getItem(LEGACY_PROJECT_PATHS_KEY) || '[]',
+            )
+            if (Array.isArray(parsed)) {
+              projectPaths = parsed.filter(
+                (item): item is string => typeof item === 'string',
+              )
+            }
+          } catch {
+            // Invalid legacy browser state is ignored during one-time migration.
+          }
+          const lastProject = localStorage.getItem(LEGACY_LAST_PROJECT_KEY)
+          if (!projectPaths.length && lastProject) projectPaths = [lastProject]
+          projectPaths = [...new Set(projectPaths)]
+          if (projectPaths.length) {
+            workspaceState = await bridge.saveWorkspaceState(
+              projectPaths,
+              lastProject || projectPaths[0],
+            )
+            projectPaths = workspaceState.loadedProjectPaths
+            localStorage.removeItem(LEGACY_LAST_PROJECT_KEY)
+            localStorage.removeItem(LEGACY_PROJECT_PATHS_KEY)
+          }
+        }
+        if (!projectPaths.length) return
+        projectRootsRef.current = projectPaths
+        const results = await Promise.allSettled(
+          projectPaths.map((projectPath) => bridge.scanProject(projectPath)),
+        )
         const scans = results
           .filter((result): result is PromiseFulfilledResult<ProjectScanResult> => result.status === 'fulfilled')
           .map((result) => result.value)
-        if (scans.length) void applyProject(mergeProjectScanResults(scans), { replace: true, remember: false })
-      })
-      .catch(() => {
-        localStorage.removeItem(LAST_PROJECT_KEY)
-        localStorage.removeItem(PROJECT_PATHS_KEY)
-      })
-      .finally(() => {
+        if (!scans.length) return
+        const activeProjectPath = workspaceState.activeProjectPath || projectPaths[0]
+        const activeProjectState = bridge.loadProjectState
+          ? await bridge.loadProjectState(activeProjectPath)
+          : null
+        await applyProject(mergeProjectScanResults(scans), {
+          replace: true,
+          remember: false,
+          preferredRecordingPath: activeProjectState?.activeRecordingPath,
+        })
+      } catch (restoreError) {
+        setError(
+          restoreError instanceof Error
+            ? `Workspace could not be restored: ${restoreError.message}`
+            : 'Workspace could not be restored.',
+        )
+      } finally {
         setLoadingProject(false)
-      })
+      }
+    }
+    void restoreWorkspace()
   }, [applyProject, bridge])
 
   useEffect(() => {
@@ -923,7 +1042,7 @@ export default function App() {
         message,
         history: history
           .filter((item) => item.role === 'user' || item.role === 'assistant')
-          .map((item) => ({ role: item.role, text: item.text })),
+          .map((item) => ({ role: item.role, text: chatHistoryText(item) })),
       })
     },
     [activeChat, bridge, selectedRecording],
@@ -932,19 +1051,46 @@ export default function App() {
   const closeRecording = useCallback(
     (recording: RecordingEntry) => {
       if (!project) return
-      const closingIndex = project.recordings.findIndex((item) => item.id === recording.id)
-      const remaining = project.recordings.filter((item) => item.id !== recording.id)
-      const nextProject = mergeProjectScanResults([{ ...project, recordings: remaining }])
+      const closingRoot = recordingProjectRoot(recording)
+      const closingRecordings = project.recordings.filter(
+        (item) => recordingProjectRoot(item) === closingRoot,
+      )
+      const closingPaths = new Set(closingRecordings.map((item) => item.path))
+      const closingIndex = project.recordings.findIndex((item) => closingPaths.has(item.path))
+      const remaining = project.recordings.filter((item) => !closingPaths.has(item.path))
+      const nextProject = remaining.length
+        ? mergeProjectScanResults([{ ...project, recordings: remaining }])
+        : null
       projectRef.current = nextProject
       setProject(nextProject)
-      const videoId = recordingVideoId(recording)
       setChatWorkspaces((current) => {
         const next = { ...current }
-        delete next[videoId]
+        for (const item of closingRecordings) {
+          delete next[recordingVideoId(item)]
+        }
         return next
       })
-      if (selectedRecordingRef.current?.id !== recording.id) return
+      const nextRoots = projectRootsRef.current.filter((root) => root !== closingRoot)
+      projectRootsRef.current = nextRoots
+      const selectedWasClosed = selectedRecordingRef.current
+        ? closingPaths.has(selectedRecordingRef.current.path)
+        : false
       const nextRecording = remaining[Math.min(Math.max(closingIndex, 0), remaining.length - 1)]
+      const activeRoot = selectedWasClosed
+        ? nextRecording ? recordingProjectRoot(nextRecording) : ''
+        : selectedRecordingRef.current
+          ? recordingProjectRoot(selectedRecordingRef.current)
+          : ''
+      if (bridge?.saveWorkspaceState) {
+        void bridge.saveWorkspaceState(nextRoots, activeRoot).catch((stateError) => {
+          setError(
+            stateError instanceof Error
+              ? `Workspace state could not be saved: ${stateError.message}`
+              : 'Workspace state could not be saved.',
+          )
+        })
+      }
+      if (!selectedWasClosed) return
       if (nextRecording) {
         const nextWorkspace = chatWorkspaces[recordingVideoId(nextRecording)]
         void selectRecording(nextRecording, nextWorkspace?.activeChatId, nextWorkspace)
@@ -957,7 +1103,7 @@ export default function App() {
         setVideoState(initialVideoState())
       }
     },
-    [chatWorkspaces, project, selectRecording],
+    [bridge, chatWorkspaces, project, selectRecording],
   )
 
   const performWindowAction = useCallback(

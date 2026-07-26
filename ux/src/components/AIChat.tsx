@@ -39,6 +39,7 @@ import type {
   WorkspaceChatSession,
 } from '../types'
 import { isCommand, type CommandProgress, type CommandResult } from '../lib/overlay'
+import { MarkdownContent, ToolCallList } from './RichChatContent'
 
 type AIChatProps = {
   selectedRecording: RecordingEntry | null
@@ -516,7 +517,12 @@ export default function AIChat({
       const result = await onSendMessage(text, messages)
       updateMessages((current) => current.map((item) => (
         item.id === assistantId
-          ? { ...item, status: 'ok', text: result.text || 'Gemma returned an empty response.' }
+          ? {
+              ...item,
+              status: 'ok',
+              text: result.text || 'Gemma returned an empty response.',
+              toolCalls: result.toolCalls,
+            }
           : item
       )))
     } catch (err) {
@@ -635,7 +641,7 @@ export default function AIChat({
               <span>Initial context</span>
             </header>
             <h3>{analysis.title}</h3>
-            {analysis.text ? <p>{analysis.text}</p> : null}
+            <MarkdownContent text={analysis.text} className="chat-analysis-summary" />
             {analysis.parameters.length ? (
               <div className="chat-analysis-parameters">
                 {analysis.parameters.map((parameter, index) => (
@@ -648,6 +654,29 @@ export default function AIChat({
                   </div>
                 ))}
               </div>
+            ) : null}
+            {analysis.turns.length ? (
+              <section className="genspark-trace">
+                <header>
+                  <strong>Full analysis trace</strong>
+                  <span>{analysis.turns.length} turns</span>
+                </header>
+                {analysis.turns.map((turn, index) => (
+                  <article className="genspark-trace-turn" key={`genspark-turn-${index}`}>
+                    <div className="genspark-trace-heading">
+                      <Sparkles size={12} aria-hidden="true" />
+                      <strong>Analysis turn {index + 1}</strong>
+                      {turn.toolCalls.length ? (
+                        <span>
+                          {turn.toolCalls.length} tool {turn.toolCalls.length === 1 ? 'call' : 'calls'}
+                        </span>
+                      ) : null}
+                    </div>
+                    <MarkdownContent text={turn.text} />
+                    <ToolCallList calls={turn.toolCalls} />
+                  </article>
+                ))}
+              </section>
             ) : null}
           </article>
         ) : null}
@@ -666,7 +695,10 @@ export default function AIChat({
               <div className="message-avatar">
                 <Icon size={14} aria-hidden="true" />
               </div>
-              <p>{message.text}</p>
+              <div className="message-body">
+                <MarkdownContent text={message.text} />
+                <ToolCallList calls={message.toolCalls} />
+              </div>
             </article>
           )
         })}

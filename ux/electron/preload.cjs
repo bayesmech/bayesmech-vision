@@ -10,6 +10,14 @@ contextBridge.exposeInMainWorld('bayesmech', {
   renameProject: (recordingPath, displayName) => (
     ipcRenderer.invoke('project:rename', recordingPath, displayName)
   ),
+  loadWorkspaceState: () => ipcRenderer.invoke('workspace:load'),
+  saveWorkspaceState: (projectPaths, activeProjectPath) => (
+    ipcRenderer.invoke('workspace:save', projectPaths, activeProjectPath)
+  ),
+  loadProjectState: (projectPath) => ipcRenderer.invoke('project-state:load', projectPath),
+  saveProjectState: (projectPath, patch) => (
+    ipcRenderer.invoke('project-state:save', projectPath, patch)
+  ),
   ensureControlService: () => ipcRenderer.invoke('control-service:ensure'),
   selectVisFiles: () => ipcRenderer.invoke('vis:select-files'),
   scanProject: (projectPath) => ipcRenderer.invoke('project:scan', projectPath),
