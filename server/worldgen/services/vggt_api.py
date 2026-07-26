@@ -306,7 +306,7 @@ def health():
 @app.post("/infer")
 async def infer_multipart(
     video: UploadFile | None = File(default=None),
-    frames: list[UploadFile] | None = File(default=None),
+    frames: list[UploadFile] = File(default=[]),
     every_n: int = Form(default=1),
     max_frames: int | None = Form(default=16),
     fps: float | None = Form(default=None),
