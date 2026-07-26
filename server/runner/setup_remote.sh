@@ -307,7 +307,7 @@ from transformers import AutoModelForMultimodalLM
 
 model_dir = Path(os.environ["GEMMA_MODEL_DIR"])
 config = json.loads((model_dir / "config.json").read_text(encoding="utf-8"))
-if config.get("model_type") != "gemma4":
+if config.get("model_type") not in {"gemma4", "gemma4_unified"}:
     raise SystemExit(
         f"Expected a Gemma 4 checkpoint, found model_type={config.get('model_type')!r}"
     )
