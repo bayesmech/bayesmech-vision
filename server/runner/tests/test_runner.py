@@ -11,6 +11,7 @@ import httpx
 from fastmcp import Client
 
 from runner.app import RunnerSettings, create_app
+from runner.job_events import job_events
 from runner.manager import JobManager
 from runner.mcp_server import create_mcp_server
 from runner.registry import JobDefinition
@@ -258,6 +259,8 @@ def test_mcp_discovers_runner_and_worldgen_tools(tmp_path: Path) -> None:
                 "runner_artifact",
                 "worldgen_health",
                 "worldgen_reconstruct_frames",
+                "worldgen_list_jobs",
+                "worldgen_get_job",
                 "worldgen_splat_status",
                 "worldgen_splat_artifact",
             } <= names
@@ -271,6 +274,33 @@ def test_mcp_discovers_runner_and_worldgen_tools(tmp_path: Path) -> None:
         asyncio.run(exercise())
     finally:
         manager.close()
+
+
+def test_runner_job_state_endpoint_returns_broker_snapshot(tmp_path: Path) -> None:
+    job_events.clear()
+    app = create_app(_settings(tmp_path))
+    job_events.publish(
+        {
+            "job_id": "vggt-test",
+            "type": "vggt",
+            "title": "VGGT Reconstruction",
+            "status": "running",
+            "progress": 0.42,
+        }
+    )
+    response = asyncio.run(
+        _request(
+            app,
+            "GET",
+            "/api/v1/jobs/state",
+            headers={"Authorization": f"Bearer {TOKEN}"},
+        )
+    )
+    assert response.status_code == 200
+    [state] = response.json()["jobs"]
+    assert state["job_id"] == "vggt-test"
+    assert state["progress"] == 0.42
+    assert state["revision"] == 1
 
 
 def test_mcp_submits_job_and_returns_inline_artifact(tmp_path: Path) -> None:

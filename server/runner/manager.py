@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any, BinaryIO
 
 from .registry import JobDefinition
+from .job_events import publish_runner_job
 
 
 TERMINAL_STATUSES = {"succeeded", "failed", "cancelled"}
@@ -401,6 +402,7 @@ class JobManager:
     def _write(self, job_id: str, state: dict[str, Any]) -> None:
         with self._lock:
             _atomic_json(self.jobs_dir / job_id / "job.json", state)
+        publish_runner_job(state)
 
     @staticmethod
     def _terminate_process(process: subprocess.Popen[bytes]) -> None:

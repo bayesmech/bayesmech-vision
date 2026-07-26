@@ -131,6 +131,8 @@ standard MCP client can discover these tools with `tools/list`:
 - `runner_artifact`
 - `worldgen_health`
 - `worldgen_reconstruct_frames`
+- `worldgen_list_jobs`
+- `worldgen_get_job`
 - `worldgen_splat_status`
 - `worldgen_splat_artifact`
 
@@ -154,6 +156,22 @@ World Modeling is available at `/api/v1/worldgen`. Generic jobs use:
 - `GET /api/v1/jobs/{job_id}`
 - `POST /api/v1/jobs/{job_id}/cancel`
 - `GET /api/v1/jobs/{job_id}/artifacts/{artifact_id}`
+
+Queued World Modeling and shared background state use:
+
+- `POST /api/v1/worldgen/jobs/vggt` — queue VGGT; `start_splat=true`
+  creates a separately tracked Gaussian Splatting child job after reconstruction
+- `GET /api/v1/worldgen/jobs` — list persistent VGGT and splatting jobs
+- `GET /api/v1/worldgen/jobs/{job_id}` — read one job and its percentage progress
+- `GET /api/v1/worldgen/jobs/{vggt_job_id}/result` — fetch the completed VGGT JSON
+- `GET /api/v1/jobs/state` — snapshot all live runner-owned job state
+- `GET /api/v1/jobs/events` — resumable Server-Sent Events stream of full job states
+
+Each event has a stable `job_id`, `type`, `status`, `stage`, `progress` in the
+range 0–1, and marker/request metadata. VGGT events expose the splatting job in
+`child_job_ids`; splatting events point back with `parent_job_id`. The Electron
+UX consumes the event stream for its background-jobs ribbon while the completed
+results are persisted in the recording's canonical `.vggt.pb` file.
 
 All endpoints except `/health` require `Authorization: Bearer $RUNNER_TOKEN`
 when a token is configured.

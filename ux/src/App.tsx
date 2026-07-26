@@ -9,6 +9,7 @@ import type {
   MotionCaptureOverlay,
   ProjectScanResult,
   RecordingEntry,
+  RunnerBackgroundJob,
   SavedChatTurn,
   SegMask,
   SensorDataSummary,
@@ -62,6 +63,13 @@ function requestId() {
 
 function sleep(ms: number) {
   return new Promise((resolve) => window.setTimeout(resolve, ms))
+}
+
+function backgroundJobTimestamp(job: RunnerBackgroundJob): number {
+  const value = job.updatedAt || job.createdAt || 0
+  if (typeof value === 'number') return value < 1_000_000_000_000 ? value * 1000 : value
+  const parsed = new Date(value).getTime()
+  return Number.isFinite(parsed) ? parsed : 0
 }
 
 function splatProgressMessage(splat: NonNullable<WorldgenResult['splat']>): string {
@@ -182,6 +190,7 @@ export default function App() {
   const [tabRequest, setTabRequest] = useState<WorkspaceTabRequest | null>(null)
   const [videoState, setVideoState] = useState<VideoPlaybackState>(() => initialVideoState())
   const [worldgenResults, setWorldgenResults] = useState<Record<string, WorldgenResult>>({})
+  const [backgroundJobs, setBackgroundJobs] = useState<Record<string, RunnerBackgroundJob>>({})
   const [chatThread, setChatThread] = useState<ChatThread | null>(null)
   const [chatWorkspaces, setChatWorkspaces] = useState<Record<string, VideoChatWorkspace>>({})
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null)
@@ -192,6 +201,43 @@ export default function App() {
   const projectRootsRef = useRef<string[]>([])
   const restoredProjectsRef = useRef(false)
   const chatSaveQueueRef = useRef<Promise<unknown>>(Promise.resolve())
+
+  useEffect(() => {
+    if (!bridge?.readRunnerBackgroundJobs || !bridge.onRunnerJobState) return
+    let cancelled = false
+    bridge.readRunnerBackgroundJobs()
+      .then((jobs) => {
+        if (cancelled) return
+        setBackgroundJobs((current) => {
+          const next = { ...current }
+          for (const job of jobs) {
+            const previous = next[job.jobId]
+            if (!previous || backgroundJobTimestamp(job) >= backgroundJobTimestamp(previous)) {
+              next[job.jobId] = job
+            }
+          }
+          return next
+        })
+      })
+      .catch(() => {
+        // The runner may be offline while the user works with local recordings.
+      })
+    const unsubscribe = bridge.onRunnerJobState((job) => {
+      if (cancelled || !job.jobId) return
+      setBackgroundJobs((current) => {
+        const previous = current[job.jobId]
+        if (
+          previous
+          && backgroundJobTimestamp(previous) > backgroundJobTimestamp(job)
+        ) return current
+        return { ...current, [job.jobId]: job }
+      })
+    })
+    return () => {
+      cancelled = true
+      unsubscribe()
+    }
+  }, [bridge])
 
   const loadRecordingWorkspace = useCallback(
     async (recording: RecordingEntry): Promise<VideoChatWorkspace> => {
@@ -1079,6 +1125,7 @@ export default function App() {
             chatSession={activeChat}
             chatLoading={chatThreadLoading}
             chatError={chatThreadError}
+            backgroundJobs={Object.values(backgroundJobs)}
             onMessagesChange={saveActiveMessages}
             onRunCommand={runCommand}
           />

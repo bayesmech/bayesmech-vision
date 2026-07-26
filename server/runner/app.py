@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import hmac
 import ipaddress
 import json
@@ -21,14 +22,15 @@ from fastapi import (
     Request,
     UploadFile,
 )
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 
+from .job_events import job_events
 from .manager import JobManager, safe_filename, validate_arguments
 from .mcp_server import create_mcp_server
 from .registry import builtin_job_registry
 
 SERVER_ROOT = Path(__file__).resolve().parents[1]
-RUNNER_VERSION = "0.2.0"
+RUNNER_VERSION = "0.3.0"
 
 
 def _env_bool(name: str, default: bool) -> bool:
@@ -106,6 +108,13 @@ def create_app(
     manager: JobManager | None = None,
 ) -> FastAPI:
     settings = settings or RunnerSettings.from_env()
+    os.environ.setdefault(
+        "WORLDGEN_JOBS_DIR", str(settings.data_dir / "worldgen" / "vggt_jobs")
+    )
+    os.environ.setdefault(
+        "WORLDGEN_SPLAT_JOBS_DIR",
+        str(settings.data_dir / "worldgen" / "splat_jobs"),
+    )
     manager = manager or JobManager(
         settings.data_dir,
         builtin_job_registry(SERVER_ROOT),
@@ -300,6 +309,58 @@ def create_app(
             destination.unlink(missing_ok=True)
             manager.fail_upload(prepared.job_id, str(exc))
             raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @application.get("/api/v1/jobs/events")
+    async def stream_job_events(
+        request: Request,
+        after: int = Query(default=0, ge=0),
+        last_event_id: str | None = Header(default=None, alias="Last-Event-ID"),
+    ):
+        try:
+            cursor = max(after, int(last_event_id or 0))
+        except ValueError:
+            cursor = after
+
+        async def events():
+            nonlocal cursor
+            if cursor == 0:
+                for state in reversed(job_events.snapshot()):
+                    revision = int(state.get("revision") or 0)
+                    cursor = max(cursor, revision)
+                    yield (
+                        f"id: {revision}\n"
+                        "event: job\n"
+                        f"data: {json.dumps(state, separators=(',', ':'))}\n\n"
+                    )
+            while not await request.is_disconnected():
+                pending = await asyncio.to_thread(
+                    job_events.wait_for_events, cursor, 15.0
+                )
+                if not pending:
+                    yield ": keepalive\n\n"
+                    continue
+                for state in pending:
+                    revision = int(state.get("revision") or 0)
+                    cursor = max(cursor, revision)
+                    yield (
+                        f"id: {revision}\n"
+                        "event: job\n"
+                        f"data: {json.dumps(state, separators=(',', ':'))}\n\n"
+                    )
+
+        return StreamingResponse(
+            events(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no",
+            },
+        )
+
+    @application.get("/api/v1/jobs/state")
+    async def background_job_state():
+        return {"jobs": job_events.snapshot()}
 
     @application.get("/api/v1/jobs/{job_id}")
     async def job_status(job_id: str):

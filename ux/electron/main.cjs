@@ -140,6 +140,9 @@ let gensparkResponseType = null
 let chatHistoryType = null
 let idoSlamType = null
 const worldgenSplatDestinations = new Map()
+const runnerBackgroundJobs = new Map()
+let runnerJobEventRequest = null
+let runnerJobEventReconnectTimer = null
 
 function appIconPath() {
   const candidates = [
@@ -2030,62 +2033,39 @@ async function readWorldgen(filePath) {
     throw new Error('Expected a .vggt.pb file.')
   }
   const resolved = path.resolve(filePath)
-  const messages = readLengthDelimitedProtos(resolved, getVggtResponseType())
-  let result = worldgenPreviewFromMessages(messages, resolved)
-  const splatInfo = result.splat
-  const missingCompletedPly = splatInfo?.status === 'complete' && (
-    !splatInfo.plyPath || !fs.existsSync(splatInfo.plyPath)
-  )
+  const type = getVggtResponseType()
+  const messages = readLengthDelimitedProtos(resolved, type)
+  const polledJobs = new Set()
+  let changed = false
 
-  if (splatInfo?.jobId && (
-    !['complete', 'failed', 'skipped'].includes(splatInfo.status) || missingCompletedPly
-  )) {
+  for (const message of messages) {
+    const saved = savedSplatInfo(message?.gaussianSplat)
+    if (!saved?.jobId || polledJobs.has(saved.jobId)) continue
+    const missingCompletedPly = saved.status === 'complete' && (
+      !saved.plyPath || !fs.existsSync(saved.plyPath)
+    )
+    if (['complete', 'failed', 'skipped'].includes(saved.status) && !missingCompletedPly) continue
+
+    polledJobs.add(saved.jobId)
     try {
-      worldgenSplatDestinations.set(splatInfo.jobId, worldgenSplatPaths(resolved))
-      const remote = await pollWorldgenSplat(splatInfo.jobId)
-      let jobMessageIndex = messages.length - 1
-      for (let index = messages.length - 1; index >= 0; index -= 1) {
-        if (String(messages[index]?.gaussianSplat?.jobId || '') === splatInfo.jobId) {
-          jobMessageIndex = index
-          break
-        }
-      }
-      const previous = messages[jobMessageIndex].gaussianSplat || {}
-      messages[jobMessageIndex].gaussianSplat = {
-        ...previous,
-        status: remote.status,
-        stage: remote.stage || previous.stage,
-        message: remote.message || previous.message,
-        progress: remote.progress,
-        currentStep: remote.currentStep,
-        plyPath: remote.plyPath || previous.plyPath,
-        previewJsonPath: remote.previewJsonPath || previous.previewJsonPath,
-        error: remote.error || previous.error,
-        gaussianCount: remote.gaussianCount || previous.gaussianCount,
-        previewPointCount: remote.previewPointCount || previous.previewPointCount,
-        elapsedSec: remote.elapsedSec || previous.elapsedSec,
-        previewPoints: remote.points?.length ? remote.points : previous.previewPoints,
-      }
-      result = worldgenPreviewFromMessages(messages, resolved)
-      if (remote.status === 'complete' || remote.status === 'failed') {
-        result = await saveWorldgenSplat(resolved, remote)
-      }
+      worldgenSplatDestinations.set(
+        saved.jobId,
+        worldgenSplatPaths(resolved, saved.jobId),
+      )
+      const remote = await pollWorldgenSplat(saved.jobId)
+      changed = applyWorldgenSplatToMessages(resolved, messages, remote) || changed
     } catch {
-      // Keep the saved VGGT point cloud usable even when the remote splat
+      // Keep every saved VGGT point cloud usable even when one remote splat
       // status endpoint is unavailable.
     }
   }
 
-  return result
+  if (changed) writeLengthDelimitedProtos(resolved, type, messages)
+  return worldgenPreviewFromMessages(messages, resolved)
 }
 
-async function saveWorldgenSplat(filePath, splat) {
-  if (!filePath || typeof filePath !== 'string' || !filePath.endsWith('.vggt.pb')) {
-    throw new Error('Expected a .vggt.pb file.')
-  }
-  const resolved = path.resolve(filePath)
-  const type = getVggtResponseType()
-  const messages = readLengthDelimitedProtos(resolved, type)
+function applyWorldgenSplatToMessages(resolved, messages, splat) {
+  if (!messages.length) return false
   let messageIndex = messages.length - 1
   const jobId = String(splat?.jobId || '')
   if (jobId) {
@@ -2096,9 +2076,10 @@ async function saveWorldgenSplat(filePath, splat) {
       }
     }
   }
+
   const message = messages[messageIndex]
   const previous = message.gaussianSplat || {}
-  const paths = worldgenSplatPaths(resolved)
+  const paths = worldgenSplatPaths(resolved, jobId)
   let previewJsonPath = String(splat?.previewJsonPath || previous.previewJsonPath || '')
   const points = Array.isArray(splat?.points) ? splat.points : []
   const embeddedPoints = points.length ? points : (Array.isArray(previous.previewPoints) ? previous.previewPoints : [])
@@ -2119,6 +2100,7 @@ async function saveWorldgenSplat(filePath, splat) {
       trainer: String(splat.trainer || previous.trainer || 'remote-vggt-service'),
       points,
     }
+    fs.mkdirSync(path.dirname(paths.previewPath), { recursive: true })
     fs.writeFileSync(paths.previewPath, JSON.stringify(preview), 'utf8')
     previewJsonPath = paths.previewPath
   }
@@ -2143,10 +2125,20 @@ async function saveWorldgenSplat(filePath, splat) {
     currentStep: finiteNumber(splat?.currentStep, previous.currentStep),
     previewPoints: encodeSplatPreviewPoints(embeddedPoints),
   }
-
   messages[messageIndex] = message
+  return true
+}
+
+async function saveWorldgenSplat(filePath, splat) {
+  if (!filePath || typeof filePath !== 'string' || !filePath.endsWith('.vggt.pb')) {
+    throw new Error('Expected a .vggt.pb file.')
+  }
+  const resolved = path.resolve(filePath)
+  const type = getVggtResponseType()
+  const messages = readLengthDelimitedProtos(resolved, type)
+  applyWorldgenSplatToMessages(resolved, messages, splat)
   writeLengthDelimitedProtos(resolved, type, messages)
-  return readWorldgen(resolved)
+  return worldgenPreviewFromMessages(messages, resolved)
 }
 
 function runnerEndpoint() {
@@ -2175,10 +2167,19 @@ function worldgenSplatDisabled() {
   return /^(0|false|no|off)$/i.test(String(process.env.WORLDGEN_SPLAT ?? '').trim())
 }
 
-function worldgenSplatPaths(vggtPath) {
+function worldgenSplatPaths(vggtPath, jobId = '') {
   const dir = path.dirname(vggtPath)
   const name = path.basename(vggtPath)
   const stem = name.endsWith('.vggt.pb') ? name.slice(0, -'.vggt.pb'.length) : path.parse(name).name
+  if (jobId) {
+    const safeJobId = String(jobId).replace(/[^A-Za-z0-9._-]+/g, '_')
+    const jobDir = path.join(dir, `${stem}.splats`, safeJobId)
+    return {
+      workspacePath: path.join(jobDir, 'workspace'),
+      plyPath: path.join(jobDir, 'model.splat.ply'),
+      previewPath: path.join(jobDir, 'preview.json'),
+    }
+  }
   return {
     workspacePath: path.join(dir, `${stem}.splat-workspace`),
     plyPath: path.join(dir, `${stem}.splat.ply`),
@@ -2438,6 +2439,128 @@ function nodeDownloadToFile(urlString, destinationPath, options = {}) {
 
 function runnerHeaders(token = worldgenToken()) {
   return token ? { Authorization: `Bearer ${token}` } : {}
+}
+
+function normalizeRunnerBackgroundJob(raw) {
+  const status = String(raw?.status || 'queued')
+  return {
+    jobId: String(raw?.job_id || raw?.id || ''),
+    type: String(raw?.type || 'runner'),
+    title: String(raw?.title || raw?.type || 'Runner job'),
+    source: String(raw?.source || 'runner'),
+    status,
+    stage: String(raw?.stage || status),
+    message: String(raw?.message || raw?.error || ''),
+    progress: Math.min(1, Math.max(0, finiteNumber(raw?.progress, ['complete', 'succeeded'].includes(status) ? 1 : 0))),
+    currentStep: finiteNumber(raw?.current_step ?? raw?.currentStep),
+    maxSteps: finiteNumber(raw?.max_steps ?? raw?.maxSteps),
+    parentJobId: String(raw?.parent_job_id || raw?.parentJobId || ''),
+    childJobIds: Array.isArray(raw?.child_job_ids)
+      ? raw.child_job_ids.map((value) => String(value))
+      : [],
+    requestId: String(raw?.request_id || raw?.requestId || ''),
+    markerStart: String(raw?.marker_start || raw?.markerStart || ''),
+    markerEnd: String(raw?.marker_end || raw?.markerEnd || ''),
+    recordingPath: String(raw?.recording_path || raw?.recordingPath || ''),
+    createdAt: raw?.created_at ?? raw?.createdAt ?? '',
+    updatedAt: raw?.updated_at ?? raw?.updatedAt ?? '',
+    error: String(raw?.error || ''),
+    revision: finiteNumber(raw?.revision),
+  }
+}
+
+function publishRunnerBackgroundJob(raw) {
+  const job = normalizeRunnerBackgroundJob(raw)
+  if (!job.jobId) return
+  runnerBackgroundJobs.set(job.jobId, job)
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('runner:job-state', job)
+  }
+}
+
+async function readRunnerBackgroundJobs() {
+  const response = await nodeHttpRequest(`${runnerEndpoint()}/api/v1/jobs/state`, {
+    headers: { ...runnerHeaders(), Accept: 'application/json' },
+    timeoutMs: Math.max(1000, Math.trunc(finiteNumber(process.env.RUNNER_HEALTH_TIMEOUT_MS, DEFAULT_VGGT_HEALTH_TIMEOUT_MS))),
+  })
+  if (!response.ok) {
+    throw new Error(`Runner background jobs failed with HTTP ${response.status}${await readResponseDetail(response)}`)
+  }
+  const payload = await response.json()
+  const jobs = Array.isArray(payload?.jobs) ? payload.jobs.map(normalizeRunnerBackgroundJob) : []
+  for (const job of jobs) {
+    if (job.jobId) runnerBackgroundJobs.set(job.jobId, job)
+  }
+  return jobs
+}
+
+function scheduleRunnerJobEventReconnect() {
+  if (runnerJobEventReconnectTimer || !isElectronRuntime) return
+  runnerJobEventReconnectTimer = setTimeout(() => {
+    runnerJobEventReconnectTimer = null
+    startRunnerJobEventStream()
+  }, 2000)
+}
+
+function parseRunnerJobEventBlock(block) {
+  const data = block
+    .split(/\r?\n/)
+    .filter((line) => line.startsWith('data:'))
+    .map((line) => line.slice(5).trimStart())
+    .join('\n')
+  if (!data) return
+  try {
+    publishRunnerBackgroundJob(JSON.parse(data))
+  } catch {
+    // Ignore one malformed event; the next state update is a full snapshot.
+  }
+}
+
+function startRunnerJobEventStream() {
+  if (!isElectronRuntime || runnerJobEventRequest) return
+  const parsed = new URL(`${runnerEndpoint()}/api/v1/jobs/events`)
+  const transport = parsed.protocol === 'https:' ? https : http
+  let buffer = ''
+  const req = transport.request(parsed, {
+    method: 'GET',
+    headers: {
+      ...runnerHeaders(),
+      Accept: 'text/event-stream',
+      'Cache-Control': 'no-cache',
+    },
+  }, (res) => {
+    if ((Number(res.statusCode) || 0) < 200 || (Number(res.statusCode) || 0) >= 300) {
+      res.resume()
+      runnerJobEventRequest = null
+      scheduleRunnerJobEventReconnect()
+      return
+    }
+    res.setEncoding('utf8')
+    res.on('data', (chunk) => {
+      buffer += chunk
+      for (;;) {
+        const match = /\r?\n\r?\n/.exec(buffer)
+        if (!match) break
+        const block = buffer.slice(0, match.index)
+        buffer = buffer.slice(match.index + match[0].length)
+        parseRunnerJobEventBlock(block)
+      }
+    })
+    res.on('end', () => {
+      runnerJobEventRequest = null
+      scheduleRunnerJobEventReconnect()
+    })
+    res.on('error', () => {
+      runnerJobEventRequest = null
+      scheduleRunnerJobEventReconnect()
+    })
+  })
+  runnerJobEventRequest = req
+  req.on('error', () => {
+    runnerJobEventRequest = null
+    scheduleRunnerJobEventReconnect()
+  })
+  req.end()
 }
 
 function runnerMcpEndpoint() {
@@ -3207,6 +3330,10 @@ async function runWorldgen(request) {
     { name: 'max_points_per_frame', value: String(maxPointsPerFrame) },
     { name: 'response_format', value: 'json' },
     { name: 'start_splat', value: worldgenSplatDisabled() ? 'false' : 'true' },
+    { name: 'request_id', value: String(request.requestId || '') },
+    { name: 'marker_start', value: String(request.markerStart || '') },
+    { name: 'marker_end', value: String(request.markerEnd || '') },
+    { name: 'recording_path', value: resolved },
   ])
 
   const endpoint = worldgenEndpoint()
@@ -3214,8 +3341,9 @@ async function runWorldgen(request) {
 
   const requestTimeoutMs = Math.max(1000, Math.trunc(finiteNumber(process.env.VGGT_REQUEST_TIMEOUT_MS, DEFAULT_VGGT_REQUEST_TIMEOUT_MS)))
   let response
+  let vggtJobId = ''
   try {
-    response = await nodeHttpRequest(`${endpoint}/infer`, {
+    response = await nodeHttpRequest(`${endpoint}${worldgenUsesRunner() ? '/jobs/vggt' : '/infer'}`, {
       method: 'POST',
       headers: {
         ...runnerHeaders(token),
@@ -3234,7 +3362,48 @@ async function runWorldgen(request) {
     throw new Error(`VGGT request failed with HTTP ${response.status}${await readResponseDetail(response)}`)
   }
 
-  const responseJson = await response.json()
+  let responseJson
+  if (worldgenUsesRunner()) {
+    const submitted = await response.json()
+    vggtJobId = String(submitted?.job_id || submitted?.id || '')
+    if (!vggtJobId) throw new Error('Runner accepted VGGT work without returning a job id.')
+    const deadline = Date.now() + requestTimeoutMs
+    for (;;) {
+      if (Date.now() > deadline) {
+        throw new Error(`VGGT job ${vggtJobId} exceeded the ${Math.round(requestTimeoutMs / 1000)}s request timeout.`)
+      }
+      await new Promise((resolveWait) => setTimeout(resolveWait, 1000))
+      const stateResponse = await nodeHttpRequest(`${endpoint}/jobs/${encodeURIComponent(vggtJobId)}`, {
+        headers: {
+          ...runnerHeaders(token),
+          Accept: 'application/json',
+        },
+        timeoutMs: Math.max(1000, Math.trunc(finiteNumber(process.env.RUNNER_HEALTH_TIMEOUT_MS, DEFAULT_VGGT_HEALTH_TIMEOUT_MS))),
+      })
+      if (!stateResponse.ok) {
+        throw new Error(`VGGT job status failed with HTTP ${stateResponse.status}${await readResponseDetail(stateResponse)}`)
+      }
+      const state = await stateResponse.json()
+      if (state.status === 'failed' || state.status === 'cancelled') {
+        throw new Error(state.error || state.message || `VGGT job ${state.status}.`)
+      }
+      if (state.status !== 'complete') continue
+      const resultResponse = await nodeHttpRequest(`${endpoint}/jobs/${encodeURIComponent(vggtJobId)}/result`, {
+        headers: {
+          ...runnerHeaders(token),
+          Accept: 'application/json',
+        },
+        timeoutMs: requestTimeoutMs,
+      })
+      if (!resultResponse.ok) {
+        throw new Error(`VGGT result download failed with HTTP ${resultResponse.status}${await readResponseDetail(resultResponse)}`)
+      }
+      responseJson = await resultResponse.json()
+      break
+    }
+  } else {
+    responseJson = await response.json()
+  }
   const baseName = path.basename(resolved).slice(0, -'.vis.pb'.length)
   const outputPath = path.join(path.dirname(resolved), `${baseName}.vggt.pb`)
   const settledRequest = {
@@ -3249,7 +3418,12 @@ async function runWorldgen(request) {
         status: 'skipped',
         message: 'VGGT response did not include a remote splat job.',
       })
-  if (splatInfo.jobId) worldgenSplatDestinations.set(splatInfo.jobId, worldgenSplatPaths(outputPath))
+  if (splatInfo.jobId) {
+    worldgenSplatDestinations.set(
+      splatInfo.jobId,
+      worldgenSplatPaths(outputPath, splatInfo.jobId),
+    )
+  }
 
   const message = encodeWorldgenResponse(
     responseJson,
@@ -3259,7 +3433,10 @@ async function runWorldgen(request) {
     splatInfo,
   )
   const history = persistWorldgenComputation(resolved, outputPath, message)
-  return worldgenPreviewFromMessages(history, outputPath)
+  return {
+    ...worldgenPreviewFromMessages(history, outputPath),
+    vggtJobId,
+  }
 }
 
 if (isElectronRuntime) {
@@ -3317,6 +3494,7 @@ if (isElectronRuntime) {
   ipcMain.handle('worldgen:save-splat', (_event, filePath, splat) => saveWorldgenSplat(filePath, splat))
   ipcMain.handle('runner:health', () => readRunnerHealth())
   ipcMain.handle('runner:capabilities', () => readRunnerCapabilities())
+  ipcMain.handle('runner:background-jobs', () => readRunnerBackgroundJobs())
   ipcMain.handle('runner:mcp-list-tools', () => listRunnerMcpTools())
   ipcMain.handle('runner:mcp-call-tool', (_event, name, args, timeoutMs) => (
     callRunnerMcpTool(name, args, timeoutMs)
@@ -3371,13 +3549,19 @@ if (isElectronRuntime) {
   app.whenReady().then(() => {
     installMenu()
     createWindow()
+    startRunnerJobEventStream()
 
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow()
+      startRunnerJobEventStream()
     })
   })
 
   app.on('window-all-closed', () => {
+    if (runnerJobEventReconnectTimer) clearTimeout(runnerJobEventReconnectTimer)
+    runnerJobEventReconnectTimer = null
+    runnerJobEventRequest?.destroy()
+    runnerJobEventRequest = null
     if (process.platform !== 'darwin') app.quit()
   })
 }
@@ -3402,9 +3586,14 @@ module.exports = {
   saveWorldgenSplat,
   readRunnerHealth,
   readRunnerCapabilities,
+  readRunnerBackgroundJobs,
   submitRunnerJob,
   runRunnerJob,
   readRunnerJob,
   cancelRunnerJob,
   downloadRunnerArtifact,
+  getVggtResponseType,
+  persistWorldgenComputation,
+  worldgenPreviewFromMessages,
+  worldgenSplatPaths,
 }

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import time
 from pathlib import Path
 
 import httpx
@@ -8,13 +9,26 @@ import torch
 from fastapi import FastAPI
 
 from worldgen.services import vggt_api
+from worldgen.services import vggt_jobs
 from worldgen.scripts import infer_vggt_omega_video
 
 
 async def _request(app: FastAPI, **kwargs) -> httpx.Response:
     transport = httpx.ASGITransport(app=app)
-    async with httpx.AsyncClient(transport=transport, base_url="http://worldgen.test") as client:
+    async with httpx.AsyncClient(
+        transport=transport, base_url="http://worldgen.test"
+    ) as client:
         return await client.post("/infer", **kwargs)
+
+
+async def _request_path(
+    app: FastAPI, method: str, path: str, **kwargs
+) -> httpx.Response:
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(
+        transport=transport, base_url="http://worldgen.test"
+    ) as client:
+        return await client.request(method, path, **kwargs)
 
 
 def test_infer_accepts_repeated_frame_uploads(monkeypatch, tmp_path: Path) -> None:
@@ -47,7 +61,9 @@ def test_infer_accepts_repeated_frame_uploads(monkeypatch, tmp_path: Path) -> No
     assert received["kwargs"]["start_splat"] is False
 
 
-def test_model_download_uses_official_omega_repository_and_filename(monkeypatch, tmp_path: Path) -> None:
+def test_model_download_uses_official_omega_repository_and_filename(
+    monkeypatch, tmp_path: Path
+) -> None:
     import huggingface_hub
 
     monkeypatch.syspath_prepend(str(vggt_api.ROOT / "vendor" / "vggt_omega"))
@@ -86,3 +102,71 @@ def test_model_download_uses_official_omega_repository_and_filename(monkeypatch,
         "repo_id": "facebook/VGGT-Omega",
         "filename": "vggt_omega_1b_512.pt",
     }
+
+
+def test_vggt_background_job_reports_progress_and_result(
+    monkeypatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(vggt_jobs, "JOBS_DIR", tmp_path / "vggt-jobs")
+    with vggt_jobs._jobs_lock:
+        vggt_jobs._jobs.clear()
+
+    def fake_inference(frame_paths, frame_indices, timestamps_sec, **kwargs):
+        assert len(frame_paths) == 2
+        assert frame_indices == [0, 1]
+        assert timestamps_sec == [0.0, 0.05]
+        assert kwargs["parent_job_id"].startswith("vggt-")
+        kwargs["progress_callback"](
+            "reconstructing", 0.5, 1, 2, "Reconstructed frame 1/2."
+        )
+        return vggt_api.JSONResponse(
+            {
+                "metadata": {"num_frames": 2},
+                "camera": {},
+                "point_clouds": [],
+                "splat_job": {
+                    "job_id": "splat-test-child",
+                    "status": "queued",
+                    "progress": 0.0,
+                },
+            }
+        )
+
+    monkeypatch.setattr(vggt_api, "_run_inference", fake_inference)
+    submitted = asyncio.run(
+        _request_path(
+            vggt_api.app,
+            "POST",
+            "/jobs/vggt",
+            data={
+                "fps": "20",
+                "start_splat": "true",
+                "request_id": "request-test",
+                "marker_start": "A",
+                "marker_end": "B",
+            },
+            files=[
+                ("frames", ("frame_000000.jpg", b"first", "image/jpeg")),
+                ("frames", ("frame_000020.jpg", b"second", "image/jpeg")),
+            ],
+        )
+    )
+    assert submitted.status_code == 202, submitted.text
+    job_id = submitted.json()["job_id"]
+
+    state = submitted.json()
+    deadline = time.monotonic() + 5
+    while state["status"] not in {"complete", "failed"}:
+        assert time.monotonic() < deadline
+        time.sleep(0.02)
+        response = asyncio.run(_request_path(vggt_api.app, "GET", f"/jobs/{job_id}"))
+        assert response.status_code == 200
+        state = response.json()
+
+    assert state["status"] == "complete", state
+    assert state["progress"] == 1.0
+    assert state["child_job_ids"] == ["splat-test-child"]
+    assert state["request_id"] == "request-test"
+    result = asyncio.run(_request_path(vggt_api.app, "GET", f"/jobs/{job_id}/result"))
+    assert result.status_code == 200
+    assert result.json()["metadata"]["num_frames"] == 2

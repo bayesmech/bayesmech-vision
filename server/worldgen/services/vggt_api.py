@@ -22,6 +22,8 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
+if str(ROOT.parent) not in sys.path:
+    sys.path.insert(0, str(ROOT.parent))
 
 from scripts.infer_vggt_omega_video import (  # noqa: E402
     camera_to_world,
@@ -30,7 +32,17 @@ from scripts.infer_vggt_omega_video import (  # noqa: E402
     load_model,
     run_vggt_window,
 )
-from services.splat_jobs import get_splat_job, start_splat_job  # noqa: E402
+from .splat_jobs import (  # noqa: E402
+    get_splat_job,
+    list_splat_jobs,
+    start_splat_job,
+)
+from .vggt_jobs import (  # noqa: E402
+    get_vggt_job,
+    list_vggt_jobs,
+    start_vggt_job,
+    vggt_result_path,
+)
 
 import torch  # noqa: E402
 
@@ -125,6 +137,9 @@ def _run_inference(
     max_points_per_frame: int,
     response_format: Literal["json", "npz"],
     start_splat: bool,
+    parent_job_id: str = "",
+    job_context: dict | None = None,
+    progress_callback=None,
 ) -> Response:
     if resolution <= 0:
         raise ValueError("resolution must be positive")
@@ -136,9 +151,17 @@ def _run_inference(
         raise ValueError("no frames provided")
 
     started = time.time()
+    total_frames = len(frame_paths)
+
+    def report(stage: str, progress: float, current: int, message: str) -> None:
+        if progress_callback is not None:
+            progress_callback(stage, progress, current, total_frames, message)
+
+    report("loading_model", 0.02, 0, "Loading VGGT-Omega.")
     model = get_model()
     device = _device()
     window_size = window or len(frame_paths)
+    report("reconstructing", 0.08, 0, f"Reconstructing {total_frames} frames.")
 
     camera_extrinsics: list[np.ndarray] = []
     camera_intrinsics: list[np.ndarray] = []
@@ -216,11 +239,24 @@ def _run_inference(
                         "conf": arrays["conf"][keep].tolist() if "conf" in arrays else None,
                     }
                 )
+                completed = global_idx + 1
+                report(
+                    "reconstructing",
+                    0.08 + (0.84 * completed / max(1, total_frames)),
+                    completed,
+                    f"Reconstructed frame {completed}/{total_frames}.",
+                )
 
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
 
     if start_splat:
+        report(
+            "starting_splat",
+            0.96,
+            total_frames,
+            "Starting Gaussian splat optimization.",
+        )
         model = None
         unload_model()
 
@@ -240,6 +276,10 @@ def _run_inference(
         "camera_convention": "extrinsics are camera-from-world [R|t], OpenCV coordinates",
         "pointcloud_space": "world coordinates in VGGT-Omega model frame",
         "pointcloud_npz_keys": ["xyz", "rgb", "uv", "flat_indices", "depth", "conf"],
+        **{
+            key: str((job_context or {}).get(key) or "")
+            for key in ("request_id", "marker_start", "marker_end", "recording_path")
+        },
     }
 
     extrinsics = np.stack(camera_extrinsics).astype(np.float32)
@@ -281,7 +321,12 @@ def _run_inference(
         "point_clouds": pointclouds_json,
     }
     if start_splat:
-        job = start_splat_job(splat_frames, metadata, _infer_lock)
+        job = start_splat_job(
+            splat_frames,
+            metadata,
+            _infer_lock,
+            parent_job_id=parent_job_id,
+        )
         payload["splat_job"] = job
     return JSONResponse(payload)
 
@@ -304,6 +349,102 @@ def health():
         "model_loaded": _model is not None,
         "auth_required": bool(API_TOKEN),
     }
+
+
+@app.post("/jobs/vggt", status_code=202)
+async def submit_vggt(
+    frames: list[UploadFile] = File(...),
+    fps: float | None = Form(default=None),
+    resolution: int = Form(default=512),
+    preprocess_mode: Literal["balanced", "max_size"] = Form(default="balanced"),
+    conf_thresh: float = Form(default=0.5),
+    window: int = Form(default=0),
+    max_points_per_frame: int = Form(default=20000),
+    start_splat: bool = Form(default=True),
+    request_id: str = Form(default=""),
+    marker_start: str = Form(default=""),
+    marker_end: str = Form(default=""),
+    recording_path: str = Form(default=""),
+    authorization: str | None = Header(default=None),
+    x_vggt_token: str | None = Header(default=None),
+):
+    """Queue VGGT and return immediately; progress is published by the runner."""
+
+    _authorize(authorization, x_vggt_token)
+    if not frames:
+        raise HTTPException(status_code=400, detail="At least one image frame is required.")
+    if len(frames) > 96:
+        raise HTTPException(status_code=400, detail="At most 96 image frames may be submitted.")
+    if fps is not None and fps <= 0:
+        raise HTTPException(status_code=400, detail="fps must be positive")
+
+    selected = list(frames)
+    frame_files: list[tuple[str, bytes]] = []
+    total_bytes = 0
+    max_job_bytes = int(os.environ.get("WORLDGEN_MAX_JOB_UPLOAD_BYTES", str(2 * 1024**3)))
+    try:
+        for upload in selected:
+            payload = await upload.read()
+            total_bytes += len(payload)
+            if total_bytes > max_job_bytes:
+                raise HTTPException(
+                    status_code=413,
+                    detail=f"frame upload exceeds the {max_job_bytes}-byte World Modeling limit",
+                )
+            frame_files.append((_safe_suffix(upload.filename, ".png"), payload))
+    finally:
+        for upload in selected:
+            await upload.close()
+
+    frame_indices = list(range(len(frame_files)))
+    timestamps = [
+        index / fps if fps is not None else float("nan") for index in frame_indices
+    ]
+    try:
+        return start_vggt_job(
+            frame_files,
+            frame_indices,
+            timestamps,
+            inference=_run_inference,
+            resolution=resolution,
+            preprocess_mode=preprocess_mode,
+            conf_thresh=conf_thresh,
+            window=window,
+            max_points_per_frame=max_points_per_frame,
+            start_splat=start_splat,
+            request_id=request_id,
+            marker_start=marker_start,
+            marker_end=marker_end,
+            recording_path=recording_path,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.get("/jobs")
+def worldgen_jobs(limit: int = Query(default=100, ge=1, le=500)):
+    jobs = [*list_vggt_jobs(limit), *list_splat_jobs(limit)]
+    jobs.sort(key=lambda state: float(state.get("created_at") or 0), reverse=True)
+    return {"jobs": jobs[:limit]}
+
+
+@app.get("/jobs/{job_id}")
+def worldgen_job(job_id: str):
+    job = get_vggt_job(job_id) if job_id.startswith("vggt-") else get_splat_job(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="World Modeling job not found")
+    return job
+
+
+@app.get("/jobs/{job_id}/result")
+def worldgen_job_result(job_id: str):
+    path = vggt_result_path(job_id)
+    if path is None:
+        job = get_vggt_job(job_id)
+        if job is None:
+            raise HTTPException(status_code=404, detail="VGGT job not found")
+        raise HTTPException(status_code=409, detail=f"VGGT job is {job.get('status', 'not ready')}")
+    return Response(path.read_bytes(), media_type="application/json")
 
 
 @app.post("/infer")

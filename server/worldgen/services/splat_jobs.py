@@ -13,6 +13,7 @@ from typing import Any
 
 import cv2
 import numpy as np
+from runner.job_events import publish_runner_job
 
 ROOT = Path(__file__).resolve().parents[1]
 JOBS_DIR = Path(os.environ.get("WORLDGEN_SPLAT_JOBS_DIR", str(ROOT / "outputs" / "splat_jobs")))
@@ -59,7 +60,9 @@ def _job_path(job_id: str) -> Path:
 
 def _write_json(path: Path, data: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(data), encoding="utf-8")
+    temporary = path.with_suffix(f"{path.suffix}.tmp")
+    temporary.write_text(json.dumps(data), encoding="utf-8")
+    os.replace(temporary, path)
 
 
 def _read_json(path: Path) -> dict[str, Any] | None:
@@ -73,9 +76,17 @@ def _update_job(job_id: str, **fields) -> dict[str, Any]:
     with _jobs_lock:
         state = _jobs.setdefault(job_id, {"job_id": job_id})
         state.update(fields)
+        state.update(
+            job_id=job_id,
+            id=job_id,
+            type="gaussian_splat",
+            title="Gaussian Splatting",
+            source="worldgen",
+        )
         state["updated_at"] = time.time()
         serializable = {k: v for k, v in state.items() if k != "_future"}
     _write_json(_job_path(job_id) / "status.json", serializable)
+    publish_runner_job(serializable)
     return serializable
 
 
@@ -95,7 +106,30 @@ def get_splat_job(job_id: str, include_preview: bool = False) -> dict[str, Any] 
     return out
 
 
-def start_splat_job(frames: list[dict[str, Any]], metadata: dict[str, Any], gpu_lock: threading.Lock | None = None) -> dict[str, Any]:
+def list_splat_jobs(limit: int = 100) -> list[dict[str, Any]]:
+    states: dict[str, dict[str, Any]] = {}
+    for path in JOBS_DIR.glob("splat-*/status.json"):
+        state = _read_json(path)
+        if state and state.get("job_id"):
+            states[str(state["job_id"])] = state
+    with _jobs_lock:
+        for job_id, state in _jobs.items():
+            states[job_id] = {key: value for key, value in state.items() if key != "_future"}
+    ordered = sorted(
+        states.values(),
+        key=lambda state: float(state.get("created_at") or 0),
+        reverse=True,
+    )
+    return ordered[: max(1, min(int(limit), 500))]
+
+
+def start_splat_job(
+    frames: list[dict[str, Any]],
+    metadata: dict[str, Any],
+    gpu_lock: threading.Lock | None = None,
+    *,
+    parent_job_id: str = "",
+) -> dict[str, Any]:
     job_id = f"splat-{uuid.uuid4().hex[:12]}"
     workspace = _job_path(job_id)
     frame_dir = workspace / "images"
@@ -129,12 +163,17 @@ def start_splat_job(frames: list[dict[str, Any]], metadata: dict[str, Any], gpu_
         progress=0.0,
         current_step=0,
         max_steps=cfg["max_steps"],
+        max_gaussians=cfg["max_gaussians"],
         gaussian_count=0,
         elapsed_sec=0.0,
         workspace=str(workspace),
         ply_path=str(workspace / "model.splat.ply"),
         preview_json_path=str(workspace / "preview.json"),
         created_at=time.time(),
+        parent_job_id=parent_job_id,
+        request_id=str(metadata.get("request_id") or ""),
+        marker_start=str(metadata.get("marker_start") or ""),
+        marker_end=str(metadata.get("marker_end") or ""),
     )
     future = _executor.submit(_run_splat_job, job_id, gpu_lock)
     with _jobs_lock:
@@ -296,6 +335,24 @@ def _train_splat_job(job_id: str) -> None:
         )
         if "torch" in locals() and torch.cuda.is_available():
             torch.cuda.empty_cache()
+
+
+def recover_interrupted_splat_jobs() -> None:
+    for path in JOBS_DIR.glob("splat-*/status.json"):
+        state = _read_json(path)
+        if not state or state.get("status") not in {"queued", "running"}:
+            continue
+        job_id = str(state.get("job_id") or path.parent.name)
+        with _jobs_lock:
+            _jobs[job_id] = state
+        _update_job(
+            job_id,
+            status="failed",
+            stage="failed",
+            message="Runner restarted before Gaussian splatting completed.",
+            error="runner restarted before the job completed",
+            finished_at=time.time(),
+        )
 
 
 def _load_dataset(workspace: Path, cfg: dict[str, Any]) -> dict[str, Any]:
@@ -506,3 +563,6 @@ def _write_preview(splats, output_json: Path, max_points: int, torch) -> dict[st
     }
     _write_json(output_json, data)
     return data
+
+
+recover_interrupted_splat_jobs()

@@ -723,6 +723,168 @@ button {
   white-space: pre-wrap;
 }
 
+.background-jobs-ribbon {
+  flex: 0 0 auto;
+  border-top: 1px solid var(--border);
+  background: rgba(17, 20, 25, 0.98);
+}
+
+.background-jobs-toggle {
+  display: flex;
+  width: 100%;
+  min-height: 34px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.background-jobs-toggle > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.background-jobs-toggle > span:first-child {
+  color: var(--text);
+  font-weight: 650;
+}
+
+.background-jobs-summary {
+  color: var(--subtle);
+}
+
+.background-jobs-list {
+  display: grid;
+  max-height: min(280px, 36vh);
+  gap: 6px;
+  overflow: auto;
+  padding: 0 8px 8px;
+}
+
+.background-job {
+  display: grid;
+  gap: 5px;
+  padding: 7px 8px;
+  border: 1px solid rgba(90, 169, 230, 0.28);
+  border-radius: 6px;
+  background: rgba(90, 169, 230, 0.06);
+}
+
+.background-job.is-complete {
+  border-color: rgba(98, 210, 162, 0.3);
+  background: rgba(98, 210, 162, 0.05);
+}
+
+.background-job.is-failed {
+  border-color: rgba(255, 107, 107, 0.35);
+  background: rgba(255, 107, 107, 0.05);
+}
+
+.background-job-heading {
+  display: grid;
+  grid-template-columns: 14px minmax(0, auto) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.background-job-heading svg {
+  color: var(--blue);
+}
+
+.background-job.is-complete .background-job-heading svg {
+  color: var(--teal);
+}
+
+.background-job.is-failed .background-job-heading svg {
+  color: #ff7a7a;
+}
+
+.background-job-heading svg.spin {
+  animation: chat-spin 0.85s linear infinite;
+}
+
+.background-job-heading strong,
+.background-job-heading span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.background-job-heading strong {
+  color: var(--text);
+  font-size: 10px;
+}
+
+.background-job-heading span {
+  color: var(--subtle);
+  font-family: var(--mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 9px;
+}
+
+.background-job-heading em {
+  color: var(--text);
+  font-family: var(--mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 700;
+}
+
+.background-job-progress {
+  overflow: hidden;
+  height: 3px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.background-job-progress span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--blue);
+  transition: width 180ms ease;
+}
+
+.background-job.is-complete .background-job-progress span {
+  background: var(--teal);
+}
+
+.background-job.is-failed .background-job-progress span {
+  background: #ff7a7a;
+}
+
+.background-job-detail {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--subtle);
+  font-size: 9px;
+}
+
+.background-job-detail span,
+.background-job-detail code {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.background-job-detail span {
+  flex: 1;
+}
+
+.background-job-detail code {
+  max-width: 104px;
+  color: var(--muted);
+}
+
 .chat-input {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 34px;

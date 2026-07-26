@@ -1,8 +1,22 @@
-import { CircleAlert, CornerDownLeft, Cpu, LoaderCircle, Sparkles, Terminal, UserRound } from 'lucide-react'
+import {
+  Activity,
+  ChevronDown,
+  ChevronUp,
+  CircleAlert,
+  CircleCheck,
+  CircleX,
+  CornerDownLeft,
+  Cpu,
+  LoaderCircle,
+  Sparkles,
+  Terminal,
+  UserRound,
+} from 'lucide-react'
 import { FormEvent, KeyboardEvent, useEffect, useMemo, useRef, useState } from 'react'
 import type {
   ChatAnalysis,
   RecordingEntry,
+  RunnerBackgroundJob,
   VideoMarker,
   VisSummary,
   WorkspaceChatMessage,
@@ -20,6 +34,7 @@ type AIChatProps = {
   chatSession: WorkspaceChatSession | null
   chatLoading: boolean
   chatError: string | null
+  backgroundJobs: RunnerBackgroundJob[]
   onMessagesChange: (messages: WorkspaceChatMessage[]) => void
   onRunCommand: (text: string, onProgress?: (progress: CommandProgress) => void) => Promise<CommandResult>
 }
@@ -39,6 +54,12 @@ function markerLine(markers: VideoMarker[]): string {
   return `Markers: ${markerRefs.join(', ')}.${segmentRefs.length ? ` Segments: ${segmentRefs.join(', ')}.` : ''}`
 }
 
+function jobTimestamp(value: string | number): number {
+  if (typeof value === 'number') return value < 1_000_000_000_000 ? value * 1000 : value
+  const parsed = new Date(value).getTime()
+  return Number.isFinite(parsed) ? parsed : 0
+}
+
 export default function AIChat({
   selectedRecording,
   summary,
@@ -47,10 +68,12 @@ export default function AIChat({
   chatSession,
   chatLoading,
   chatError,
+  backgroundJobs,
   onMessagesChange,
   onRunCommand,
 }: AIChatProps) {
   const [draft, setDraft] = useState('')
+  const [jobsExpanded, setJobsExpanded] = useState(false)
   const messageListRef = useRef<HTMLDivElement>(null)
   const [messages, setMessages] = useState<WorkspaceChatMessage[]>([])
 
@@ -58,6 +81,25 @@ export default function AIChat({
     const markerContext = markerLine(markers)
     return markerContext ? `${summaryLine(summary)} ${markerContext}` : summaryLine(summary)
   }, [markers, summary])
+
+  const orderedJobs = useMemo(() => {
+    const active = (job: RunnerBackgroundJob) => !['complete', 'succeeded', 'failed', 'cancelled'].includes(job.status)
+    return [...backgroundJobs]
+      .sort((left, right) => {
+        const activeDifference = Number(active(right)) - Number(active(left))
+        if (activeDifference) return activeDifference
+        return jobTimestamp(right.updatedAt || right.createdAt || 0)
+          - jobTimestamp(left.updatedAt || left.createdAt || 0)
+      })
+      .slice(0, 24)
+  }, [backgroundJobs])
+  const activeJobCount = orderedJobs.filter(
+    (job) => !['complete', 'succeeded', 'failed', 'cancelled'].includes(job.status),
+  ).length
+
+  useEffect(() => {
+    if (activeJobCount > 0) setJobsExpanded(true)
+  }, [activeJobCount])
 
   useEffect(() => {
     setDraft('')
@@ -242,6 +284,63 @@ export default function AIChat({
           )
         })}
       </div>
+
+      {orderedJobs.length ? (
+        <section className={`background-jobs-ribbon${jobsExpanded ? ' is-expanded' : ''}`}>
+          <button
+            type="button"
+            className="background-jobs-toggle"
+            aria-expanded={jobsExpanded}
+            onClick={() => setJobsExpanded((current) => !current)}
+          >
+            <span>
+              <Activity size={14} aria-hidden="true" />
+              Background jobs
+            </span>
+            <span className="background-jobs-summary">
+              {activeJobCount
+                ? `${activeJobCount} running`
+                : `${orderedJobs.filter((job) => ['complete', 'succeeded'].includes(job.status)).length} complete`}
+              {jobsExpanded
+                ? <ChevronDown size={14} aria-hidden="true" />
+                : <ChevronUp size={14} aria-hidden="true" />}
+            </span>
+          </button>
+          {jobsExpanded ? (
+            <div className="background-jobs-list">
+              {orderedJobs.map((job) => {
+                const percent = Math.round(Math.max(0, Math.min(1, job.progress)) * 100)
+                const complete = ['complete', 'succeeded'].includes(job.status)
+                const failed = ['failed', 'cancelled'].includes(job.status)
+                const StatusIcon = complete ? CircleCheck : failed ? CircleX : LoaderCircle
+                const markerRange = job.markerStart && job.markerEnd
+                  ? `@${job.markerStart}–@${job.markerEnd}`
+                  : ''
+                return (
+                  <article
+                    className={`background-job${complete ? ' is-complete' : ''}${failed ? ' is-failed' : ''}`}
+                    key={job.jobId}
+                  >
+                    <div className="background-job-heading">
+                      <StatusIcon className={!complete && !failed ? 'spin' : ''} size={13} aria-hidden="true" />
+                      <strong>{job.title}</strong>
+                      <span>{markerRange}</span>
+                      <em>{percent}%</em>
+                    </div>
+                    <div className="background-job-progress" aria-label={`${job.title} ${percent}%`}>
+                      <span style={{ width: `${percent}%` }} />
+                    </div>
+                    <div className="background-job-detail">
+                      <span>{job.message || job.stage}</span>
+                      <code title={job.jobId}>{job.jobId}</code>
+                    </div>
+                  </article>
+                )
+              })}
+            </div>
+          ) : null}
+        </section>
+      ) : null}
 
       <form className="chat-input" onSubmit={handleSubmit}>
         <textarea

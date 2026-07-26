@@ -22,6 +22,12 @@ contextBridge.exposeInMainWorld('bayesmech', {
   saveWorldgenSplat: (filePath, splat) => ipcRenderer.invoke('worldgen:save-splat', filePath, splat),
   readRunnerHealth: () => ipcRenderer.invoke('runner:health'),
   readRunnerCapabilities: () => ipcRenderer.invoke('runner:capabilities'),
+  readRunnerBackgroundJobs: () => ipcRenderer.invoke('runner:background-jobs'),
+  onRunnerJobState: (callback) => {
+    const listener = (_event, job) => callback(job)
+    ipcRenderer.on('runner:job-state', listener)
+    return () => ipcRenderer.removeListener('runner:job-state', listener)
+  },
   listRunnerMcpTools: () => ipcRenderer.invoke('runner:mcp-list-tools'),
   callRunnerMcpTool: (name, args, timeoutMs) => (
     ipcRenderer.invoke('runner:mcp-call-tool', name, args, timeoutMs)

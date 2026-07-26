@@ -390,6 +390,7 @@ export type WorldgenSplat = {
 
 export type WorldgenResult = {
   id: string
+  vggtJobId?: string
   outputPath: string
   markerStart: string
   markerEnd: string
@@ -512,6 +513,29 @@ export type RunnerCapabilities = {
   }
 }
 
+export type RunnerBackgroundJob = {
+  jobId: string
+  type: string
+  title: string
+  source: string
+  status: string
+  stage: string
+  message: string
+  progress: number
+  currentStep: number
+  maxSteps: number
+  parentJobId: string
+  childJobIds: string[]
+  requestId: string
+  markerStart: string
+  markerEnd: string
+  recordingPath: string
+  createdAt: string | number
+  updatedAt: string | number
+  error: string
+  revision: number
+}
+
 export type RunnerMcpTool = {
   name: string
   title?: string
@@ -588,6 +612,8 @@ export type BridgeApi = {
   saveWorldgenSplat: (filePath: string, splat: WorldgenSplatStatus) => Promise<WorldgenResult>
   readRunnerHealth: () => Promise<RunnerHealth>
   readRunnerCapabilities: () => Promise<RunnerCapabilities>
+  readRunnerBackgroundJobs: () => Promise<RunnerBackgroundJob[]>
+  onRunnerJobState: (callback: (job: RunnerBackgroundJob) => void) => () => void
   listRunnerMcpTools: () => Promise<RunnerMcpTool[]>
   callRunnerMcpTool: (
     name: string,

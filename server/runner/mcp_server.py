@@ -107,6 +107,8 @@ def create_mcp_server(
                     "mcp_tools": [
                         "worldgen_health",
                         "worldgen_reconstruct_frames",
+                        "worldgen_list_jobs",
+                        "worldgen_get_job",
                         "worldgen_splat_status",
                         "worldgen_splat_artifact",
                     ],
@@ -299,6 +301,37 @@ def create_mcp_server(
         job = get_splat_job(job_id, include_preview=include_preview)
         if job is None:
             raise ValueError("Gaussian splat job not found")
+        return job
+
+    @mcp.tool()
+    def worldgen_list_jobs(limit: int = 100) -> dict[str, Any]:
+        """List VGGT and Gaussian Splatting jobs with their current progress."""
+
+        if limit < 1 or limit > 500:
+            raise ValueError("limit must be between 1 and 500")
+        from worldgen.services.splat_jobs import list_splat_jobs
+        from worldgen.services.vggt_jobs import list_vggt_jobs
+
+        jobs = [*list_vggt_jobs(limit), *list_splat_jobs(limit)]
+        jobs.sort(
+            key=lambda state: float(state.get("created_at") or 0), reverse=True
+        )
+        return {"jobs": jobs[:limit]}
+
+    @mcp.tool()
+    def worldgen_get_job(job_id: str) -> dict[str, Any]:
+        """Read live progress for one VGGT or Gaussian Splatting job."""
+
+        from worldgen.services.splat_jobs import get_splat_job
+        from worldgen.services.vggt_jobs import get_vggt_job
+
+        job = (
+            get_vggt_job(job_id)
+            if job_id.startswith("vggt-")
+            else get_splat_job(job_id, include_preview=False)
+        )
+        if job is None:
+            raise ValueError("World Modeling job not found")
         return job
 
     @mcp.tool()

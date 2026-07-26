@@ -10,6 +10,7 @@
     "electron": "VITE_DEV_SERVER_URL=http://127.0.0.1:${VITE_PORT:-5173} electron --no-sandbox .",
     "electron:software": "VITE_DEV_SERVER_URL=http://127.0.0.1:${VITE_PORT:-5173} electron --no-sandbox --disable-gpu --enable-unsafe-swiftshader .",
     "start": "concurrently -k \"npm run dev\" \"wait-on http://127.0.0.1:${VITE_PORT:-5173} && npm run electron:software\"",
+    "test": "node --test electron/*.test.cjs",
     "build": "tsc -b && vite build",
     "preview": "vite preview --host 127.0.0.1"
   },
