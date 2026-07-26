@@ -4,9 +4,11 @@ import asyncio
 from pathlib import Path
 
 import httpx
+import torch
 from fastapi import FastAPI
 
 from worldgen.services import vggt_api
+from worldgen.scripts import infer_vggt_omega_video
 
 
 async def _request(app: FastAPI, **kwargs) -> httpx.Response:
@@ -43,3 +45,44 @@ def test_infer_accepts_repeated_frame_uploads(monkeypatch, tmp_path: Path) -> No
     assert received["indices"] == [0, 1]
     assert received["timestamps"] == [0.0, 0.05]
     assert received["kwargs"]["start_splat"] is False
+
+
+def test_model_download_uses_official_omega_repository_and_filename(monkeypatch, tmp_path: Path) -> None:
+    import huggingface_hub
+
+    monkeypatch.syspath_prepend(str(vggt_api.ROOT / "vendor" / "vggt_omega"))
+    import vggt_omega.models
+
+    checkpoint = tmp_path / "checkpoint.pt"
+    checkpoint.write_bytes(b"checkpoint")
+    requested: dict[str, str] = {}
+
+    class FakeModel:
+        def load_state_dict(self, state) -> None:
+            assert state == {"weights": True}
+
+        def to(self, _device):
+            return self
+
+        def eval(self):
+            return self
+
+    def fake_download(*, repo_id: str, filename: str) -> str:
+        requested.update(repo_id=repo_id, filename=filename)
+        return str(checkpoint)
+
+    monkeypatch.setattr(vggt_omega.models, "VGGTOmega", FakeModel)
+    monkeypatch.setattr(huggingface_hub, "hf_hub_download", fake_download)
+    monkeypatch.setattr(torch, "load", lambda *_args, **_kwargs: {"weights": True})
+
+    model = infer_vggt_omega_video.load_model(
+        None,
+        "facebook/VGGT-Omega",
+        torch.device("cpu"),
+    )
+
+    assert isinstance(model, FakeModel)
+    assert requested == {
+        "repo_id": "facebook/VGGT-Omega",
+        "filename": "vggt_omega_1b_512.pt",
+    }

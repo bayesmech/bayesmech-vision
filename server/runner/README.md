@@ -26,6 +26,11 @@ CUDA and the checkpoint are available. If `VGGT_CKPT` is absent, the existing
 World Modeling service downloads `VGGT_MODEL_ID` from Hugging Face on the first
 inference.
 
+VGGT-Omega's official checkpoint is gated. Before the first World Modeling
+request, either set `HF_TOKEN` to a Hugging Face token with access to
+`facebook/VGGT-Omega`, or download `vggt_omega_1b_512.pt` and set `VGGT_CKPT`
+to its absolute path.
+
 ## Start on a network or public runner
 
 Generate a long random token, bind the server, and allow TCP port 8787 through

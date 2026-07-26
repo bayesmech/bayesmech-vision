@@ -35,7 +35,8 @@ from services.splat_jobs import get_splat_job, start_splat_job  # noqa: E402
 import torch  # noqa: E402
 
 DEFAULT_CKPT = ROOT / "checkpoints" / "vggt_omega" / "vggt_omega_1b_512.pt"
-MODEL_ID = os.environ.get("VGGT_MODEL_ID", "facebook/VGGT-Omega-1B-512")
+MODEL_ID = os.environ.get("VGGT_MODEL_ID", "facebook/VGGT-Omega")
+MODEL_FILENAME = os.environ.get("VGGT_MODEL_FILENAME", "vggt_omega_1b_512.pt")
 CKPT = Path(os.environ.get("VGGT_CKPT", str(DEFAULT_CKPT))) if os.environ.get("VGGT_CKPT", str(DEFAULT_CKPT)) else None
 DEVICE_NAME = os.environ.get("VGGT_DEVICE", "cuda" if torch.cuda.is_available() else "cpu")
 
@@ -78,7 +79,7 @@ def get_model():
     with _model_lock:
         if _model is None:
             ckpt = str(CKPT) if CKPT and CKPT.exists() else None
-            _model = load_model(ckpt, MODEL_ID, _device())
+            _model = load_model(ckpt, MODEL_ID, _device(), MODEL_FILENAME)
         return _model
 
 
@@ -298,6 +299,8 @@ def health():
         "cuda_available": torch.cuda.is_available(),
         "cuda_device": torch.cuda.get_device_name(0) if torch.cuda.is_available() else None,
         "checkpoint_exists": bool(CKPT and CKPT.exists()),
+        "model_id": MODEL_ID,
+        "model_filename": MODEL_FILENAME,
         "model_loaded": _model is not None,
         "auth_required": bool(API_TOKEN),
     }

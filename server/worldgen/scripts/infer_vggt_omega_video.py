@@ -88,7 +88,12 @@ def extract_video_frames(
     return frame_paths, frame_indices, timestamps_sec
 
 
-def load_model(ckpt_path: str | None, model_id: str, device):
+def load_model(
+    ckpt_path: str | None,
+    model_id: str,
+    device,
+    model_filename: str = "vggt_omega_1b_512.pt",
+):
     torch = _import_torch()
 
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "vendor" / "vggt_omega"))
@@ -100,7 +105,7 @@ def load_model(ckpt_path: str | None, model_id: str, device):
     else:
         from huggingface_hub import hf_hub_download
 
-        weights_path = hf_hub_download(repo_id=model_id, filename="model.pt")
+        weights_path = hf_hub_download(repo_id=model_id, filename=model_filename)
         state = torch.load(weights_path, map_location="cpu", weights_only=True)
 
     model.load_state_dict(state)
