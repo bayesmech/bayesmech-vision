@@ -11,13 +11,14 @@ import threading
 import time
 import uuid
 from concurrent.futures import Future, ThreadPoolExecutor
+from contextlib import nullcontext
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, BinaryIO
 
 from .registry import JobDefinition
+from .gpu_scheduler import gpu_scheduler
 from .job_events import publish_runner_job
-
 
 TERMINAL_STATUSES = {"succeeded", "failed", "cancelled"}
 INTERNAL_FILENAMES = {"job.json", "stdout.log", "stderr.log"}
@@ -40,11 +41,15 @@ def validate_arguments(value: Any) -> list[str]:
     if value is None:
         return []
     if not isinstance(value, list) or len(value) > 128:
-        raise ValueError("parameters.arguments must be an array with at most 128 entries")
+        raise ValueError(
+            "parameters.arguments must be an array with at most 128 entries"
+        )
     arguments: list[str] = []
     for item in value:
         if not isinstance(item, str) or "\x00" in item or len(item) > 4096:
-            raise ValueError("every job argument must be a string of at most 4096 characters")
+            raise ValueError(
+                "every job argument must be a string of at most 4096 characters"
+            )
         arguments.append(item)
     return arguments
 
@@ -99,7 +104,9 @@ class JobManager:
         self.max_upload_bytes = max(1, int(max_upload_bytes))
         self.max_runtime_seconds = max(1, int(max_runtime_seconds))
         self.python_executable = python_executable
-        self._executor = ThreadPoolExecutor(max_workers=max(1, int(max_workers)), thread_name_prefix="runner-job")
+        self._executor = ThreadPoolExecutor(
+            max_workers=max(1, int(max_workers)), thread_name_prefix="runner-job"
+        )
         self._lock = threading.RLock()
         self._futures: dict[str, Future[None]] = {}
         self._processes: dict[str, subprocess.Popen[bytes]] = {}
@@ -121,10 +128,14 @@ class JobManager:
         if definition is None:
             raise KeyError(job_type)
         if not definition.entrypoint.is_file():
-            raise FileNotFoundError(f"job entrypoint is missing: {definition.entrypoint}")
+            raise FileNotFoundError(
+                f"job entrypoint is missing: {definition.entrypoint}"
+            )
         return definition
 
-    def prepare(self, job_type: str, parameters: dict[str, Any] | None = None) -> PreparedJob:
+    def prepare(
+        self, job_type: str, parameters: dict[str, Any] | None = None
+    ) -> PreparedJob:
         self.definition(job_type)
         parameters = dict(parameters or {})
         parameters["arguments"] = validate_arguments(parameters.get("arguments"))
@@ -170,17 +181,23 @@ class JobManager:
                         break
                     size += len(chunk)
                     if size > self.max_upload_bytes:
-                        raise ValueError(f"input exceeds the {self.max_upload_bytes}-byte upload limit")
+                        raise ValueError(
+                            f"input exceeds the {self.max_upload_bytes}-byte upload limit"
+                        )
                     output.write(chunk)
                     digest.update(chunk)
             if expected_size is not None and size != expected_size:
-                raise ValueError(f"incomplete upload: expected {expected_size} bytes, received {size}")
+                raise ValueError(
+                    f"incomplete upload: expected {expected_size} bytes, received {size}"
+                )
         except Exception:
             destination.unlink(missing_ok=True)
             raise
         return {"name": name, "size": size, "sha256": digest.hexdigest()}
 
-    def finish_upload(self, prepared: PreparedJob, inputs: list[dict[str, Any]]) -> dict[str, Any]:
+    def finish_upload(
+        self, prepared: PreparedJob, inputs: list[dict[str, Any]]
+    ) -> dict[str, Any]:
         if not inputs:
             self.fail_upload(prepared.job_id, "at least one input file is required")
             raise ValueError("at least one input file is required")
@@ -197,13 +214,18 @@ class JobManager:
                 (
                     str(item["name"])
                     for item in inputs
-                    if any(str(item["name"]).endswith(suffix) for suffix in definition.input_suffixes)
+                    if any(
+                        str(item["name"]).endswith(suffix)
+                        for suffix in definition.input_suffixes
+                    )
                 ),
                 "",
             )
         if not recording_name:
             expected = ", ".join(definition.input_suffixes)
-            raise ValueError(f"{definition.name} requires an input ending in {expected}")
+            raise ValueError(
+                f"{definition.name} requires an input ending in {expected}"
+            )
         state["parameters"]["recording"] = recording_name
         state["inputs"] = inputs
         state["status"] = "queued"
@@ -245,9 +267,18 @@ class JobManager:
         states.sort(key=lambda item: str(item.get("created_at", "")), reverse=True)
         return states[: max(1, min(int(limit), 500))]
 
-    def artifact_path(self, job_id: str, artifact_id: str) -> tuple[Path, dict[str, Any]]:
+    def artifact_path(
+        self, job_id: str, artifact_id: str
+    ) -> tuple[Path, dict[str, Any]]:
         state = self._read_required(job_id)
-        artifact = next((item for item in state.get("artifacts", []) if item.get("id") == artifact_id), None)
+        artifact = next(
+            (
+                item
+                for item in state.get("artifacts", [])
+                if item.get("id") == artifact_id
+            ),
+            None,
+        )
         if artifact is None:
             raise KeyError(artifact_id)
         workspace = (self.jobs_dir / job_id).resolve()
@@ -264,8 +295,14 @@ class JobManager:
             self._cancel_requested.add(job_id)
             future = self._futures.get(job_id)
             process = self._processes.get(job_id)
-        if state.get("status") == "uploading" or (future is not None and future.cancel()):
-            state.update(status="cancelled", finished_at=utc_timestamp(), error="cancelled before execution")
+        if state.get("status") == "uploading" or (
+            future is not None and future.cancel()
+        ):
+            state.update(
+                status="cancelled",
+                finished_at=utc_timestamp(),
+                error="cancelled before execution",
+            )
             self._write(job_id, state)
         if process is not None and process.poll() is None:
             self._terminate_process(process)
@@ -275,14 +312,23 @@ class JobManager:
         state = self._read_required(job_id)
         definition = self.definition(str(state["type"]))
         workspace = self.jobs_dir / job_id
-        recording = workspace / "inputs" / safe_filename(str(state["parameters"]["recording"]))
-        arguments = validate_arguments(state.get("parameters", {}).get("arguments"))
-        command = [self.python_executable, str(definition.entrypoint), str(recording), *arguments]
-        state.update(
-            status="running",
-            started_at=utc_timestamp(),
-            command=[self.python_executable, str(definition.entrypoint.name), recording.name, *arguments],
+        recording = (
+            workspace / "inputs" / safe_filename(str(state["parameters"]["recording"]))
         )
+        arguments = validate_arguments(state.get("parameters", {}).get("arguments"))
+        command = [
+            self.python_executable,
+            str(definition.entrypoint),
+            str(recording),
+            *arguments,
+        ]
+        if definition.requires_gpu:
+            state.update(
+                status="queued",
+                stage="waiting_for_gpu",
+                message="Waiting for the greedy GPU scheduler.",
+                progress=0.01,
+            )
         self._write(job_id, state)
 
         stdout_path = workspace / "stdout.log"
@@ -295,29 +341,52 @@ class JobManager:
         }
         started = time.monotonic()
         try:
-            with stdout_path.open("wb") as stdout, stderr_path.open("wb") as stderr:
-                process = subprocess.Popen(
-                    command,
-                    cwd=str(definition.entrypoint.parents[1]),
-                    env=environment,
-                    stdin=subprocess.DEVNULL,
-                    stdout=stdout,
-                    stderr=stderr,
-                    start_new_session=True,
+            lease = (
+                gpu_scheduler.lease(str(state["type"]), job_id)
+                if definition.requires_gpu
+                else nullcontext()
+            )
+            with lease:
+                state = self._read_required(job_id)
+                state.update(
+                    status="running",
+                    stage="running",
+                    message=f"Running {definition.title}.",
+                    progress=0.05,
+                    started_at=utc_timestamp(),
+                    command=[
+                        self.python_executable,
+                        str(definition.entrypoint.name),
+                        recording.name,
+                        *arguments,
+                    ],
                 )
-                with self._lock:
-                    self._processes[job_id] = process
-                while process.poll() is None:
+                self._write(job_id, state)
+                with stdout_path.open("wb") as stdout, stderr_path.open("wb") as stderr:
+                    process = subprocess.Popen(
+                        command,
+                        cwd=str(definition.entrypoint.parents[1]),
+                        env=environment,
+                        stdin=subprocess.DEVNULL,
+                        stdout=stdout,
+                        stderr=stderr,
+                        start_new_session=True,
+                    )
                     with self._lock:
-                        cancelled = job_id in self._cancel_requested
-                    if cancelled:
-                        self._terminate_process(process)
-                        break
-                    if time.monotonic() - started > self.max_runtime_seconds:
-                        self._terminate_process(process)
-                        raise TimeoutError(f"job exceeded {self.max_runtime_seconds} seconds")
-                    time.sleep(0.2)
-                exit_code = process.wait()
+                        self._processes[job_id] = process
+                    while process.poll() is None:
+                        with self._lock:
+                            cancelled = job_id in self._cancel_requested
+                        if cancelled:
+                            self._terminate_process(process)
+                            break
+                        if time.monotonic() - started > self.max_runtime_seconds:
+                            self._terminate_process(process)
+                            raise TimeoutError(
+                                f"job exceeded {self.max_runtime_seconds} seconds"
+                            )
+                        time.sleep(0.2)
+                    exit_code = process.wait()
         except Exception as exc:
             state = self._read_required(job_id)
             state.update(
@@ -337,8 +406,14 @@ class JobManager:
         with self._lock:
             cancelled = job_id in self._cancel_requested
             self._cancel_requested.discard(job_id)
-        status = "cancelled" if cancelled else ("succeeded" if exit_code == 0 else "failed")
-        error = "cancelled" if cancelled else ("" if exit_code == 0 else f"process exited with code {exit_code}")
+        status = (
+            "cancelled" if cancelled else ("succeeded" if exit_code == 0 else "failed")
+        )
+        error = (
+            "cancelled"
+            if cancelled
+            else ("" if exit_code == 0 else f"process exited with code {exit_code}")
+        )
         state.update(
             status=status,
             finished_at=utc_timestamp(),
@@ -348,7 +423,9 @@ class JobManager:
         )
         self._write(job_id, state)
 
-    def _collect_artifacts(self, workspace: Path, state: dict[str, Any]) -> list[dict[str, Any]]:
+    def _collect_artifacts(
+        self, workspace: Path, state: dict[str, Any]
+    ) -> list[dict[str, Any]]:
         uploaded = {
             f"inputs/{item['name']}": str(item.get("sha256", ""))
             for item in state.get("inputs", [])

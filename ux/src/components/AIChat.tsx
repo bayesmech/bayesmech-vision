@@ -15,6 +15,7 @@ import {
 import { FormEvent, KeyboardEvent, useEffect, useMemo, useRef, useState } from 'react'
 import type {
   ChatAnalysis,
+  AgentChatResult,
   RecordingEntry,
   RunnerBackgroundJob,
   VideoMarker,
@@ -22,9 +23,7 @@ import type {
   WorkspaceChatMessage,
   WorkspaceChatSession,
 } from '../types'
-import { compactNumber, secondsLabel } from '../lib/format'
 import { isCommand, type CommandProgress, type CommandResult } from '../lib/overlay'
-import { recordingDisplayName } from '../lib/recordingNames'
 
 type AIChatProps = {
   selectedRecording: RecordingEntry | null
@@ -36,22 +35,11 @@ type AIChatProps = {
   chatError: string | null
   backgroundJobs: RunnerBackgroundJob[]
   onMessagesChange: (messages: WorkspaceChatMessage[]) => void
+  onSendMessage: (
+    text: string,
+    history: WorkspaceChatMessage[],
+  ) => Promise<AgentChatResult>
   onRunCommand: (text: string, onProgress?: (progress: CommandProgress) => void) => Promise<CommandResult>
-}
-
-function summaryLine(summary: VisSummary | null): string {
-  if (!summary) return 'No recording loaded.'
-  return `${compactNumber(summary.frameCount)} frames, ${secondsLabel(summary.durationSeconds)}, ${compactNumber(summary.sampledPointCount)} sampled point observations, ${compactNumber(summary.sampledPlaneCount)} sampled surface observations.`
-}
-
-function markerLine(markers: VideoMarker[]): string {
-  if (markers.length === 0) return ''
-  const sorted = [...markers].sort((a, b) => a.frameIndex - b.frameIndex)
-  const markerRefs = sorted.map((marker) => `@${marker.reference} ${secondsLabel(marker.seconds)}`)
-  const segmentRefs = sorted
-    .slice(0, -1)
-    .map((marker, index) => `@${marker.reference}-@${sorted[index + 1].reference}`)
-  return `Markers: ${markerRefs.join(', ')}.${segmentRefs.length ? ` Segments: ${segmentRefs.join(', ')}.` : ''}`
 }
 
 function jobTimestamp(value: string | number): number {
@@ -70,17 +58,14 @@ export default function AIChat({
   chatError,
   backgroundJobs,
   onMessagesChange,
+  onSendMessage,
   onRunCommand,
 }: AIChatProps) {
   const [draft, setDraft] = useState('')
   const [jobsExpanded, setJobsExpanded] = useState(false)
   const messageListRef = useRef<HTMLDivElement>(null)
   const [messages, setMessages] = useState<WorkspaceChatMessage[]>([])
-
-  const context = useMemo(() => {
-    const markerContext = markerLine(markers)
-    return markerContext ? `${summaryLine(summary)} ${markerContext}` : summaryLine(summary)
-  }, [markers, summary])
+  const [sending, setSending] = useState(false)
 
   const orderedJobs = useMemo(() => {
     const active = (job: RunnerBackgroundJob) => !['complete', 'succeeded', 'failed', 'cancelled'].includes(job.status)
@@ -104,6 +89,7 @@ export default function AIChat({
   useEffect(() => {
     setDraft('')
     setMessages(chatSession?.messages ?? [])
+    setSending(false)
   }, [chatSession?.id])
 
   useEffect(() => {
@@ -192,15 +178,33 @@ export default function AIChat({
       return
     }
 
+    const assistantId = `assistant-${Date.now()}`
     const assistantMessage: WorkspaceChatMessage = {
-      id: `assistant-${Date.now()}`,
+      id: assistantId,
       role: 'assistant',
-      text: selectedRecording
-        ? `Current recording: ${recordingDisplayName(selectedRecording)}. ${context}`
-        : 'No project recording is selected yet.',
+      status: 'pending',
+      text: 'Sampling the recording and waiting for Gemma…',
       createdAt: new Date().toISOString(),
     }
     updateMessages((current) => [...current, userMessage, assistantMessage])
+    setSending(true)
+    try {
+      const result = await onSendMessage(text, messages)
+      updateMessages((current) => current.map((item) => (
+        item.id === assistantId
+          ? { ...item, status: 'ok', text: result.text || 'Gemma returned an empty response.' }
+          : item
+      )))
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Gemma video inference failed.'
+      updateMessages((current) => current.map((item) => (
+        item.id === assistantId
+          ? { ...item, status: 'error', text: message }
+          : item
+      )))
+    } finally {
+      setSending(false)
+    }
   }
 
   const handleSubmit = (event: FormEvent) => {
@@ -347,11 +351,11 @@ export default function AIChat({
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
           onKeyDown={handleKeyDown}
-          disabled={!chatSession}
+          disabled={!chatSession || sending}
           placeholder="Ask about this recording, /segmentation, or /worldgen @MarkerA-@MarkerB"
           rows={3}
         />
-        <button type="submit" className="send-button" title="Send message" disabled={!chatSession}>
+        <button type="submit" className="send-button" title="Send message" disabled={!chatSession || sending}>
           <CornerDownLeft size={16} aria-hidden="true" />
         </button>
       </form>

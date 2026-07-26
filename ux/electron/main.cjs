@@ -26,6 +26,7 @@ const DEFAULT_WORLDGEN_POINTS_PER_FRAME = 60000
 const DEFAULT_RUNNER_ENDPOINT = 'http://127.0.0.1:8787'
 const DEFAULT_VGGT_HEALTH_TIMEOUT_MS = 15000
 const DEFAULT_VGGT_REQUEST_TIMEOUT_MS = 15 * 60 * 1000
+const DEFAULT_GEMMA_REQUEST_TIMEOUT_MS = 30 * 60 * 1000
 
 function parseEnvValue(value) {
   const trimmed = value.trim()
@@ -2769,6 +2770,144 @@ function buildMultipartBody(parts) {
   }
 }
 
+async function runAgentChat(request) {
+  if (!request?.recordingPath || typeof request.recordingPath !== 'string') {
+    throw new Error('Gemma video chat requires a selected recording.')
+  }
+  if (!request.recordingPath.endsWith('.vis.pb')) {
+    throw new Error('Gemma video chat requires a .vis.pb recording.')
+  }
+  const message = String(request.message || '').trim()
+  if (!message) throw new Error('Gemma video chat requires a message.')
+
+  const resolved = path.resolve(request.recordingPath)
+  const offsets = getFrameOffsets(resolved)
+  if (!offsets.length) throw new Error('The selected recording has no frames.')
+
+  const configuredFrameCount = Math.trunc(finiteNumber(process.env.GEMMA_VIDEO_MAX_FRAMES, 24))
+  const sampleCount = Math.max(1, Math.min(32, configuredFrameCount, offsets.length))
+  const sampledIndexes = []
+  for (let index = 0; index < sampleCount; index += 1) {
+    const frameIndex = sampleCount === 1
+      ? 0
+      : Math.round((index * (offsets.length - 1)) / (sampleCount - 1))
+    if (sampledIndexes.at(-1) !== frameIndex) sampledIndexes.push(frameIndex)
+  }
+
+  const uploads = []
+  const timestampsNs = []
+  const fd = fs.openSync(resolved, 'r')
+  try {
+    for (const frameIndex of sampledIndexes) {
+      const frame = decodedFrameAt(resolved, offsets, frameIndex, fd)
+      const jpeg = rgbFrameJpeg(frame)
+      if (!jpeg) continue
+      const identifier = frameIdentifierFor(frame, frameIndex)
+      timestampsNs.push(identifier.timestampNs)
+      uploads.push({
+        name: 'frames',
+        filename: `frame_${String(frameIndex).padStart(6, '0')}.jpg`,
+        contentType: 'image/jpeg',
+        value: jpeg,
+      })
+    }
+  } finally {
+    fs.closeSync(fd)
+  }
+  if (!uploads.length) {
+    throw new Error('No JPEG RGB frames were available for Gemma video inference.')
+  }
+
+  const firstTimestamp = timestampsNs[0]
+  const timestampsSec = timestampsNs.map((value) => timestampDeltaSeconds(firstTimestamp, value))
+  const history = Array.isArray(request.history)
+    ? request.history
+      .filter((item) => item && ['user', 'assistant'].includes(item.role) && String(item.text || '').trim())
+      .slice(-24)
+      .map((item) => ({ role: item.role, text: String(item.text).slice(0, 32000) }))
+    : []
+  const multipart = buildMultipartBody([
+    ...uploads,
+    { name: 'message', value: message },
+    { name: 'timestamps_sec', value: JSON.stringify(timestampsSec) },
+    { name: 'history', value: JSON.stringify(history) },
+    { name: 'request_id', value: String(request.requestId || '') },
+    { name: 'chat_id', value: String(request.chatId || '') },
+    { name: 'recording_path', value: resolved },
+  ])
+  const timeoutMs = Math.max(
+    1000,
+    Math.trunc(finiteNumber(process.env.GEMMA_REQUEST_TIMEOUT_MS, DEFAULT_GEMMA_REQUEST_TIMEOUT_MS)),
+  )
+  const submittedResponse = await nodeHttpRequest(`${runnerEndpoint()}/api/v1/agent/jobs`, {
+    method: 'POST',
+    headers: {
+      ...runnerHeaders(),
+      Accept: 'application/json',
+      'Content-Type': multipart.contentType,
+    },
+    body: multipart.body,
+    timeoutMs,
+  })
+  if (!submittedResponse.ok) {
+    throw new Error(`Gemma job submission failed with HTTP ${submittedResponse.status}${await readResponseDetail(submittedResponse)}`)
+  }
+  const submitted = await submittedResponse.json()
+  const jobId = String(submitted?.job_id || submitted?.id || '')
+  if (!jobId) throw new Error('Runner accepted Gemma inference without returning a job id.')
+
+  const deadline = Date.now() + timeoutMs
+  for (;;) {
+    if (Date.now() > deadline) {
+      throw new Error(`Gemma job ${jobId} exceeded the ${Math.round(timeoutMs / 1000)}s timeout.`)
+    }
+    await new Promise((resolveWait) => setTimeout(resolveWait, 750))
+    const stateResponse = await nodeHttpRequest(
+      `${runnerEndpoint()}/api/v1/agent/jobs/${encodeURIComponent(jobId)}`,
+      {
+        headers: { ...runnerHeaders(), Accept: 'application/json' },
+        timeoutMs: Math.max(
+          1000,
+          Math.trunc(finiteNumber(process.env.RUNNER_HEALTH_TIMEOUT_MS, DEFAULT_VGGT_HEALTH_TIMEOUT_MS)),
+        ),
+      },
+    )
+    if (!stateResponse.ok) {
+      throw new Error(`Gemma job status failed with HTTP ${stateResponse.status}${await readResponseDetail(stateResponse)}`)
+    }
+    const state = await stateResponse.json()
+    if (['failed', 'cancelled'].includes(state.status)) {
+      throw new Error(state.error || state.message || `Gemma job ${state.status}.`)
+    }
+    if (state.status !== 'complete') continue
+
+    const resultResponse = await nodeHttpRequest(
+      `${runnerEndpoint()}/api/v1/agent/jobs/${encodeURIComponent(jobId)}/result`,
+      {
+        headers: { ...runnerHeaders(), Accept: 'application/json' },
+        timeoutMs,
+      },
+    )
+    if (!resultResponse.ok) {
+      throw new Error(`Gemma result download failed with HTTP ${resultResponse.status}${await readResponseDetail(resultResponse)}`)
+    }
+    const result = await resultResponse.json()
+    return {
+      jobId,
+      text: String(result?.text || ''),
+      model: String(result?.model || ''),
+      sampledFrameCount: finiteNumber(result?.sampled_frame_count),
+      toolCalls: Array.isArray(result?.tool_calls)
+        ? result.tool_calls.map((call) => ({
+            name: String(call?.name || ''),
+            arguments: call?.arguments && typeof call.arguments === 'object' ? call.arguments : {},
+            result: call?.result,
+          }))
+        : [],
+    }
+  }
+}
+
 async function readResponseDetail(response) {
   const detail = await response.text().catch(() => '')
   return detail ? `: ${detail.slice(0, 300)}` : ''
@@ -3488,6 +3627,7 @@ if (isElectronRuntime) {
   ipcMain.handle('chat-workspace:create', (_event, videoId, recordingPath) => createChatSession(videoId, recordingPath))
   ipcMain.handle('chat-workspace:save', (_event, videoId, recordingPath, session) => saveChatSession(videoId, recordingPath, session))
   ipcMain.handle('chat-workspace:activate', (_event, videoId, recordingPath, chatId) => setActiveChatSession(videoId, recordingPath, chatId))
+  ipcMain.handle('agent:chat', (_event, request) => runAgentChat(request))
   ipcMain.handle('worldgen:run', (_event, request) => runWorldgen(request))
   ipcMain.handle('worldgen:read', (_event, filePath) => readWorldgen(filePath))
   ipcMain.handle('worldgen:splat-status', (_event, jobId) => pollWorldgenSplat(jobId))
@@ -3580,6 +3720,7 @@ module.exports = {
   createChatSession,
   saveChatSession,
   setActiveChatSession,
+  runAgentChat,
   runWorldgen,
   readWorldgen,
   pollWorldgenSplat,

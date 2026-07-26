@@ -11,6 +11,7 @@ import httpx
 from fastmcp import Client
 
 from runner.app import RunnerSettings, create_app
+from runner.gemma_jobs import GemmaJobManager
 from runner.job_events import job_events
 from runner.manager import JobManager
 from runner.mcp_server import create_mcp_server
@@ -263,6 +264,9 @@ def test_mcp_discovers_runner_and_worldgen_tools(tmp_path: Path) -> None:
                 "worldgen_get_job",
                 "worldgen_splat_status",
                 "worldgen_splat_artifact",
+                "gpu_scheduler_state",
+                "gemma_list_jobs",
+                "gemma_get_job",
             } <= names
             health = await client.call_tool("runner_health")
             assert health.data["service"] == "bayesmech-runner"
@@ -274,6 +278,96 @@ def test_mcp_discovers_runner_and_worldgen_tools(tmp_path: Path) -> None:
         asyncio.run(exercise())
     finally:
         manager.close()
+
+
+def test_gemma_video_job_runs_in_fifo_worker_and_returns_result(
+    tmp_path: Path,
+) -> None:
+    server_root = tmp_path / "server"
+    worker = server_root / "gemma" / "worker.py"
+    worker.parent.mkdir(parents=True)
+    worker.write_text(
+        "import json, sys\n"
+        "from pathlib import Path\n"
+        "request = json.loads(Path(sys.argv[1]).read_text())\n"
+        "Path(sys.argv[2]).write_text(json.dumps({"
+        "'text': 'saw the sampled frame', "
+        "'model': request['model_id'], "
+        "'tool_calls': [], "
+        "'sampled_frame_count': len(request['frame_paths'])"
+        "}))\n",
+        encoding="utf-8",
+    )
+    settings = _settings(tmp_path)
+    manager = JobManager(
+        settings.data_dir,
+        {},
+        max_workers=1,
+        max_upload_bytes=settings.max_upload_bytes,
+        max_runtime_seconds=settings.max_runtime_seconds,
+        python_executable=sys.executable,
+    )
+    gemma_manager = GemmaJobManager(
+        settings.data_dir,
+        runner_token=TOKEN,
+        max_runtime_seconds=30,
+        server_root=server_root,
+        python_executable=sys.executable,
+    )
+    app = create_app(settings, manager, gemma_manager)
+    headers = {"Authorization": f"Bearer {TOKEN}"}
+    submitted = asyncio.run(
+        _request(
+            app,
+            "POST",
+            "/api/v1/agent/jobs",
+            headers=headers,
+            data={
+                "message": "What happens?",
+                "timestamps_sec": "[1.25]",
+                "history": json.dumps([{"role": "user", "text": "Earlier question"}]),
+                "request_id": "request-test",
+                "chat_id": "chat-test",
+            },
+            files=[
+                ("frames", ("frame.jpg", b"jpeg-bytes", "image/jpeg")),
+            ],
+        )
+    )
+    assert submitted.status_code == 202, submitted.text
+    job_id = submitted.json()["job_id"]
+
+    state = submitted.json()
+    deadline = time.monotonic() + 10
+    while state["status"] not in {"complete", "failed"}:
+        assert time.monotonic() < deadline
+        time.sleep(0.05)
+        response = asyncio.run(
+            _request(
+                app,
+                "GET",
+                f"/api/v1/agent/jobs/{job_id}",
+                headers=headers,
+            )
+        )
+        assert response.status_code == 200
+        state = response.json()
+    assert state["status"] == "complete", state
+    assert state["sampled_frame_count"] == 1
+
+    response = asyncio.run(
+        _request(
+            app,
+            "GET",
+            f"/api/v1/agent/jobs/{job_id}/result",
+            headers=headers,
+        )
+    )
+    assert response.status_code == 200
+    assert response.json()["text"] == "saw the sampled frame"
+    assert response.json()["sampled_frame_count"] == 1
+    gemma_manager.close()
+    manager.close()
 
 
 def test_runner_job_state_endpoint_returns_broker_snapshot(tmp_path: Path) -> None:

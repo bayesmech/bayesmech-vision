@@ -4,6 +4,7 @@ import ProjectExplorer from './components/ProjectExplorer'
 import SplitWorkspace from './components/SplitWorkspace'
 import TopMenu from './components/TopMenu'
 import type {
+  AgentChatResult,
   ChatThread,
   IdoSlamSummary,
   MotionCaptureOverlay,
@@ -661,6 +662,33 @@ export default function App() {
     [activeChat, bridge, selectedRecording],
   )
 
+  const sendChatMessage = useCallback(
+    async (
+      message: string,
+      history: WorkspaceChatMessage[],
+    ): Promise<AgentChatResult> => {
+      if (!selectedRecording || !activeChat) {
+        throw new Error('Select a recording and chat before sending a message.')
+      }
+      if (!bridge?.sendAgentMessage) {
+        throw new Error('Gemma video chat requires the native Electron app.')
+      }
+      if (selectedRecording.path.startsWith('browser://')) {
+        throw new Error('Gemma video chat requires a local filesystem recording.')
+      }
+      return bridge.sendAgentMessage({
+        requestId: requestId(),
+        recordingPath: selectedRecording.path,
+        chatId: activeChat.id,
+        message,
+        history: history
+          .filter((item) => item.role === 'user' || item.role === 'assistant')
+          .map((item) => ({ role: item.role, text: item.text })),
+      })
+    },
+    [activeChat, bridge, selectedRecording],
+  )
+
   const closeRecording = useCallback(
     (recording: RecordingEntry) => {
       if (!project) return
@@ -1127,6 +1155,7 @@ export default function App() {
             chatError={chatThreadError}
             backgroundJobs={Object.values(backgroundJobs)}
             onMessagesChange={saveActiveMessages}
+            onSendMessage={sendChatMessage}
             onRunCommand={runCommand}
           />
           <SplitWorkspace

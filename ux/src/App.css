@@ -541,7 +541,7 @@ button {
 
 .editor-region {
   display: grid;
-  grid-template-columns: minmax(316px, 27vw) minmax(0, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   min-width: 0;
   min-height: 0;
 }
@@ -641,7 +641,7 @@ button {
   margin: 0;
   padding: 8px 10px 10px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.5;
   white-space: pre-wrap;
 }
@@ -718,8 +718,8 @@ button {
   border-radius: 6px;
   background: var(--panel);
   color: var(--text);
-  font-size: 12px;
-  line-height: 1.45;
+  font-size: 14px;
+  line-height: 1.5;
   white-space: pre-wrap;
 }
 
@@ -903,8 +903,8 @@ button {
   background: var(--bg);
   color: var(--text);
   padding: 9px;
-  font-size: 12px;
-  line-height: 1.38;
+  font-size: 14px;
+  line-height: 1.45;
 }
 
 .chat-input textarea:focus {
@@ -1552,7 +1552,7 @@ button {
   }
 
   .editor-region {
-    grid-template-columns: 310px minmax(0, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .top-actions .project-pill {

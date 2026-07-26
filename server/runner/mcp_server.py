@@ -16,6 +16,8 @@ from typing import Any, Literal
 from fastmcp import FastMCP
 from pydantic import BaseModel, Field
 
+from .gemma_jobs import GemmaJobManager
+from .gpu_scheduler import gpu_scheduler
 from .manager import JobManager, safe_filename, validate_arguments
 
 
@@ -61,7 +63,11 @@ def _sha256(path: Path) -> str:
 
 
 def create_mcp_server(
-    settings: Any, manager: JobManager, version: str = "0.2.0"
+    settings: Any,
+    manager: JobManager,
+    version: str = "0.2.0",
+    *,
+    gemma_manager: GemmaJobManager | None = None,
 ) -> FastMCP:
     """Create the discoverable MCP facade over one runner instance."""
 
@@ -112,7 +118,16 @@ def create_mcp_server(
                         "worldgen_splat_status",
                         "worldgen_splat_artifact",
                     ],
-                }
+                },
+                {
+                    "name": "gemma",
+                    "title": "Gemma Video Agent",
+                    "rest_endpoint": "/api/v1/agent",
+                    "mcp_tools": [
+                        "gemma_list_jobs",
+                        "gemma_get_job",
+                    ],
+                },
             ],
             "bulk_transfer": {
                 "submit_job": "POST /api/v1/jobs",
@@ -120,6 +135,12 @@ def create_mcp_server(
                 "download_artifact": "GET /api/v1/jobs/{job_id}/artifacts/{artifact_id}",
             },
         }
+
+    @mcp.tool()
+    def gpu_scheduler_state() -> dict[str, Any]:
+        """Read the current GPU owner and FIFO queue of waiting workloads."""
+
+        return gpu_scheduler.snapshot()
 
     @mcp.tool()
     def runner_list_jobs(limit: int = 100) -> dict[str, Any]:
@@ -209,6 +230,27 @@ def create_mcp_server(
                 )
             result["data_base64"] = base64.b64encode(path.read_bytes()).decode("ascii")
         return result
+
+    @mcp.tool()
+    def gemma_list_jobs(limit: int = 100) -> dict[str, Any]:
+        """List recent Gemma video-agent jobs and their progress."""
+
+        if gemma_manager is None:
+            return {"jobs": [], "available": False}
+        if limit < 1 or limit > 500:
+            raise ValueError("limit must be between 1 and 500")
+        return {"jobs": gemma_manager.list_jobs(limit), "available": True}
+
+    @mcp.tool()
+    def gemma_get_job(job_id: str) -> dict[str, Any]:
+        """Read status and logs for one Gemma video-agent job."""
+
+        if gemma_manager is None:
+            raise ValueError("Gemma jobs are not configured")
+        try:
+            return gemma_manager.public_state(job_id)
+        except (KeyError, ValueError) as exc:
+            raise ValueError("Gemma job not found") from exc
 
     @mcp.tool()
     def worldgen_health() -> dict[str, Any]:
@@ -313,9 +355,7 @@ def create_mcp_server(
         from worldgen.services.vggt_jobs import list_vggt_jobs
 
         jobs = [*list_vggt_jobs(limit), *list_splat_jobs(limit)]
-        jobs.sort(
-            key=lambda state: float(state.get("created_at") or 0), reverse=True
-        )
+        jobs.sort(key=lambda state: float(state.get("created_at") or 0), reverse=True)
         return {"jobs": jobs[:limit]}
 
     @mcp.tool()

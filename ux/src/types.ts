@@ -312,6 +312,28 @@ export type WorkspaceChatSession = {
   markers: VideoMarker[]
 }
 
+export type AgentChatRequest = {
+  requestId: string
+  recordingPath: string
+  chatId: string
+  message: string
+  history: Array<Pick<WorkspaceChatMessage, 'role' | 'text'>>
+}
+
+export type AgentToolCall = {
+  name: string
+  arguments: Record<string, unknown>
+  result: unknown
+}
+
+export type AgentChatResult = {
+  jobId: string
+  text: string
+  model: string
+  sampledFrameCount: number
+  toolCalls: AgentToolCall[]
+}
+
 export type VideoChatWorkspace = {
   version: 1
   videoId: string
@@ -500,6 +522,7 @@ export type RunnerCapability = {
   title: string
   description: string
   input_suffixes: string[]
+  requires_gpu: boolean
   available: boolean
 }
 
@@ -606,6 +629,7 @@ export type BridgeApi = {
     session: WorkspaceChatSession,
   ) => Promise<boolean>
   setActiveChatSession: (videoId: string, recordingPath: string, chatId: string) => Promise<boolean>
+  sendAgentMessage: (request: AgentChatRequest) => Promise<AgentChatResult>
   runWorldgen: (request: WorldgenRequest) => Promise<WorldgenResult>
   readWorldgen: (filePath: string) => Promise<WorldgenResult>
   pollWorldgenSplat: (jobId: string) => Promise<WorldgenSplatStatus>

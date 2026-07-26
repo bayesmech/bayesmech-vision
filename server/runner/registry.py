@@ -11,6 +11,7 @@ class JobDefinition:
     description: str
     entrypoint: Path
     input_suffixes: tuple[str, ...] = (".vis.pb",)
+    requires_gpu: bool = False
 
     def public_dict(self) -> dict[str, object]:
         return {
@@ -18,6 +19,7 @@ class JobDefinition:
             "title": self.title,
             "description": self.description,
             "input_suffixes": list(self.input_suffixes),
+            "requires_gpu": self.requires_gpu,
             "available": self.entrypoint.is_file(),
         }
 
@@ -36,12 +38,14 @@ def builtin_job_registry(server_root: Path) -> dict[str, JobDefinition]:
             "Segmentation",
             "Run SAM-based video segmentation.",
             server_root / "segmentation" / "main.py",
+            requires_gpu=True,
         ),
         JobDefinition(
             "motioncap",
             "Motion Capture",
             "Generate optical-flow heatmaps and tracked motion overlays.",
             server_root / "motioncap" / "main.py",
+            requires_gpu=True,
         ),
         JobDefinition(
             "idoslam",
@@ -60,6 +64,7 @@ def builtin_job_registry(server_root: Path) -> dict[str, JobDefinition]:
             "3D Reconstruction",
             "Run COLMAP reconstruction and optional Gaussian splatting.",
             server_root / "reconstruct" / "main.py",
+            requires_gpu=True,
         ),
         JobDefinition(
             "genspark",

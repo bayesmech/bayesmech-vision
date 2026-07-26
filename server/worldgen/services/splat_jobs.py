@@ -13,10 +13,13 @@ from typing import Any
 
 import cv2
 import numpy as np
+from runner.gpu_scheduler import gpu_scheduler
 from runner.job_events import publish_runner_job
 
 ROOT = Path(__file__).resolve().parents[1]
-JOBS_DIR = Path(os.environ.get("WORLDGEN_SPLAT_JOBS_DIR", str(ROOT / "outputs" / "splat_jobs")))
+JOBS_DIR = Path(
+    os.environ.get("WORLDGEN_SPLAT_JOBS_DIR", str(ROOT / "outputs" / "splat_jobs"))
+)
 
 log = logging.getLogger(__name__)
 
@@ -44,10 +47,16 @@ def splat_config() -> dict[str, Any]:
     return {
         "max_steps": max(1, _env_int("WORLDGEN_SPLAT_STEPS", 30000)),
         "max_gaussians": max(1000, _env_int("WORLDGEN_SPLAT_MAX_GAUSSIANS", 1000000)),
-        "max_init_points": max(1000, _env_int("WORLDGEN_SPLAT_MAX_INIT_POINTS", 180000)),
-        "max_points_per_frame": max(1000, _env_int("WORLDGEN_SPLAT_MAX_POINTS_PER_FRAME", 60000)),
+        "max_init_points": max(
+            1000, _env_int("WORLDGEN_SPLAT_MAX_INIT_POINTS", 180000)
+        ),
+        "max_points_per_frame": max(
+            1000, _env_int("WORLDGEN_SPLAT_MAX_POINTS_PER_FRAME", 60000)
+        ),
         "min_confidence": max(0.0, _env_float("WORLDGEN_SPLAT_MIN_CONFIDENCE", 0.55)),
-        "outlier_quantile": min(1.0, max(0.90, _env_float("WORLDGEN_SPLAT_OUTLIER_QUANTILE", 0.995))),
+        "outlier_quantile": min(
+            1.0, max(0.90, _env_float("WORLDGEN_SPLAT_OUTLIER_QUANTILE", 0.995))
+        ),
         "preview_points": max(1000, _env_int("WORLDGEN_SPLAT_PREVIEW_POINTS", 100000)),
         "sh_degree": max(0, min(3, _env_int("WORLDGEN_SPLAT_SH_DEGREE", 3))),
         "data_factor": max(1, _env_int("WORLDGEN_SPLAT_DATA_FACTOR", 1)),
@@ -114,7 +123,9 @@ def list_splat_jobs(limit: int = 100) -> list[dict[str, Any]]:
             states[str(state["job_id"])] = state
     with _jobs_lock:
         for job_id, state in _jobs.items():
-            states[job_id] = {key: value for key, value in state.items() if key != "_future"}
+            states[job_id] = {
+                key: value for key, value in state.items() if key != "_future"
+            }
     ordered = sorted(
         states.values(),
         key=lambda state: float(state.get("created_at") or 0),
@@ -141,7 +152,11 @@ def start_splat_job(
     for idx, frame in enumerate(frames):
         image_path = frame_dir / f"frame_{idx:06d}.jpg"
         image_rgb = np.asarray(frame["image_rgb"], dtype=np.uint8)
-        cv2.imwrite(str(image_path), cv2.cvtColor(image_rgb, cv2.COLOR_RGB2BGR), [cv2.IMWRITE_JPEG_QUALITY, 96])
+        cv2.imwrite(
+            str(image_path),
+            cv2.cvtColor(image_rgb, cv2.COLOR_RGB2BGR),
+            [cv2.IMWRITE_JPEG_QUALITY, 96],
+        )
         np.savez_compressed(
             point_dir / f"frame_{idx:06d}.npz",
             xyz=np.asarray(frame["xyz"], dtype=np.float32),
@@ -149,12 +164,17 @@ def start_splat_job(
             conf=np.asarray(frame["conf"], dtype=np.float32),
             c2w=np.asarray(frame["camera_to_world"], dtype=np.float64),
             K=np.asarray(frame["intrinsics"], dtype=np.float64),
-            source_frame_index=np.asarray([int(frame.get("source_frame_index", idx))], dtype=np.int64),
+            source_frame_index=np.asarray(
+                [int(frame.get("source_frame_index", idx))], dtype=np.int64
+            ),
         )
         image_paths.append(str(image_path))
 
     cfg = splat_config()
-    _write_json(workspace / "metadata.json", {"metadata": metadata, "config": cfg, "image_paths": image_paths})
+    _write_json(
+        workspace / "metadata.json",
+        {"metadata": metadata, "config": cfg, "image_paths": image_paths},
+    )
     state = _update_job(
         job_id,
         status="queued",
@@ -182,8 +202,13 @@ def start_splat_job(
 
 
 def _run_splat_job(job_id: str, gpu_lock: threading.Lock | None) -> None:
-    lock = gpu_lock or threading.Lock()
-    with lock:
+    _update_job(
+        job_id,
+        status="queued",
+        stage="waiting_for_gpu",
+        message="Waiting for the greedy GPU scheduler.",
+    )
+    with gpu_scheduler.lease("gaussian_splat", job_id):
         _train_splat_job(job_id)
 
 
@@ -197,12 +222,25 @@ def _train_splat_job(job_id: str) -> None:
         from gsplat.strategy import MCMCStrategy
         from plyfile import PlyData, PlyElement
     except Exception as exc:
-        _update_job(job_id, status="failed", stage="import", error=str(exc), message=f"Splat imports failed: {exc}")
+        _update_job(
+            job_id,
+            status="failed",
+            stage="import",
+            error=str(exc),
+            message=f"Splat imports failed: {exc}",
+        )
         return
 
     try:
-        cfg = (_read_json(workspace / "metadata.json") or {}).get("config", splat_config())
-        _update_job(job_id, status="running", stage="preparing", message="Preparing splat training data.")
+        cfg = (_read_json(workspace / "metadata.json") or {}).get(
+            "config", splat_config()
+        )
+        _update_job(
+            job_id,
+            status="running",
+            stage="preparing",
+            message="Preparing splat training data.",
+        )
         dataset = _load_dataset(workspace, cfg)
         device = "cuda" if torch.cuda.is_available() else "cpu"
         points = torch.from_numpy(dataset["points"]).float().to(device)
@@ -269,7 +307,13 @@ def _train_splat_job(job_id: str) -> None:
             loss = F.l1_loss(renders.squeeze(0), pixels)
             if strategy is not None:
                 try:
-                    strategy.step_pre_backward(params=splats, optimizers=optimizers, state=strategy_state, step=step, info=info)
+                    strategy.step_pre_backward(
+                        params=splats,
+                        optimizers=optimizers,
+                        state=strategy_state,
+                        step=step,
+                        info=info,
+                    )
                 except Exception:
                     strategy = None
             loss.backward()
@@ -303,10 +347,17 @@ def _train_splat_job(job_id: str) -> None:
                     elapsed_sec=float(time.time() - started),
                 )
 
-        _update_job(job_id, status="running", stage="exporting", message="Exporting Gaussian splat preview and PLY.")
+        _update_job(
+            job_id,
+            status="running",
+            stage="exporting",
+            message="Exporting Gaussian splat preview and PLY.",
+        )
         ply_path = workspace / "model.splat.ply"
         _export_ply(splats, ply_path, torch, PlyData, PlyElement)
-        preview = _write_preview(splats, workspace / "preview.json", cfg["preview_points"], torch)
+        preview = _write_preview(
+            splats, workspace / "preview.json", cfg["preview_points"], torch
+        )
         _update_job(
             job_id,
             status="complete",
@@ -368,7 +419,11 @@ def _load_dataset(workspace: Path, cfg: dict[str, Any]) -> dict[str, Any]:
         xyz = np.asarray(data["xyz"], dtype=np.float32)
         rgb = np.asarray(data["rgb"], dtype=np.float32)
         conf = np.asarray(data["conf"], dtype=np.float32)
-        finite = np.isfinite(xyz).all(axis=1) & np.isfinite(rgb).all(axis=1) & np.isfinite(conf)
+        finite = (
+            np.isfinite(xyz).all(axis=1)
+            & np.isfinite(rgb).all(axis=1)
+            & np.isfinite(conf)
+        )
         keep = finite & (conf >= cfg["min_confidence"])
         if keep.sum() < min(1000, max(1, finite.sum() // 20)):
             keep = finite & (conf >= max(0.05, cfg["min_confidence"] * 0.5))
@@ -378,7 +433,9 @@ def _load_dataset(workspace: Path, cfg: dict[str, Any]) -> dict[str, Any]:
         if len(xyz):
             selected = _sample_indices(conf, cfg["max_points_per_frame"], rng)
             points_all.append(xyz[selected])
-            colors_all.append(np.round(np.clip(rgb[selected], 0.0, 1.0) * 255.0).astype(np.uint8))
+            colors_all.append(
+                np.round(np.clip(rgb[selected], 0.0, 1.0) * 255.0).astype(np.uint8)
+            )
             conf_all.append(conf[selected])
         frame_name = point_path.stem + ".jpg"
         image_paths.append(workspace / "images" / frame_name)
@@ -390,7 +447,9 @@ def _load_dataset(workspace: Path, cfg: dict[str, Any]) -> dict[str, Any]:
     points = np.concatenate(points_all, axis=0)
     colors = np.concatenate(colors_all, axis=0)
     conf = np.concatenate(conf_all, axis=0)
-    points, colors, conf = _filter_outliers(points, colors, conf, cfg["outlier_quantile"])
+    points, colors, conf = _filter_outliers(
+        points, colors, conf, cfg["outlier_quantile"]
+    )
     if len(points) > cfg["max_init_points"]:
         selected = _sample_indices(conf, cfg["max_init_points"], rng)
         points = points[selected]
@@ -406,7 +465,9 @@ def _load_dataset(workspace: Path, cfg: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _sample_indices(weights: np.ndarray, limit: int, rng: np.random.Generator) -> np.ndarray:
+def _sample_indices(
+    weights: np.ndarray, limit: int, rng: np.random.Generator
+) -> np.ndarray:
     count = len(weights)
     if limit <= 0 or count <= limit:
         return np.arange(count, dtype=np.int64)
@@ -434,17 +495,23 @@ def _load_views(dataset, data_factor: int, device: str, torch):
         K = dataset["Ks"][idx].copy()
         if data_factor > 1:
             h, w = img.shape[:2]
-            img = cv2.resize(img, (w // data_factor, h // data_factor), interpolation=cv2.INTER_AREA)
+            img = cv2.resize(
+                img, (w // data_factor, h // data_factor), interpolation=cv2.INTER_AREA
+            )
             K[0, :] /= data_factor
             K[1, :] /= data_factor
         pixels = torch.from_numpy(img).float().to(device) / 255.0
-        views.append({
-            "pixels": pixels,
-            "camtoworld": torch.from_numpy(dataset["camtoworlds"][idx]).float().to(device),
-            "K": torch.from_numpy(K).float().to(device),
-            "height": int(pixels.shape[0]),
-            "width": int(pixels.shape[1]),
-        })
+        views.append(
+            {
+                "pixels": pixels,
+                "camtoworld": torch.from_numpy(dataset["camtoworlds"][idx])
+                .float()
+                .to(device),
+                "K": torch.from_numpy(K).float().to(device),
+                "height": int(pixels.shape[0]),
+                "width": int(pixels.shape[1]),
+            }
+        )
     return views
 
 
@@ -457,7 +524,9 @@ def _init_gaussians(points, colors, device: str, sh_degree: int, torch):
     n = len(points)
     dist = _knn_dist(points, torch)
     neighbour = dist[:, 1:] if dist.shape[1] > 1 else dist
-    scales = torch.log(torch.sqrt(neighbour.mean(dim=-1, keepdim=True).clamp_min(1e-6))).repeat(1, 3)
+    scales = torch.log(
+        torch.sqrt(neighbour.mean(dim=-1, keepdim=True).clamp_min(1e-6))
+    ).repeat(1, 3)
     quats = torch.zeros(n, 4, device=device)
     quats[:, 0] = 1.0
     opacities = torch.logit(torch.full((n,), 0.1, device=device))
@@ -476,10 +545,13 @@ def _init_gaussians(points, colors, device: str, sh_degree: int, torch):
 def _knn_dist(points, torch):
     pts = points.float()
     if len(pts) <= 1:
-        return torch.ones((len(pts), 1), device=points.device, dtype=points.dtype) * 0.01
+        return (
+            torch.ones((len(pts), 1), device=points.device, dtype=points.dtype) * 0.01
+        )
     k = min(4, len(pts))
     try:
         from sklearn.neighbors import NearestNeighbors
+
         pts_np = pts.detach().cpu().numpy()
         nn = NearestNeighbors(n_neighbors=k, algorithm="auto", n_jobs=-1)
         nn.fit(pts_np)
@@ -489,7 +561,7 @@ def _knn_dist(points, torch):
         batch = min(4096, len(pts))
         dists = []
         for i in range(0, len(pts), batch):
-            d = torch.cdist(pts[i:i + batch], pts)
+            d = torch.cdist(pts[i : i + batch], pts)
             d_sorted, _ = d.sort(dim=-1)
             dists.append(d_sorted[:, :k])
         return torch.cat(dists, dim=0)
@@ -497,6 +569,7 @@ def _knn_dist(points, torch):
 
 def _optimizers(splats, scene_scale: float, torch):
     from torch.optim import Adam
+
     return {
         "means": Adam([splats["means"]], lr=1.6e-4 * scene_scale),
         "scales": Adam([splats["scales"]], lr=5e-3),
@@ -513,11 +586,31 @@ def _export_ply(splats, output_ply: Path, torch, PlyData, PlyElement) -> None:
     scales = splats["scales"].detach().cpu().numpy().astype(np.float32)
     quats = splats["quats"].detach().cpu().numpy().astype(np.float32)
     opacities = splats["opacities"].detach().cpu().numpy().astype(np.float32)
-    sh0 = splats["sh0"].detach().cpu().permute(0, 2, 1).reshape(len(means), -1).numpy().astype(np.float32)
-    shn = splats["shN"].detach().cpu().permute(0, 2, 1).reshape(len(means), -1).numpy().astype(np.float32)
+    sh0 = (
+        splats["sh0"]
+        .detach()
+        .cpu()
+        .permute(0, 2, 1)
+        .reshape(len(means), -1)
+        .numpy()
+        .astype(np.float32)
+    )
+    shn = (
+        splats["shN"]
+        .detach()
+        .cpu()
+        .permute(0, 2, 1)
+        .reshape(len(means), -1)
+        .numpy()
+        .astype(np.float32)
+    )
     fields = [
-        ("x", "f4"), ("y", "f4"), ("z", "f4"),
-        ("nx", "f4"), ("ny", "f4"), ("nz", "f4"),
+        ("x", "f4"),
+        ("y", "f4"),
+        ("z", "f4"),
+        ("nx", "f4"),
+        ("ny", "f4"),
+        ("nz", "f4"),
     ]
     fields += [(f"f_dc_{i}", "f4") for i in range(sh0.shape[1])]
     fields += [(f"f_rest_{i}", "f4") for i in range(shn.shape[1])]
@@ -549,9 +642,14 @@ def _write_preview(splats, output_json: Path, max_points: int, torch) -> dict[st
     keep = _sample_indices(opacities.astype(np.float32), max_points, rng)
     points = [
         {
-            "x": float(means[i, 0]), "y": float(means[i, 1]), "z": float(means[i, 2]),
-            "r": float(colors[i, 0]), "g": float(colors[i, 1]), "b": float(colors[i, 2]),
-            "opacity": float(opacities[i]), "scale": float(scales[i]),
+            "x": float(means[i, 0]),
+            "y": float(means[i, 1]),
+            "z": float(means[i, 2]),
+            "r": float(colors[i, 0]),
+            "g": float(colors[i, 1]),
+            "b": float(colors[i, 2]),
+            "opacity": float(opacities[i]),
+            "scale": float(scales[i]),
         }
         for i in keep
     ]

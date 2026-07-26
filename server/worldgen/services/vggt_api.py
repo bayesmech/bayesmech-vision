@@ -11,11 +11,21 @@ import tempfile
 import threading
 import time
 import zipfile
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Literal
 
 import numpy as np
-from fastapi import FastAPI, File, Form, Header, HTTPException, Query, Request, UploadFile
+from fastapi import (
+    FastAPI,
+    File,
+    Form,
+    Header,
+    HTTPException,
+    Query,
+    Request,
+    UploadFile,
+)
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response
 
@@ -45,12 +55,19 @@ from .vggt_jobs import (  # noqa: E402
 )
 
 import torch  # noqa: E402
+from runner.gpu_scheduler import gpu_scheduler  # noqa: E402
 
 DEFAULT_CKPT = ROOT / "checkpoints" / "vggt_omega" / "vggt_omega_1b_512.pt"
 MODEL_ID = os.environ.get("VGGT_MODEL_ID", "facebook/VGGT-Omega")
 MODEL_FILENAME = os.environ.get("VGGT_MODEL_FILENAME", "vggt_omega_1b_512.pt")
-CKPT = Path(os.environ.get("VGGT_CKPT", str(DEFAULT_CKPT))) if os.environ.get("VGGT_CKPT", str(DEFAULT_CKPT)) else None
-DEVICE_NAME = os.environ.get("VGGT_DEVICE", "cuda" if torch.cuda.is_available() else "cpu")
+CKPT = (
+    Path(os.environ.get("VGGT_CKPT", str(DEFAULT_CKPT)))
+    if os.environ.get("VGGT_CKPT", str(DEFAULT_CKPT))
+    else None
+)
+DEVICE_NAME = os.environ.get(
+    "VGGT_DEVICE", "cuda" if torch.cuda.is_available() else "cpu"
+)
 
 app = FastAPI(title="BayesMech VGGT-Omega Inference", version="0.1.0")
 app.add_middleware(
@@ -67,13 +84,37 @@ _infer_lock = threading.Lock()
 API_TOKEN = os.environ.get("VGGT_API_TOKEN", "").strip()
 
 
-def _authorize(authorization: str | None = None, x_vggt_token: str | None = None) -> None:
+@contextmanager
+def _scheduled_inference(task_id: str, progress_callback=None):
+    def waiting(position: int) -> None:
+        if progress_callback is not None:
+            progress_callback(
+                "waiting_for_gpu",
+                0.01,
+                0,
+                1,
+                f"Waiting for GPU lease at queue position {position}.",
+            )
+
+    with gpu_scheduler.lease("vggt", task_id or "vggt-sync", on_wait=waiting):
+        with _infer_lock:
+            try:
+                yield
+            finally:
+                unload_model()
+
+
+def _authorize(
+    authorization: str | None = None, x_vggt_token: str | None = None
+) -> None:
     if not API_TOKEN:
         return
     candidates: list[str] = []
     if authorization:
         scheme, _, value = authorization.partition(" ")
-        candidates.append(value if scheme.lower() == "bearer" and value else authorization)
+        candidates.append(
+            value if scheme.lower() == "bearer" and value else authorization
+        )
     if x_vggt_token:
         candidates.append(x_vggt_token)
     if API_TOKEN not in candidates:
@@ -157,11 +198,8 @@ def _run_inference(
         if progress_callback is not None:
             progress_callback(stage, progress, current, total_frames, message)
 
-    report("loading_model", 0.02, 0, "Loading VGGT-Omega.")
-    model = get_model()
     device = _device()
     window_size = window or len(frame_paths)
-    report("reconstructing", 0.08, 0, f"Reconstructing {total_frames} frames.")
 
     camera_extrinsics: list[np.ndarray] = []
     camera_intrinsics: list[np.ndarray] = []
@@ -172,10 +210,19 @@ def _run_inference(
     pointcloud_npz: list[tuple[str, dict[str, np.ndarray]]] = []
     splat_frames: list[dict] = []
 
-    with _infer_lock:
+    with _scheduled_inference(parent_job_id, progress_callback):
+        report("loading_model", 0.02, 0, "Loading VGGT-Omega.")
+        get_model()
+        report("reconstructing", 0.08, 0, f"Reconstructing {total_frames} frames.")
         for start in range(0, len(frame_paths), window_size):
             end = min(start + window_size, len(frame_paths))
-            result = run_vggt_window(model, frame_paths[start:end], resolution, preprocess_mode, device)
+            result = run_vggt_window(
+                get_model(),
+                frame_paths[start:end],
+                resolution,
+                preprocess_mode,
+                device,
+            )
 
             for local_idx in range(end - start):
                 global_idx = start + local_idx
@@ -186,8 +233,18 @@ def _run_inference(
                     conf=result["depth_conf"][local_idx],
                     conf_thresh=conf_thresh,
                 )
-                rgb = result["images"][local_idx].permute(1, 2, 0).reshape(-1, 3).numpy()[pc["valid_mask"]].astype(np.float32)
-                conf = pc["conf"].reshape(-1)[pc["valid_mask"]].astype(np.float32) if pc["conf"] is not None else None
+                rgb = (
+                    result["images"][local_idx]
+                    .permute(1, 2, 0)
+                    .reshape(-1, 3)
+                    .numpy()[pc["valid_mask"]]
+                    .astype(np.float32)
+                )
+                conf = (
+                    pc["conf"].reshape(-1)[pc["valid_mask"]].astype(np.float32)
+                    if pc["conf"] is not None
+                    else None
+                )
                 if conf is None:
                     conf = np.ones(len(pc["xyz"]), dtype=np.float32)
 
@@ -216,7 +273,12 @@ def _run_inference(
                         {
                             "source_frame_index": int(frame_indices[global_idx]),
                             "timestamp_sec": _finite_float(timestamps_sec[global_idx]),
-                            "image_rgb": np.clip(result["images"][local_idx].permute(1, 2, 0).numpy() * 255.0, 0, 255).astype(np.uint8),
+                            "image_rgb": np.clip(
+                                result["images"][local_idx].permute(1, 2, 0).numpy()
+                                * 255.0,
+                                0,
+                                255,
+                            ).astype(np.uint8),
                             "xyz": arrays["xyz"],
                             "rgb": arrays["rgb"],
                             "conf": arrays["conf"],
@@ -236,7 +298,9 @@ def _run_inference(
                         "xyz": arrays["xyz"][keep].tolist(),
                         "rgb": arrays["rgb"][keep].tolist(),
                         "uv": arrays["uv"][keep].tolist(),
-                        "conf": arrays["conf"][keep].tolist() if "conf" in arrays else None,
+                        "conf": (
+                            arrays["conf"][keep].tolist() if "conf" in arrays else None
+                        ),
                     }
                 )
                 completed = global_idx + 1
@@ -257,8 +321,6 @@ def _run_inference(
             total_frames,
             "Starting Gaussian splat optimization.",
         )
-        model = None
-        unload_model()
 
     metadata = {
         "model": "VGGT-Omega",
@@ -307,7 +369,9 @@ def _run_inference(
         return Response(
             archive.getvalue(),
             media_type="application/zip",
-            headers={"Content-Disposition": "attachment; filename=vggt_omega_result.zip"},
+            headers={
+                "Content-Disposition": "attachment; filename=vggt_omega_result.zip"
+            },
         )
 
     payload = {
@@ -333,7 +397,12 @@ def _run_inference(
 
 def _safe_suffix(name: str | None, fallback: str = ".mp4") -> str:
     suffix = Path(name or "").suffix.lower()
-    return suffix if suffix in {".mp4", ".mov", ".webm", ".mkv", ".avi", ".jpg", ".jpeg", ".png", ".webp"} else fallback
+    return (
+        suffix
+        if suffix
+        in {".mp4", ".mov", ".webm", ".mkv", ".avi", ".jpg", ".jpeg", ".png", ".webp"}
+        else fallback
+    )
 
 
 @app.get("/health")
@@ -342,7 +411,9 @@ def health():
         "ok": True,
         "device": DEVICE_NAME,
         "cuda_available": torch.cuda.is_available(),
-        "cuda_device": torch.cuda.get_device_name(0) if torch.cuda.is_available() else None,
+        "cuda_device": (
+            torch.cuda.get_device_name(0) if torch.cuda.is_available() else None
+        ),
         "checkpoint_exists": bool(CKPT and CKPT.exists()),
         "model_id": MODEL_ID,
         "model_filename": MODEL_FILENAME,
@@ -372,16 +443,22 @@ async def submit_vggt(
 
     _authorize(authorization, x_vggt_token)
     if not frames:
-        raise HTTPException(status_code=400, detail="At least one image frame is required.")
+        raise HTTPException(
+            status_code=400, detail="At least one image frame is required."
+        )
     if len(frames) > 96:
-        raise HTTPException(status_code=400, detail="At most 96 image frames may be submitted.")
+        raise HTTPException(
+            status_code=400, detail="At most 96 image frames may be submitted."
+        )
     if fps is not None and fps <= 0:
         raise HTTPException(status_code=400, detail="fps must be positive")
 
     selected = list(frames)
     frame_files: list[tuple[str, bytes]] = []
     total_bytes = 0
-    max_job_bytes = int(os.environ.get("WORLDGEN_MAX_JOB_UPLOAD_BYTES", str(2 * 1024**3)))
+    max_job_bytes = int(
+        os.environ.get("WORLDGEN_MAX_JOB_UPLOAD_BYTES", str(2 * 1024**3))
+    )
     try:
         for upload in selected:
             payload = await upload.read()
@@ -443,7 +520,9 @@ def worldgen_job_result(job_id: str):
         job = get_vggt_job(job_id)
         if job is None:
             raise HTTPException(status_code=404, detail="VGGT job not found")
-        raise HTTPException(status_code=409, detail=f"VGGT job is {job.get('status', 'not ready')}")
+        raise HTTPException(
+            status_code=409, detail=f"VGGT job is {job.get('status', 'not ready')}"
+        )
     return Response(path.read_bytes(), media_type="application/json")
 
 
@@ -466,7 +545,10 @@ async def infer_multipart(
 ):
     _authorize(authorization, x_vggt_token)
     if video is None and not frames:
-        raise HTTPException(status_code=400, detail="Upload either a video file field named 'video' or repeated image fields named 'frames'.")
+        raise HTTPException(
+            status_code=400,
+            detail="Upload either a video file field named 'video' or repeated image fields named 'frames'.",
+        )
     if every_n < 1:
         raise HTTPException(status_code=400, detail="every_n must be >= 1")
 
@@ -477,18 +559,25 @@ async def infer_multipart(
             video_path.write_bytes(await video.read())
             frame_dir = temp_dir / "frames"
             frame_dir.mkdir()
-            frame_paths, frame_indices, timestamps_sec = extract_video_frames(video_path, frame_dir, every_n=every_n, max_frames=max_frames)
+            frame_paths, frame_indices, timestamps_sec = extract_video_frames(
+                video_path, frame_dir, every_n=every_n, max_frames=max_frames
+            )
         else:
             frame_dir = temp_dir / "frames"
             frame_dir.mkdir()
             selected = list(frames or [])[: max_frames or None]
             frame_paths = []
             for idx, upload in enumerate(selected):
-                path = frame_dir / f"frame_{idx:06d}{_safe_suffix(upload.filename, '.png')}"
+                path = (
+                    frame_dir
+                    / f"frame_{idx:06d}{_safe_suffix(upload.filename, '.png')}"
+                )
                 path.write_bytes(await upload.read())
                 frame_paths.append(path)
             frame_indices = list(range(len(frame_paths)))
-            timestamps_sec = [idx / fps if fps and fps > 0 else float("nan") for idx in frame_indices]
+            timestamps_sec = [
+                idx / fps if fps and fps > 0 else float("nan") for idx in frame_indices
+            ]
 
         return await asyncio.to_thread(
             _run_inference,
@@ -536,7 +625,9 @@ async def infer_video_bytes(
         video_path.write_bytes(body)
         frame_dir = temp_dir / "frames"
         frame_dir.mkdir()
-        frame_paths, frame_indices, timestamps_sec = extract_video_frames(video_path, frame_dir, every_n=every_n, max_frames=max_frames)
+        frame_paths, frame_indices, timestamps_sec = extract_video_frames(
+            video_path, frame_dir, every_n=every_n, max_frames=max_frames
+        )
         return await asyncio.to_thread(
             _run_inference,
             frame_paths,
@@ -590,6 +681,12 @@ def splat_artifact(
         or workspace not in artifact_path.parents
         or not artifact_path.is_file()
     ):
-        raise HTTPException(status_code=404, detail=f"splat {artifact_kind} artifact is not available")
-    media_type = "application/octet-stream" if artifact_kind == "ply" else "application/json"
-    return FileResponse(artifact_path, filename=artifact_path.name, media_type=media_type)
+        raise HTTPException(
+            status_code=404, detail=f"splat {artifact_kind} artifact is not available"
+        )
+    media_type = (
+        "application/octet-stream" if artifact_kind == "ply" else "application/json"
+    )
+    return FileResponse(
+        artifact_path, filename=artifact_path.name, media_type=media_type
+    )

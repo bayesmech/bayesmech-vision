@@ -13,8 +13,8 @@ usage() {
   cat <<'EOF'
 Usage: server/runner/setup_remote.sh [options]
 
-Set up the BayesMech GPU runner, VGGT-Omega checkpoint, Gaussian Splatting
-extensions, and Streamable HTTP MCP server on this machine.
+Set up the BayesMech GPU runner, VGGT-Omega, Gaussian Splatting, Gemma 4
+video inference, and the Streamable HTTP MCP server on this machine.
 
 Options:
   --env PATH                 Read secrets and settings from PATH.
@@ -190,6 +190,27 @@ cd "$SERVER_DIR"
 "$UV_BIN" pip install --python "$SERVER_DIR/.venv/bin/python" \
   -e "$SERVER_DIR/worldgen/vendor/vggt_omega"
 
+# Gemma 4 support lands ahead of the Transformers version used by VGGT and
+# SAM. Keep that overlay isolated, while sharing the large CUDA/PyTorch install
+# from the primary environment through a .pth entry.
+GEMMA_VENV="$SERVER_DIR/.gemma-venv"
+"$UV_BIN" venv --python 3.12 --allow-existing "$GEMMA_VENV"
+GEMMA_SITE_PACKAGES="$("$GEMMA_VENV/bin/python" - <<'PY'
+import sysconfig
+print(sysconfig.get_paths()["purelib"])
+PY
+)"
+MAIN_SITE_PACKAGES="$("$SERVER_DIR/.venv/bin/python" - <<'PY'
+import sysconfig
+print(sysconfig.get_paths()["purelib"])
+PY
+)"
+printf '%s\n' "$MAIN_SITE_PACKAGES" > "$GEMMA_SITE_PACKAGES/bayesmech-main-venv.pth"
+"$UV_BIN" pip install --python "$GEMMA_VENV/bin/python" --no-deps \
+  "transformers==5.10.1" "accelerate>=1.12.0" "psutil>=7.0.0" \
+  "sentencepiece>=0.2.1"
+ensure_env GEMMA_PYTHON "$GEMMA_VENV/bin/python"
+
 CUDA_HOME_VALUE="${CUDA_HOME:-}"
 if [[ -z "$CUDA_HOME_VALUE" ]]; then
   if [[ -d /usr/local/cuda-12.6 ]]; then
@@ -215,6 +236,7 @@ ensure_env TORCH_CUDA_ARCH_LIST "${TORCH_CUDA_ARCH_LIST:-$GPU_ARCH}"
 ensure_env MAX_JOBS "${MAX_JOBS:-6}"
 ensure_env VGGT_MODEL_ID "${VGGT_MODEL_ID:-facebook/VGGT-Omega}"
 ensure_env VGGT_MODEL_FILENAME "${VGGT_MODEL_FILENAME:-vggt_omega_1b_512.pt}"
+ensure_env GEMMA_MODEL_ID "${GEMMA_MODEL_ID:-google/gemma-4-12B-it}"
 
 CHECKPOINT_DIR="$HOME/.cache/bayesmech/models/VGGT-Omega"
 CHECKPOINT_PATH="${VGGT_CKPT:-$CHECKPOINT_DIR/${VGGT_MODEL_FILENAME}}"
@@ -233,6 +255,16 @@ if [[ ! -s "$CHECKPOINT_PATH" ]]; then
     --local-dir "$DOWNLOAD_DIR"
   install -m 600 "$DOWNLOAD_DIR/$VGGT_MODEL_FILENAME" "$CHECKPOINT_PATH"
   rm -rf "$DOWNLOAD_DIR"
+fi
+
+GEMMA_MODEL_DIR_VALUE="${GEMMA_MODEL_DIR:-$HOME/.cache/bayesmech/models/${GEMMA_MODEL_ID##*/}}"
+ensure_env GEMMA_MODEL_DIR "$GEMMA_MODEL_DIR_VALUE"
+mkdir -p "$GEMMA_MODEL_DIR"
+if [[ ! -s "$GEMMA_MODEL_DIR/config.json" ]]; then
+  echo "Downloading $GEMMA_MODEL_ID for video chat and tool calling..."
+  "$SERVER_DIR/.venv/bin/hf" download \
+    "$GEMMA_MODEL_ID" \
+    --local-dir "$GEMMA_MODEL_DIR"
 fi
 
 set -a
@@ -261,6 +293,31 @@ checkpoint = Path(os.environ["VGGT_CKPT"])
 if checkpoint.stat().st_size < 1_000_000:
     raise SystemExit(f"Checkpoint is unexpectedly small: {checkpoint}")
 print(f"VGGT-Omega checkpoint ready ({checkpoint.stat().st_size} bytes)")
+PY
+
+echo "Checking the isolated Gemma 4 runtime and checkpoint..."
+"$GEMMA_VENV/bin/python" - <<'PY'
+import json
+import os
+from pathlib import Path
+
+import torch
+import transformers
+from transformers import AutoModelForMultimodalLM
+
+model_dir = Path(os.environ["GEMMA_MODEL_DIR"])
+config = json.loads((model_dir / "config.json").read_text(encoding="utf-8"))
+if config.get("model_type") != "gemma4":
+    raise SystemExit(
+        f"Expected a Gemma 4 checkpoint, found model_type={config.get('model_type')!r}"
+    )
+if not torch.cuda.is_available():
+    raise SystemExit("CUDA is not available in the isolated Gemma runtime.")
+AutoModelForMultimodalLM
+print(
+    f"Gemma 4 ready with Transformers {transformers.__version__} "
+    f"on {torch.cuda.get_device_name(0)}"
+)
 PY
 
 if ((START_RUNNER)); then

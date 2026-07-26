@@ -24,13 +24,15 @@ from fastapi import (
 )
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 
+from .gemma_jobs import GemmaJobManager
+from .gpu_scheduler import gpu_scheduler
 from .job_events import job_events
 from .manager import JobManager, safe_filename, validate_arguments
 from .mcp_server import create_mcp_server
 from .registry import builtin_job_registry
 
 SERVER_ROOT = Path(__file__).resolve().parents[1]
-RUNNER_VERSION = "0.3.0"
+RUNNER_VERSION = "0.4.0"
 
 
 def _env_bool(name: str, default: bool) -> bool:
@@ -106,6 +108,7 @@ class LazyWorldgenApp:
 def create_app(
     settings: RunnerSettings | None = None,
     manager: JobManager | None = None,
+    gemma_manager: GemmaJobManager | None = None,
 ) -> FastAPI:
     settings = settings or RunnerSettings.from_env()
     os.environ.setdefault(
@@ -122,7 +125,14 @@ def create_app(
         max_upload_bytes=settings.max_upload_bytes,
         max_runtime_seconds=settings.max_runtime_seconds,
     )
-    mcp_server = create_mcp_server(settings, manager, RUNNER_VERSION)
+    gemma_manager = gemma_manager or GemmaJobManager(
+        settings.data_dir,
+        runner_token=settings.token,
+        max_runtime_seconds=settings.max_runtime_seconds,
+    )
+    mcp_server = create_mcp_server(
+        settings, manager, RUNNER_VERSION, gemma_manager=gemma_manager
+    )
     mcp_app = mcp_server.http_app(path="/", json_response=True)
 
     @asynccontextmanager
@@ -131,6 +141,7 @@ def create_app(
             async with mcp_app.lifespan(application):
                 yield
         finally:
+            gemma_manager.close()
             manager.close()
 
     application = FastAPI(
@@ -138,6 +149,7 @@ def create_app(
     )
     application.state.runner_settings = settings
     application.state.job_manager = manager
+    application.state.gemma_job_manager = gemma_manager
 
     @application.middleware("http")
     async def authenticate(request: Request, call_next):
@@ -163,7 +175,10 @@ def create_app(
                         "detail": "RUNNER_TOKEN is required for non-loopback access"
                     },
                 )
-        if request.method == "POST" and request.url.path.startswith("/api/v1/jobs"):
+        if request.method == "POST" and (
+            request.url.path.startswith("/api/v1/jobs")
+            or request.url.path.startswith("/api/v1/agent/jobs")
+        ):
             content_length = request.headers.get("content-length", "")
             if (
                 content_length.isdigit()
@@ -197,7 +212,9 @@ def create_app(
             "auth_required": bool(settings.token),
             "max_workers": settings.max_workers,
             "jobs": len(manager.list_jobs(limit=500)),
+            "gemma_jobs": len(gemma_manager.list_jobs(limit=500)),
             "disk_free_bytes": disk.free,
+            "gpu_scheduler": gpu_scheduler.snapshot(),
         }
 
     @application.get("/api/v1/capabilities")
@@ -210,7 +227,12 @@ def create_app(
                     "name": "worldgen",
                     "title": "World Modeling",
                     "endpoint": "/api/v1/worldgen",
-                }
+                },
+                {
+                    "name": "gemma",
+                    "title": "Gemma Video Agent",
+                    "endpoint": "/api/v1/agent",
+                },
             ],
             "mcp": {
                 "transport": "streamable-http",
@@ -361,6 +383,102 @@ def create_app(
     @application.get("/api/v1/jobs/state")
     async def background_job_state():
         return {"jobs": job_events.snapshot()}
+
+    @application.get("/api/v1/gpu")
+    async def gpu_state():
+        return gpu_scheduler.snapshot()
+
+    @application.post("/api/v1/agent/jobs", status_code=202)
+    async def submit_gemma_job(
+        frames: list[UploadFile] = File(...),
+        message: str = Form(...),
+        timestamps_sec: str = Form(default="[]"),
+        history: str = Form(default="[]"),
+        request_id: str = Form(default=""),
+        chat_id: str = Form(default=""),
+        recording_path: str = Form(default=""),
+    ):
+        if len(frames) > 32:
+            raise HTTPException(
+                status_code=400, detail="at most 32 sampled frames may be uploaded"
+            )
+        try:
+            parsed_timestamps = json.loads(timestamps_sec)
+            if not isinstance(parsed_timestamps, list):
+                raise ValueError("timestamps_sec must be a JSON array")
+            timestamps = [float(value) for value in parsed_timestamps]
+            parsed_history = json.loads(history)
+            if not isinstance(parsed_history, list):
+                raise ValueError("history must be a JSON array")
+            normalized_history: list[dict[str, str]] = []
+            for item in parsed_history[-24:]:
+                if not isinstance(item, dict):
+                    raise ValueError("every history item must be an object")
+                normalized_history.append(
+                    {
+                        "role": (
+                            "assistant"
+                            if str(item.get("role") or "") == "assistant"
+                            else "user"
+                        ),
+                        "text": str(item.get("text") or ""),
+                    }
+                )
+            if len(timestamps) != len(frames):
+                raise ValueError(
+                    "timestamps_sec must contain one value per uploaded frame"
+                )
+
+            frame_files: list[tuple[str, bytes]] = []
+            total_bytes = 0
+            for upload in frames:
+                suffix = Path(upload.filename or "").suffix.lower()
+                if suffix not in {".jpg", ".jpeg", ".png", ".webp"}:
+                    suffix = ".jpg"
+                payload = await upload.read(settings.max_upload_bytes + 1)
+                total_bytes += len(payload)
+                if total_bytes > settings.max_upload_bytes:
+                    raise ValueError(
+                        f"frames exceed the {settings.max_upload_bytes}-byte upload limit"
+                    )
+                if not payload:
+                    raise ValueError("uploaded frames must not be empty")
+                frame_files.append((suffix, payload))
+            return gemma_manager.start(
+                frame_files,
+                timestamps,
+                message,
+                normalized_history,
+                request_id=request_id,
+                chat_id=chat_id,
+                recording_path=recording_path,
+            )
+        except (ValueError, json.JSONDecodeError) as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        finally:
+            for upload in frames:
+                await upload.close()
+
+    @application.get("/api/v1/agent/jobs")
+    async def list_gemma_jobs(limit: int = Query(default=100, ge=1, le=500)):
+        return {"jobs": gemma_manager.list_jobs(limit)}
+
+    @application.get("/api/v1/agent/jobs/{job_id}")
+    async def gemma_job_status(job_id: str):
+        try:
+            return gemma_manager.public_state(job_id)
+        except (KeyError, ValueError):
+            raise HTTPException(status_code=404, detail="Gemma job not found") from None
+
+    @application.get("/api/v1/agent/jobs/{job_id}/result")
+    async def gemma_job_result(job_id: str):
+        path = gemma_manager.result_path(job_id)
+        if path is None:
+            state = gemma_manager.get(job_id)
+            if state is None:
+                raise HTTPException(status_code=404, detail="Gemma job not found")
+            raise HTTPException(status_code=409, detail="Gemma result is not ready")
+        return FileResponse(path, media_type="application/json")
 
     @application.get("/api/v1/jobs/{job_id}")
     async def job_status(job_id: str):

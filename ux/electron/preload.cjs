@@ -16,6 +16,7 @@ contextBridge.exposeInMainWorld('bayesmech', {
   createChatSession: (videoId, recordingPath) => ipcRenderer.invoke('chat-workspace:create', videoId, recordingPath),
   saveChatSession: (videoId, recordingPath, session) => ipcRenderer.invoke('chat-workspace:save', videoId, recordingPath, session),
   setActiveChatSession: (videoId, recordingPath, chatId) => ipcRenderer.invoke('chat-workspace:activate', videoId, recordingPath, chatId),
+  sendAgentMessage: (request) => ipcRenderer.invoke('agent:chat', request),
   runWorldgen: (request) => ipcRenderer.invoke('worldgen:run', request),
   readWorldgen: (filePath) => ipcRenderer.invoke('worldgen:read', filePath),
   pollWorldgenSplat: (jobId) => ipcRenderer.invoke('worldgen:splat-status', jobId),
