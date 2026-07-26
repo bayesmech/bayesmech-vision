@@ -6,6 +6,8 @@ const https = require('node:https')
 const os = require('node:os')
 const path = require('node:path')
 const protobuf = require('protobufjs')
+const { Client: McpClient } = require('@modelcontextprotocol/sdk/client/index.js')
+const { StreamableHTTPClientTransport } = require('@modelcontextprotocol/sdk/client/streamableHttp.js')
 
 const isElectronRuntime = typeof electron !== 'string'
 const { app, BrowserWindow, Menu, dialog, ipcMain, shell, nativeImage } = isElectronRuntime ? electron : {}
@@ -2438,6 +2440,60 @@ function runnerHeaders(token = worldgenToken()) {
   return token ? { Authorization: `Bearer ${token}` } : {}
 }
 
+function runnerMcpEndpoint() {
+  return `${runnerEndpoint()}/mcp/`
+}
+
+async function withRunnerMcpClient(operation) {
+  const transport = new StreamableHTTPClientTransport(new URL(runnerMcpEndpoint()), {
+    requestInit: { headers: runnerHeaders() },
+  })
+  const client = new McpClient(
+    { name: 'bayesmech-vision-ux', version: '0.1.0' },
+    { capabilities: {} },
+  )
+  try {
+    await client.connect(transport, {
+      timeout: Math.max(
+        1000,
+        Math.trunc(finiteNumber(process.env.RUNNER_HEALTH_TIMEOUT_MS, DEFAULT_VGGT_HEALTH_TIMEOUT_MS)),
+      ),
+    })
+    return await operation(client)
+  } finally {
+    await client.close().catch(() => transport.close().catch(() => {}))
+  }
+}
+
+async function listRunnerMcpTools() {
+  return withRunnerMcpClient(async (client) => {
+    const tools = []
+    let cursor
+    do {
+      const page = await client.listTools(
+        cursor ? { cursor } : undefined,
+        { timeout: DEFAULT_VGGT_HEALTH_TIMEOUT_MS },
+      )
+      tools.push(...page.tools)
+      cursor = page.nextCursor
+    } while (cursor)
+    return tools
+  })
+}
+
+async function callRunnerMcpTool(name, args = {}, timeoutMs = DEFAULT_VGGT_REQUEST_TIMEOUT_MS) {
+  if (!name || typeof name !== 'string') throw new Error('MCP tool name is required.')
+  if (args === null || typeof args !== 'object' || Array.isArray(args)) {
+    throw new Error('MCP tool arguments must be an object.')
+  }
+  const requestTimeout = Math.max(1000, Math.trunc(finiteNumber(timeoutMs, DEFAULT_VGGT_REQUEST_TIMEOUT_MS)))
+  return withRunnerMcpClient((client) => client.callTool(
+    { name, arguments: args },
+    undefined,
+    { timeout: requestTimeout, maxTotalTimeout: requestTimeout },
+  ))
+}
+
 async function readRunnerHealth() {
   const endpoint = runnerEndpoint()
   const response = await nodeHttpRequest(`${endpoint}/api/v1/health`, {
@@ -3261,6 +3317,10 @@ if (isElectronRuntime) {
   ipcMain.handle('worldgen:save-splat', (_event, filePath, splat) => saveWorldgenSplat(filePath, splat))
   ipcMain.handle('runner:health', () => readRunnerHealth())
   ipcMain.handle('runner:capabilities', () => readRunnerCapabilities())
+  ipcMain.handle('runner:mcp-list-tools', () => listRunnerMcpTools())
+  ipcMain.handle('runner:mcp-call-tool', (_event, name, args, timeoutMs) => (
+    callRunnerMcpTool(name, args, timeoutMs)
+  ))
   ipcMain.handle('runner:submit', (_event, request) => submitRunnerJob(request))
   ipcMain.handle('runner:run', (_event, request) => runRunnerJob(request))
   ipcMain.handle('runner:job', (_event, jobId) => readRunnerJob(jobId))

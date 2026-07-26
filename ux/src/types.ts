@@ -506,6 +506,29 @@ export type RunnerCapabilities = {
   runner_version: string
   jobs: RunnerCapability[]
   services: Array<{ name: string; title: string; endpoint: string }>
+  mcp?: {
+    transport: 'streamable-http'
+    endpoint: string
+  }
+}
+
+export type RunnerMcpTool = {
+  name: string
+  title?: string
+  description?: string
+  inputSchema: Record<string, unknown>
+  outputSchema?: Record<string, unknown>
+}
+
+export type RunnerMcpToolResult = {
+  content: Array<
+    | { type: 'text'; text: string }
+    | { type: 'image'; data: string; mimeType: string }
+    | { type: 'audio'; data: string; mimeType: string }
+    | Record<string, unknown>
+  >
+  structuredContent?: Record<string, unknown>
+  isError?: boolean
 }
 
 export type RunnerArtifact = {
@@ -565,6 +588,12 @@ export type BridgeApi = {
   saveWorldgenSplat: (filePath: string, splat: WorldgenSplatStatus) => Promise<WorldgenResult>
   readRunnerHealth: () => Promise<RunnerHealth>
   readRunnerCapabilities: () => Promise<RunnerCapabilities>
+  listRunnerMcpTools: () => Promise<RunnerMcpTool[]>
+  callRunnerMcpTool: (
+    name: string,
+    args?: Record<string, unknown>,
+    timeoutMs?: number,
+  ) => Promise<RunnerMcpToolResult>
   submitRunnerJob: (request: RunnerSubmitRequest) => Promise<RunnerJob>
   runRunnerJob: (request: RunnerSubmitRequest) => Promise<RunnerJob>
   readRunnerJob: (jobId: string) => Promise<RunnerJob>

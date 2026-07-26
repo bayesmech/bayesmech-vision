@@ -1,11 +1,40 @@
 # BayesMech Runner
 
 The runner executes BayesMech server pipelines on another machine and returns
-their status and artifacts over an authenticated HTTP API. The exact same API
-works over `127.0.0.1` when the UX and runner share a machine.
+their status and artifacts over authenticated Streamable HTTP MCP and REST
+APIs. The exact same endpoints work over `127.0.0.1` when the UX and runner
+share a machine.
 
 The API only executes jobs from the registry in `registry.py`; it does not
 accept arbitrary commands or shell fragments.
+
+## Set up a GPU runner
+
+Clone the same branch used by the UX, then run:
+
+```bash
+git clone --recurse-submodules <this-repo>
+cd bayesmech-vision
+server/runner/setup_remote.sh
+```
+
+The script asks for the path to a `.env` file. It installs a private copy at
+`~/.bayesmech/runner.env`, generates `RUNNER_TOKEN` when one is absent, installs
+Python 3.12 and the locked server environment, installs the vendored
+VGGT-Omega package, installs the CUDA 12.6 compiler when needed, downloads the
+gated `facebook/VGGT-Omega` checkpoint using `HF_TOKEN`, compiles gsplat for the
+machine's GPU, verifies both systems, and starts the runner.
+
+For non-interactive provisioning:
+
+```bash
+server/runner/setup_remote.sh --env /secure/path/runner.env
+```
+
+The setup is idempotent. The process ID and log are kept in
+`~/.bayesmech/runner.pid` and `~/.bayesmech/runner.log`. Re-running setup checks
+the installed components and replaces the existing runner process. To install
+without starting, pass `--no-start`.
 
 ## Start on the same machine as the UX
 
@@ -33,8 +62,15 @@ to its absolute path.
 
 ## Start on a network or public runner
 
-Generate a long random token, bind the server, and allow TCP port 8787 through
-the runner host firewall:
+The setup script defaults to loopback. To bind a network interface:
+
+```bash
+server/runner/setup_remote.sh --env /secure/path/runner.env --host 0.0.0.0
+```
+
+Then allow TCP port 8787 through the runner host firewall or cloud security
+group. A token is generated when the supplied environment does not contain
+one. The equivalent manual start is:
 
 ```bash
 export RUNNER_TOKEN="$(openssl rand -hex 32)"
@@ -73,6 +109,41 @@ cloud security group, or a private overlay such as Tailscale.
 | `RUNNER_MAX_RUNTIME_SECONDS` | 86400 | CLI job timeout |
 | `RUNNER_TLS_CERT` | empty | Optional TLS certificate |
 | `RUNNER_TLS_KEY` | empty | Optional TLS private key |
+
+## MCP tools
+
+The MCP endpoint is:
+
+```text
+http://RUNNER_HOST:8787/mcp/
+```
+
+It uses the Streamable HTTP transport and the same bearer token as REST. Any
+standard MCP client can discover these tools with `tools/list`:
+
+- `runner_health`
+- `runner_capabilities`
+- `runner_list_jobs`
+- `runner_get_job`
+- `runner_submit_job`
+- `runner_cancel_job`
+- `runner_artifact`
+- `worldgen_health`
+- `worldgen_reconstruct_frames`
+- `worldgen_splat_status`
+- `worldgen_splat_artifact`
+
+`worldgen_reconstruct_frames` accepts base64 image frames and can launch
+Gaussian Splatting with `start_splat=true`. This makes the complete reconstruction
+workflow available to an MCP client. MCP tool results also report the streaming
+REST routes, which should be used for large videos, point clouds, and PLY
+downloads to avoid base64 expansion.
+
+The Electron bridge provides `listRunnerMcpTools()` and
+`callRunnerMcpTool(name, args, timeoutMs)`, so the UX can discover and invoke new
+runner tools without adding a bespoke IPC operation for every endpoint.
+
+## Streaming REST API
 
 World Modeling is available at `/api/v1/worldgen`. Generic jobs use:
 

@@ -1,17 +1,19 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 import json
 import sys
 import time
 from pathlib import Path
 
 import httpx
+from fastmcp import Client
 
 from runner.app import RunnerSettings, create_app
 from runner.manager import JobManager
+from runner.mcp_server import create_mcp_server
 from runner.registry import JobDefinition
-
 
 TOKEN = "test-runner-token"
 
@@ -29,7 +31,9 @@ def _settings(tmp_path: Path) -> RunnerSettings:
 
 async def _request(app, method: str, path: str, **kwargs):
     transport = httpx.ASGITransport(app=app)
-    async with httpx.AsyncClient(transport=transport, base_url="http://runner.test") as client:
+    async with httpx.AsyncClient(
+        transport=transport, base_url="http://runner.test"
+    ) as client:
         return await client.request(method, path, **kwargs)
 
 
@@ -42,6 +46,8 @@ def test_health_is_public_but_capabilities_require_auth(tmp_path: Path) -> None:
 
     denied = asyncio.run(_request(app, "GET", "/api/v1/capabilities"))
     assert denied.status_code == 401
+    denied_mcp = asyncio.run(_request(app, "POST", "/mcp/"))
+    assert denied_mcp.status_code == 401
 
     allowed = asyncio.run(
         _request(
@@ -115,7 +121,9 @@ def test_registered_job_runs_and_returns_artifact(tmp_path: Path) -> None:
         state = response.json()
 
     assert state["status"] == "succeeded", state
-    artifact = next(item for item in state["artifacts"] if item["name"] == "sample.result.pb")
+    artifact = next(
+        item for item in state["artifacts"] if item["name"] == "sample.result.pb"
+    )
     downloaded = asyncio.run(
         _request(
             app,
@@ -145,7 +153,9 @@ def test_unknown_job_is_rejected_without_execution(tmp_path: Path) -> None:
     assert response.status_code == 404
 
 
-def test_multipart_job_receives_sidecars_and_returns_changed_input(tmp_path: Path) -> None:
+def test_multipart_job_receives_sidecars_and_returns_changed_input(
+    tmp_path: Path,
+) -> None:
     script = tmp_path / "sidecar_job.py"
     script.write_text(
         "from pathlib import Path\n"
@@ -179,11 +189,16 @@ def test_multipart_job_receives_sidecars_and_returns_changed_input(tmp_path: Pat
             headers={"Authorization": f"Bearer {TOKEN}"},
             data={
                 "job_type": "test-sidecar",
-                "parameters": json.dumps({"recording": "sample.vis.pb", "arguments": []}),
+                "parameters": json.dumps(
+                    {"recording": "sample.vis.pb", "arguments": []}
+                ),
             },
             files=[
                 ("files", ("sample.vis.pb", b"video", "application/octet-stream")),
-                ("files", ("sample.segmentation.pb", b"old", "application/octet-stream")),
+                (
+                    "files",
+                    ("sample.segmentation.pb", b"old", "application/octet-stream"),
+                ),
             ],
         )
     )
@@ -206,7 +221,9 @@ def test_multipart_job_receives_sidecars_and_returns_changed_input(tmp_path: Pat
         state = state_response.json()
 
     assert state["status"] == "succeeded", state
-    changed = next(item for item in state["artifacts"] if item["name"] == "sample.segmentation.pb")
+    changed = next(
+        item for item in state["artifacts"] if item["name"] == "sample.segmentation.pb"
+    )
     downloaded = asyncio.run(
         _request(
             app,
@@ -216,3 +233,112 @@ def test_multipart_job_receives_sidecars_and_returns_changed_input(tmp_path: Pat
         )
     )
     assert downloaded.content == b"videoold"
+
+
+def test_mcp_discovers_runner_and_worldgen_tools(tmp_path: Path) -> None:
+    settings = _settings(tmp_path)
+    manager = JobManager(
+        settings.data_dir,
+        {},
+        max_workers=1,
+        max_upload_bytes=settings.max_upload_bytes,
+        max_runtime_seconds=settings.max_runtime_seconds,
+        python_executable=sys.executable,
+    )
+    mcp = create_mcp_server(settings, manager)
+
+    async def exercise():
+        async with Client(mcp) as client:
+            tools = await client.list_tools()
+            names = {tool.name for tool in tools}
+            assert {
+                "runner_health",
+                "runner_capabilities",
+                "runner_submit_job",
+                "runner_artifact",
+                "worldgen_health",
+                "worldgen_reconstruct_frames",
+                "worldgen_splat_status",
+                "worldgen_splat_artifact",
+            } <= names
+            health = await client.call_tool("runner_health")
+            assert health.data["service"] == "bayesmech-runner"
+            assert health.data["mcp_endpoint"] == "/mcp/"
+            capabilities = await client.call_tool("runner_capabilities")
+            assert capabilities.data["services"][0]["mcp_tools"][0] == "worldgen_health"
+
+    try:
+        asyncio.run(exercise())
+    finally:
+        manager.close()
+
+
+def test_mcp_submits_job_and_returns_inline_artifact(tmp_path: Path) -> None:
+    script = tmp_path / "mcp_copy_job.py"
+    script.write_text(
+        "from pathlib import Path\n"
+        "import sys\n"
+        "source = Path(sys.argv[1])\n"
+        "source.with_name('mcp.result.pb').write_bytes(source.read_bytes()[::-1])\n",
+        encoding="utf-8",
+    )
+    settings = _settings(tmp_path)
+    manager = JobManager(
+        settings.data_dir,
+        {
+            "test-mcp": JobDefinition(
+                "test-mcp", "Test MCP", "Test MCP submission.", script
+            )
+        },
+        max_workers=1,
+        max_upload_bytes=settings.max_upload_bytes,
+        max_runtime_seconds=settings.max_runtime_seconds,
+        python_executable=sys.executable,
+    )
+    mcp = create_mcp_server(settings, manager)
+
+    async def exercise():
+        async with Client(mcp) as client:
+            submitted = await client.call_tool(
+                "runner_submit_job",
+                {
+                    "job_type": "test-mcp",
+                    "recording_filename": "sample.vis.pb",
+                    "files": [
+                        {
+                            "filename": "sample.vis.pb",
+                            "data_base64": base64.b64encode(b"through-mcp").decode(
+                                "ascii"
+                            ),
+                        }
+                    ],
+                },
+            )
+            job_id = submitted.data["id"]
+            state = submitted.data
+            deadline = time.monotonic() + 10
+            while state["status"] not in {"succeeded", "failed", "cancelled"}:
+                assert time.monotonic() < deadline
+                await asyncio.sleep(0.05)
+                state = (
+                    await client.call_tool("runner_get_job", {"job_id": job_id})
+                ).data
+            assert state["status"] == "succeeded", state
+            artifact = next(
+                item for item in state["artifacts"] if item["name"] == "mcp.result.pb"
+            )
+            result = await client.call_tool(
+                "runner_artifact",
+                {
+                    "job_id": job_id,
+                    "artifact_id": artifact["id"],
+                    "include_base64": True,
+                },
+            )
+            assert base64.b64decode(result.data["data_base64"]) == b"through-mcp"[::-1]
+            assert result.data["download_url"].endswith(f"/artifacts/{artifact['id']}")
+
+    try:
+        asyncio.run(exercise())
+    finally:
+        manager.close()

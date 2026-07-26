@@ -11,15 +11,24 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, File, Form, Header, HTTPException, Query, Request, UploadFile
+from fastapi import (
+    FastAPI,
+    File,
+    Form,
+    Header,
+    HTTPException,
+    Query,
+    Request,
+    UploadFile,
+)
 from fastapi.responses import FileResponse, JSONResponse
 
 from .manager import JobManager, safe_filename, validate_arguments
+from .mcp_server import create_mcp_server
 from .registry import builtin_job_registry
 
-
 SERVER_ROOT = Path(__file__).resolve().parents[1]
-RUNNER_VERSION = "0.1.0"
+RUNNER_VERSION = "0.2.0"
 
 
 def _env_bool(name: str, default: bool) -> bool:
@@ -60,9 +69,13 @@ class RunnerSettings:
     def from_env(cls) -> "RunnerSettings":
         return cls(
             token=os.environ.get("RUNNER_TOKEN", "").strip(),
-            data_dir=Path(os.environ.get("RUNNER_DATA_DIR", "~/.bayesmech/runner")).expanduser(),
+            data_dir=Path(
+                os.environ.get("RUNNER_DATA_DIR", "~/.bayesmech/runner")
+            ).expanduser(),
             max_workers=_env_int("RUNNER_MAX_WORKERS", 1),
-            max_upload_bytes=_env_int("RUNNER_MAX_UPLOAD_BYTES", 50 * 1024 * 1024 * 1024),
+            max_upload_bytes=_env_int(
+                "RUNNER_MAX_UPLOAD_BYTES", 50 * 1024 * 1024 * 1024
+            ),
             max_runtime_seconds=_env_int("RUNNER_MAX_RUNTIME_SECONDS", 24 * 60 * 60),
             allow_insecure_local=_env_bool("RUNNER_ALLOW_INSECURE_LOCAL", True),
         )
@@ -100,13 +113,20 @@ def create_app(
         max_upload_bytes=settings.max_upload_bytes,
         max_runtime_seconds=settings.max_runtime_seconds,
     )
+    mcp_server = create_mcp_server(settings, manager, RUNNER_VERSION)
+    mcp_app = mcp_server.http_app(path="/", json_response=True)
 
     @asynccontextmanager
-    async def lifespan(_application: FastAPI):
-        yield
-        manager.close()
+    async def lifespan(application: FastAPI):
+        try:
+            async with mcp_app.lifespan(application):
+                yield
+        finally:
+            manager.close()
 
-    application = FastAPI(title="BayesMech Runner", version=RUNNER_VERSION, lifespan=lifespan)
+    application = FastAPI(
+        title="BayesMech Runner", version=RUNNER_VERSION, lifespan=lifespan
+    )
     application.state.runner_settings = settings
     application.state.job_manager = manager
 
@@ -117,22 +137,34 @@ def create_app(
         if settings.token:
             authorization = request.headers.get("authorization", "")
             scheme, _, value = authorization.partition(" ")
-            valid = scheme.lower() == "bearer" and hmac.compare_digest(value, settings.token)
+            valid = scheme.lower() == "bearer" and hmac.compare_digest(
+                value, settings.token
+            )
             if not valid:
-                return JSONResponse(status_code=401, content={"detail": "missing or invalid runner token"})
+                return JSONResponse(
+                    status_code=401,
+                    content={"detail": "missing or invalid runner token"},
+                )
         else:
             client_host = request.client.host if request.client else None
             if not settings.allow_insecure_local or not _is_loopback(client_host):
                 return JSONResponse(
                     status_code=503,
-                    content={"detail": "RUNNER_TOKEN is required for non-loopback access"},
+                    content={
+                        "detail": "RUNNER_TOKEN is required for non-loopback access"
+                    },
                 )
         if request.method == "POST" and request.url.path.startswith("/api/v1/jobs"):
             content_length = request.headers.get("content-length", "")
-            if content_length.isdigit() and int(content_length) > settings.max_upload_bytes:
+            if (
+                content_length.isdigit()
+                and int(content_length) > settings.max_upload_bytes
+            ):
                 return JSONResponse(
                     status_code=413,
-                    content={"detail": f"request exceeds the {settings.max_upload_bytes}-byte upload limit"},
+                    content={
+                        "detail": f"request exceeds the {settings.max_upload_bytes}-byte upload limit"
+                    },
                 )
         return await call_next(request)
 
@@ -171,6 +203,10 @@ def create_app(
                     "endpoint": "/api/v1/worldgen",
                 }
             ],
+            "mcp": {
+                "transport": "streamable-http",
+                "endpoint": "/mcp/",
+            },
         }
 
     @application.get("/api/v1/jobs")
@@ -190,14 +226,20 @@ def create_app(
             parsed["arguments"] = validate_arguments(parsed.get("arguments"))
             prepared = manager.prepare(job_type, parsed)
         except KeyError:
-            raise HTTPException(status_code=404, detail=f"unknown runner job: {job_type}") from None
+            raise HTTPException(
+                status_code=404, detail=f"unknown runner job: {job_type}"
+            ) from None
         except (ValueError, FileNotFoundError, json.JSONDecodeError) as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
         saved: list[dict[str, Any]] = []
         try:
             for upload in files:
-                saved.append(manager.save_stream(prepared, upload.filename or "input.bin", upload.file))
+                saved.append(
+                    manager.save_stream(
+                        prepared, upload.filename or "input.bin", upload.file
+                    )
+                )
             return manager.finish_upload(prepared, saved)
         except Exception as exc:
             manager.fail_upload(prepared.job_id, str(exc))
@@ -219,13 +261,19 @@ def create_app(
             prepared = manager.prepare(job_type, parameters)
             name = safe_filename(filename)
         except KeyError:
-            raise HTTPException(status_code=404, detail=f"unknown runner job: {job_type}") from None
+            raise HTTPException(
+                status_code=404, detail=f"unknown runner job: {job_type}"
+            ) from None
         except (ValueError, FileNotFoundError, json.JSONDecodeError) as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
         destination = prepared.input_dir / name
         expected_header = request.headers.get("content-length")
-        expected_size = int(expected_header) if expected_header and expected_header.isdigit() else None
+        expected_size = (
+            int(expected_header)
+            if expected_header and expected_header.isdigit()
+            else None
+        )
         size = 0
         import hashlib
 
@@ -237,11 +285,15 @@ def create_app(
                         continue
                     size += len(chunk)
                     if size > manager.max_upload_bytes:
-                        raise ValueError(f"input exceeds the {manager.max_upload_bytes}-byte upload limit")
+                        raise ValueError(
+                            f"input exceeds the {manager.max_upload_bytes}-byte upload limit"
+                        )
                     output.write(chunk)
                     digest.update(chunk)
             if expected_size is not None and size != expected_size:
-                raise ValueError(f"incomplete upload: expected {expected_size} bytes, received {size}")
+                raise ValueError(
+                    f"incomplete upload: expected {expected_size} bytes, received {size}"
+                )
             item = {"name": name, "size": size, "sha256": digest.hexdigest()}
             return manager.finish_upload(prepared, [item])
         except Exception as exc:
@@ -254,21 +306,27 @@ def create_app(
         try:
             return manager.public_state(job_id)
         except (KeyError, ValueError):
-            raise HTTPException(status_code=404, detail="runner job not found") from None
+            raise HTTPException(
+                status_code=404, detail="runner job not found"
+            ) from None
 
     @application.post("/api/v1/jobs/{job_id}/cancel")
     async def cancel_job(job_id: str):
         try:
             return manager.cancel(job_id)
         except (KeyError, ValueError):
-            raise HTTPException(status_code=404, detail="runner job not found") from None
+            raise HTTPException(
+                status_code=404, detail="runner job not found"
+            ) from None
 
     @application.get("/api/v1/jobs/{job_id}/artifacts/{artifact_id}")
     async def download_artifact(job_id: str, artifact_id: str):
         try:
             path, artifact = manager.artifact_path(job_id, artifact_id)
         except (KeyError, ValueError):
-            raise HTTPException(status_code=404, detail="runner artifact not found") from None
+            raise HTTPException(
+                status_code=404, detail="runner artifact not found"
+            ) from None
         return FileResponse(
             path,
             filename=str(artifact["name"]),
@@ -276,6 +334,7 @@ def create_app(
         )
 
     application.mount("/api/v1/worldgen", LazyWorldgenApp())
+    application.mount("/mcp", mcp_app)
     return application
 
 

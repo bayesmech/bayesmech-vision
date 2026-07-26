@@ -6,7 +6,7 @@ requires-python = ">=3.12"
 dependencies = [
     # Web framework
     "fastapi==0.109.0",
-    "uvicorn[standard]==0.27.0",
+    "uvicorn[standard]>=0.35.0",
     "websockets>=13.0",
     # Serialization
     "protobuf==7.34.1",
@@ -27,11 +27,14 @@ dependencies = [
     # Configuration
     "pyyaml==6.0.1",
     # Utilities
-    "python-multipart==0.0.6",
+    "python-multipart>=0.0.26",
     "aiohttp>=3.13.3",
     # Gemini video analysis + MCP
     "google-genai>=0.8.0",
-    "fastmcp>=2.0.0",
+    # FastMCP 2.3+ adds the recommended Streamable HTTP transport. Pin the
+    # maintained v2 line to avoid pulling the Starlette 1.x migration into the
+    # existing FastAPI service.
+    "fastmcp==2.14.7",
     # 3D reconstruction (COLMAP bridge)
     "pycolmap>=0.4.0",
     "gsplat",
