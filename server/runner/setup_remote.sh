@@ -112,8 +112,15 @@ elif [[ -z "${RUNNER_PORT:-}" ]]; then
   ensure_env RUNNER_PORT "8787"
 fi
 if [[ -z "${RUNNER_TOKEN:-}" ]]; then
-  ensure_env RUNNER_TOKEN "$(openssl rand -hex 32)"
-  echo "Generated RUNNER_TOKEN in the private runner environment file."
+  case "$RUNNER_HOST" in
+    localhost|127.0.0.1|::1)
+      echo "Loopback runner selected; bearer authentication remains optional."
+      ;;
+    *)
+      ensure_env RUNNER_TOKEN "$(openssl rand -hex 32)"
+      echo "Generated RUNNER_TOKEN in the private runner environment file."
+      ;;
+  esac
 fi
 if [[ -z "${RUNNER_DATA_DIR:-}" ]]; then
   ensure_env RUNNER_DATA_DIR "$RUNNER_STATE_DIR/runner"

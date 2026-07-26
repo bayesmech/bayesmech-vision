@@ -19,11 +19,11 @@ server/runner/setup_remote.sh
 ```
 
 The script asks for the path to a `.env` file. It installs a private copy at
-`~/.bayesmech/runner.env`, generates `RUNNER_TOKEN` when one is absent, installs
-Python 3.12 and the locked server environment, installs the vendored
-VGGT-Omega package, installs the CUDA 12.6 compiler when needed, downloads the
-gated `facebook/VGGT-Omega` checkpoint using `HF_TOKEN`, compiles gsplat for the
-machine's GPU, verifies both systems, and starts the runner.
+`~/.bayesmech/runner.env`, generates `RUNNER_TOKEN` for a public bind when one
+is absent, installs Python 3.12 and the locked server environment, installs the
+vendored VGGT-Omega package, installs the CUDA 12.6 compiler when needed,
+downloads the gated `facebook/VGGT-Omega` checkpoint using `HF_TOKEN`, compiles
+gsplat for the machine's GPU, verifies both systems, and starts the runner.
 
 For non-interactive provisioning:
 
@@ -69,8 +69,9 @@ server/runner/setup_remote.sh --env /secure/path/runner.env --host 0.0.0.0
 ```
 
 Then allow TCP port 8787 through the runner host firewall or cloud security
-group. A token is generated when the supplied environment does not contain
-one. The equivalent manual start is:
+group. A token is generated for the public bind when the supplied environment
+does not contain one. Loopback and same-machine runners keep authentication
+optional. The equivalent manual start is:
 
 ```bash
 export RUNNER_TOKEN="$(openssl rand -hex 32)"
