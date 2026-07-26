@@ -3150,7 +3150,7 @@ async function runWorldgen(request) {
     { name: 'window', value: String(windowSize) },
     { name: 'max_points_per_frame', value: String(maxPointsPerFrame) },
     { name: 'response_format', value: 'json' },
-    { name: 'start_splat', value: 'true' },
+    { name: 'start_splat', value: worldgenSplatDisabled() ? 'false' : 'true' },
   ])
 
   const endpoint = worldgenEndpoint()
