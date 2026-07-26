@@ -38,6 +38,9 @@ message PerceiverDataFrame {
 
   // Optional free-text annotation entered by the user during a recording session.
   string user_text_input = 9;
+
+  // Optional normalized ultrasonic range captured alongside this frame.
+  UltrasonicSensorData ultrasonic_sensor_data = 11;
 }
 
 message PerceiverFrameIdentifier {
@@ -108,4 +111,14 @@ message GpsLocation {
   float bearing = 5;         // degrees from north (0-360)
   float speed = 6;           // meters per second
   int64 timestamp_ms = 7;    // UTC milliseconds since epoch (from Location.getTime())
+}
+
+message UltrasonicSensorData {
+  // Clamped 0..1 range where 0 is at the sensor and 1 is max_range_meters.
+  float normalized_distance = 1;
+  float distance_meters = 2;
+  float max_range_meters = 3;
+  bool valid = 4;
+  uint32 sequence = 5;
+  uint32 age_ms = 6;
 }

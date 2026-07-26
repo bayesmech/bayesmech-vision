@@ -6,6 +6,7 @@ import {
   Pencil,
   Plus,
   Search,
+  Trash2,
   X,
 } from 'lucide-react'
 import { KeyboardEvent, useState } from 'react'
@@ -31,10 +32,14 @@ type ProjectExplorerProps = {
   onFilterChange: (value: string) => void
   onOpenProject: () => void
   onOpenFiles: () => void
+  onCreateProject: () => void
+  creatingProject?: boolean
   onSelectRecording: (recording: RecordingEntry) => void
+  onRenameProject: (recording: RecordingEntry, title: string) => void
   onSelectChat: (recording: RecordingEntry, chat: WorkspaceChatSession) => void
   onCreateChat: (recording: RecordingEntry) => void
   onRenameChat: (recording: RecordingEntry, chat: WorkspaceChatSession, title: string) => void
+  onDeleteChat: (recording: RecordingEntry, chat: WorkspaceChatSession) => void
   onCloseRecording: (recording: RecordingEntry) => void
 }
 
@@ -47,14 +52,20 @@ export default function ProjectExplorer({
   onFilterChange,
   onOpenProject,
   onOpenFiles,
+  onCreateProject,
+  creatingProject = false,
   onSelectRecording,
+  onRenameProject,
   onSelectChat,
   onCreateChat,
   onRenameChat,
+  onDeleteChat,
   onCloseRecording,
 }: ProjectExplorerProps) {
   const [editingChatKey, setEditingChatKey] = useState<string | null>(null)
   const [titleDraft, setTitleDraft] = useState('')
+  const [editingProjectId, setEditingProjectId] = useState<string | null>(null)
+  const [projectTitleDraft, setProjectTitleDraft] = useState('')
   const normalizedFilter = filter.trim().toLowerCase()
   const recordings = (project?.recordings ?? []).filter((recording) => {
     if (!normalizedFilter) return true
@@ -73,6 +84,31 @@ export default function ProjectExplorer({
   ) => {
     setEditingChatKey(`${recording.id}:${chat.id}`)
     setTitleDraft(chat.title)
+  }
+
+  const beginProjectRename = (recording: RecordingEntry) => {
+    setEditingProjectId(recording.id)
+    setProjectTitleDraft(recordingDisplayName(recording))
+  }
+
+  const finishProjectRename = (recording: RecordingEntry) => {
+    const title = projectTitleDraft.trim()
+    setEditingProjectId(null)
+    if (title && title !== recordingDisplayName(recording)) onRenameProject(recording, title)
+  }
+
+  const handleProjectRenameKeyDown = (
+    event: KeyboardEvent<HTMLInputElement>,
+    recording: RecordingEntry,
+  ) => {
+    if (event.key === 'Enter') {
+      event.preventDefault()
+      finishProjectRename(recording)
+    } else if (event.key === 'Escape') {
+      event.preventDefault()
+      setProjectTitleDraft(recordingDisplayName(recording))
+      setEditingProjectId(null)
+    }
   }
 
   const finishRename = (
@@ -103,9 +139,21 @@ export default function ProjectExplorer({
     <aside className="project-explorer">
       <div className="panel-header">
         <h2>Project</h2>
-        <button type="button" className="icon-button" onClick={onOpenProject} title="Open project">
-          <FolderOpen size={15} aria-hidden="true" />
-        </button>
+        <div className="project-header-actions">
+          <button
+            type="button"
+            className="icon-button"
+            onClick={onCreateProject}
+            title="Create a new project"
+            aria-label="Create a new project"
+            disabled={creatingProject}
+          >
+            <Plus size={15} aria-hidden="true" />
+          </button>
+          <button type="button" className="icon-button" onClick={onOpenProject} title="Open project">
+            <FolderOpen size={15} aria-hidden="true" />
+          </button>
+        </div>
       </div>
 
       <label className="search-box">
@@ -139,17 +187,38 @@ export default function ProjectExplorer({
           return (
             <section className={selected ? 'recording-item is-selected' : 'recording-item'} key={recording.id}>
               <div className="recording-heading">
-                <button
-                  type="button"
-                  className="recording-main"
-                  onClick={() => onSelectRecording(recording)}
-                  title={recording.path}
-                >
-                  <ChevronRight className={selected ? 'is-open' : ''} size={14} aria-hidden="true" />
-                  <span className="recording-name">{displayName}</span>
-                  <span className="recording-size">{recording.sizeLabel}</span>
-                </button>
+                {editingProjectId === recording.id ? (
+                  <input
+                    className="recording-project-title-input"
+                    value={projectTitleDraft}
+                    onChange={(event) => setProjectTitleDraft(event.target.value)}
+                    onBlur={() => finishProjectRename(recording)}
+                    onKeyDown={(event) => handleProjectRenameKeyDown(event, recording)}
+                    aria-label="Project name"
+                    autoFocus
+                  />
+                ) : (
+                  <button
+                    type="button"
+                    className="recording-main"
+                    onClick={() => onSelectRecording(recording)}
+                    title={recording.path}
+                  >
+                    <ChevronRight className={selected ? 'is-open' : ''} size={14} aria-hidden="true" />
+                    <span className="recording-name">{displayName}</span>
+                    <span className="recording-size">{recording.sizeLabel}</span>
+                  </button>
+                )}
                 <div className="recording-actions">
+                  <button
+                    type="button"
+                    className="recording-action"
+                    onClick={() => beginProjectRename(recording)}
+                    title={`Rename ${displayName}`}
+                    aria-label={`Rename ${displayName}`}
+                  >
+                    <Pencil size={13} aria-hidden="true" />
+                  </button>
                   <button
                     type="button"
                     className="recording-action"
@@ -209,6 +278,20 @@ export default function ProjectExplorer({
                             aria-label={`Rename ${chat.title}`}
                           >
                             <Pencil size={12} aria-hidden="true" />
+                          </button>
+                          <button
+                            type="button"
+                            className="recording-chat-delete"
+                            onClick={() => {
+                              if (window.confirm(`Delete “${chat.title}”? This cannot be undone.`)) {
+                                if (editingChatKey === chatKey) setEditingChatKey(null)
+                                onDeleteChat(recording, chat)
+                              }
+                            }}
+                            title="Delete chat"
+                            aria-label={`Delete ${chat.title}`}
+                          >
+                            <Trash2 size={12} aria-hidden="true" />
                           </button>
                         </>
                       )}

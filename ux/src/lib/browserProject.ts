@@ -686,6 +686,14 @@ export function readBrowserVisSensors(recording: RecordingEntry, file: File): Pr
         speed?: unknown
         timestampMs?: unknown
       } | undefined
+      const ultrasonic = frame.ultrasonicSensorData as {
+        normalizedDistance?: unknown
+        distanceMeters?: unknown
+        maxRangeMeters?: unknown
+        valid?: unknown
+        sequence?: unknown
+        ageMs?: unknown
+      } | undefined
 
       samples.push({
         index,
@@ -706,6 +714,16 @@ export function readBrowserVisSensors(recording: RecordingEntry, file: File): Pr
               bearing: finiteNumber(gps.bearing),
               speed: finiteNumber(gps.speed),
               timestampMs: timestampString(gps.timestampMs),
+            }
+          : null,
+        ultrasonic: ultrasonic
+          ? {
+              normalizedDistance: Math.max(0, Math.min(1, finiteNumber(ultrasonic.normalizedDistance))),
+              distanceMeters: finiteNumber(ultrasonic.distanceMeters),
+              maxRangeMeters: finiteNumber(ultrasonic.maxRangeMeters),
+              valid: Boolean(ultrasonic.valid),
+              sequence: finiteNumber(ultrasonic.sequence),
+              ageMs: finiteNumber(ultrasonic.ageMs),
             }
           : null,
       })

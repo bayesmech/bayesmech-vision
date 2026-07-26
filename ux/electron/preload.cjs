@@ -2,6 +2,15 @@ const { contextBridge, ipcRenderer } = require('electron')
 
 contextBridge.exposeInMainWorld('bayesmech', {
   selectProject: () => ipcRenderer.invoke('project:select'),
+  createProject: () => ipcRenderer.invoke('project:create'),
+  createControlProject: (preset) => ipcRenderer.invoke('project:create-control', preset),
+  addDeviceToProject: (recordingPath, preset) => (
+    ipcRenderer.invoke('project:add-device', recordingPath, preset)
+  ),
+  renameProject: (recordingPath, displayName) => (
+    ipcRenderer.invoke('project:rename', recordingPath, displayName)
+  ),
+  ensureControlService: () => ipcRenderer.invoke('control-service:ensure'),
   selectVisFiles: () => ipcRenderer.invoke('vis:select-files'),
   scanProject: (projectPath) => ipcRenderer.invoke('project:scan', projectPath),
   readVisSummary: (filePath) => ipcRenderer.invoke('vis:summary', filePath),
@@ -14,6 +23,9 @@ contextBridge.exposeInMainWorld('bayesmech', {
   readChatThread: (recordingPath) => ipcRenderer.invoke('chat:thread', recordingPath),
   loadChatWorkspace: (videoId, recordingPath) => ipcRenderer.invoke('chat-workspace:load', videoId, recordingPath),
   createChatSession: (videoId, recordingPath) => ipcRenderer.invoke('chat-workspace:create', videoId, recordingPath),
+  deleteChatSession: (videoId, recordingPath, chatId) => (
+    ipcRenderer.invoke('chat-workspace:delete', videoId, recordingPath, chatId)
+  ),
   saveChatSession: (videoId, recordingPath, session) => ipcRenderer.invoke('chat-workspace:save', videoId, recordingPath, session),
   setActiveChatSession: (videoId, recordingPath, chatId) => ipcRenderer.invoke('chat-workspace:activate', videoId, recordingPath, chatId),
   sendAgentMessage: (request) => ipcRenderer.invoke('agent:chat', request),

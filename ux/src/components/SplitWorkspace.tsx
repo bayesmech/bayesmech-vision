@@ -35,6 +35,7 @@ type SplitWorkspaceProps = {
   summary: VisSummary | null
   tabRequest: WorkspaceTabRequest | null
   getFrame: FrameGetter
+  getVisSummary: (sourcePath: string) => Promise<VisSummary | null>
   getSensorData: () => Promise<SensorDataSummary | null>
   getIdoSlamData: () => Promise<IdoSlamSummary | null>
   overlay: OverlayState
@@ -53,11 +54,14 @@ type LeafProps = {
   onSelectLeaf: (leafId: string) => void
   onActivateTab: (leafId: string, tabId: string) => void
   getSensorData: () => Promise<SensorDataSummary | null>
+  getFrame: FrameGetter
+  getVisSummary: (sourcePath: string) => Promise<VisSummary | null>
   getIdoSlamData: () => Promise<IdoSlamSummary | null>
   worldgenResults: Record<string, WorldgenResult>
 }
 
 function tabLabel(type: WorkspaceTabType) {
+  if (type === 'control') return 'Control'
   if (type === 'point-cloud') return 'Point Cloud'
   if (type === 'planes') return 'Surface Estimates'
   if (type === 'video') return 'Video'
@@ -68,10 +72,22 @@ function tabLabel(type: WorkspaceTabType) {
 }
 
 function createRecordingLayout(recording: RecordingEntry | null): LayoutNode {
-  const tabs = (recording?.analyses ?? [])
-    .filter((analysis) => !['genspark', 'chat', 'point-cloud'].includes(analysis.key))
-    .map((analysis) => createTab(tabTypeForAnalysis(analysis.key), analysis.title, analysis.key))
-  return createLeaf(tabs.length ? tabs : [createTab('video', 'Video', 'video')])
+  const recordingTabs = (recording?.analyses ?? [])
+    .filter((analysis) => !['control', 'genspark', 'chat', 'point-cloud'].includes(analysis.key))
+    .map((analysis) => createTab(
+      tabTypeForAnalysis(analysis.key),
+      analysis.title,
+      analysis.key,
+      undefined,
+      analysis.path,
+    ))
+  if (recording?.controlProject) {
+    return createLeaf([
+      createTab('control', 'Control', 'control'),
+      ...recordingTabs,
+    ])
+  }
+  return createLeaf(recordingTabs.length ? recordingTabs : [createTab('video')])
 }
 
 function WorkspaceLeaf({
@@ -84,6 +100,8 @@ function WorkspaceLeaf({
   onSelectLeaf,
   onActivateTab,
   getSensorData,
+  getFrame,
+  getVisSummary,
   getIdoSlamData,
   worldgenResults,
 }: LeafProps) {
@@ -122,6 +140,8 @@ function WorkspaceLeaf({
             videoState={videoState}
             onVideoStateChange={onVideoStateChange}
             getSensorData={getSensorData}
+            getFrame={getFrame}
+            getVisSummary={getVisSummary}
             getIdoSlamData={getIdoSlamData}
             worldgenResults={worldgenResults}
           />
@@ -147,6 +167,8 @@ type NodeProps = {
   onActivateTab: (leafId: string, tabId: string) => void
   onResizeSplit: (splitId: string, ratio: number) => void
   getSensorData: () => Promise<SensorDataSummary | null>
+  getFrame: FrameGetter
+  getVisSummary: (sourcePath: string) => Promise<VisSummary | null>
   getIdoSlamData: () => Promise<IdoSlamSummary | null>
   worldgenResults: Record<string, WorldgenResult>
 }
@@ -162,6 +184,8 @@ function WorkspaceNode({
   onActivateTab,
   onResizeSplit,
   getSensorData,
+  getFrame,
+  getVisSummary,
   getIdoSlamData,
   worldgenResults,
 }: NodeProps) {
@@ -179,6 +203,8 @@ function WorkspaceNode({
         onSelectLeaf={onSelectLeaf}
         onActivateTab={onActivateTab}
         getSensorData={getSensorData}
+        getFrame={getFrame}
+        getVisSummary={getVisSummary}
         getIdoSlamData={getIdoSlamData}
         worldgenResults={worldgenResults}
       />
@@ -226,6 +252,8 @@ function WorkspaceNode({
           onActivateTab={onActivateTab}
           onResizeSplit={onResizeSplit}
           getSensorData={getSensorData}
+          getFrame={getFrame}
+          getVisSummary={getVisSummary}
           getIdoSlamData={getIdoSlamData}
           worldgenResults={worldgenResults}
         />
@@ -243,6 +271,8 @@ function WorkspaceNode({
           onActivateTab={onActivateTab}
           onResizeSplit={onResizeSplit}
           getSensorData={getSensorData}
+          getFrame={getFrame}
+          getVisSummary={getVisSummary}
           getIdoSlamData={getIdoSlamData}
           worldgenResults={worldgenResults}
         />
@@ -256,6 +286,7 @@ export default function SplitWorkspace({
   summary,
   tabRequest,
   getFrame,
+  getVisSummary,
   getSensorData,
   getIdoSlamData,
   overlay,
@@ -266,6 +297,7 @@ export default function SplitWorkspace({
   const [layout, setLayout] = useState<LayoutNode>(() => createRecordingLayout(selectedRecording))
   const [selectedLeafId, setSelectedLeafId] = useState(() => firstLeafId(layout))
   const consumedRequestRef = useRef<string | null>(null)
+  const controlProjectActive = Boolean(selectedRecording?.controlProject)
 
   useEffect(() => {
     const nextLayout = createRecordingLayout(selectedRecording)
@@ -304,7 +336,7 @@ export default function SplitWorkspace({
   return (
     <FrameSourceContext.Provider value={getFrame}>
       <OverlayContext.Provider value={overlay}>
-      <section className="visual-workspace">
+      <section className={controlProjectActive ? 'visual-workspace is-control' : 'visual-workspace'}>
         <div className="workspace-viewers">
           <WorkspaceNode
             node={layout}
@@ -317,16 +349,20 @@ export default function SplitWorkspace({
             onActivateTab={(leafId, tabId) => setLayout((current) => activateTab(current, leafId, tabId))}
             onResizeSplit={(splitId, ratio) => setLayout((current) => updateSplitRatio(current, splitId, ratio))}
             getSensorData={getSensorData}
+            getFrame={getFrame}
+            getVisSummary={getVisSummary}
             getIdoSlamData={getIdoSlamData}
             worldgenResults={worldgenResults}
           />
         </div>
-        <WorkspaceTimeline
-          summary={summary}
-          videoState={videoState}
-          onVideoStateChange={onVideoStateChange}
-          worldgenResults={worldgenResults}
-        />
+        {!controlProjectActive ? (
+          <WorkspaceTimeline
+            summary={summary}
+            videoState={videoState}
+            onVideoStateChange={onVideoStateChange}
+            worldgenResults={worldgenResults}
+          />
+        ) : null}
       </section>
       </OverlayContext.Provider>
     </FrameSourceContext.Provider>

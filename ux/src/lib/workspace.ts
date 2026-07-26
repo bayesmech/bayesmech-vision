@@ -1,6 +1,7 @@
 import type { LayoutNode, LeafNode, WorkspaceTab, WorkspaceTabRequest, WorkspaceTabType } from '../types'
 
 const tabTitles: Record<WorkspaceTabType, string> = {
+  control: 'Control',
   scene: 'Scene 3D',
   'point-cloud': 'Point Cloud',
   planes: 'Surface Estimates',
@@ -19,6 +20,7 @@ export function createTab(
   title = tabTitles[type],
   analysisKey?: string,
   worldgenResultId?: string,
+  sourcePath?: string,
 ): WorkspaceTab {
   return {
     id: createId('tab'),
@@ -26,6 +28,7 @@ export function createTab(
     title,
     analysisKey,
     worldgenResultId,
+    sourcePath,
   }
 }
 
@@ -109,7 +112,13 @@ export function updateSplitRatio(node: LayoutNode, splitId: string, ratio: numbe
 
 export function addTabToLeaf(node: LayoutNode, leafId: string, request: WorkspaceTabRequest): LayoutNode {
   return updateLeaf(node, leafId, (leaf) => {
-    const tab = createTab(request.type, request.title, request.analysisKey, request.worldgenResultId)
+    const tab = createTab(
+      request.type,
+      request.title,
+      request.analysisKey,
+      request.worldgenResultId,
+      request.sourcePath,
+    )
     return {
       ...leaf,
       activeTabId: tab.id,
@@ -138,6 +147,7 @@ export function refreshTab(
           title: request.title,
           analysisKey: request.analysisKey,
           worldgenResultId: request.worldgenResultId,
+          sourcePath: request.sourcePath,
         }
       : tab),
   }))

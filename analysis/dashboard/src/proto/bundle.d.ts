@@ -362,6 +362,9 @@ export namespace bayesmech {
 
             /** PerceiverDataFrame userTextInput */
             userTextInput?: (string|null);
+
+            /** PerceiverDataFrame ultrasonicSensorData */
+            ultrasonicSensorData?: (bayesmech.vision.IUltrasonicSensorData|null);
         }
 
         /** Represents a PerceiverDataFrame. */
@@ -399,6 +402,9 @@ export namespace bayesmech {
 
             /** PerceiverDataFrame userTextInput. */
             public userTextInput: string;
+
+            /** PerceiverDataFrame ultrasonicSensorData. */
+            public ultrasonicSensorData?: (bayesmech.vision.IUltrasonicSensorData|null);
 
             /**
              * Creates a new PerceiverDataFrame instance using the specified properties.
@@ -1233,6 +1239,133 @@ export namespace bayesmech {
 
             /**
              * Gets the default type url for GpsLocation
+             * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns The default type url
+             */
+            public static getTypeUrl(typeUrlPrefix?: string): string;
+        }
+
+        /** Properties of an UltrasonicSensorData. */
+        interface IUltrasonicSensorData {
+
+            /** UltrasonicSensorData normalizedDistance */
+            normalizedDistance?: (number|null);
+
+            /** UltrasonicSensorData distanceMeters */
+            distanceMeters?: (number|null);
+
+            /** UltrasonicSensorData maxRangeMeters */
+            maxRangeMeters?: (number|null);
+
+            /** UltrasonicSensorData valid */
+            valid?: (boolean|null);
+
+            /** UltrasonicSensorData sequence */
+            sequence?: (number|null);
+
+            /** UltrasonicSensorData ageMs */
+            ageMs?: (number|null);
+        }
+
+        /** Represents an UltrasonicSensorData. */
+        class UltrasonicSensorData implements IUltrasonicSensorData {
+
+            /**
+             * Constructs a new UltrasonicSensorData.
+             * @param [properties] Properties to set
+             */
+            constructor(properties?: bayesmech.vision.IUltrasonicSensorData);
+
+            /** UltrasonicSensorData normalizedDistance. */
+            public normalizedDistance: number;
+
+            /** UltrasonicSensorData distanceMeters. */
+            public distanceMeters: number;
+
+            /** UltrasonicSensorData maxRangeMeters. */
+            public maxRangeMeters: number;
+
+            /** UltrasonicSensorData valid. */
+            public valid: boolean;
+
+            /** UltrasonicSensorData sequence. */
+            public sequence: number;
+
+            /** UltrasonicSensorData ageMs. */
+            public ageMs: number;
+
+            /**
+             * Creates a new UltrasonicSensorData instance using the specified properties.
+             * @param [properties] Properties to set
+             * @returns UltrasonicSensorData instance
+             */
+            public static create(properties?: bayesmech.vision.IUltrasonicSensorData): bayesmech.vision.UltrasonicSensorData;
+
+            /**
+             * Encodes the specified UltrasonicSensorData message. Does not implicitly {@link bayesmech.vision.UltrasonicSensorData.verify|verify} messages.
+             * @param message UltrasonicSensorData message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encode(message: bayesmech.vision.IUltrasonicSensorData, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Encodes the specified UltrasonicSensorData message, length delimited. Does not implicitly {@link bayesmech.vision.UltrasonicSensorData.verify|verify} messages.
+             * @param message UltrasonicSensorData message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            public static encodeDelimited(message: bayesmech.vision.IUltrasonicSensorData, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Decodes an UltrasonicSensorData message from the specified reader or buffer.
+             * @param reader Reader or buffer to decode from
+             * @param [length] Message length if known beforehand
+             * @returns UltrasonicSensorData
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): bayesmech.vision.UltrasonicSensorData;
+
+            /**
+             * Decodes an UltrasonicSensorData message from the specified reader or buffer, length delimited.
+             * @param reader Reader or buffer to decode from
+             * @returns UltrasonicSensorData
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): bayesmech.vision.UltrasonicSensorData;
+
+            /**
+             * Verifies an UltrasonicSensorData message.
+             * @param message Plain object to verify
+             * @returns `null` if valid, otherwise the reason why it is not
+             */
+            public static verify(message: { [k: string]: any }): (string|null);
+
+            /**
+             * Creates an UltrasonicSensorData message from a plain object. Also converts values to their respective internal types.
+             * @param object Plain object
+             * @returns UltrasonicSensorData
+             */
+            public static fromObject(object: { [k: string]: any }): bayesmech.vision.UltrasonicSensorData;
+
+            /**
+             * Creates a plain object from an UltrasonicSensorData message. Also converts values to other types if specified.
+             * @param message UltrasonicSensorData
+             * @param [options] Conversion options
+             * @returns Plain object
+             */
+            public static toObject(message: bayesmech.vision.UltrasonicSensorData, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+            /**
+             * Converts this UltrasonicSensorData to JSON.
+             * @returns JSON object
+             */
+            public toJSON(): { [k: string]: any };
+
+            /**
+             * Gets the default type url for UltrasonicSensorData
              * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
              * @returns The default type url
              */

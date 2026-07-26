@@ -1,5 +1,5 @@
 import { Activity, Boxes, Database, FileCode2, MapPinned, ScanLine } from 'lucide-react'
-import type { Dispatch, SetStateAction } from 'react'
+import { useCallback, useEffect, useState, type Dispatch, type SetStateAction } from 'react'
 import type {
   IdoSlamSummary,
   ProjectAnalysis,
@@ -16,6 +16,8 @@ import MapGenerationPanel from './MapGenerationPanel'
 import SensorDataPanel from './SensorDataPanel'
 import VideoPlayer from './VideoPlayer'
 import WorldgenScene from './WorldgenScene'
+import ControlPanel from './ControlPanel'
+import { FrameSourceContext, type FrameGetter } from '../lib/frameSource'
 
 type PanelProps = {
   tab: WorkspaceTab
@@ -24,6 +26,8 @@ type PanelProps = {
   videoState: VideoPlaybackState
   onVideoStateChange: Dispatch<SetStateAction<VideoPlaybackState>>
   getSensorData: () => Promise<SensorDataSummary | null>
+  getFrame: FrameGetter
+  getVisSummary: (sourcePath: string) => Promise<VisSummary | null>
   getIdoSlamData: () => Promise<IdoSlamSummary | null>
   worldgenResults: Record<string, WorldgenResult>
 }
@@ -90,6 +94,61 @@ function EmptyPanel({ title }: { title: string }) {
   )
 }
 
+function StreamVideoPanel({
+  sourcePath,
+  initialSummary,
+  live,
+  getFrame,
+  getVisSummary,
+  videoState,
+  onVideoStateChange,
+}: {
+  sourcePath: string | undefined
+  initialSummary: VisSummary | null
+  live: boolean
+  getFrame: FrameGetter
+  getVisSummary: (sourcePath: string) => Promise<VisSummary | null>
+  videoState: VideoPlaybackState
+  onVideoStateChange: Dispatch<SetStateAction<VideoPlaybackState>>
+}) {
+  const [sourceSummary, setSourceSummary] = useState(initialSummary)
+  const sourceFrame = useCallback(
+    (index: number) => getFrame(index, sourcePath),
+    [getFrame, sourcePath],
+  )
+
+  useEffect(() => {
+    setSourceSummary(initialSummary)
+    if (!sourcePath) return
+    let cancelled = false
+    const refresh = () => {
+      void getVisSummary(sourcePath)
+        .then((next) => {
+          if (!cancelled && next) setSourceSummary(next)
+        })
+        .catch(() => {
+          // A lazily-created augmented stream may not exist until its first frame.
+        })
+    }
+    refresh()
+    const timer = live ? window.setInterval(refresh, 1000) : null
+    return () => {
+      cancelled = true
+      if (timer !== null) window.clearInterval(timer)
+    }
+  }, [getVisSummary, initialSummary, live, sourcePath])
+
+  return (
+    <FrameSourceContext.Provider value={sourceFrame}>
+      <VideoPlayer
+        summary={sourceSummary}
+        videoState={videoState}
+        onVideoStateChange={onVideoStateChange}
+      />
+    </FrameSourceContext.Provider>
+  )
+}
+
 export default function VisualizationPanel({
   tab,
   selectedRecording,
@@ -97,10 +156,29 @@ export default function VisualizationPanel({
   videoState,
   onVideoStateChange,
   getSensorData,
+  getFrame,
+  getVisSummary,
   getIdoSlamData,
   worldgenResults,
 }: PanelProps) {
-  if (tab.type === 'video') return <VideoPlayer summary={summary} videoState={videoState} onVideoStateChange={onVideoStateChange} />
+  if (tab.type === 'control') {
+    return <ControlPanel controlProject={selectedRecording?.controlProject ?? null} />
+  }
+  if (tab.type === 'video') {
+    const sourcePath = tab.sourcePath ?? analysisForTab(selectedRecording, tab)?.path
+    const initialSummary = !sourcePath || sourcePath === selectedRecording?.path ? summary : null
+    return (
+      <StreamVideoPanel
+        sourcePath={sourcePath}
+        initialSummary={initialSummary}
+        live={Boolean(selectedRecording?.controlProject)}
+        getFrame={getFrame}
+        getVisSummary={getVisSummary}
+        videoState={videoState}
+        onVideoStateChange={onVideoStateChange}
+      />
+    )
+  }
   if (tab.type === 'sensors') {
     return <SensorDataPanel currentFrameIndex={videoState.index} getSensorData={getSensorData} />
   }

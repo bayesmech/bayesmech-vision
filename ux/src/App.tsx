@@ -6,6 +6,7 @@ import TopMenu from './components/TopMenu'
 import type {
   AgentChatResult,
   ChatThread,
+  ControlDevicePreset,
   IdoSlamSummary,
   MotionCaptureOverlay,
   ProjectScanResult,
@@ -186,6 +187,7 @@ export default function App() {
   const [browserSourceFiles, setBrowserSourceFiles] = useState<File[]>([])
   const [filter, setFilter] = useState('')
   const [loadingProject, setLoadingProject] = useState(false)
+  const [addingDevice, setAddingDevice] = useState(false)
   const [loadingSummary, setLoadingSummary] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [tabRequest, setTabRequest] = useState<WorkspaceTabRequest | null>(null)
@@ -402,6 +404,136 @@ export default function App() {
     }
   }, [applyProject, bridge])
 
+  const createProject = useCallback(async () => {
+    if (!bridge?.createProject) {
+      const message = bridge
+        ? 'The desktop app was updated while it was running. Restart BayesMech Vision once, then create the project again.'
+        : 'Creating projects requires the BayesMech Vision desktop app.'
+      setError(message)
+      window.alert(message)
+      return
+    }
+    setLoadingProject(true)
+    setError(null)
+    try {
+      const created = await bridge.createProject()
+      await applyProject(created)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to create the project.'
+      setError(message)
+      window.alert(`Could not create the project: ${message}`)
+    } finally {
+      setLoadingProject(false)
+    }
+  }, [applyProject, bridge])
+
+  const addDeviceToProject = useCallback(async (preset: ControlDevicePreset) => {
+    const recording = selectedRecordingRef.current
+    if (!recording) {
+      window.alert('Open or create a project before adding a device.')
+      return
+    }
+    if (!bridge?.addDeviceToProject) {
+      const message = bridge
+        ? 'The desktop app was updated while it was running. Restart BayesMech Vision once, then add the device again.'
+        : 'Adding devices requires the BayesMech Vision desktop app.'
+      setError(message)
+      window.alert(message)
+      return
+    }
+
+    setAddingDevice(true)
+    setError(null)
+    try {
+      const updated = await bridge.addDeviceToProject(recording.path, preset)
+      if (bridge.ensureControlService) {
+        void bridge.ensureControlService().catch(() => {
+          // The Control tab reports the service state if startup is still pending.
+        })
+      }
+      const updatedRecordings = updated.recordings.map((item) => ({ ...item, id: item.path }))
+      const replacement = updatedRecordings.find((item) => item.path === recording.path)
+        ?? updatedRecordings.find((item) => item.controlProject)
+      if (!replacement) throw new Error('The updated control project has no recording.')
+
+      const currentProject = projectRef.current
+      const nextProject = currentProject
+        ? {
+            ...currentProject,
+            recordings: [
+              ...currentProject.recordings.filter(
+                (item) => item.directoryPath !== recording.directoryPath,
+              ),
+              ...updatedRecordings,
+            ],
+            error: undefined,
+          }
+        : { ...updated, recordings: updatedRecordings }
+      projectRef.current = nextProject
+      setProject(nextProject)
+
+      const videoId = recordingVideoId(replacement)
+      const workspace = chatWorkspaces[videoId] ?? await loadRecordingWorkspace(replacement)
+      setChatWorkspaces((current) => ({ ...current, [videoId]: workspace }))
+      await selectRecording(replacement, selectedChatId ?? workspace.activeChatId, workspace)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to add the device.'
+      setError(message)
+      window.alert(`Could not add the device: ${message}`)
+    } finally {
+      setAddingDevice(false)
+    }
+  }, [
+    bridge,
+    chatWorkspaces,
+    loadRecordingWorkspace,
+    selectRecording,
+    selectedChatId,
+  ])
+
+  const renameProject = useCallback(async (recording: RecordingEntry, displayName: string) => {
+    if (!bridge?.renameProject) {
+      const message = bridge
+        ? 'The desktop app was updated while it was running. Restart BayesMech Vision once, then rename the project again.'
+        : 'Renaming projects requires the BayesMech Vision desktop app.'
+      setError(message)
+      window.alert(message)
+      return
+    }
+    setError(null)
+    try {
+      const updated = await bridge.renameProject(recording.path, displayName)
+      const updatedRecordings = updated.recordings.map((item) => ({ ...item, id: item.path }))
+      const replacement = updatedRecordings.find((item) => item.path === recording.path)
+        ?? updatedRecordings.find((item) => item.controlProject)
+      if (!replacement) throw new Error('The renamed project has no recording.')
+
+      const currentProject = projectRef.current
+      const nextProject = currentProject
+        ? {
+            ...currentProject,
+            recordings: [
+              ...currentProject.recordings.filter(
+                (item) => item.directoryPath !== recording.directoryPath,
+              ),
+              ...updatedRecordings,
+            ],
+            error: undefined,
+          }
+        : { ...updated, recordings: updatedRecordings }
+      projectRef.current = nextProject
+      setProject(nextProject)
+      if (selectedRecordingRef.current?.path === recording.path) {
+        selectedRecordingRef.current = replacement
+        setSelectedRecording(replacement)
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to rename the project.'
+      setError(message)
+      window.alert(`Could not rename the project: ${message}`)
+    }
+  }, [bridge])
+
   const openFiles = useCallback(async () => {
     if (!bridge) {
       fileInputRef.current?.click()
@@ -477,6 +609,66 @@ export default function App() {
         setLoadingProject(false)
       })
   }, [applyProject, bridge])
+
+  useEffect(() => {
+    const controlProject = selectedRecording?.controlProject
+    if (!bridge?.scanProject || !controlProject) return
+    let cancelled = false
+    let requestInFlight = false
+    const refreshDeviceStreams = async () => {
+      if (requestInFlight) return
+      requestInFlight = true
+      try {
+        const scanned = await bridge.scanProject(controlProject.directoryPath)
+        if (cancelled) return
+        const next = scanned.recordings.find(
+          (recording) => recording.controlProject?.projectId === controlProject.projectId,
+        )
+        if (!next) return
+        const previousSignature = selectedRecording.analyses
+          .map((analysis) => `${analysis.key}:${analysis.path}`)
+          .concat(
+            selectedRecording.controlProject?.devices.map((device) => (
+              `${device.deviceId}:${device.enabled}:${device.controlHost}:${device.controlPort}:${device.streamHost}:${device.streamPort}`
+            )) ?? [],
+          )
+          .join('|')
+        const nextSignature = next.analyses
+          .map((analysis) => `${analysis.key}:${analysis.path}`)
+          .concat(
+            next.controlProject?.devices.map((device) => (
+              `${device.deviceId}:${device.enabled}:${device.controlHost}:${device.controlPort}:${device.streamHost}:${device.streamPort}`
+            )) ?? [],
+          )
+          .join('|')
+        if (previousSignature === nextSignature) return
+        const nextRecording = { ...next, id: selectedRecording.id }
+        selectedRecordingRef.current = nextRecording
+        setSelectedRecording(nextRecording)
+        setProject((current) => {
+          if (!current) return current
+          const updated = {
+            ...current,
+            recordings: current.recordings.map((recording) => (
+              recording.id === selectedRecording.id ? nextRecording : recording
+            )),
+          }
+          projectRef.current = updated
+          return updated
+        })
+      } catch {
+        // Stream files are created lazily; a transient scan failure is retried.
+      } finally {
+        requestInFlight = false
+      }
+    }
+    const timer = window.setInterval(() => void refreshDeviceStreams(), 1500)
+    void refreshDeviceStreams()
+    return () => {
+      cancelled = true
+      window.clearInterval(timer)
+    }
+  }, [bridge, selectedRecording])
 
   const loadBrowserFiles = async (event: ChangeEvent<HTMLInputElement>) => {
     const files = event.currentTarget.files
@@ -627,6 +819,54 @@ export default function App() {
     [persistChatSession],
   )
 
+  const deleteChat = useCallback(
+    async (recording: RecordingEntry, chat: WorkspaceChatSession) => {
+      const videoId = recordingVideoId(recording)
+      const selected = selectedRecordingRef.current?.id === recording.id
+      if (selected) {
+        setChatThreadLoading(true)
+        setChatThreadError(null)
+      }
+      try {
+        await chatSaveQueueRef.current.catch(() => undefined)
+        let workspace: VideoChatWorkspace
+        if (bridge?.deleteChatSession) {
+          workspace = await bridge.deleteChatSession(videoId, recording.path, chat.id)
+        } else {
+          const current = chatWorkspaces[videoId]
+          if (!current) throw new Error('The chat workspace is not loaded.')
+          const deleteIndex = current.chats.findIndex((item) => item.id === chat.id)
+          if (deleteIndex < 0) throw new Error('Chat not found.')
+          const chats = current.chats.filter((item) => item.id !== chat.id)
+          const activeChatId = current.activeChatId === chat.id
+            ? chats[Math.min(deleteIndex, chats.length - 1)]?.id ?? ''
+            : current.activeChatId
+          workspace = { ...current, activeChatId, chats }
+          localStorage.setItem(browserWorkspaceKey(videoId), JSON.stringify(workspace))
+        }
+        setChatWorkspaces((current) => ({ ...current, [videoId]: workspace }))
+        if (selected) {
+          const nextChat = workspace.chats.find((item) => item.id === workspace.activeChatId)
+            ?? workspace.chats[0]
+            ?? null
+          setSelectedChatId(nextChat?.id ?? null)
+          setVideoState((current) => ({
+            ...current,
+            playing: false,
+            markers: nextChat?.markers ?? [],
+          }))
+        }
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Failed to delete the chat.'
+        setChatThreadError(message)
+        window.alert(`Could not delete the chat: ${message}`)
+      } finally {
+        if (selected) setChatThreadLoading(false)
+      }
+    },
+    [bridge, chatWorkspaces],
+  )
+
   const saveActiveMessages = useCallback(
     (messages: WorkspaceChatMessage[]) => {
       if (!selectedRecording || !activeChat) return
@@ -747,16 +987,36 @@ export default function App() {
   // Random-access frame fetch for the video player: routes to the in-browser
   // decoder (no-bridge mode) or the Electron main process for the selected file.
   const getFrame = useCallback<FrameGetter>(
-    async (index) => {
+    async (index, sourcePath) => {
       const recording = selectedRecording
       if (!recording) return null
-      const browserFile = browserFilesRef.current.get(recording.path)
+      const recordingPath = sourcePath || recording.path
+      const browserFile = browserFilesRef.current.get(recordingPath)
       if (browserFile) return readBrowserVisFrame(browserFile, index)
-      if (bridge?.readVisFrame) return bridge.readVisFrame(recording.path, index)
+      if (bridge?.readVisFrame) return bridge.readVisFrame(recordingPath, index)
       return null
     },
     [selectedRecording, bridge],
   )
+
+  const getVisSummary = useCallback(async (sourcePath: string): Promise<VisSummary | null> => {
+    const recording = selectedRecording
+    if (!recording) return null
+    const browserFile = browserFilesRef.current.get(sourcePath)
+    if (browserFile) {
+      const sourceAnalysis = recording.analyses.find((analysis) => analysis.path === sourcePath)
+      return readBrowserVisSummary(
+        {
+          ...recording,
+          path: sourcePath,
+          fileStem: sourceAnalysis?.title ?? recording.fileStem,
+        },
+        browserFile,
+      )
+    }
+    if (bridge?.readVisSummary) return bridge.readVisSummary(sourcePath)
+    return null
+  }, [bridge, selectedRecording])
 
   const getSensorData = useCallback(async (): Promise<SensorDataSummary | null> => {
     const recording = selectedRecording
@@ -1103,7 +1363,6 @@ export default function App() {
             : project?.name
         }
         loading={loadingProject || loadingSummary}
-        runtimeLabel={bridgeAvailable ? 'Electron' : 'Browser'}
         onOpenProject={openProject}
         onOpenFiles={openFiles}
         onRescanProject={rescanProject}
@@ -1137,10 +1396,14 @@ export default function App() {
           onFilterChange={setFilter}
           onOpenProject={openProject}
           onOpenFiles={openFiles}
+          onCreateProject={createProject}
+          creatingProject={loadingProject}
           onSelectRecording={selectRecording}
+          onRenameProject={renameProject}
           onSelectChat={selectChat}
           onCreateChat={createChat}
           onRenameChat={renameChat}
+          onDeleteChat={deleteChat}
           onCloseRecording={closeRecording}
         />
 
@@ -1154,6 +1417,8 @@ export default function App() {
             chatLoading={chatThreadLoading}
             chatError={chatThreadError}
             backgroundJobs={Object.values(backgroundJobs)}
+            addingDevice={addingDevice}
+            onAddDevice={addDeviceToProject}
             onMessagesChange={saveActiveMessages}
             onSendMessage={sendChatMessage}
             onRunCommand={runCommand}
@@ -1163,6 +1428,7 @@ export default function App() {
             summary={summary}
             tabRequest={tabRequest}
             getFrame={getFrame}
+            getVisSummary={getVisSummary}
             getSensorData={getSensorData}
             getIdoSlamData={getIdoSlamData}
             overlay={overlay}

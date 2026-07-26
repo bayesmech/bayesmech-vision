@@ -8,6 +8,7 @@ import {
   Film,
   Gauge,
   Image,
+  Joystick,
   Layers3,
   Map,
   MessageSquare,
@@ -18,7 +19,10 @@ import {
 import type { WorkspaceTabType } from '../types'
 
 export function iconForAnalysis(key: string): LucideIcon {
+  if (key.startsWith('video:')) return Film
   switch (key) {
+    case 'control':
+      return Joystick
     case 'video':
       return Film
     case 'rgb':
@@ -54,7 +58,7 @@ export function iconForAnalysis(key: string): LucideIcon {
 export function tabTypeForAnalysis(key: string): WorkspaceTabType {
   if (key === 'point-cloud') return 'planes'
   if (key === 'surface-planes') return 'planes'
-  if (key === 'video' || key === 'rgb' || key === 'depth') return 'video'
+  if (key === 'video' || key.startsWith('video:') || key === 'rgb' || key === 'depth') return 'video'
   if (key === 'sensors') return 'sensors'
   if (key === 'worldgen') return 'worldgen'
   return 'analysis'

@@ -806,6 +806,7 @@ export const bayesmech = $root.bayesmech = (() => {
              * @property {bayesmech.vision.IInferredGeometry|null} [inferredGeometry] PerceiverDataFrame inferredGeometry
              * @property {bayesmech.vision.IGpsLocation|null} [gpsLocation] PerceiverDataFrame gpsLocation
              * @property {string|null} [userTextInput] PerceiverDataFrame userTextInput
+             * @property {bayesmech.vision.IUltrasonicSensorData|null} [ultrasonicSensorData] PerceiverDataFrame ultrasonicSensorData
              */
 
             /**
@@ -896,6 +897,14 @@ export const bayesmech = $root.bayesmech = (() => {
             PerceiverDataFrame.prototype.userTextInput = "";
 
             /**
+             * PerceiverDataFrame ultrasonicSensorData.
+             * @member {bayesmech.vision.IUltrasonicSensorData|null|undefined} ultrasonicSensorData
+             * @memberof bayesmech.vision.PerceiverDataFrame
+             * @instance
+             */
+            PerceiverDataFrame.prototype.ultrasonicSensorData = null;
+
+            /**
              * Creates a new PerceiverDataFrame instance using the specified properties.
              * @function create
              * @memberof bayesmech.vision.PerceiverDataFrame
@@ -937,6 +946,8 @@ export const bayesmech = $root.bayesmech = (() => {
                     $root.bayesmech.vision.GpsLocation.encode(message.gpsLocation, writer.uint32(/* id 8, wireType 2 =*/66).fork()).ldelim();
                 if (message.userTextInput != null && Object.hasOwnProperty.call(message, "userTextInput"))
                     writer.uint32(/* id 9, wireType 2 =*/74).string(message.userTextInput);
+                if (message.ultrasonicSensorData != null && Object.hasOwnProperty.call(message, "ultrasonicSensorData"))
+                    $root.bayesmech.vision.UltrasonicSensorData.encode(message.ultrasonicSensorData, writer.uint32(/* id 11, wireType 2 =*/90).fork()).ldelim();
                 return writer;
             };
 
@@ -1007,6 +1018,10 @@ export const bayesmech = $root.bayesmech = (() => {
                         }
                     case 9: {
                             message.userTextInput = reader.string();
+                            break;
+                        }
+                    case 11: {
+                            message.ultrasonicSensorData = $root.bayesmech.vision.UltrasonicSensorData.decode(reader, reader.uint32());
                             break;
                         }
                     default:
@@ -1087,6 +1102,11 @@ export const bayesmech = $root.bayesmech = (() => {
                 if (message.userTextInput != null && message.hasOwnProperty("userTextInput"))
                     if (!$util.isString(message.userTextInput))
                         return "userTextInput: string expected";
+                if (message.ultrasonicSensorData != null && message.hasOwnProperty("ultrasonicSensorData")) {
+                    let error = $root.bayesmech.vision.UltrasonicSensorData.verify(message.ultrasonicSensorData);
+                    if (error)
+                        return "ultrasonicSensorData." + error;
+                }
                 return null;
             };
 
@@ -1144,6 +1164,11 @@ export const bayesmech = $root.bayesmech = (() => {
                 }
                 if (object.userTextInput != null)
                     message.userTextInput = String(object.userTextInput);
+                if (object.ultrasonicSensorData != null) {
+                    if (typeof object.ultrasonicSensorData !== "object")
+                        throw TypeError(".bayesmech.vision.PerceiverDataFrame.ultrasonicSensorData: object expected");
+                    message.ultrasonicSensorData = $root.bayesmech.vision.UltrasonicSensorData.fromObject(object.ultrasonicSensorData);
+                }
                 return message;
             };
 
@@ -1170,6 +1195,7 @@ export const bayesmech = $root.bayesmech = (() => {
                     object.inferredGeometry = null;
                     object.gpsLocation = null;
                     object.userTextInput = "";
+                    object.ultrasonicSensorData = null;
                 }
                 if (message.frameIdentifier != null && message.hasOwnProperty("frameIdentifier"))
                     object.frameIdentifier = $root.bayesmech.vision.PerceiverFrameIdentifier.toObject(message.frameIdentifier, options);
@@ -1189,6 +1215,8 @@ export const bayesmech = $root.bayesmech = (() => {
                     object.gpsLocation = $root.bayesmech.vision.GpsLocation.toObject(message.gpsLocation, options);
                 if (message.userTextInput != null && message.hasOwnProperty("userTextInput"))
                     object.userTextInput = message.userTextInput;
+                if (message.ultrasonicSensorData != null && message.hasOwnProperty("ultrasonicSensorData"))
+                    object.ultrasonicSensorData = $root.bayesmech.vision.UltrasonicSensorData.toObject(message.ultrasonicSensorData, options);
                 return object;
             };
 
@@ -3229,6 +3257,327 @@ export const bayesmech = $root.bayesmech = (() => {
             };
 
             return GpsLocation;
+        })();
+
+        vision.UltrasonicSensorData = (function() {
+
+            /**
+             * Properties of an UltrasonicSensorData.
+             * @memberof bayesmech.vision
+             * @interface IUltrasonicSensorData
+             * @property {number|null} [normalizedDistance] UltrasonicSensorData normalizedDistance
+             * @property {number|null} [distanceMeters] UltrasonicSensorData distanceMeters
+             * @property {number|null} [maxRangeMeters] UltrasonicSensorData maxRangeMeters
+             * @property {boolean|null} [valid] UltrasonicSensorData valid
+             * @property {number|null} [sequence] UltrasonicSensorData sequence
+             * @property {number|null} [ageMs] UltrasonicSensorData ageMs
+             */
+
+            /**
+             * Constructs a new UltrasonicSensorData.
+             * @memberof bayesmech.vision
+             * @classdesc Represents an UltrasonicSensorData.
+             * @implements IUltrasonicSensorData
+             * @constructor
+             * @param {bayesmech.vision.IUltrasonicSensorData=} [properties] Properties to set
+             */
+            function UltrasonicSensorData(properties) {
+                if (properties)
+                    for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null)
+                            this[keys[i]] = properties[keys[i]];
+            }
+
+            /**
+             * UltrasonicSensorData normalizedDistance.
+             * @member {number} normalizedDistance
+             * @memberof bayesmech.vision.UltrasonicSensorData
+             * @instance
+             */
+            UltrasonicSensorData.prototype.normalizedDistance = 0;
+
+            /**
+             * UltrasonicSensorData distanceMeters.
+             * @member {number} distanceMeters
+             * @memberof bayesmech.vision.UltrasonicSensorData
+             * @instance
+             */
+            UltrasonicSensorData.prototype.distanceMeters = 0;
+
+            /**
+             * UltrasonicSensorData maxRangeMeters.
+             * @member {number} maxRangeMeters
+             * @memberof bayesmech.vision.UltrasonicSensorData
+             * @instance
+             */
+            UltrasonicSensorData.prototype.maxRangeMeters = 0;
+
+            /**
+             * UltrasonicSensorData valid.
+             * @member {boolean} valid
+             * @memberof bayesmech.vision.UltrasonicSensorData
+             * @instance
+             */
+            UltrasonicSensorData.prototype.valid = false;
+
+            /**
+             * UltrasonicSensorData sequence.
+             * @member {number} sequence
+             * @memberof bayesmech.vision.UltrasonicSensorData
+             * @instance
+             */
+            UltrasonicSensorData.prototype.sequence = 0;
+
+            /**
+             * UltrasonicSensorData ageMs.
+             * @member {number} ageMs
+             * @memberof bayesmech.vision.UltrasonicSensorData
+             * @instance
+             */
+            UltrasonicSensorData.prototype.ageMs = 0;
+
+            /**
+             * Creates a new UltrasonicSensorData instance using the specified properties.
+             * @function create
+             * @memberof bayesmech.vision.UltrasonicSensorData
+             * @static
+             * @param {bayesmech.vision.IUltrasonicSensorData=} [properties] Properties to set
+             * @returns {bayesmech.vision.UltrasonicSensorData} UltrasonicSensorData instance
+             */
+            UltrasonicSensorData.create = function create(properties) {
+                return new UltrasonicSensorData(properties);
+            };
+
+            /**
+             * Encodes the specified UltrasonicSensorData message. Does not implicitly {@link bayesmech.vision.UltrasonicSensorData.verify|verify} messages.
+             * @function encode
+             * @memberof bayesmech.vision.UltrasonicSensorData
+             * @static
+             * @param {bayesmech.vision.IUltrasonicSensorData} message UltrasonicSensorData message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            UltrasonicSensorData.encode = function encode(message, writer) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (message.normalizedDistance != null && Object.hasOwnProperty.call(message, "normalizedDistance"))
+                    writer.uint32(/* id 1, wireType 5 =*/13).float(message.normalizedDistance);
+                if (message.distanceMeters != null && Object.hasOwnProperty.call(message, "distanceMeters"))
+                    writer.uint32(/* id 2, wireType 5 =*/21).float(message.distanceMeters);
+                if (message.maxRangeMeters != null && Object.hasOwnProperty.call(message, "maxRangeMeters"))
+                    writer.uint32(/* id 3, wireType 5 =*/29).float(message.maxRangeMeters);
+                if (message.valid != null && Object.hasOwnProperty.call(message, "valid"))
+                    writer.uint32(/* id 4, wireType 0 =*/32).bool(message.valid);
+                if (message.sequence != null && Object.hasOwnProperty.call(message, "sequence"))
+                    writer.uint32(/* id 5, wireType 0 =*/40).uint32(message.sequence);
+                if (message.ageMs != null && Object.hasOwnProperty.call(message, "ageMs"))
+                    writer.uint32(/* id 6, wireType 0 =*/48).uint32(message.ageMs);
+                return writer;
+            };
+
+            /**
+             * Encodes the specified UltrasonicSensorData message, length delimited. Does not implicitly {@link bayesmech.vision.UltrasonicSensorData.verify|verify} messages.
+             * @function encodeDelimited
+             * @memberof bayesmech.vision.UltrasonicSensorData
+             * @static
+             * @param {bayesmech.vision.IUltrasonicSensorData} message UltrasonicSensorData message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            UltrasonicSensorData.encodeDelimited = function encodeDelimited(message, writer) {
+                return this.encode(message, writer).ldelim();
+            };
+
+            /**
+             * Decodes an UltrasonicSensorData message from the specified reader or buffer.
+             * @function decode
+             * @memberof bayesmech.vision.UltrasonicSensorData
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {bayesmech.vision.UltrasonicSensorData} UltrasonicSensorData
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            UltrasonicSensorData.decode = function decode(reader, length, error) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                let end = length === undefined ? reader.len : reader.pos + length, message = new $root.bayesmech.vision.UltrasonicSensorData();
+                while (reader.pos < end) {
+                    let tag = reader.uint32();
+                    if (tag === error)
+                        break;
+                    switch (tag >>> 3) {
+                    case 1: {
+                            message.normalizedDistance = reader.float();
+                            break;
+                        }
+                    case 2: {
+                            message.distanceMeters = reader.float();
+                            break;
+                        }
+                    case 3: {
+                            message.maxRangeMeters = reader.float();
+                            break;
+                        }
+                    case 4: {
+                            message.valid = reader.bool();
+                            break;
+                        }
+                    case 5: {
+                            message.sequence = reader.uint32();
+                            break;
+                        }
+                    case 6: {
+                            message.ageMs = reader.uint32();
+                            break;
+                        }
+                    default:
+                        reader.skipType(tag & 7);
+                        break;
+                    }
+                }
+                return message;
+            };
+
+            /**
+             * Decodes an UltrasonicSensorData message from the specified reader or buffer, length delimited.
+             * @function decodeDelimited
+             * @memberof bayesmech.vision.UltrasonicSensorData
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @returns {bayesmech.vision.UltrasonicSensorData} UltrasonicSensorData
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            UltrasonicSensorData.decodeDelimited = function decodeDelimited(reader) {
+                if (!(reader instanceof $Reader))
+                    reader = new $Reader(reader);
+                return this.decode(reader, reader.uint32());
+            };
+
+            /**
+             * Verifies an UltrasonicSensorData message.
+             * @function verify
+             * @memberof bayesmech.vision.UltrasonicSensorData
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            UltrasonicSensorData.verify = function verify(message) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (message.normalizedDistance != null && message.hasOwnProperty("normalizedDistance"))
+                    if (typeof message.normalizedDistance !== "number")
+                        return "normalizedDistance: number expected";
+                if (message.distanceMeters != null && message.hasOwnProperty("distanceMeters"))
+                    if (typeof message.distanceMeters !== "number")
+                        return "distanceMeters: number expected";
+                if (message.maxRangeMeters != null && message.hasOwnProperty("maxRangeMeters"))
+                    if (typeof message.maxRangeMeters !== "number")
+                        return "maxRangeMeters: number expected";
+                if (message.valid != null && message.hasOwnProperty("valid"))
+                    if (typeof message.valid !== "boolean")
+                        return "valid: boolean expected";
+                if (message.sequence != null && message.hasOwnProperty("sequence"))
+                    if (!$util.isInteger(message.sequence))
+                        return "sequence: integer expected";
+                if (message.ageMs != null && message.hasOwnProperty("ageMs"))
+                    if (!$util.isInteger(message.ageMs))
+                        return "ageMs: integer expected";
+                return null;
+            };
+
+            /**
+             * Creates an UltrasonicSensorData message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof bayesmech.vision.UltrasonicSensorData
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {bayesmech.vision.UltrasonicSensorData} UltrasonicSensorData
+             */
+            UltrasonicSensorData.fromObject = function fromObject(object) {
+                if (object instanceof $root.bayesmech.vision.UltrasonicSensorData)
+                    return object;
+                let message = new $root.bayesmech.vision.UltrasonicSensorData();
+                if (object.normalizedDistance != null)
+                    message.normalizedDistance = Number(object.normalizedDistance);
+                if (object.distanceMeters != null)
+                    message.distanceMeters = Number(object.distanceMeters);
+                if (object.maxRangeMeters != null)
+                    message.maxRangeMeters = Number(object.maxRangeMeters);
+                if (object.valid != null)
+                    message.valid = Boolean(object.valid);
+                if (object.sequence != null)
+                    message.sequence = object.sequence >>> 0;
+                if (object.ageMs != null)
+                    message.ageMs = object.ageMs >>> 0;
+                return message;
+            };
+
+            /**
+             * Creates a plain object from an UltrasonicSensorData message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof bayesmech.vision.UltrasonicSensorData
+             * @static
+             * @param {bayesmech.vision.UltrasonicSensorData} message UltrasonicSensorData
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            UltrasonicSensorData.toObject = function toObject(message, options) {
+                if (!options)
+                    options = {};
+                let object = {};
+                if (options.defaults) {
+                    object.normalizedDistance = 0;
+                    object.distanceMeters = 0;
+                    object.maxRangeMeters = 0;
+                    object.valid = false;
+                    object.sequence = 0;
+                    object.ageMs = 0;
+                }
+                if (message.normalizedDistance != null && message.hasOwnProperty("normalizedDistance"))
+                    object.normalizedDistance = options.json && !isFinite(message.normalizedDistance) ? String(message.normalizedDistance) : message.normalizedDistance;
+                if (message.distanceMeters != null && message.hasOwnProperty("distanceMeters"))
+                    object.distanceMeters = options.json && !isFinite(message.distanceMeters) ? String(message.distanceMeters) : message.distanceMeters;
+                if (message.maxRangeMeters != null && message.hasOwnProperty("maxRangeMeters"))
+                    object.maxRangeMeters = options.json && !isFinite(message.maxRangeMeters) ? String(message.maxRangeMeters) : message.maxRangeMeters;
+                if (message.valid != null && message.hasOwnProperty("valid"))
+                    object.valid = message.valid;
+                if (message.sequence != null && message.hasOwnProperty("sequence"))
+                    object.sequence = message.sequence;
+                if (message.ageMs != null && message.hasOwnProperty("ageMs"))
+                    object.ageMs = message.ageMs;
+                return object;
+            };
+
+            /**
+             * Converts this UltrasonicSensorData to JSON.
+             * @function toJSON
+             * @memberof bayesmech.vision.UltrasonicSensorData
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            UltrasonicSensorData.prototype.toJSON = function toJSON() {
+                return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the default type url for UltrasonicSensorData
+             * @function getTypeUrl
+             * @memberof bayesmech.vision.UltrasonicSensorData
+             * @static
+             * @param {string} [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
+             * @returns {string} The default type url
+             */
+            UltrasonicSensorData.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+                if (typeUrlPrefix === undefined) {
+                    typeUrlPrefix = "type.googleapis.com";
+                }
+                return typeUrlPrefix + "/bayesmech.vision.UltrasonicSensorData";
+            };
+
+            return UltrasonicSensorData;
         })();
 
         vision.InferredGeometry = (function() {

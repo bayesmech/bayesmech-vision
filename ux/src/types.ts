@@ -29,9 +29,41 @@ export type ProjectAnalysis = {
   modifiedMs?: number
 }
 
+export type ControlPreset = 'robot_car' | 'robot_hand' | 'drone_control'
+export type ControlDevicePreset = 'robot_car' | 'phone_camera' | 'robot_hand' | 'drone'
+
+export type ControlDeviceConfig = {
+  deviceId: string
+  displayName: string
+  deviceType: string
+  role: string
+  controlHost: string
+  controlPort: number
+  controlPath: string
+  controlTransport: string
+  streamHost: string
+  streamPort: number
+  streamPath: string
+  streamTransport: string
+  recordingFile: string
+  capabilities: string[]
+  enabled: boolean
+}
+
+export type ControlProjectManifest = {
+  projectId: string
+  displayName: string
+  projectType: string
+  createdTimestampMs: number
+  manifestPath: string
+  directoryPath: string
+  devices: ControlDeviceConfig[]
+}
+
 export type RecordingEntry = {
   id: string
   name: string
+  displayName?: string
   fileStem: string
   path: string
   directoryPath: string
@@ -40,6 +72,7 @@ export type RecordingEntry = {
   sizeLabel: string
   modifiedMs: number
   analyses: ProjectAnalysis[]
+  controlProject?: ControlProjectManifest
 }
 
 export type ProjectScanResult = {
@@ -159,6 +192,14 @@ export type SensorSample = {
   magneticField: Vec3 | null
   cameraPose: Pose | null
   gps: GpsSample | null
+  ultrasonic: {
+    normalizedDistance: number
+    distanceMeters: number
+    maxRangeMeters: number
+    valid: boolean
+    sequence: number
+    ageMs: number
+  } | null
 }
 
 export type SensorDataSummary = {
@@ -460,7 +501,7 @@ export type WorldgenSplatStatus = {
   points?: WorldgenSplatPoint[]
 }
 
-export type WorkspaceTabType = 'scene' | 'point-cloud' | 'planes' | 'video' | 'sensors' | 'analysis' | 'worldgen'
+export type WorkspaceTabType = 'control' | 'scene' | 'point-cloud' | 'planes' | 'video' | 'sensors' | 'analysis' | 'worldgen'
 
 export type WorkspaceTabRequest = {
   requestId: string
@@ -468,6 +509,7 @@ export type WorkspaceTabRequest = {
   title: string
   analysisKey?: string
   worldgenResultId?: string
+  sourcePath?: string
 }
 
 export type WorkspaceTab = {
@@ -476,6 +518,7 @@ export type WorkspaceTab = {
   title: string
   analysisKey?: string
   worldgenResultId?: string
+  sourcePath?: string
 }
 
 export type LeafNode = {
@@ -612,6 +655,22 @@ export type RunnerSubmitRequest = {
 export type BridgeApi = {
   selectProject: () => Promise<SelectProjectResponse>
   selectVisFiles: () => Promise<SelectProjectResponse>
+  createProject: () => Promise<ProjectScanResult>
+  createControlProject: (preset: ControlPreset) => Promise<ProjectScanResult>
+  addDeviceToProject: (
+    recordingPath: string,
+    preset: ControlDevicePreset,
+  ) => Promise<ProjectScanResult>
+  renameProject: (
+    recordingPath: string,
+    displayName: string,
+  ) => Promise<ProjectScanResult>
+  ensureControlService: () => Promise<{
+    endpoint: string
+    ready: boolean
+    managed: boolean
+    error?: string
+  }>
   scanProject: (projectPath: string) => Promise<ProjectScanResult>
   readVisSummary: (filePath: string) => Promise<VisSummary>
   readVisFrame: (filePath: string, frameIndex: number) => Promise<VisFrame | null>
@@ -623,6 +682,11 @@ export type BridgeApi = {
   readChatThread: (recordingPath: string) => Promise<ChatThread>
   loadChatWorkspace: (videoId: string, recordingPath: string) => Promise<VideoChatWorkspace>
   createChatSession: (videoId: string, recordingPath: string) => Promise<VideoChatWorkspace>
+  deleteChatSession: (
+    videoId: string,
+    recordingPath: string,
+    chatId: string,
+  ) => Promise<VideoChatWorkspace>
   saveChatSession: (
     videoId: string,
     recordingPath: string,

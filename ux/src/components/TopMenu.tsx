@@ -1,11 +1,9 @@
 import {
-  Bot,
   Code2,
   FileCode2,
   FolderOpen,
   Maximize2,
   Minus,
-  PanelLeft,
   RefreshCw,
   RotateCcw,
   X,
@@ -20,7 +18,6 @@ type MenuName = 'file' | 'view' | 'window'
 type TopMenuProps = {
   projectName?: string
   loading: boolean
-  runtimeLabel: string
   onOpenProject: () => void
   onOpenFiles: () => void
   onRescanProject: () => void
@@ -30,7 +27,6 @@ type TopMenuProps = {
 export default function TopMenu({
   projectName,
   loading,
-  runtimeLabel,
   onOpenProject,
   onOpenFiles,
   onRescanProject,
@@ -193,17 +189,6 @@ export default function TopMenu({
           ) : null}
         </div>
       </nav>
-
-      <div className="top-actions">
-        <div className="project-pill" title={projectName ?? 'No project loaded'}>
-          <PanelLeft size={14} aria-hidden="true" />
-          <span>{projectName ?? 'No project'}</span>
-        </div>
-        <div className="bridge-state is-ready">
-          <Bot size={14} aria-hidden="true" />
-          <span>{runtimeLabel}</span>
-        </div>
-      </div>
     </header>
   )
 }

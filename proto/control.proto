@@ -1,0 +1,75 @@
+syntax = "proto3";
+
+package bayesmech.vision;
+
+option java_multiple_files = true;
+option java_package = "com.bayesmech.vision";
+
+// The control surface selected when a project is created.
+enum ControlProjectType {
+  CONTROL_PROJECT_TYPE_UNSPECIFIED = 0;
+  ROBOT_CAR = 1;
+  ROBOT_HAND = 2;
+  DRONE_CONTROL = 3;
+}
+
+// Hardware and augmented Perceiver sources can coexist in one project.
+enum ControlDeviceType {
+  CONTROL_DEVICE_TYPE_UNSPECIFIED = 0;
+  ROBOT_CAR_DEVICE = 1;
+  ROBOT_HAND_DEVICE = 2;
+  DRONE_DEVICE = 3;
+  PHONE_DEVICE = 4;
+}
+
+enum ControlDeviceRole {
+  CONTROL_DEVICE_ROLE_UNSPECIFIED = 0;
+  PRIMARY_DEVICE = 1;
+  AUGMENTED_DEVICE = 2;
+}
+
+enum ControlTransport {
+  CONTROL_TRANSPORT_UNSPECIFIED = 0;
+  HTTP_CONTROL = 1;
+  WEBSOCKET_CONTROL = 2;
+  MAVLINK_UDP_CONTROL = 3;
+}
+
+enum ControlStreamTransport {
+  CONTROL_STREAM_TRANSPORT_UNSPECIFIED = 0;
+  RGB565_HTTP_STREAM = 1;
+  PERCEIVER_WEBSOCKET_STREAM = 2;
+  RTP_VIDEO_STREAM = 3;
+}
+
+message ControlDevice {
+  string device_id = 1;
+  string display_name = 2;
+  ControlDeviceType device_type = 3;
+  ControlDeviceRole role = 4;
+
+  // Where commands are sent.
+  string control_host = 5;
+  uint32 control_port = 6;
+  string control_path = 7;
+  ControlTransport control_transport = 8;
+
+  // Where sensor/video data enters BayesMech Vision.
+  string stream_host = 9;
+  uint32 stream_port = 10;
+  string stream_path = 11;
+  ControlStreamTransport stream_transport = 12;
+
+  // Relative to the directory containing this project's .control.pb file.
+  string recording_file = 13;
+  repeated string capabilities = 14;
+  bool enabled = 15;
+}
+
+message ControlProject {
+  string project_id = 1;
+  string display_name = 2;
+  ControlProjectType project_type = 3;
+  int64 created_timestamp_ms = 4;
+  repeated ControlDevice devices = 5;
+}

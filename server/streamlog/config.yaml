@@ -6,6 +6,23 @@ server:
 buffer:
   max_frames_per_client: 60  # Keep last 60 frames (~2-4 seconds at 15-30 FPS)
 
+devices:
+  # The sister robot-control firmware defaults are registered out of the box.
+  # For a shared LAN, change these URLs here, set the ROBOCAR_* environment
+  # variables, or add/update robots from the Control tab. Add more entries for
+  # additional cars; phone streams register themselves by Perceiver device_id.
+  robots:
+    - id: "robocar-1"
+      name: "Robocar 1"
+      controller_url: "http://192.168.4.1"
+      camera_url: "http://192.168.4.2"
+      camera_stream_url: "http://192.168.4.2:81/stream"
+  request_timeout_seconds: 2.0
+  connect_timeout_seconds: 1.0
+  ultrasonic_poll_seconds: 0.12
+  status_poll_seconds: 1.0
+  camera_poll_seconds: 3.0
+
 segmentation:
   host: "http://127.0.0.1:8081"
 

@@ -34,6 +34,7 @@ import shutil
 import struct
 import sys
 import time
+import uuid
 import yaml
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
@@ -55,7 +56,7 @@ from fastapi import (
     WebSocketDisconnect,
 )
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
 _server_root = Path(__file__).parent.parent
@@ -79,6 +80,14 @@ from streamlog.video_layers import LAYER_REGISTRY, MotioncapVideoLayer
 from streamlog.highlight_clipper import extract_highlights, clip_frame_indices
 from streamlog.chat_manager import ChatManager
 from streamlog.protoio import ProtoIO
+from streamlog.devices import (
+    DeviceConnectionError,
+    DeviceNotFoundError,
+    DeviceRegistry,
+    DeviceValidationError,
+    MJPEG_BOUNDARY,
+)
+from streamlog.control_sessions import ControlSessionError, ControlSessionManager
 
 # ── Logging ───────────────────────────────────────────────────────────────────
 
@@ -104,6 +113,54 @@ RECORDINGS_DIR.mkdir(exist_ok=True)
 store = FrameStore()
 annotator = Annotator()
 bridge = DashboardBridge(store, annotator)
+
+
+def _device_config() -> dict[str, Any]:
+    configured = dict(config.get("devices") or {})
+    robots = list(configured.get("robots") or [])
+    env_profiles = os.environ.get("ROBOCAR_DEVICES")
+    if env_profiles:
+        try:
+            parsed = json.loads(env_profiles)
+            if not isinstance(parsed, list):
+                raise ValueError("ROBOCAR_DEVICES must be a JSON array")
+            robots = parsed
+        except (json.JSONDecodeError, ValueError) as exc:
+            logger.error("Ignoring invalid ROBOCAR_DEVICES: %s", exc)
+    elif os.environ.get("ROBOCAR_CONTROLLER_URL") or os.environ.get(
+        "ROBOCAR_CAMERA_URL"
+    ):
+        default_profile = dict(robots[0]) if robots else {}
+        default_profile.update(
+            {
+                "id": os.environ.get(
+                    "ROBOCAR_ID", default_profile.get("id", "robocar-1")
+                ),
+                "name": os.environ.get(
+                    "ROBOCAR_NAME", default_profile.get("name", "Robocar 1")
+                ),
+                "controller_url": os.environ.get(
+                    "ROBOCAR_CONTROLLER_URL",
+                    default_profile.get("controller_url", "http://192.168.4.1"),
+                ),
+                "camera_url": os.environ.get(
+                    "ROBOCAR_CAMERA_URL",
+                    default_profile.get("camera_url", "http://192.168.4.2"),
+                ),
+            }
+        )
+        if os.environ.get("ROBOCAR_CAMERA_STREAM_URL"):
+            default_profile["camera_stream_url"] = os.environ[
+                "ROBOCAR_CAMERA_STREAM_URL"
+            ]
+        robots = [default_profile, *robots[1:]]
+    configured["robots"] = robots
+    return configured
+
+
+devices = DeviceRegistry(_device_config())
+control_sessions = ControlSessionManager(RECORDINGS_DIR)
+devices.set_frame_callback(control_sessions.write_video)
 _idoslam_io = ProtoIO(idoslam_pb2.IdoSlamResponse)
 _idoslam_io.FRAME_SIZE_LIMIT = 512 * 1024 * 1024
 
@@ -130,8 +187,13 @@ annotator.set_annotation_callback(bridge.broadcast_annotation)
 @asynccontextmanager
 async def _lifespan(app: FastAPI):
     await annotator.connect()
-    yield
-    await annotator.close()
+    await devices.start()
+    try:
+        yield
+    finally:
+        control_sessions.close()
+        await devices.close()
+        await annotator.close()
 
 
 app = FastAPI(title="BayesMech Vision Server", version="3.0.0", lifespan=_lifespan)
@@ -218,22 +280,30 @@ class LiveRecordingWriter:
         return None
 
 
-def _handle_ar_control_message(writer: LiveRecordingWriter, text: str, addr: str) -> None:
+def _handle_ar_control_message(
+    writer: LiveRecordingWriter, text: str, addr: str
+) -> None:
     try:
         payload = json.loads(text)
     except json.JSONDecodeError:
-        logger.warning("Ignoring non-JSON AR text message from %s: %r", addr, text[:120])
+        logger.warning(
+            "Ignoring non-JSON AR text message from %s: %r", addr, text[:120]
+        )
         return
 
     action = str(payload.get("type") or payload.get("action") or "").strip()
-    recording_name = str(payload.get("recording_name") or payload.get("filename") or "").strip()
+    recording_name = str(
+        payload.get("recording_name") or payload.get("filename") or ""
+    ).strip()
 
     try:
         if action == "start_recording":
             path = writer.start(recording_name)
             logger.info("Started live recording from %s: %s", addr, path)
         elif action == "finish_recording":
-            if recording_name and writer.recording_name != _safe_recording_stem(recording_name):
+            if recording_name and writer.recording_name != _safe_recording_stem(
+                recording_name
+            ):
                 logger.warning(
                     "Finish requested for %s, but active live recording is %s",
                     recording_name,
@@ -250,16 +320,39 @@ def _handle_ar_control_message(writer: LiveRecordingWriter, text: str, addr: str
         logger.error("AR control message failed from %s: %s", addr, exc, exc_info=True)
 
 
+_legacy_ar_owner: str | None = None
+_legacy_ar_owner_lock = asyncio.Lock()
+
+
+async def _claim_legacy_live_store(connection_id: str) -> bool:
+    """Keep the original single-stream dashboard stable while phones coexist."""
+    global _legacy_ar_owner
+    async with _legacy_ar_owner_lock:
+        if _legacy_ar_owner is None:
+            _legacy_ar_owner = connection_id
+            await store.stop_replay()
+            store.clear()
+            store.set_source("live")
+        return _legacy_ar_owner == connection_id
+
+
+async def _release_legacy_live_store(connection_id: str) -> None:
+    global _legacy_ar_owner
+    async with _legacy_ar_owner_lock:
+        if _legacy_ar_owner == connection_id:
+            _legacy_ar_owner = None
+            store.set_source("none")
+
+
 @app.websocket("/ar-stream")
 async def ar_stream_ws(websocket: WebSocket):
     addr = f"{websocket.client.host}:{websocket.client.port}"
+    connection_id = uuid.uuid4().hex
+    device_id: str | None = None
+    pushed_frames = 0
     await websocket.accept()
     logger.info(f"AR client connected: {addr}")
     writer = LiveRecordingWriter(RECORDINGS_DIR)
-
-    await store.stop_replay()
-    store.clear()
-    store.set_source("live")
 
     try:
         while True:
@@ -280,19 +373,27 @@ async def ar_stream_ws(websocket: WebSocket):
                 logger.warning(f"Proto parse error from {addr}: {exc}")
                 continue
             writer.write(frame)
-            store.push(frame)
+            device_id = devices.publish_perceiver(frame, connection_id)
+            control_sessions.write_perceiver(frame, device_id)
+            pushed_frames += 1
+            if await _claim_legacy_live_store(connection_id):
+                store.push(frame)
     except WebSocketDisconnect:
         pass
     except Exception as exc:
         logger.error(f"AR stream error ({addr}): {exc}", exc_info=True)
     finally:
         logger.info(
-            f"AR client disconnected: {addr}  (pushed {store.frame_count} frames)"
+            "AR client disconnected: %s device=%s (pushed %d frames)",
+            addr,
+            device_id,
+            pushed_frames,
         )
         if writer.path is not None:
             path = writer.finish()
             logger.info("Closed unfinished live recording from %s: %s", addr, path)
-        store.set_source("none")
+        devices.disconnect_mobile(device_id, connection_id)
+        await _release_legacy_live_store(connection_id)
 
 
 # ── WebSocket: Dashboard (server -> browser) ─────────────────────────────────
@@ -319,6 +420,132 @@ async def health():
 @app.get("/api/stream")
 async def get_stream_stats():
     return store.stats()
+
+
+# ── Multi-device control API ─────────────────────────────────────────────────
+
+
+def _raise_device_http_error(exc: Exception) -> None:
+    if isinstance(exc, DeviceNotFoundError):
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    if isinstance(exc, DeviceValidationError):
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    if isinstance(exc, ControlSessionError):
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    if isinstance(exc, DeviceConnectionError):
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    raise exc
+
+
+@app.get("/api/devices")
+async def list_devices():
+    return {"devices": devices.snapshots()}
+
+
+@app.post("/api/devices/robots")
+async def register_robot(request: Request):
+    try:
+        payload = await request.json()
+        if not isinstance(payload, dict):
+            raise DeviceValidationError("Robot profile must be a JSON object")
+        result = devices.register_robot(payload)
+        registered = devices.get(result["id"])
+        control_sessions.upsert_robot_profile(
+            {
+                "id": registered.id,
+                "name": registered.name,
+                "controller_url": registered.controller_url or "",
+                "camera_url": registered.camera_url or "",
+                "camera_stream_url": registered.camera_stream_url or "",
+            }
+        )
+        return result
+    except Exception as exc:
+        _raise_device_http_error(exc)
+
+
+@app.delete("/api/devices/{device_id}")
+async def remove_robot(device_id: str):
+    try:
+        await devices.remove_robot(device_id)
+        control_sessions.disable_device(device_id)
+        return {"removed": True, "device_id": device_id}
+    except Exception as exc:
+        _raise_device_http_error(exc)
+
+
+@app.get("/api/devices/{device_id}")
+async def get_device(device_id: str):
+    try:
+        return devices.snapshot(device_id)
+    except Exception as exc:
+        _raise_device_http_error(exc)
+
+
+@app.get("/api/devices/{device_id}/video")
+async def stream_device_video(device_id: str):
+    try:
+        # Resolve eagerly so unknown ids return a normal 404 before the
+        # StreamingResponse has committed its headers.
+        devices.get(device_id)
+    except Exception as exc:
+        _raise_device_http_error(exc)
+    return StreamingResponse(
+        devices.stream_mjpeg(device_id),
+        media_type=f"multipart/x-mixed-replace; boundary={MJPEG_BOUNDARY}",
+        headers={
+            "Cache-Control": "no-store, max-age=0",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
+@app.post("/api/devices/{device_id}/motors")
+async def set_device_motors(device_id: str, request: Request):
+    try:
+        payload = await request.json()
+        if not isinstance(payload, dict):
+            raise DeviceValidationError("Motor command must be a JSON object")
+        return await devices.set_motors(device_id, payload)
+    except Exception as exc:
+        _raise_device_http_error(exc)
+
+
+@app.post("/api/devices/{device_id}/stop")
+async def stop_device(device_id: str):
+    try:
+        return await devices.stop(device_id)
+    except Exception as exc:
+        _raise_device_http_error(exc)
+
+
+@app.get("/api/control-projects/active")
+async def active_control_project():
+    return control_sessions.snapshot()
+
+
+@app.post("/api/control-projects/open")
+async def open_control_project(request: Request):
+    try:
+        payload = await request.json()
+        if not isinstance(payload, dict):
+            raise ControlSessionError("Request must be a JSON object")
+        manifest_path = str(payload.get("manifest_path") or "").strip()
+        result = control_sessions.open(manifest_path)
+        result["registered_devices"] = [
+            devices.register_robot(profile)
+            for profile in control_sessions.robot_profiles()
+        ]
+        return result
+    except ControlSessionError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/api/control-projects/close")
+async def close_control_project():
+    project_id = control_sessions.snapshot().get("project_id")
+    control_sessions.close()
+    return {"active": False, "project_id": project_id}
 
 
 @app.post("/api/transcribe")
@@ -2071,7 +2298,9 @@ async def insightgen_regenerate(request: Request):
 
     genspark_path = _recording_file(safe_name, "genspark.pb")
     if not genspark_path.exists():
-        raise HTTPException(status_code=500, detail="Genspark finished without writing a response")
+        raise HTTPException(
+            status_code=500, detail="Genspark finished without writing a response"
+        )
 
     chat_manager.invalidate(safe_name)
     _clear_chat_cache_name(_recording_file(safe_name, "chat.pb"), safe_name)

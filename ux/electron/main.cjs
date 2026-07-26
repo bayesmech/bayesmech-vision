@@ -27,6 +27,11 @@ const DEFAULT_RUNNER_ENDPOINT = 'http://127.0.0.1:8787'
 const DEFAULT_VGGT_HEALTH_TIMEOUT_MS = 15000
 const DEFAULT_VGGT_REQUEST_TIMEOUT_MS = 15 * 60 * 1000
 const DEFAULT_GEMMA_REQUEST_TIMEOUT_MS = 30 * 60 * 1000
+const DEFAULT_STREAMLOG_ENDPOINT = 'http://127.0.0.1:8080'
+
+let managedStreamlogProcess = null
+let managedStreamlogStart = null
+let managedStreamlogError = ''
 
 function parseEnvValue(value) {
   const trimmed = value.trim()
@@ -134,6 +139,7 @@ const ANALYSIS_DEFS = [
 
 let mainWindow = null
 let perceiverType = null
+let controlProjectType = null
 let segmentationType = null
 let motionCaptureType = null
 let vggtResponseType = null
@@ -209,6 +215,114 @@ function findRepoRoot() {
   return path.resolve(__dirname, '..', '..')
 }
 
+function streamlogEndpoint() {
+  return String(
+    process.env.STREAMLOG_ENDPOINT
+      || process.env.VITE_STREAMLOG_ENDPOINT
+      || DEFAULT_STREAMLOG_ENDPOINT,
+  ).replace(/\/+$/, '')
+}
+
+function isLocalStreamlogEndpoint(endpoint) {
+  try {
+    const parsed = new URL(endpoint)
+    return (
+      parsed.protocol === 'http:'
+      && ['127.0.0.1', 'localhost', '::1'].includes(parsed.hostname)
+    )
+  } catch {
+    return false
+  }
+}
+
+async function streamlogHealth(endpoint = streamlogEndpoint()) {
+  try {
+    const response = await nodeHttpRequest(`${endpoint}/api/health`, {
+      headers: { Accept: 'application/json' },
+      timeoutMs: 1000,
+    })
+    return response.ok
+  } catch {
+    return false
+  }
+}
+
+function stopManagedStreamlog() {
+  const child = managedStreamlogProcess
+  managedStreamlogProcess = null
+  managedStreamlogStart = null
+  if (child && child.exitCode == null && !child.killed) child.kill('SIGTERM')
+}
+
+async function ensureStreamlogRunning() {
+  const endpoint = streamlogEndpoint()
+  if (!isLocalStreamlogEndpoint(endpoint)) {
+    return { endpoint, ready: await streamlogHealth(endpoint), managed: false }
+  }
+  if (await streamlogHealth(endpoint)) {
+    return { endpoint, ready: true, managed: Boolean(managedStreamlogProcess) }
+  }
+  if (managedStreamlogStart) return managedStreamlogStart
+
+  managedStreamlogStart = (async () => {
+    const serverDirectory = path.join(findRepoRoot(), 'server')
+    const venvPython = path.join(serverDirectory, '.venv', 'bin', 'python')
+    if (!fs.existsSync(path.join(serverDirectory, 'streamlog', 'main.py'))) {
+      return {
+        endpoint,
+        ready: false,
+        managed: false,
+        error: 'The local Streamlog server source is unavailable.',
+      }
+    }
+    const command = fs.existsSync(venvPython) ? venvPython : 'uv'
+    const parsedEndpoint = new URL(endpoint)
+    const bindHost = parsedEndpoint.hostname === 'localhost'
+      ? '127.0.0.1'
+      : parsedEndpoint.hostname
+    const bindPort = parsedEndpoint.port || '80'
+    const args = fs.existsSync(venvPython)
+      ? ['-m', 'uvicorn', 'streamlog.main:app', '--host', bindHost, '--port', bindPort]
+      : ['run', 'uvicorn', 'streamlog.main:app', '--host', bindHost, '--port', bindPort]
+    managedStreamlogError = ''
+    const child = spawn(command, args, {
+      cwd: serverDirectory,
+      env: { ...process.env, PYTHONUNBUFFERED: '1' },
+      stdio: ['ignore', 'ignore', 'pipe'],
+    })
+    managedStreamlogProcess = child
+    child.stderr?.on('data', (chunk) => {
+      managedStreamlogError = `${managedStreamlogError}${chunk.toString('utf8')}`.slice(-8000)
+    })
+    child.on('error', (error) => {
+      managedStreamlogError = error.message
+    })
+    child.on('close', () => {
+      if (managedStreamlogProcess === child) managedStreamlogProcess = null
+    })
+
+    for (let attempt = 0; attempt < 40; attempt += 1) {
+      if (await streamlogHealth(endpoint)) {
+        return { endpoint, ready: true, managed: true }
+      }
+      if (child.exitCode != null) break
+      await new Promise((resolve) => setTimeout(resolve, 200))
+    }
+    return {
+      endpoint,
+      ready: false,
+      managed: true,
+      error: managedStreamlogError.trim() || 'Streamlog did not become ready.',
+    }
+  })()
+
+  try {
+    return await managedStreamlogStart
+  } finally {
+    managedStreamlogStart = null
+  }
+}
+
 function getPerceiverType() {
   if (perceiverType) return perceiverType
 
@@ -219,6 +333,18 @@ function getPerceiverType() {
   root.resolveAll()
   perceiverType = root.lookupType('bayesmech.vision.PerceiverDataFrame')
   return perceiverType
+}
+
+function getControlProjectType() {
+  if (controlProjectType) return controlProjectType
+
+  const protoDir = path.join(findRepoRoot(), 'proto')
+  const root = new protobuf.Root()
+  root.resolvePath = (_origin, target) => path.join(protoDir, target)
+  root.loadSync(['control.proto'], { keepCase: false })
+  root.resolveAll()
+  controlProjectType = root.lookupType('bayesmech.vision.ControlProject')
+  return controlProjectType
 }
 
 function getSegmentationType() {
@@ -304,6 +430,12 @@ function safeStat(filePath) {
   }
 }
 
+function projectDisplayName(directoryPath) {
+  const metadata = readJsonFile(path.join(directoryPath, '.project.json'), null)
+  const displayName = String(metadata?.displayName || '').trim()
+  return displayName || undefined
+}
+
 function walkForVisFiles(rootPath) {
   const results = []
   const stack = [rootPath]
@@ -330,6 +462,156 @@ function walkForVisFiles(rootPath) {
   }
 
   return results.sort((a, b) => a.localeCompare(b))
+}
+
+function walkForControlFiles(rootPath) {
+  const results = []
+  const stack = [rootPath]
+
+  while (stack.length) {
+    const dir = stack.pop()
+    let entries = []
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true })
+    } catch {
+      continue
+    }
+
+    for (const entry of entries) {
+      const entryPath = path.join(dir, entry.name)
+      if (entry.isDirectory()) {
+        if (!SKIPPED_DIRS.has(entry.name)) stack.push(entryPath)
+        continue
+      }
+      if (entry.isFile() && entry.name.endsWith('.control.pb')) {
+        results.push(entryPath)
+      }
+    }
+  }
+
+  return results.sort((a, b) => a.localeCompare(b))
+}
+
+function safeControlRecordingPath(directoryPath, recordingFile) {
+  const name = String(recordingFile || '').trim()
+  if (!name || !name.endsWith('.vis.pb') || path.isAbsolute(name)) return null
+  const resolved = path.resolve(directoryPath, name)
+  const relative = path.relative(directoryPath, resolved)
+  if (!relative || relative.startsWith('..') || path.isAbsolute(relative)) return null
+  return resolved
+}
+
+function readControlProject(controlPath) {
+  const resolved = path.resolve(controlPath)
+  const type = getControlProjectType()
+  const decoded = type.decode(fs.readFileSync(resolved))
+  const project = type.toObject(decoded, {
+    longs: Number,
+    enums: String,
+    defaults: true,
+    arrays: true,
+  })
+  return {
+    ...project,
+    manifestPath: resolved,
+    directoryPath: path.dirname(resolved),
+  }
+}
+
+function controlVideoTitle(device, devices = []) {
+  let title
+  switch (device.deviceType) {
+    case 'PHONE_DEVICE':
+      title = 'Video Phone'
+      break
+    case 'ROBOT_CAR_DEVICE':
+      title = 'Video Car'
+      break
+    case 'ROBOT_HAND_DEVICE':
+      title = 'Video Hand'
+      break
+    case 'DRONE_DEVICE':
+      title = 'Video Drone'
+      break
+    default:
+      title = `Video ${device.displayName || device.deviceId || 'Device'}`
+  }
+  const matchingDevices = devices.filter((item) => item.deviceType === device.deviceType)
+  if (matchingDevices.length <= 1) return title
+  return `${title} ${matchingDevices.indexOf(device) + 1}`
+}
+
+function recordingForControlProject(projectPath, controlPath, index) {
+  let manifest
+  try {
+    manifest = readControlProject(controlPath)
+  } catch (error) {
+    return { error: `Could not read ${path.basename(controlPath)}: ${error.message}` }
+  }
+  const enabledDevices = manifest.devices.filter((device) => device.enabled)
+  const primary = enabledDevices.find((device) => device.role === 'PRIMARY_DEVICE')
+    ?? enabledDevices[0]
+  const primaryPath = primary
+    ? safeControlRecordingPath(manifest.directoryPath, primary.recordingFile)
+    : null
+  if (!primary || !primaryPath) {
+    return { error: `${path.basename(controlPath)} does not declare a primary .vis.pb stream.` }
+  }
+
+  const controlStat = safeStat(controlPath)
+  const analyses = [{
+    key: 'control',
+    title: 'Control',
+    kind: 'control',
+    source: 'artifact',
+    suffix: 'control.pb',
+    path: controlPath,
+    relativePath: path.relative(projectPath, controlPath),
+    sizeBytes: controlStat?.size ?? 0,
+    sizeLabel: byteSizeLabel(controlStat?.size ?? 0),
+    modifiedMs: controlStat?.mtimeMs ?? 0,
+  }]
+  const claimedVisPaths = []
+  let streamSize = 0
+  let streamModifiedMs = 0
+  for (const device of enabledDevices) {
+    const streamPath = safeControlRecordingPath(manifest.directoryPath, device.recordingFile)
+    if (!streamPath) continue
+    claimedVisPaths.push(streamPath)
+    const streamStat = safeStat(streamPath)
+    if (!streamStat?.isFile()) continue
+    streamSize += streamStat.size
+    streamModifiedMs = Math.max(streamModifiedMs, streamStat.mtimeMs)
+    analyses.push({
+      key: `video:${device.deviceId}`,
+      title: controlVideoTitle(device, enabledDevices),
+      kind: 'video',
+      source: 'vis',
+      path: streamPath,
+      relativePath: path.relative(projectPath, streamPath),
+      sizeBytes: streamStat.size,
+      sizeLabel: byteSizeLabel(streamStat.size),
+      modifiedMs: streamStat.mtimeMs,
+    })
+  }
+
+  return {
+    recording: {
+      id: manifest.projectId || `${path.basename(controlPath)}:${index}`,
+      name: manifest.displayName || path.basename(manifest.directoryPath),
+      displayName: projectDisplayName(manifest.directoryPath),
+      fileStem: manifest.projectId || path.basename(manifest.directoryPath),
+      path: primaryPath,
+      directoryPath: manifest.directoryPath,
+      relativePath: path.relative(projectPath, manifest.directoryPath),
+      sizeBytes: streamSize,
+      sizeLabel: byteSizeLabel(streamSize),
+      modifiedMs: Math.max(controlStat?.mtimeMs ?? 0, streamModifiedMs),
+      analyses,
+      controlProject: manifest,
+    },
+    claimedVisPaths,
+  }
 }
 
 function artifactFor(dir, baseName, projectPath, def, suffix) {
@@ -433,8 +715,17 @@ function scanProject(projectPath) {
     }
   }
 
+  const controlResults = walkForControlFiles(rootPath)
+    .map((controlPath, index) => recordingForControlProject(rootPath, controlPath, index))
+  const claimedVisPaths = new Set(
+    controlResults.flatMap((result) => result.claimedVisPaths ?? []).map((item) => path.resolve(item)),
+  )
+  const controlRecordings = controlResults
+    .map((result) => result.recording)
+    .filter(Boolean)
   const visFiles = walkForVisFiles(rootPath)
-  const recordings = visFiles.map((visPath, index) => {
+    .filter((visPath) => !claimedVisPaths.has(path.resolve(visPath)))
+  const recordings = [...controlRecordings, ...visFiles.map((visPath, index) => {
     const visStat = safeStat(visPath)
     const dir = path.dirname(visPath)
     const baseName = path.basename(visPath).slice(0, -'.vis.pb'.length)
@@ -443,6 +734,7 @@ function scanProject(projectPath) {
     return {
       id: `${baseName}:${index}`,
       name: folderName === baseName ? baseName : `${folderName}/${baseName}`,
+      displayName: projectDisplayName(dir),
       fileStem: baseName,
       path: visPath,
       directoryPath: dir,
@@ -452,14 +744,325 @@ function scanProject(projectPath) {
       modifiedMs: visStat?.mtimeMs ?? 0,
       analyses: analysesForVis(rootPath, visPath),
     }
-  })
+  })]
+  const controlError = controlResults.find((result) => result.error)?.error
 
   return {
     rootPath,
-    name: path.basename(rootPath),
+    name: projectDisplayName(rootPath) ?? path.basename(rootPath),
     recordings,
-    error: recordings.length ? undefined : 'This project does not contain any .vis.pb files.',
+    error: recordings.length
+      ? controlError
+      : controlError ?? 'This project does not contain any .vis.pb or .control.pb files.',
   }
+}
+
+const CONTROL_PRESETS = {
+  robot_car: {
+    displayName: 'Robot Car',
+    projectType: 'ROBOT_CAR',
+    primarySuffix: 'car',
+    devices: [
+      {
+        deviceId: 'robocar-1',
+        displayName: 'Robot Car',
+        deviceType: 'ROBOT_CAR_DEVICE',
+        role: 'PRIMARY_DEVICE',
+        controlHost: '192.168.4.1',
+        controlPort: 80,
+        controlPath: '/api',
+        controlTransport: 'HTTP_CONTROL',
+        streamHost: '192.168.4.2',
+        streamPort: 81,
+        streamPath: '/stream',
+        streamTransport: 'RGB565_HTTP_STREAM',
+        capabilities: ['video', 'drive', 'ultrasonic'],
+        enabled: true,
+      },
+    ],
+  },
+  robot_hand: {
+    displayName: 'Robot Hand',
+    projectType: 'ROBOT_HAND',
+    primarySuffix: 'hand',
+    devices: [
+      {
+        deviceId: 'robot-hand-1',
+        displayName: 'Robot Hand',
+        deviceType: 'ROBOT_HAND_DEVICE',
+        role: 'PRIMARY_DEVICE',
+        controlHost: 'robot-hand.local',
+        controlPort: 80,
+        controlPath: '/api',
+        controlTransport: 'HTTP_CONTROL',
+        streamHost: 'robot-hand.local',
+        streamPort: 81,
+        streamPath: '/stream',
+        streamTransport: 'RGB565_HTTP_STREAM',
+        capabilities: ['video', 'actuators'],
+        enabled: true,
+      },
+    ],
+  },
+  drone_control: {
+    displayName: 'Drone Control',
+    projectType: 'DRONE_CONTROL',
+    primarySuffix: 'drone',
+    devices: [
+      {
+        deviceId: 'drone-1',
+        displayName: 'Drone',
+        deviceType: 'DRONE_DEVICE',
+        role: 'PRIMARY_DEVICE',
+        controlHost: '0.0.0.0',
+        controlPort: 14550,
+        controlPath: '/',
+        controlTransport: 'MAVLINK_UDP_CONTROL',
+        streamHost: '0.0.0.0',
+        streamPort: 5600,
+        streamPath: '/',
+        streamTransport: 'RTP_VIDEO_STREAM',
+        capabilities: ['video', 'flight'],
+        enabled: true,
+      },
+    ],
+  },
+}
+
+const CONTROL_DEVICE_PRESETS = {
+  robot_car: {
+    ...CONTROL_PRESETS.robot_car.devices[0],
+    idBase: 'robocar',
+    fileSuffix: 'car',
+    projectType: 'ROBOT_CAR',
+  },
+  phone_camera: {
+    deviceId: 'phone-1',
+    displayName: 'Phone Camera',
+    deviceType: 'PHONE_DEVICE',
+    role: 'AUGMENTED_DEVICE',
+    controlHost: '',
+    controlPort: 0,
+    controlPath: '',
+    controlTransport: 'CONTROL_TRANSPORT_UNSPECIFIED',
+    streamHost: '0.0.0.0',
+    streamPort: 8080,
+    streamPath: '/ar-stream',
+    streamTransport: 'PERCEIVER_WEBSOCKET_STREAM',
+    capabilities: ['video', 'imu', 'depth', 'gps'],
+    enabled: true,
+    idBase: 'phone',
+    fileSuffix: 'phone',
+    projectType: 'CONTROL_PROJECT_TYPE_UNSPECIFIED',
+  },
+  robot_hand: {
+    ...CONTROL_PRESETS.robot_hand.devices[0],
+    idBase: 'robot-hand',
+    fileSuffix: 'hand',
+    projectType: 'ROBOT_HAND',
+  },
+  drone: {
+    ...CONTROL_PRESETS.drone_control.devices[0],
+    idBase: 'drone',
+    fileSuffix: 'drone',
+    projectType: 'DRONE_CONTROL',
+  },
+}
+
+function localTimestamp(date = new Date()) {
+  const pad = (value) => String(value).padStart(2, '0')
+  return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}_${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`
+}
+
+function createProject(recordingsRootOverride) {
+  const recordingsRoot = recordingsRootOverride
+    ? path.resolve(recordingsRootOverride)
+    : path.join(findRepoRoot(), 'recordings')
+  fs.mkdirSync(recordingsRoot, { recursive: true })
+  const timestamp = localTimestamp()
+  let projectId = `${timestamp}_project`
+  let projectPath = path.join(recordingsRoot, projectId)
+  let suffix = 2
+  while (fs.existsSync(projectPath)) {
+    projectId = `${timestamp}_project_${suffix}`
+    projectPath = path.join(recordingsRoot, projectId)
+    suffix += 1
+  }
+  fs.mkdirSync(projectPath, { recursive: false })
+  fs.closeSync(fs.openSync(path.join(projectPath, `${projectId}.vis.pb`), 'wx'))
+  return scanProject(projectPath)
+}
+
+function createControlProject(presetName, recordingsRootOverride) {
+  const preset = CONTROL_PRESETS[presetName]
+  if (!preset) throw new Error(`Unknown control preset: ${presetName}`)
+
+  const recordingsRoot = recordingsRootOverride
+    ? path.resolve(recordingsRootOverride)
+    : path.join(findRepoRoot(), 'recordings')
+  fs.mkdirSync(recordingsRoot, { recursive: true })
+  const timestamp = localTimestamp()
+  let projectId = `${timestamp}_${presetName}`
+  let projectPath = path.join(recordingsRoot, projectId)
+  let suffix = 2
+  while (fs.existsSync(projectPath)) {
+    projectId = `${timestamp}_${presetName}_${suffix}`
+    projectPath = path.join(recordingsRoot, projectId)
+    suffix += 1
+  }
+  fs.mkdirSync(projectPath, { recursive: false })
+
+  const primaryFile = `${projectId}.${preset.primarySuffix}.vis.pb`
+  const phoneFile = `${projectId}.phone.vis.pb`
+  const devices = [
+    {
+      ...preset.devices[0],
+      recordingFile: primaryFile,
+    },
+    {
+      ...CONTROL_DEVICE_PRESETS.phone_camera,
+      deviceId: 'phone',
+      displayName: 'Augmented Phone',
+      recordingFile: phoneFile,
+    },
+  ]
+  const payload = {
+    projectId,
+    displayName: `${preset.displayName} · ${timestamp}`,
+    projectType: preset.projectType,
+    createdTimestampMs: Date.now(),
+    devices,
+  }
+  const type = getControlProjectType()
+  const message = type.fromObject(payload)
+  const error = type.verify(message)
+  if (error) throw new Error(`Invalid control project preset: ${error}`)
+  const manifestPath = path.join(projectPath, `${projectId}.control.pb`)
+  fs.writeFileSync(manifestPath, type.encode(message).finish())
+  fs.closeSync(fs.openSync(path.join(projectPath, primaryFile), 'wx'))
+  return scanProject(projectPath)
+}
+
+function nextDeviceIdentity(devices, preset) {
+  const usedIds = new Set(devices.map((device) => String(device.deviceId)))
+  let index = 1
+  while (usedIds.has(`${preset.idBase}-${index}`)) index += 1
+  return {
+    deviceId: `${preset.idBase}-${index}`,
+    fileSuffix: index === 1 ? preset.fileSuffix : `${preset.fileSuffix}-${index}`,
+  }
+}
+
+function controlManifestForRecording(directoryPath, recordingName) {
+  const candidates = fs.readdirSync(directoryPath, { withFileTypes: true })
+    .filter((entry) => entry.isFile() && entry.name.endsWith('.control.pb'))
+    .map((entry) => path.join(directoryPath, entry.name))
+  const manifests = candidates.map((manifestPath) => readControlProject(manifestPath))
+  const matched = manifests.find((manifest) => (
+    manifest.devices.some((device) => device.recordingFile === recordingName)
+  ))
+  if (matched) return matched
+  if (manifests.length === 1) return manifests[0]
+  if (manifests.length > 1) {
+    throw new Error('This recording directory contains multiple control manifests.')
+  }
+  return null
+}
+
+function writeControlProject(manifestPath, payload) {
+  const type = getControlProjectType()
+  const message = type.fromObject(payload)
+  const error = type.verify(message)
+  if (error) throw new Error(`Invalid control project: ${error}`)
+  const temporaryPath = `${manifestPath}.${process.pid}.${Date.now()}.tmp`
+  fs.writeFileSync(temporaryPath, type.encode(message).finish())
+  fs.renameSync(temporaryPath, manifestPath)
+}
+
+function addDeviceToProject(recordingPath, presetName) {
+  const preset = CONTROL_DEVICE_PRESETS[presetName]
+  if (!preset) throw new Error(`Unknown device preset: ${presetName}`)
+  if (!recordingPath || typeof recordingPath !== 'string' || !recordingPath.endsWith('.vis.pb')) {
+    throw new Error('Select a .vis.pb project recording before adding a device.')
+  }
+  const resolvedRecordingPath = path.resolve(recordingPath)
+  const recordingStat = safeStat(resolvedRecordingPath)
+  if (!recordingStat?.isFile()) throw new Error(`Recording not found: ${resolvedRecordingPath}`)
+
+  const directoryPath = path.dirname(resolvedRecordingPath)
+  const recordingName = path.basename(resolvedRecordingPath)
+  const existing = controlManifestForRecording(directoryPath, recordingName)
+  const baseProjectId = path.basename(recordingName, '.vis.pb')
+  const project = existing
+    ? {
+        projectId: existing.projectId,
+        displayName: existing.displayName,
+        projectType: existing.projectType,
+        createdTimestampMs: existing.createdTimestampMs,
+        devices: existing.devices.map((device) => ({ ...device })),
+      }
+    : {
+        projectId: baseProjectId,
+        displayName: path.basename(directoryPath),
+        projectType: 'CONTROL_PROJECT_TYPE_UNSPECIFIED',
+        createdTimestampMs: Date.now(),
+        devices: [],
+      }
+  const identity = nextDeviceIdentity(project.devices, preset)
+  const firstDevice = project.devices.length === 0
+  const recordingFile = firstDevice
+    ? recordingName
+    : `${project.projectId}.${identity.fileSuffix}.vis.pb`
+  project.devices.push({
+    ...preset,
+    deviceId: identity.deviceId,
+    role: firstDevice ? 'PRIMARY_DEVICE' : 'AUGMENTED_DEVICE',
+    recordingFile,
+  })
+  if (
+    project.projectType === 'CONTROL_PROJECT_TYPE_UNSPECIFIED'
+    && preset.projectType !== 'CONTROL_PROJECT_TYPE_UNSPECIFIED'
+  ) {
+    project.projectType = preset.projectType
+  }
+
+  const manifestPath = existing?.manifestPath
+    ?? path.join(directoryPath, `${project.projectId}.control.pb`)
+  writeControlProject(manifestPath, project)
+  const streamPath = path.join(directoryPath, recordingFile)
+  if (!safeStat(streamPath)) fs.closeSync(fs.openSync(streamPath, 'wx'))
+  return scanProject(directoryPath)
+}
+
+function renameProject(recordingPath, requestedName) {
+  if (!recordingPath || typeof recordingPath !== 'string' || !recordingPath.endsWith('.vis.pb')) {
+    throw new Error('Select a .vis.pb project recording before renaming the project.')
+  }
+  const resolvedRecordingPath = path.resolve(recordingPath)
+  if (!safeStat(resolvedRecordingPath)?.isFile()) {
+    throw new Error(`Recording not found: ${resolvedRecordingPath}`)
+  }
+  const displayName = String(requestedName || '').trim().replace(/\s+/g, ' ')
+  if (!displayName) throw new Error('Project name cannot be empty.')
+  if (displayName.length > 120) throw new Error('Project name must be 120 characters or fewer.')
+
+  const directoryPath = path.dirname(resolvedRecordingPath)
+  const recordingName = path.basename(resolvedRecordingPath)
+  const controlProject = controlManifestForRecording(directoryPath, recordingName)
+  if (controlProject) {
+    writeControlProject(controlProject.manifestPath, {
+      projectId: controlProject.projectId,
+      displayName,
+      projectType: controlProject.projectType,
+      createdTimestampMs: controlProject.createdTimestampMs,
+      devices: controlProject.devices,
+    })
+  }
+  writeJsonAtomic(path.join(directoryPath, '.project.json'), {
+    version: 1,
+    displayName,
+  })
+  return scanProject(directoryPath)
 }
 
 function commonAncestor(paths) {
@@ -489,6 +1092,7 @@ function scanVisFiles(filePaths) {
     return {
       id: `${baseName}:${index}`,
       name: folderName === baseName ? baseName : `${folderName}/${baseName}`,
+      displayName: projectDisplayName(dir),
       fileStem: baseName,
       path: visPath,
       directoryPath: dir,
@@ -956,6 +1560,7 @@ function sensorGps(value) {
 function sensorSample(frame, index) {
   const identifier = frame.frameIdentifier ?? {}
   const imu = frame.imuData
+  const ultrasonic = frame.ultrasonicSensorData
   return {
     index,
     frameNumber: finiteNumber(identifier.frameNumber),
@@ -967,6 +1572,16 @@ function sensorSample(frame, index) {
     magneticField: imu?.magneticField ? vector3(imu.magneticField) : null,
     cameraPose: pose(frame.cameraPose),
     gps: sensorGps(frame.gpsLocation),
+    ultrasonic: ultrasonic
+      ? {
+          normalizedDistance: Math.max(0, Math.min(1, finiteNumber(ultrasonic.normalizedDistance))),
+          distanceMeters: finiteNumber(ultrasonic.distanceMeters),
+          maxRangeMeters: finiteNumber(ultrasonic.maxRangeMeters),
+          valid: Boolean(ultrasonic.valid),
+          sequence: finiteNumber(ultrasonic.sequence),
+          ageMs: finiteNumber(ultrasonic.ageMs),
+        }
+      : null,
   }
 }
 
@@ -1568,7 +2183,7 @@ function loadChatWorkspace(videoId, recordingPath) {
     return left.createdAt.localeCompare(right.createdAt)
   })
 
-  if (chats.length === 0) {
+  if (chats.length === 0 && !Array.isArray(manifest.chatOrder)) {
     const createdAt = new Date()
     chats.push(writeChatSession(videoDirectory, {
       id: chatIdForDate(createdAt),
@@ -1582,7 +2197,7 @@ function loadChatWorkspace(videoId, recordingPath) {
 
   const activeChatId = chats.some((chat) => chat.id === manifest.activeChatId)
     ? manifest.activeChatId
-    : chats[0].id
+    : chats[0]?.id ?? ''
   writeWorkspaceManifest(videoDirectory, normalizedVideoId, recordingPath, activeChatId, chats)
   return {
     version: CHAT_WORKSPACE_VERSION,
@@ -1608,6 +2223,26 @@ function createChatSession(videoId, recordingPath) {
   const chats = [...workspace.chats, session]
   writeWorkspaceManifest(videoDirectory, videoId, recordingPath, session.id, chats)
   return { ...workspace, activeChatId: session.id, chats }
+}
+
+function deleteChatSession(videoId, recordingPath, chatId) {
+  const workspace = loadChatWorkspace(videoId, recordingPath)
+  const normalizedChatId = safeWorkspaceId(chatId, '')
+  if (!normalizedChatId || normalizedChatId !== chatId) {
+    throw new Error('Invalid chat id.')
+  }
+  const deleteIndex = workspace.chats.findIndex((chat) => chat.id === normalizedChatId)
+  if (deleteIndex < 0) throw new Error('Chat not found.')
+
+  const videoDirectory = workspaceVideoDirectory(videoId)
+  const chatDirectory = path.join(videoDirectory, normalizedChatId)
+  fs.rmSync(chatDirectory, { recursive: true, force: false })
+  const chats = workspace.chats.filter((chat) => chat.id !== normalizedChatId)
+  const activeChatId = workspace.activeChatId === normalizedChatId
+    ? chats[Math.min(deleteIndex, chats.length - 1)]?.id ?? ''
+    : workspace.activeChatId
+  writeWorkspaceManifest(videoDirectory, videoId, recordingPath, activeChatId, chats)
+  return { ...workspace, activeChatId, chats }
 }
 
 function saveChatSession(videoId, recordingPath, session) {
@@ -3595,6 +4230,21 @@ if (isElectronRuntime) {
   })
 
   ipcMain.handle('project:scan', (_event, projectPath) => scanProject(projectPath))
+  ipcMain.handle('project:create', () => createProject())
+  ipcMain.handle('project:create-control', async (_event, preset) => {
+    const created = createControlProject(preset)
+    void ensureStreamlogRunning()
+    return created
+  })
+  ipcMain.handle('project:add-device', async (_event, recordingPath, preset) => {
+    const updated = addDeviceToProject(recordingPath, preset)
+    void ensureStreamlogRunning()
+    return updated
+  })
+  ipcMain.handle('project:rename', (_event, recordingPath, displayName) => (
+    renameProject(recordingPath, displayName)
+  ))
+  ipcMain.handle('control-service:ensure', () => ensureStreamlogRunning())
 
   ipcMain.handle('vis:select-files', async () => {
     const result = await dialog.showOpenDialog(mainWindow, {
@@ -3625,6 +4275,9 @@ if (isElectronRuntime) {
   ipcMain.handle('chat:thread', (_event, recordingPath) => readChatThread(recordingPath))
   ipcMain.handle('chat-workspace:load', (_event, videoId, recordingPath) => loadChatWorkspace(videoId, recordingPath))
   ipcMain.handle('chat-workspace:create', (_event, videoId, recordingPath) => createChatSession(videoId, recordingPath))
+  ipcMain.handle('chat-workspace:delete', (_event, videoId, recordingPath, chatId) => (
+    deleteChatSession(videoId, recordingPath, chatId)
+  ))
   ipcMain.handle('chat-workspace:save', (_event, videoId, recordingPath, session) => saveChatSession(videoId, recordingPath, session))
   ipcMain.handle('chat-workspace:activate', (_event, videoId, recordingPath, chatId) => setActiveChatSession(videoId, recordingPath, chatId))
   ipcMain.handle('agent:chat', (_event, request) => runAgentChat(request))
@@ -3690,6 +4343,7 @@ if (isElectronRuntime) {
     installMenu()
     createWindow()
     startRunnerJobEventStream()
+    void ensureStreamlogRunning()
 
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow()
@@ -3704,9 +4358,18 @@ if (isElectronRuntime) {
     runnerJobEventRequest = null
     if (process.platform !== 'darwin') app.quit()
   })
+
+  app.on('before-quit', stopManagedStreamlog)
 }
 
 module.exports = {
+  createProject,
+  createControlProject,
+  addDeviceToProject,
+  renameProject,
+  ensureStreamlogRunning,
+  stopManagedStreamlog,
+  readControlProject,
   scanProject,
   scanVisFiles,
   readVisSummary,
@@ -3718,6 +4381,7 @@ module.exports = {
   readChatThread,
   loadChatWorkspace,
   createChatSession,
+  deleteChatSession,
   saveChatSession,
   setActiveChatSession,
   runAgentChat,

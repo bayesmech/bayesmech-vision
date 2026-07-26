@@ -22,6 +22,7 @@ function cleanCandidate(candidate: string): string {
 }
 
 export function recordingDisplayName(recording: RecordingEntry): string {
+  if (recording.displayName?.trim()) return recording.displayName.trim()
   const directoryName = recording.directoryPath.split(/[\\/]/).filter(Boolean).at(-1) ?? ''
   const candidates = [
     ...(RECORDING_DATE_PREFIX.test(directoryName) ? [directoryName] : []),
