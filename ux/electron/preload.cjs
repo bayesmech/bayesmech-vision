@@ -20,6 +20,15 @@ contextBridge.exposeInMainWorld('bayesmech', {
   readWorldgen: (filePath) => ipcRenderer.invoke('worldgen:read', filePath),
   pollWorldgenSplat: (jobId) => ipcRenderer.invoke('worldgen:splat-status', jobId),
   saveWorldgenSplat: (filePath, splat) => ipcRenderer.invoke('worldgen:save-splat', filePath, splat),
+  readRunnerHealth: () => ipcRenderer.invoke('runner:health'),
+  readRunnerCapabilities: () => ipcRenderer.invoke('runner:capabilities'),
+  submitRunnerJob: (request) => ipcRenderer.invoke('runner:submit', request),
+  runRunnerJob: (request) => ipcRenderer.invoke('runner:run', request),
+  readRunnerJob: (jobId) => ipcRenderer.invoke('runner:job', jobId),
+  cancelRunnerJob: (jobId) => ipcRenderer.invoke('runner:cancel', jobId),
+  downloadRunnerArtifact: (jobId, artifactId, destinationPath) => (
+    ipcRenderer.invoke('runner:download-artifact', jobId, artifactId, destinationPath)
+  ),
   revealPath: (filePath) => ipcRenderer.invoke('path:reveal', filePath),
   performWindowAction: (action) => ipcRenderer.invoke('window:action', action),
 })

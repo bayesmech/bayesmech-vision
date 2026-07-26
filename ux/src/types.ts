@@ -483,6 +483,62 @@ export type WindowAction =
   | 'minimize'
   | 'close'
 
+export type RunnerHealth = {
+  ok: boolean
+  service: string
+  version: string
+  hostname: string
+  auth_required: boolean
+  max_workers: number
+  jobs: number
+  disk_free_bytes: number
+}
+
+export type RunnerCapability = {
+  name: string
+  title: string
+  description: string
+  input_suffixes: string[]
+  available: boolean
+}
+
+export type RunnerCapabilities = {
+  runner_version: string
+  jobs: RunnerCapability[]
+  services: Array<{ name: string; title: string; endpoint: string }>
+}
+
+export type RunnerArtifact = {
+  id: string
+  name: string
+  relative_path: string
+  size: number
+  sha256: string
+}
+
+export type RunnerJob = {
+  id: string
+  type: string
+  status: 'uploading' | 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled'
+  created_at: string
+  started_at?: string | null
+  finished_at?: string | null
+  inputs: Array<{ name: string; size: number; sha256: string }>
+  artifacts: RunnerArtifact[]
+  exit_code?: number | null
+  error?: string
+  stdout_tail?: string
+  stderr_tail?: string
+  local_artifacts?: Array<RunnerArtifact & { local_path: string }>
+}
+
+export type RunnerSubmitRequest = {
+  jobType: string
+  recordingPath: string
+  arguments?: string[]
+  inputPaths?: string[]
+}
+
 export type BridgeApi = {
   selectProject: () => Promise<SelectProjectResponse>
   selectVisFiles: () => Promise<SelectProjectResponse>
@@ -507,6 +563,13 @@ export type BridgeApi = {
   readWorldgen: (filePath: string) => Promise<WorldgenResult>
   pollWorldgenSplat: (jobId: string) => Promise<WorldgenSplatStatus>
   saveWorldgenSplat: (filePath: string, splat: WorldgenSplatStatus) => Promise<WorldgenResult>
+  readRunnerHealth: () => Promise<RunnerHealth>
+  readRunnerCapabilities: () => Promise<RunnerCapabilities>
+  submitRunnerJob: (request: RunnerSubmitRequest) => Promise<RunnerJob>
+  runRunnerJob: (request: RunnerSubmitRequest) => Promise<RunnerJob>
+  readRunnerJob: (jobId: string) => Promise<RunnerJob>
+  cancelRunnerJob: (jobId: string) => Promise<RunnerJob>
+  downloadRunnerArtifact: (jobId: string, artifactId: string, destinationPath: string) => Promise<string>
   revealPath: (filePath: string) => Promise<boolean>
   performWindowAction: (action: WindowAction) => Promise<boolean>
 }

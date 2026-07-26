@@ -52,6 +52,21 @@ cd server
 uv run streamlog/main.py
 ```
 
+## Remote runner
+
+Server-side analysis can run on the UX machine or on a network-accessible GPU
+machine through the runner:
+
+```sh
+cd server
+uv run python -m runner
+```
+
+This listens on `127.0.0.1:8787` by default. For a remote host, configure
+`RUNNER_HOST=0.0.0.0`, `RUNNER_TOKEN`, and `RUNNER_ENDPOINT` as described in
+[`server/runner/README.md`](server/runner/README.md). Public runners must use an
+authentication token and should use TLS.
+
 ## Analyzer commands
 
 When running any Python-based analyzer, always run it from `server/` because the

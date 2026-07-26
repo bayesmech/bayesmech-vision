@@ -21,7 +21,7 @@ const MAX_POINTS_PER_FRAME = 220
 const MAX_WORLDGEN_PREVIEW_POINTS = 1000000
 const MAX_WORLDGEN_SPLAT_PREVIEW_POINTS = 1000000
 const DEFAULT_WORLDGEN_POINTS_PER_FRAME = 60000
-const DEFAULT_VGGT_ENDPOINT = 'https://anonymous-versus-underground-twice.trycloudflare.com'
+const DEFAULT_RUNNER_ENDPOINT = 'http://127.0.0.1:8787'
 const DEFAULT_VGGT_HEALTH_TIMEOUT_MS = 15000
 const DEFAULT_VGGT_REQUEST_TIMEOUT_MS = 15 * 60 * 1000
 
@@ -137,6 +137,7 @@ let vggtResponseType = null
 let gensparkResponseType = null
 let chatHistoryType = null
 let idoSlamType = null
+const worldgenSplatDestinations = new Map()
 
 function appIconPath() {
   const candidates = [
@@ -2030,9 +2031,15 @@ async function readWorldgen(filePath) {
   const messages = readLengthDelimitedProtos(resolved, getVggtResponseType())
   let result = worldgenPreviewFromMessages(messages, resolved)
   const splatInfo = result.splat
+  const missingCompletedPly = splatInfo?.status === 'complete' && (
+    !splatInfo.plyPath || !fs.existsSync(splatInfo.plyPath)
+  )
 
-  if (splatInfo?.jobId && !['complete', 'failed', 'skipped'].includes(splatInfo.status)) {
+  if (splatInfo?.jobId && (
+    !['complete', 'failed', 'skipped'].includes(splatInfo.status) || missingCompletedPly
+  )) {
     try {
+      worldgenSplatDestinations.set(splatInfo.jobId, worldgenSplatPaths(resolved))
       const remote = await pollWorldgenSplat(splatInfo.jobId)
       let jobMessageIndex = messages.length - 1
       for (let index = messages.length - 1; index >= 0; index -= 1) {
@@ -2140,12 +2147,26 @@ async function saveWorldgenSplat(filePath, splat) {
   return readWorldgen(resolved)
 }
 
+function runnerEndpoint() {
+  return String(process.env.RUNNER_ENDPOINT || DEFAULT_RUNNER_ENDPOINT).replace(/\/+$/g, '')
+}
+
 function worldgenEndpoint() {
-  return String(process.env.VGGT_ENDPOINT || DEFAULT_VGGT_ENDPOINT).replace(/\/+$/g, '')
+  const runner = String(process.env.RUNNER_ENDPOINT || '').trim()
+  const legacy = String(process.env.VGGT_ENDPOINT || '').trim()
+  if (!runner && legacy && /^(1|true|yes|on)$/i.test(String(process.env.RUNNER_USE_LEGACY_VGGT || '').trim())) {
+    return legacy.replace(/\/+$/g, '')
+  }
+  return `${runnerEndpoint()}/api/v1/worldgen`
+}
+
+function worldgenUsesRunner() {
+  const legacyEnabled = /^(1|true|yes|on)$/i.test(String(process.env.RUNNER_USE_LEGACY_VGGT || '').trim())
+  return !legacyEnabled || !String(process.env.VGGT_ENDPOINT || '').trim()
 }
 
 function worldgenToken() {
-  return String(process.env.VGGT_API_TOKEN || '').trim()
+  return String(process.env.RUNNER_TOKEN || process.env.VGGT_API_TOKEN || '').trim()
 }
 
 function worldgenSplatDisabled() {
@@ -2264,6 +2285,284 @@ function nodeHttpRequest(urlString, options = {}) {
   })
 }
 
+function nodeMultipartFilesRequest(urlString, fields, filePaths, options = {}) {
+  const boundary = `----BayesMechRunner${Date.now().toString(36)}${Math.random().toString(36).slice(2)}`
+  const parts = []
+  for (const [name, value] of Object.entries(fields)) {
+    parts.push({
+      header: Buffer.from(
+        `--${boundary}\r\nContent-Disposition: form-data; name="${name}"\r\n\r\n${String(value)}\r\n`,
+        'utf8',
+      ),
+    })
+  }
+  for (const filePath of filePaths) {
+    const resolved = path.resolve(filePath)
+    const stat = fs.statSync(resolved)
+    if (!stat.isFile()) throw new Error(`Runner input is not a file: ${resolved}`)
+    const filename = path.basename(resolved).replace(/["\r\n]/g, '_')
+    parts.push({
+      header: Buffer.from(
+        `--${boundary}\r\n` +
+        `Content-Disposition: form-data; name="files"; filename="${filename}"\r\n` +
+        'Content-Type: application/octet-stream\r\n\r\n',
+        'utf8',
+      ),
+      filePath: resolved,
+      size: stat.size,
+      trailer: Buffer.from('\r\n', 'utf8'),
+    })
+  }
+  const closing = Buffer.from(`--${boundary}--\r\n`, 'utf8')
+  const contentLength = parts.reduce(
+    (total, part) => total + part.header.length + (part.size || 0) + (part.trailer?.length || 0),
+    closing.length,
+  )
+  const parsed = new URL(urlString)
+  const transport = parsed.protocol === 'https:' ? https : http
+  const timeoutMs = Math.max(1000, Math.trunc(finiteNumber(options.timeoutMs, DEFAULT_VGGT_REQUEST_TIMEOUT_MS)))
+  const headers = {
+    ...(options.headers || {}),
+    'Content-Type': `multipart/form-data; boundary=${boundary}`,
+    'Content-Length': String(contentLength),
+  }
+
+  return new Promise((resolve, reject) => {
+    const req = transport.request(parsed, { method: options.method || 'POST', headers }, (res) => {
+      const chunks = []
+      res.on('data', (chunk) => chunks.push(Buffer.from(chunk)))
+      res.on('end', () => {
+        const payload = Buffer.concat(chunks)
+        const status = Number(res.statusCode) || 0
+        resolve({
+          ok: status >= 200 && status < 300,
+          status,
+          headers: res.headers,
+          body: payload,
+          text: async () => payload.toString('utf8'),
+          json: async () => JSON.parse(payload.toString('utf8')),
+        })
+      })
+    })
+    req.setTimeout(timeoutMs, () => {
+      req.destroy(new Error(`request timed out after ${Math.round(timeoutMs / 1000)}s`))
+    })
+    req.on('error', reject)
+
+    const write = (chunk) => new Promise((resolveWrite, rejectWrite) => {
+      if (req.destroyed) {
+        rejectWrite(new Error('Runner upload connection closed.'))
+        return
+      }
+      if (req.write(chunk)) {
+        resolveWrite()
+        return
+      }
+      const cleanup = () => {
+        req.off('drain', onDrain)
+        req.off('error', onError)
+      }
+      const onDrain = () => {
+        cleanup()
+        resolveWrite()
+      }
+      const onError = (error) => {
+        cleanup()
+        rejectWrite(error)
+      }
+      req.once('drain', onDrain)
+      req.once('error', onError)
+    })
+
+    ;(async () => {
+      for (const part of parts) {
+        await write(part.header)
+        if (part.filePath) {
+          for await (const chunk of fs.createReadStream(part.filePath)) await write(chunk)
+          await write(part.trailer)
+        }
+      }
+      req.end(closing)
+    })().catch((error) => req.destroy(error))
+  })
+}
+
+function nodeDownloadToFile(urlString, destinationPath, options = {}) {
+  const timeoutMs = Math.max(1000, Math.trunc(finiteNumber(options.timeoutMs, DEFAULT_VGGT_REQUEST_TIMEOUT_MS)))
+  const parsed = new URL(urlString)
+  const transport = parsed.protocol === 'https:' ? https : http
+  const resolved = path.resolve(destinationPath)
+  const temporary = `${resolved}.partial-${process.pid}-${Date.now()}`
+  fs.mkdirSync(path.dirname(resolved), { recursive: true })
+
+  return new Promise((resolve, reject) => {
+    const cleanup = (error) => {
+      fs.rmSync(temporary, { force: true })
+      reject(error)
+    }
+    const req = transport.request(parsed, { method: 'GET', headers: options.headers || {} }, (res) => {
+      const status = Number(res.statusCode) || 0
+      if (status < 200 || status >= 300) {
+        const chunks = []
+        res.on('data', (chunk) => chunks.push(Buffer.from(chunk)))
+        res.on('end', () => {
+          const detail = Buffer.concat(chunks).toString('utf8').slice(0, 300)
+          cleanup(new Error(`Runner artifact download failed with HTTP ${status}${detail ? `: ${detail}` : ''}`))
+        })
+        return
+      }
+      const output = fs.createWriteStream(temporary, { flags: 'wx' })
+      output.on('error', cleanup)
+      res.on('error', cleanup)
+      output.on('finish', () => {
+        output.close(() => {
+          try {
+            fs.renameSync(temporary, resolved)
+            resolve(resolved)
+          } catch (error) {
+            cleanup(error)
+          }
+        })
+      })
+      res.pipe(output)
+    })
+    req.setTimeout(timeoutMs, () => {
+      req.destroy(new Error(`request timed out after ${Math.round(timeoutMs / 1000)}s`))
+    })
+    req.on('error', cleanup)
+    req.end()
+  })
+}
+
+function runnerHeaders(token = worldgenToken()) {
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
+
+async function readRunnerHealth() {
+  const endpoint = runnerEndpoint()
+  const response = await nodeHttpRequest(`${endpoint}/api/v1/health`, {
+    headers: { ...runnerHeaders(), Accept: 'application/json' },
+    timeoutMs: Math.max(1000, Math.trunc(finiteNumber(process.env.RUNNER_HEALTH_TIMEOUT_MS, DEFAULT_VGGT_HEALTH_TIMEOUT_MS))),
+  })
+  if (!response.ok) throw new Error(`Runner health check failed with HTTP ${response.status}${await readResponseDetail(response)}`)
+  return response.json()
+}
+
+async function readRunnerCapabilities() {
+  const endpoint = runnerEndpoint()
+  const response = await nodeHttpRequest(`${endpoint}/api/v1/capabilities`, {
+    headers: { ...runnerHeaders(), Accept: 'application/json' },
+    timeoutMs: Math.max(1000, Math.trunc(finiteNumber(process.env.RUNNER_HEALTH_TIMEOUT_MS, DEFAULT_VGGT_HEALTH_TIMEOUT_MS))),
+  })
+  if (!response.ok) throw new Error(`Runner capabilities failed with HTTP ${response.status}${await readResponseDetail(response)}`)
+  return response.json()
+}
+
+async function submitRunnerJob(request) {
+  if (!request?.jobType || typeof request.jobType !== 'string') throw new Error('Runner job type is required.')
+  if (!request?.recordingPath || typeof request.recordingPath !== 'string') throw new Error('Runner recording path is required.')
+  const recordingPath = path.resolve(request.recordingPath)
+  const argumentsList = Array.isArray(request.arguments) ? request.arguments.map((value) => String(value)) : []
+  const explicitInputs = Array.isArray(request.inputPaths) ? request.inputPaths : []
+  const inputPaths = explicitInputs.length
+    ? explicitInputs.map((value) => path.resolve(String(value)))
+    : relatedRunnerInputPaths(recordingPath)
+  if (!inputPaths.includes(recordingPath)) inputPaths.unshift(recordingPath)
+  const uniqueInputs = [...new Set(inputPaths)]
+  const endpoint = runnerEndpoint()
+  const response = await nodeMultipartFilesRequest(`${endpoint}/api/v1/jobs`, {
+    job_type: request.jobType,
+    parameters: JSON.stringify({
+      arguments: argumentsList,
+      recording: path.basename(recordingPath),
+    }),
+  }, uniqueInputs, {
+    method: 'POST',
+    headers: {
+      ...runnerHeaders(),
+      Accept: 'application/json',
+    },
+    timeoutMs: Math.max(1000, Math.trunc(finiteNumber(process.env.RUNNER_UPLOAD_TIMEOUT_MS, DEFAULT_VGGT_REQUEST_TIMEOUT_MS))),
+  })
+  if (!response.ok) throw new Error(`Runner job submission failed with HTTP ${response.status}${await readResponseDetail(response)}`)
+  return response.json()
+}
+
+function relatedRunnerInputPaths(recordingPath) {
+  const resolved = path.resolve(recordingPath)
+  const directory = path.dirname(resolved)
+  const filename = path.basename(resolved)
+  const stem = filename.endsWith('.vis.pb') ? filename.slice(0, -'.vis.pb'.length) : path.parse(filename).name
+  const related = fs.readdirSync(directory, { withFileTypes: true })
+    .filter((entry) => entry.isFile() && (entry.name === filename || (entry.name.startsWith(`${stem}.`) && entry.name.endsWith('.pb'))))
+    .map((entry) => path.join(directory, entry.name))
+  related.sort((left, right) => (left === resolved ? -1 : right === resolved ? 1 : left.localeCompare(right)))
+  return related
+}
+
+async function readRunnerJob(jobId) {
+  if (!jobId || typeof jobId !== 'string') throw new Error('Runner job id is required.')
+  const response = await nodeHttpRequest(`${runnerEndpoint()}/api/v1/jobs/${encodeURIComponent(jobId)}`, {
+    headers: { ...runnerHeaders(), Accept: 'application/json' },
+    timeoutMs: Math.max(1000, Math.trunc(finiteNumber(process.env.RUNNER_HEALTH_TIMEOUT_MS, DEFAULT_VGGT_HEALTH_TIMEOUT_MS))),
+  })
+  if (!response.ok) throw new Error(`Runner job status failed with HTTP ${response.status}${await readResponseDetail(response)}`)
+  return response.json()
+}
+
+async function cancelRunnerJob(jobId) {
+  if (!jobId || typeof jobId !== 'string') throw new Error('Runner job id is required.')
+  const response = await nodeHttpRequest(`${runnerEndpoint()}/api/v1/jobs/${encodeURIComponent(jobId)}/cancel`, {
+    method: 'POST',
+    headers: { ...runnerHeaders(), Accept: 'application/json' },
+    timeoutMs: Math.max(1000, Math.trunc(finiteNumber(process.env.RUNNER_HEALTH_TIMEOUT_MS, DEFAULT_VGGT_HEALTH_TIMEOUT_MS))),
+  })
+  if (!response.ok) throw new Error(`Runner job cancellation failed with HTTP ${response.status}${await readResponseDetail(response)}`)
+  return response.json()
+}
+
+async function downloadRunnerArtifact(jobId, artifactId, destinationPath) {
+  if (!jobId || typeof jobId !== 'string') throw new Error('Runner job id is required.')
+  if (!artifactId || typeof artifactId !== 'string') throw new Error('Runner artifact id is required.')
+  if (!destinationPath || typeof destinationPath !== 'string') throw new Error('Runner artifact destination is required.')
+  return nodeDownloadToFile(
+    `${runnerEndpoint()}/api/v1/jobs/${encodeURIComponent(jobId)}/artifacts/${encodeURIComponent(artifactId)}`,
+    destinationPath,
+    { headers: runnerHeaders() },
+  )
+}
+
+async function runRunnerJob(request) {
+  const submitted = await submitRunnerJob(request)
+  let job = submitted
+  while (!['succeeded', 'failed', 'cancelled'].includes(job.status)) {
+    await new Promise((resolve) => setTimeout(resolve, 2000))
+    job = await readRunnerJob(job.id)
+  }
+  if (job.status !== 'succeeded') {
+    const detail = job.stderr_tail || job.error || `Runner job ${job.status}.`
+    throw new Error(detail.slice(-4000))
+  }
+
+  const recordingPath = path.resolve(request.recordingPath)
+  const recordingDir = path.dirname(recordingPath)
+  const stem = path.basename(recordingPath).replace(/\.vis\.pb$/i, '')
+  const localArtifacts = []
+  for (const artifact of job.artifacts || []) {
+    const relative = String(artifact.relative_path || artifact.name || '')
+    const outputRelative = relative.startsWith('inputs/')
+      ? relative.slice('inputs/'.length)
+      : path.join(`${stem}.runner-results`, relative)
+    const destination = path.resolve(recordingDir, outputRelative)
+    if (destination !== recordingDir && !destination.startsWith(`${recordingDir}${path.sep}`)) {
+      throw new Error(`Runner returned an unsafe artifact path: ${relative}`)
+    }
+    await downloadRunnerArtifact(job.id, artifact.id, destination)
+    localArtifacts.push({ ...artifact, local_path: destination })
+  }
+  return { ...job, local_artifacts: localArtifacts }
+}
+
 function buildMultipartBody(parts) {
   const boundary = `----BayesMechVision${Date.now().toString(36)}${Math.random().toString(36).slice(2)}`
   const chunks = []
@@ -2303,7 +2602,7 @@ async function checkWorldgenHealth(endpoint, token) {
     response = await nodeHttpRequest(`${endpoint}/health`, {
       method: 'GET',
       headers: {
-        Authorization: `Bearer ${token}`,
+        ...runnerHeaders(token),
         Accept: 'application/json',
       },
       timeoutMs,
@@ -2324,14 +2623,11 @@ async function checkWorldgenHealth(endpoint, token) {
   if (health && health.cuda_available === false) {
     throw new Error('VGGT model is reachable but CUDA is not available on the model host.')
   }
-  if (health && health.checkpoint_exists === false) {
-    throw new Error('VGGT model is reachable but its checkpoint is missing on the model host.')
-  }
   return health
 }
 
 async function restartWorldgenModel() {
-  const command = String(process.env.VGGT_RESTART_COMMAND || '').trim()
+  const command = String(process.env.RUNNER_RESTART_COMMAND || process.env.VGGT_RESTART_COMMAND || '').trim()
   if (!command) return false
   const timeoutMs = Math.max(1000, Math.trunc(finiteNumber(process.env.VGGT_RESTART_TIMEOUT_MS, 120000)))
   await Promise.race([
@@ -2463,12 +2759,11 @@ function normalizeRemoteSplatJob(job, fallback = {}) {
 async function pollWorldgenSplat(jobId) {
   if (!jobId || typeof jobId !== 'string') throw new Error('Splat job id is required.')
   const token = worldgenToken()
-  if (!token) throw new Error('VGGT_API_TOKEN is not set. Add it to the environment before starting the native app.')
   const endpoint = worldgenEndpoint()
   const response = await nodeHttpRequest(`${endpoint}/splat/${encodeURIComponent(jobId)}?include_preview=true`, {
     method: 'GET',
     headers: {
-      Authorization: `Bearer ${token}`,
+      ...runnerHeaders(token),
       Accept: 'application/json',
     },
     timeoutMs: Math.max(1000, Math.trunc(finiteNumber(process.env.VGGT_HEALTH_TIMEOUT_MS, DEFAULT_VGGT_HEALTH_TIMEOUT_MS))),
@@ -2476,7 +2771,18 @@ async function pollWorldgenSplat(jobId) {
   if (!response.ok) {
     throw new Error(`Splat status failed with HTTP ${response.status}${await readResponseDetail(response)}`)
   }
-  return normalizeRemoteSplatJob(await response.json(), { jobId })
+  const normalized = normalizeRemoteSplatJob(await response.json(), { jobId })
+  const destinations = worldgenSplatDestinations.get(jobId)
+  if (normalized.status === 'complete' && destinations && worldgenUsesRunner()) {
+    await nodeDownloadToFile(
+      `${endpoint}/splat/${encodeURIComponent(jobId)}/artifact/ply`,
+      destinations.plyPath,
+      { headers: runnerHeaders(token) },
+    )
+    normalized.plyPath = destinations.plyPath
+    normalized.previewJsonPath = destinations.previewPath
+  }
+  return normalized
 }
 
 async function runWorldgenSplat(vggtPath, recordingPath, options = {}) {
@@ -2789,9 +3095,6 @@ async function runWorldgen(request) {
   }
 
   const token = worldgenToken()
-  if (!token) {
-    throw new Error('VGGT_API_TOKEN is not set. Add it to the environment before starting the native app.')
-  }
 
   const resolved = path.resolve(request.recordingPath)
   const offsets = getFrameOffsets(resolved)
@@ -2859,7 +3162,7 @@ async function runWorldgen(request) {
     response = await nodeHttpRequest(`${endpoint}/infer`, {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${token}`,
+        ...runnerHeaders(token),
         Accept: 'application/json',
         'Content-Type': multipart.contentType,
       },
@@ -2890,6 +3193,7 @@ async function runWorldgen(request) {
         status: 'skipped',
         message: 'VGGT response did not include a remote splat job.',
       })
+  if (splatInfo.jobId) worldgenSplatDestinations.set(splatInfo.jobId, worldgenSplatPaths(outputPath))
 
   const message = encodeWorldgenResponse(
     responseJson,
@@ -2955,6 +3259,15 @@ if (isElectronRuntime) {
   ipcMain.handle('worldgen:read', (_event, filePath) => readWorldgen(filePath))
   ipcMain.handle('worldgen:splat-status', (_event, jobId) => pollWorldgenSplat(jobId))
   ipcMain.handle('worldgen:save-splat', (_event, filePath, splat) => saveWorldgenSplat(filePath, splat))
+  ipcMain.handle('runner:health', () => readRunnerHealth())
+  ipcMain.handle('runner:capabilities', () => readRunnerCapabilities())
+  ipcMain.handle('runner:submit', (_event, request) => submitRunnerJob(request))
+  ipcMain.handle('runner:run', (_event, request) => runRunnerJob(request))
+  ipcMain.handle('runner:job', (_event, jobId) => readRunnerJob(jobId))
+  ipcMain.handle('runner:cancel', (_event, jobId) => cancelRunnerJob(jobId))
+  ipcMain.handle('runner:download-artifact', (_event, jobId, artifactId, destinationPath) => (
+    downloadRunnerArtifact(jobId, artifactId, destinationPath)
+  ))
 
   ipcMain.handle('path:reveal', async (_event, filePath) => {
     if (!filePath || typeof filePath !== 'string') return false
@@ -3027,4 +3340,11 @@ module.exports = {
   readWorldgen,
   pollWorldgenSplat,
   saveWorldgenSplat,
+  readRunnerHealth,
+  readRunnerCapabilities,
+  submitRunnerJob,
+  runRunnerJob,
+  readRunnerJob,
+  cancelRunnerJob,
+  downloadRunnerArtifact,
 }

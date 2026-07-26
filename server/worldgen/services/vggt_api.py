@@ -17,7 +17,7 @@ from typing import Literal
 import numpy as np
 from fastapi import FastAPI, File, Form, Header, HTTPException, Query, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, Response
+from fastapi.responses import FileResponse, JSONResponse, Response
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -424,3 +424,28 @@ def splat_status(
     if job is None:
         raise HTTPException(status_code=404, detail="splat job not found")
     return job
+
+
+@app.get("/splat/{job_id}/artifact/{artifact_kind}")
+def splat_artifact(
+    job_id: str,
+    artifact_kind: Literal["ply", "preview"],
+    authorization: str | None = Header(default=None),
+    x_vggt_token: str | None = Header(default=None),
+):
+    _authorize(authorization, x_vggt_token)
+    job = get_splat_job(job_id, include_preview=False)
+    if job is None:
+        raise HTTPException(status_code=404, detail="splat job not found")
+    field = "ply_path" if artifact_kind == "ply" else "preview_json_path"
+    raw_path = str(job.get(field) or "")
+    workspace = Path(str(job.get("workspace") or "")).resolve()
+    artifact_path = Path(raw_path).resolve() if raw_path else None
+    if (
+        artifact_path is None
+        or workspace not in artifact_path.parents
+        or not artifact_path.is_file()
+    ):
+        raise HTTPException(status_code=404, detail=f"splat {artifact_kind} artifact is not available")
+    media_type = "application/octet-stream" if artifact_kind == "ply" else "application/json"
+    return FileResponse(artifact_path, filename=artifact_path.name, media_type=media_type)

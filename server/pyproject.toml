@@ -53,7 +53,7 @@ build-backend = "hatchling.build"
 allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
-packages = ["server", "segmentation"]
+packages = ["server", "runner", "segmentation"]
 
 [tool.uv]
 index-url = "https://download.pytorch.org/whl/cu126"
