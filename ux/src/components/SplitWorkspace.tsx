@@ -1,6 +1,7 @@
 import { PanelTop } from 'lucide-react'
 import { PointerEvent, useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react'
 import type {
+  DomainReconstruction,
   LayoutNode,
   LeafNode,
   IdoSlamSummary,
@@ -36,8 +37,9 @@ type SplitWorkspaceProps = {
   tabRequest: WorkspaceTabRequest | null
   getFrame: FrameGetter
   getVisSummary: (sourcePath: string) => Promise<VisSummary | null>
-  getSensorData: () => Promise<SensorDataSummary | null>
-  getIdoSlamData: () => Promise<IdoSlamSummary | null>
+  getSensorData: (sourcePath?: string) => Promise<SensorDataSummary | null>
+  getIdoSlamData: (artifactPath?: string) => Promise<IdoSlamSummary | null>
+  getDomainReconstruction: (filePath: string) => Promise<DomainReconstruction | null>
   overlay: OverlayState
   videoState: VideoPlaybackState
   onVideoStateChange: Dispatch<SetStateAction<VideoPlaybackState>>
@@ -53,10 +55,11 @@ type LeafProps = {
   onVideoStateChange: Dispatch<SetStateAction<VideoPlaybackState>>
   onSelectLeaf: (leafId: string) => void
   onActivateTab: (leafId: string, tabId: string) => void
-  getSensorData: () => Promise<SensorDataSummary | null>
+  getSensorData: (sourcePath?: string) => Promise<SensorDataSummary | null>
   getFrame: FrameGetter
   getVisSummary: (sourcePath: string) => Promise<VisSummary | null>
-  getIdoSlamData: () => Promise<IdoSlamSummary | null>
+  getIdoSlamData: (artifactPath?: string) => Promise<IdoSlamSummary | null>
+  getDomainReconstruction: (filePath: string) => Promise<DomainReconstruction | null>
   worldgenResults: Record<string, WorldgenResult>
 }
 
@@ -72,18 +75,29 @@ function tabLabel(type: WorkspaceTabType) {
 }
 
 function createRecordingLayout(recording: RecordingEntry | null): LayoutNode {
+  const showVideoContexts = (recording?.videoContexts?.length ?? 0) > 1
   const recordingTabs = (recording?.analyses ?? [])
-    .filter((analysis) => !['control', 'genspark', 'chat', 'point-cloud'].includes(analysis.key))
+    .filter((analysis) => !['control', 'genspark', 'chat', 'point-cloud'].includes(
+      analysis.baseKey ?? analysis.key.split(':')[0],
+    ))
     .map((analysis) => createTab(
       tabTypeForAnalysis(analysis.key),
       analysis.title,
       analysis.key,
       undefined,
       analysis.path,
+      showVideoContexts ? analysis.videoContext : undefined,
     ))
   if (recording?.controlProject) {
     return createLeaf([
-      createTab('control', 'Control', 'control'),
+      createTab(
+        'control',
+        'Control',
+        'control',
+        undefined,
+        undefined,
+        showVideoContexts ? 'main' : undefined,
+      ),
       ...recordingTabs,
     ])
   }
@@ -103,6 +117,7 @@ function WorkspaceLeaf({
   getFrame,
   getVisSummary,
   getIdoSlamData,
+  getDomainReconstruction,
   worldgenResults,
 }: LeafProps) {
   const activeTab = leaf.tabs.find((tab) => tab.id === leaf.activeTabId) ?? leaf.tabs[0]
@@ -124,7 +139,10 @@ function WorkspaceLeaf({
                 title={tab.title}
               >
                 <Icon className="tab-icon" size={14} aria-hidden="true" />
-                <span>{tab.title}</span>
+                <span className="tab-label">{tab.title}</span>
+                {tab.contextLabel ? (
+                  <span className="tab-context">{tab.contextLabel}</span>
+                ) : null}
               </button>
             )
           })}
@@ -143,6 +161,7 @@ function WorkspaceLeaf({
             getFrame={getFrame}
             getVisSummary={getVisSummary}
             getIdoSlamData={getIdoSlamData}
+            getDomainReconstruction={getDomainReconstruction}
             worldgenResults={worldgenResults}
           />
         ) : (
@@ -166,10 +185,11 @@ type NodeProps = {
   onSelectLeaf: (leafId: string) => void
   onActivateTab: (leafId: string, tabId: string) => void
   onResizeSplit: (splitId: string, ratio: number) => void
-  getSensorData: () => Promise<SensorDataSummary | null>
+  getSensorData: (sourcePath?: string) => Promise<SensorDataSummary | null>
   getFrame: FrameGetter
   getVisSummary: (sourcePath: string) => Promise<VisSummary | null>
-  getIdoSlamData: () => Promise<IdoSlamSummary | null>
+  getIdoSlamData: (artifactPath?: string) => Promise<IdoSlamSummary | null>
+  getDomainReconstruction: (filePath: string) => Promise<DomainReconstruction | null>
   worldgenResults: Record<string, WorldgenResult>
 }
 
@@ -187,6 +207,7 @@ function WorkspaceNode({
   getFrame,
   getVisSummary,
   getIdoSlamData,
+  getDomainReconstruction,
   worldgenResults,
 }: NodeProps) {
   const splitRef = useRef<HTMLDivElement>(null)
@@ -206,6 +227,7 @@ function WorkspaceNode({
         getFrame={getFrame}
         getVisSummary={getVisSummary}
         getIdoSlamData={getIdoSlamData}
+        getDomainReconstruction={getDomainReconstruction}
         worldgenResults={worldgenResults}
       />
     )
@@ -255,6 +277,7 @@ function WorkspaceNode({
           getFrame={getFrame}
           getVisSummary={getVisSummary}
           getIdoSlamData={getIdoSlamData}
+          getDomainReconstruction={getDomainReconstruction}
           worldgenResults={worldgenResults}
         />
       </div>
@@ -274,6 +297,7 @@ function WorkspaceNode({
           getFrame={getFrame}
           getVisSummary={getVisSummary}
           getIdoSlamData={getIdoSlamData}
+          getDomainReconstruction={getDomainReconstruction}
           worldgenResults={worldgenResults}
         />
       </div>
@@ -289,6 +313,7 @@ export default function SplitWorkspace({
   getVisSummary,
   getSensorData,
   getIdoSlamData,
+  getDomainReconstruction,
   overlay,
   videoState,
   onVideoStateChange,
@@ -352,6 +377,7 @@ export default function SplitWorkspace({
             getFrame={getFrame}
             getVisSummary={getVisSummary}
             getIdoSlamData={getIdoSlamData}
+            getDomainReconstruction={getDomainReconstruction}
             worldgenResults={worldgenResults}
           />
         </div>

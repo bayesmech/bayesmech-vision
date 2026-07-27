@@ -548,6 +548,22 @@ async def close_control_project():
     return {"active": False, "project_id": project_id}
 
 
+@app.post("/api/control-projects/recording/start")
+async def start_control_project_recording():
+    try:
+        return control_sessions.start_recording()
+    except ControlSessionError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/api/control-projects/recording/stop")
+async def stop_control_project_recording():
+    try:
+        return control_sessions.stop_recording()
+    except ControlSessionError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
 @app.post("/api/transcribe")
 async def transcribe_audio(file: UploadFile = File(...)):
     api_key = os.environ.get("OPENAI_API_KEY")

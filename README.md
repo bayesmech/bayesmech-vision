@@ -125,7 +125,18 @@ Genspark analysis shows every stored turn in full, followed by the continuing
 project chat. Tool calls in either section are collapsed initially and can be
 expanded to inspect their complete input parameters and output. Chat content
 uses GitHub-flavoured Markdown, including tables and syntax-preserving fenced
-code blocks, so locally generated Gemma answers can contain usable code.
+code blocks, so locally generated Gemma answers can contain usable code. An
+empty recording starts a regular text-only physical-intelligence chat instead
+of failing. Robot Car manifests add the camera and ultrasonic sensor as
+observation inputs and the four independently controlled wheel speeds as
+actuation outputs in Gemma's system context.
+
+Pongtown and Snookerstown artifacts appear as **Domain specific
+reconstruction**. The tab renders the canonical table in 3D, including the net
+and stored trajectory/bounce locations for table tennis or a late
+high-coverage ball layout for snooker. The Segmentation tab's
+**Triangulation** switch projects the generated table rectangle and, when
+available, net rectangle onto the synchronized source frame.
 
 The normalized device API is:
 

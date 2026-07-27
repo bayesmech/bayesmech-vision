@@ -4,12 +4,15 @@ import {
   CarFront,
   ChevronDown,
   ChevronUp,
+  Circle,
   CircleStop,
   Gauge,
+  LoaderCircle,
   Plus,
   Radio,
   RefreshCw,
   Smartphone,
+  Square,
   TriangleAlert,
   Wifi,
   WifiOff,
@@ -87,6 +90,26 @@ type RobotProfile = {
   cameraUrl: string
 }
 
+type ControlRecordingStream = {
+  device_id: string
+  recording_file: string
+  recording_path: string
+  frames_written: number
+  total_frames: number
+  size_bytes: number
+  exists: boolean
+}
+
+type ControlSessionSnapshot = {
+  active: boolean
+  recording: boolean
+  recording_started_timestamp_ms: number | null
+  recording_elapsed_ms: number
+  project_id: string | null
+  manifest_path: string | null
+  streams: ControlRecordingStream[]
+}
+
 const CONTROL_ENDPOINT_KEY = 'bayesmech:control-endpoint'
 const DEFAULT_ENDPOINT = (
   import.meta.env.VITE_STREAMLOG_ENDPOINT || 'http://127.0.0.1:8080'
@@ -109,6 +132,13 @@ function validEndpoint(value: string): string {
     throw new Error('The Streamlog endpoint must use http or https.')
   }
   return parsed.toString().replace(/\/+$/, '')
+}
+
+function formatElapsed(milliseconds: number) {
+  const totalSeconds = Math.max(0, Math.floor(milliseconds / 1000))
+  const minutes = Math.floor(totalSeconds / 60)
+  const seconds = totalSeconds % 60
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
 }
 
 async function responseJson<T>(response: Response): Promise<T> {
@@ -729,6 +759,8 @@ export default function ControlPanel({
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [connectionError, setConnectionError] = useState<string | null>(null)
   const [sessionState, setSessionState] = useState<string | null>(null)
+  const [controlSession, setControlSession] = useState<ControlSessionSnapshot | null>(null)
+  const [recordingBusy, setRecordingBusy] = useState(false)
   const [showAddRobot, setShowAddRobot] = useState(false)
   const [refreshToken, setRefreshToken] = useState(0)
   const requestInFlightRef = useRef(false)
@@ -770,7 +802,10 @@ export default function ControlPanel({
   }, [loadDevices, refreshToken])
 
   useEffect(() => {
-    if (!controlProject) return
+    if (!controlProject) {
+      setControlSession(null)
+      return
+    }
     let cancelled = false
     setSessionState('Opening project capture…')
     void fetch(`${endpoint}/api/control-projects/open`, {
@@ -779,12 +814,16 @@ export default function ControlPanel({
       body: JSON.stringify({ manifest_path: controlProject.manifestPath }),
       cache: 'no-store',
     })
-      .then(responseJson<{ project_id: string; active: boolean }>)
-      .then(() => {
-        if (!cancelled) setSessionState('Recording device streams into this project')
+      .then(responseJson<ControlSessionSnapshot>)
+      .then((snapshot) => {
+        if (!cancelled) {
+          setControlSession(snapshot)
+          setSessionState('Ready to record camera and ultrasonic data')
+        }
       })
       .catch((error) => {
         if (!cancelled) {
+          setControlSession(null)
           setSessionState(
             `Project capture unavailable: ${error instanceof Error ? error.message : 'unknown error'}`,
           )
@@ -794,6 +833,32 @@ export default function ControlPanel({
       cancelled = true
     }
   }, [controlProject, endpoint])
+
+  useEffect(() => {
+    if (!controlProject || !controlSession?.recording) return
+    let cancelled = false
+    const controller = new AbortController()
+    const pollSession = async () => {
+      try {
+        const response = await fetch(`${endpoint}/api/control-projects/active`, {
+          cache: 'no-store',
+          signal: controller.signal,
+        })
+        const snapshot = await responseJson<ControlSessionSnapshot>(response)
+        if (!cancelled && snapshot.manifest_path === controlProject.manifestPath) {
+          setControlSession(snapshot)
+        }
+      } catch {
+        // Device polling already exposes Streamlog connectivity failures.
+      }
+    }
+    const timer = window.setInterval(() => void pollSession(), 750)
+    return () => {
+      cancelled = true
+      controller.abort()
+      window.clearInterval(timer)
+    }
+  }, [controlProject, controlSession?.recording, endpoint])
 
   const selected = useMemo(
     () => devices.find((device) => device.id === selectedId) ?? null,
@@ -814,6 +879,51 @@ export default function ControlPanel({
     }
   }
 
+  const toggleRecording = async () => {
+    if (!controlProject || !controlSession?.active || recordingBusy) return
+    const action = controlSession.recording ? 'stop' : 'start'
+    setRecordingBusy(true)
+    setSessionState(action === 'start' ? 'Starting recording…' : 'Saving trajectory…')
+    try {
+      const response = await fetch(
+        `${endpoint}/api/control-projects/recording/${action}`,
+        { method: 'POST', cache: 'no-store' },
+      )
+      const snapshot = await responseJson<ControlSessionSnapshot>(response)
+      setControlSession(snapshot)
+      if (snapshot.recording) {
+        setSessionState('Recording camera and ultrasonic data')
+      } else {
+        const frames = snapshot.streams.reduce(
+          (total, stream) => total + stream.frames_written,
+          0,
+        )
+        const files = snapshot.streams
+          .filter((stream) => stream.frames_written > 0)
+          .map((stream) => stream.recording_file)
+        setSessionState(
+          frames > 0
+            ? `Saved ${frames} frame${frames === 1 ? '' : 's'} to ${files.join(', ')}`
+            : 'Recording stopped — no frames arrived',
+        )
+      }
+    } catch (error) {
+      setSessionState(
+        `Recording unavailable: ${error instanceof Error ? error.message : 'unknown error'}`,
+      )
+    } finally {
+      setRecordingBusy(false)
+    }
+  }
+
+  const recordingFrames = controlSession?.streams.reduce(
+    (total, stream) => total + stream.frames_written,
+    0,
+  ) ?? 0
+  const recordingStatus = controlSession?.recording
+    ? `Recording · ${recordingFrames} frame${recordingFrames === 1 ? '' : 's'} · ${formatElapsed(controlSession.recording_elapsed_ms)}`
+    : sessionState
+
   return (
     <div className="control-panel">
       <header className="control-panel-header">
@@ -823,6 +933,26 @@ export default function ControlPanel({
           <p>{projectDescription(controlProject)}</p>
         </div>
         <div className="control-panel-actions">
+          {controlProject ? (
+            <button
+              type="button"
+              className={`toolbar-button control-record-toggle${controlSession?.recording ? ' is-recording' : ''}`}
+              onClick={() => void toggleRecording()}
+              disabled={!controlSession?.active || recordingBusy}
+              aria-pressed={controlSession?.recording ?? false}
+            >
+              {recordingBusy ? (
+                <LoaderCircle className="spin" size={14} aria-hidden="true" />
+              ) : controlSession?.recording ? (
+                <Square size={13} fill="currentColor" aria-hidden="true" />
+              ) : (
+                <Circle size={14} fill="currentColor" aria-hidden="true" />
+              )}
+              {recordingBusy
+                ? (controlSession?.recording ? 'Stopping…' : 'Starting…')
+                : (controlSession?.recording ? 'Stop recording' : 'Start recording')}
+            </button>
+          ) : null}
           <form className="control-endpoint" onSubmit={connectEndpoint}>
             <label htmlFor="control-endpoint">Streamlog</label>
             <input
@@ -867,9 +997,18 @@ export default function ControlPanel({
               {device.displayName} · control {device.controlPort || '—'} · stream {device.streamPort || '—'}
             </span>
           ))}
-          {sessionState ? (
-            <strong className={sessionState.startsWith('Project capture unavailable') ? 'is-error' : ''}>
-              {sessionState}
+          {recordingStatus ? (
+            <strong
+              className={
+                recordingStatus.startsWith('Project capture unavailable')
+                || recordingStatus.startsWith('Recording unavailable')
+                  ? 'is-error'
+                  : controlSession?.recording
+                    ? 'is-recording'
+                    : ''
+              }
+            >
+              {recordingStatus}
             </strong>
           ) : null}
         </div>

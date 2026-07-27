@@ -390,17 +390,22 @@ def create_app(
 
     @application.post("/api/v1/agent/jobs", status_code=202)
     async def submit_gemma_job(
-        frames: list[UploadFile] = File(...),
+        frames: list[UploadFile] = File(default=[]),
         message: str = Form(...),
         timestamps_sec: str = Form(default="[]"),
+        video_contexts: str = Form(default="[]"),
+        active_video_context: str = Form(default="main"),
         history: str = Form(default="[]"),
         request_id: str = Form(default=""),
         chat_id: str = Form(default=""),
         recording_path: str = Form(default=""),
+        system_context: str = Form(default=""),
     ):
-        if len(frames) > 32:
+        uploaded_frames = frames
+        if len(uploaded_frames) > 32 * 8:
             raise HTTPException(
-                status_code=400, detail="at most 32 sampled frames may be uploaded"
+                status_code=400,
+                detail="at most 32 sampled frames per video context and 8 contexts may be uploaded",
             )
         try:
             parsed_timestamps = json.loads(timestamps_sec)
@@ -424,14 +429,80 @@ def create_app(
                         "text": str(item.get("text") or ""),
                     }
                 )
-            if len(timestamps) != len(frames):
+            if len(timestamps) != len(uploaded_frames):
                 raise ValueError(
                     "timestamps_sec must contain one value per uploaded frame"
+                )
+            parsed_video_contexts = json.loads(video_contexts)
+            if not isinstance(parsed_video_contexts, list):
+                raise ValueError("video_contexts must be a JSON array")
+            if not parsed_video_contexts:
+                parsed_video_contexts = [
+                    {
+                        "name": "main",
+                        "display_name": "main",
+                        "start": 0,
+                        "count": len(uploaded_frames),
+                        "timestamps_sec": timestamps,
+                    }
+                ]
+            if len(parsed_video_contexts) > 8:
+                raise ValueError("at most 8 video contexts may be uploaded")
+            normalized_video_contexts: list[dict[str, Any]] = []
+            used_context_names: set[str] = set()
+            expected_start = 0
+            for item in parsed_video_contexts:
+                if not isinstance(item, dict):
+                    raise ValueError("every video context must be an object")
+                name = str(item.get("name") or "").strip().lower()
+                if (
+                    not name
+                    or len(name) > 64
+                    or any(not (character.isalnum() or character == "-") for character in name)
+                ):
+                    raise ValueError(f"invalid video context name: {name!r}")
+                if name in used_context_names:
+                    raise ValueError(f"duplicate video context name: {name}")
+                start = int(item.get("start") or 0)
+                count = int(item.get("count") or 0)
+                context_timestamps = item.get("timestamps_sec")
+                if start != expected_start:
+                    raise ValueError("video context frame ranges must be contiguous")
+                if count < 0 or count > 32:
+                    raise ValueError(
+                        f"video context {name} must contain at most 32 sampled frames"
+                    )
+                if not isinstance(context_timestamps, list):
+                    context_timestamps = timestamps[start : start + count]
+                context_timestamps = [float(value) for value in context_timestamps]
+                if len(context_timestamps) != count:
+                    raise ValueError(
+                        f"video context {name} timestamps do not match its frame count"
+                    )
+                normalized_video_contexts.append(
+                    {
+                        "name": name,
+                        "display_name": str(item.get("display_name") or name)[:128],
+                        "start": start,
+                        "count": count,
+                        "timestamps_sec": context_timestamps,
+                    }
+                )
+                used_context_names.add(name)
+                expected_start += count
+            if expected_start != len(uploaded_frames):
+                raise ValueError(
+                    "video context frame ranges do not cover every uploaded frame"
+                )
+            normalized_active_context = active_video_context.strip().lower() or "main"
+            if normalized_active_context not in used_context_names:
+                raise ValueError(
+                    f"active video context does not exist: {normalized_active_context}"
                 )
 
             frame_files: list[tuple[str, bytes]] = []
             total_bytes = 0
-            for upload in frames:
+            for upload in uploaded_frames:
                 suffix = Path(upload.filename or "").suffix.lower()
                 if suffix not in {".jpg", ".jpeg", ".png", ".webp"}:
                     suffix = ".jpg"
@@ -452,11 +523,14 @@ def create_app(
                 request_id=request_id,
                 chat_id=chat_id,
                 recording_path=recording_path,
+                system_context=system_context,
+                video_contexts=normalized_video_contexts,
+                active_video_context=normalized_active_context,
             )
         except (ValueError, json.JSONDecodeError) as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         finally:
-            for upload in frames:
+            for upload in uploaded_frames:
                 await upload.close()
 
     @application.get("/api/v1/agent/jobs")

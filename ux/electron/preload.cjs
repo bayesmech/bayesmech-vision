@@ -28,6 +28,10 @@ contextBridge.exposeInMainWorld('bayesmech', {
   readSegmentationMasks: (filePath, frameNumber) => ipcRenderer.invoke('seg:masks', filePath, frameNumber),
   readSegmentationLabels: (filePath) => ipcRenderer.invoke('seg:labels', filePath),
   readMotionCapture: (filePath, frameNumber) => ipcRenderer.invoke('motioncap:frame', filePath, frameNumber),
+  readDomainReconstruction: (filePath) => ipcRenderer.invoke('domain:reconstruction', filePath),
+  readDomainTriangulation: (filePath, frameNumber) => (
+    ipcRenderer.invoke('domain:triangulation', filePath, frameNumber)
+  ),
   readChatThread: (recordingPath) => ipcRenderer.invoke('chat:thread', recordingPath),
   loadChatWorkspace: (videoId, recordingPath) => ipcRenderer.invoke('chat-workspace:load', videoId, recordingPath),
   createChatSession: (videoId, recordingPath) => ipcRenderer.invoke('chat-workspace:create', videoId, recordingPath),

@@ -24,11 +24,20 @@ class ControlSessionManager:
         self._manifest_path: Path | None = None
         self._project: control_pb2.ControlProject | None = None
         self._writers: dict[str, BinaryIO] = {}
+        self._base_frame_counts: dict[str, int] = {}
         self._frame_counts: dict[str, int] = {}
+        self._recording = False
+        self._recording_started_ns: int | None = None
+        self._recording_started_timestamp_ms: int | None = None
+        self._last_recording_elapsed_ms = 0
 
     @property
     def active(self) -> bool:
         return self._project is not None
+
+    @property
+    def recording(self) -> bool:
+        return self._recording
 
     def _path_within_recordings(self, value: str | Path) -> Path:
         resolved = Path(value).expanduser().resolve()
@@ -44,9 +53,16 @@ class ControlSessionManager:
         resolved = self._path_within_recordings(manifest_path)
         if not resolved.name.endswith(".control.pb") or not resolved.is_file():
             raise ControlSessionError("A readable .control.pb manifest is required")
+        raw_project = resolved.read_bytes()
+        if (
+            self._manifest_path == resolved
+            and self._project is not None
+            and raw_project == self._project.SerializeToString()
+        ):
+            return self.snapshot()
         project = control_pb2.ControlProject()
         try:
-            project.ParseFromString(resolved.read_bytes())
+            project.ParseFromString(raw_project)
         except Exception as exc:
             raise ControlSessionError(
                 f"Could not decode control manifest: {exc}"
@@ -59,32 +75,93 @@ class ControlSessionManager:
         self._project = project
         return self.snapshot()
 
-    def close(self) -> None:
+    def _close_writers(self) -> None:
         for writer in self._writers.values():
             writer.flush()
             os.fsync(writer.fileno())
             writer.close()
         self._writers.clear()
+
+    def start_recording(self) -> dict[str, Any]:
+        if self._project is None:
+            raise ControlSessionError("No control project is active")
+        if self._recording:
+            return self.snapshot()
+
+        self._close_writers()
+        self._base_frame_counts.clear()
         self._frame_counts.clear()
+        for device in self._project.devices:
+            if not device.enabled:
+                continue
+            recording_path = self._recording_path(device)
+            recording_path.parent.mkdir(parents=True, exist_ok=True)
+            self._base_frame_counts[device.device_id] = self._count_frames(
+                recording_path
+            )
+
+        self._recording = True
+        self._recording_started_ns = time.monotonic_ns()
+        self._recording_started_timestamp_ms = time.time_ns() // 1_000_000
+        self._last_recording_elapsed_ms = 0
+        return self.snapshot()
+
+    def stop_recording(self) -> dict[str, Any]:
+        if self._recording_started_ns is not None:
+            self._last_recording_elapsed_ms = max(
+                0, (time.monotonic_ns() - self._recording_started_ns) // 1_000_000
+            )
+        self._close_writers()
+        self._recording = False
+        self._recording_started_ns = None
+        self._recording_started_timestamp_ms = None
+        return self.snapshot()
+
+    def close(self) -> None:
+        self.stop_recording()
+        self._base_frame_counts.clear()
+        self._frame_counts.clear()
+        self._last_recording_elapsed_ms = 0
         self._manifest_path = None
         self._project = None
 
     def snapshot(self) -> dict[str, Any]:
         project = self._project
-        return {
-            "active": project is not None,
-            "project_id": project.project_id if project else None,
-            "manifest_path": str(self._manifest_path) if self._manifest_path else None,
-            "streams": [
+        elapsed_ms = self._last_recording_elapsed_ms
+        if self._recording_started_ns is not None:
+            elapsed_ms = max(
+                0, (time.monotonic_ns() - self._recording_started_ns) // 1_000_000
+            )
+        streams = []
+        for device in (project.devices if project else []):
+            if not device.enabled:
+                continue
+            recording_path = self._recording_path(device)
+            session_frames = self._frame_counts.get(device.device_id, 0)
+            streams.append(
                 {
                     "device_id": device.device_id,
                     "recording_file": device.recording_file,
-                    "frames_written": self._frame_counts.get(device.device_id, 0),
-                    "exists": self._recording_path(device).is_file(),
+                    "recording_path": str(recording_path),
+                    "frames_written": session_frames,
+                    "total_frames": (
+                        self._base_frame_counts.get(device.device_id, 0)
+                        + session_frames
+                    ),
+                    "size_bytes": (
+                        recording_path.stat().st_size if recording_path.is_file() else 0
+                    ),
+                    "exists": recording_path.is_file(),
                 }
-                for device in (project.devices if project else [])
-                if device.enabled
-            ],
+            )
+        return {
+            "active": project is not None,
+            "recording": self._recording,
+            "recording_started_timestamp_ms": self._recording_started_timestamp_ms,
+            "recording_elapsed_ms": elapsed_ms,
+            "project_id": project.project_id if project else None,
+            "manifest_path": str(self._manifest_path) if self._manifest_path else None,
+            "streams": streams,
         }
 
     def robot_profiles(self) -> list[dict[str, str]]:
@@ -208,6 +285,28 @@ class ControlSessionManager:
             )
         return self._manifest_path.parent / raw_name
 
+    @staticmethod
+    def _count_frames(recording_path: Path) -> int:
+        if not recording_path.is_file():
+            return 0
+        file_size = recording_path.stat().st_size
+        frame_count = 0
+        with recording_path.open("rb") as source:
+            while source.tell() < file_size:
+                header = source.read(4)
+                if len(header) != 4:
+                    raise ControlSessionError(
+                        f"Recording is truncated: {recording_path.name}"
+                    )
+                payload_size = struct.unpack(">I", header)[0]
+                if source.tell() + payload_size > file_size:
+                    raise ControlSessionError(
+                        f"Recording is truncated: {recording_path.name}"
+                    )
+                source.seek(payload_size, os.SEEK_CUR)
+                frame_count += 1
+        return frame_count
+
     def _device_for(
         self,
         device_id: str,
@@ -236,10 +335,16 @@ class ControlSessionManager:
         device: control_pb2.ControlDevice,
         frame: perceiver_pb2.PerceiverDataFrame,
     ) -> None:
+        if not self._recording:
+            return
         writer = self._writers.get(device.device_id)
         if writer is None:
             recording_path = self._recording_path(device)
             recording_path.parent.mkdir(parents=True, exist_ok=True)
+            if device.device_id not in self._base_frame_counts:
+                self._base_frame_counts[device.device_id] = self._count_frames(
+                    recording_path
+                )
             writer = open(recording_path, "ab")
             self._writers[device.device_id] = writer
         raw = frame.SerializeToString()
@@ -268,9 +373,13 @@ class ControlSessionManager:
         ultrasonic: dict[str, Any] | None,
     ) -> None:
         device = self._device_for(device_id, mobile=False)
-        if device is None:
+        if device is None or not self._recording:
             return
-        frame_number = self._frame_counts.get(device.device_id, 0) + 1
+        frame_number = (
+            self._base_frame_counts.get(device.device_id, 0)
+            + self._frame_counts.get(device.device_id, 0)
+            + 1
+        )
         frame = perceiver_pb2.PerceiverDataFrame()
         frame.frame_identifier.timestamp_ns = time.time_ns()
         frame.frame_identifier.frame_number = frame_number

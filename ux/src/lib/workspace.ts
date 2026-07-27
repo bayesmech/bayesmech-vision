@@ -21,11 +21,13 @@ export function createTab(
   analysisKey?: string,
   worldgenResultId?: string,
   sourcePath?: string,
+  contextLabel?: string,
 ): WorkspaceTab {
   return {
     id: createId('tab'),
     type,
     title,
+    contextLabel,
     analysisKey,
     worldgenResultId,
     sourcePath,

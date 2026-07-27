@@ -170,3 +170,84 @@ def test_vggt_background_job_reports_progress_and_result(
     result = asyncio.run(_request_path(vggt_api.app, "GET", f"/jobs/{job_id}/result"))
     assert result.status_code == 200
     assert result.json()["metadata"]["num_frames"] == 2
+
+
+def test_vggt_batches_more_than_96_frames_instead_of_rejecting(
+    monkeypatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(vggt_jobs, "JOBS_DIR", tmp_path / "vggt-jobs")
+    with vggt_jobs._jobs_lock:
+        vggt_jobs._jobs.clear()
+    received: dict[str, object] = {}
+
+    def fake_inference(frame_paths, frame_indices, timestamps_sec, **kwargs):
+        received["frame_count"] = len(frame_paths)
+        received["indices"] = frame_indices
+        received["timestamps"] = timestamps_sec
+        return vggt_api.JSONResponse(
+            {
+                "metadata": {
+                    "num_frames": len(frame_paths),
+                    "chunk_count": len(
+                        vggt_api._inference_chunk_ranges(
+                            len(frame_paths), kwargs["window"]
+                        )
+                    ),
+                },
+                "camera": {},
+                "point_clouds": [],
+            }
+        )
+
+    monkeypatch.setattr(vggt_api, "_run_inference", fake_inference)
+    frame_count = 193
+    submitted = asyncio.run(
+        _request_path(
+            vggt_api.app,
+            "POST",
+            "/jobs/vggt",
+            data={"fps": "20", "window": "0", "start_splat": "false"},
+            files=[
+                (
+                    "frames",
+                    (f"frame_{index:06d}.jpg", f"frame-{index}".encode(), "image/jpeg"),
+                )
+                for index in range(frame_count)
+            ],
+        )
+    )
+
+    assert submitted.status_code == 202, submitted.text
+    assert vggt_api._inference_chunk_ranges(frame_count, 0) == [
+        (0, 96),
+        (96, 192),
+        (192, 193),
+    ]
+    assert vggt_api._inference_chunk_ranges(frame_count, 200) == [
+        (0, 96),
+        (96, 192),
+        (192, 193),
+    ]
+    assert vggt_api._inference_chunk_ranges(100, 32) == [
+        (0, 32),
+        (32, 64),
+        (64, 96),
+        (96, 100),
+    ]
+
+    job_id = submitted.json()["job_id"]
+    state = submitted.json()
+    deadline = time.monotonic() + 5
+    while state["status"] not in {"complete", "failed"}:
+        assert time.monotonic() < deadline
+        time.sleep(0.02)
+        state = asyncio.run(
+            _request_path(vggt_api.app, "GET", f"/jobs/{job_id}")
+        ).json()
+
+    assert state["status"] == "complete", state
+    assert received["frame_count"] == frame_count
+    assert received["indices"] == list(range(frame_count))
+    result = asyncio.run(_request_path(vggt_api.app, "GET", f"/jobs/{job_id}/result"))
+    assert result.status_code == 200
+    assert result.json()["metadata"]["chunk_count"] == 3

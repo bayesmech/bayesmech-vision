@@ -13,14 +13,18 @@ import {
   Map,
   MessageSquare,
   ScanSearch,
+  Triangle,
   Waves,
   type LucideIcon,
 } from 'lucide-react'
 import type { WorkspaceTabType } from '../types'
 
+export function baseAnalysisKey(key: string): string {
+  return key.split(':')[0]
+}
+
 export function iconForAnalysis(key: string): LucideIcon {
-  if (key.startsWith('video:')) return Film
-  switch (key) {
+  switch (baseAnalysisKey(key)) {
     case 'control':
       return Joystick
     case 'video':
@@ -50,17 +54,21 @@ export function iconForAnalysis(key: string): LucideIcon {
       return Box
     case 'worldgen':
       return ScanSearch
+    case 'pongtown':
+    case 'snookestown':
+      return Triangle
     default:
       return FileCode2
   }
 }
 
 export function tabTypeForAnalysis(key: string): WorkspaceTabType {
-  if (key === 'point-cloud') return 'planes'
-  if (key === 'surface-planes') return 'planes'
-  if (key === 'video' || key.startsWith('video:') || key === 'rgb' || key === 'depth') return 'video'
-  if (key === 'sensors') return 'sensors'
-  if (key === 'worldgen') return 'worldgen'
+  const baseKey = baseAnalysisKey(key)
+  if (baseKey === 'point-cloud') return 'planes'
+  if (baseKey === 'surface-planes') return 'planes'
+  if (baseKey === 'video' || baseKey === 'rgb' || baseKey === 'depth') return 'video'
+  if (baseKey === 'sensors') return 'sensors'
+  if (baseKey === 'worldgen') return 'worldgen'
   return 'analysis'
 }
 

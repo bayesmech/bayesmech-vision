@@ -17,6 +17,8 @@ const APP_NAME = 'BayesMech Vision'
 const FRAME_SIZE_LIMIT = 10 * 1024 * 1024
 const IDOSLAM_FRAME_SIZE_LIMIT = 512 * 1024 * 1024
 const MAX_SAMPLE_FRAMES = 96
+const MAX_GEMMA_UPLOAD_FRAMES = 32
+const DEFAULT_GEMMA_SAMPLE_FPS = 4
 const MAX_POINTS_PER_FRAME = 220
 // Keep dense VGGT reconstructions detailed in the desktop viewer. The previous
 // 120k aggregate cap reduced the 10-frame table-tennis capture from 600k saved
@@ -126,13 +128,13 @@ const ANALYSIS_DEFS = [
   },
   {
     key: 'snookestown',
-    title: 'Snookestown',
+    title: 'Domain specific reconstruction',
     kind: 'protobuf',
     suffixes: ['snook.pb'],
   },
   {
     key: 'pongtown',
-    title: 'Pongtown',
+    title: 'Domain specific reconstruction',
     kind: 'protobuf',
     suffixes: ['pongtown.pb'],
   },
@@ -147,6 +149,8 @@ let vggtResponseType = null
 let gensparkResponseType = null
 let chatHistoryType = null
 let idoSlamType = null
+let pongtownType = null
+let snookestownType = null
 const worldgenSplatDestinations = new Map()
 const runnerBackgroundJobs = new Map()
 let runnerJobEventRequest = null
@@ -372,6 +376,30 @@ function getMotionCaptureType() {
   return motionCaptureType
 }
 
+function getPongtownType() {
+  if (pongtownType) return pongtownType
+
+  const protoDir = path.join(findRepoRoot(), 'proto')
+  const root = new protobuf.Root()
+  root.resolvePath = (_origin, target) => path.join(protoDir, target)
+  root.loadSync(['pongtown.proto'], { keepCase: false })
+  root.resolveAll()
+  pongtownType = root.lookupType('bayesmech.vision.PongtownResponse')
+  return pongtownType
+}
+
+function getSnookestownType() {
+  if (snookestownType) return snookestownType
+
+  const protoDir = path.join(findRepoRoot(), 'proto')
+  const root = new protobuf.Root()
+  root.resolvePath = (_origin, target) => path.join(protoDir, target)
+  root.loadSync(['snookestown.proto'], { keepCase: false })
+  root.resolveAll()
+  snookestownType = root.lookupType('bayesmech.vision.SnookerResponse')
+  return snookestownType
+}
+
 function getVggtResponseType() {
   if (vggtResponseType) return vggtResponseType
 
@@ -519,29 +547,6 @@ function readControlProject(controlPath) {
   }
 }
 
-function controlVideoTitle(device, devices = []) {
-  let title
-  switch (device.deviceType) {
-    case 'PHONE_DEVICE':
-      title = 'Video Phone'
-      break
-    case 'ROBOT_CAR_DEVICE':
-      title = 'Video Car'
-      break
-    case 'ROBOT_HAND_DEVICE':
-      title = 'Video Hand'
-      break
-    case 'DRONE_DEVICE':
-      title = 'Video Drone'
-      break
-    default:
-      title = `Video ${device.displayName || device.deviceId || 'Device'}`
-  }
-  const matchingDevices = devices.filter((item) => item.deviceType === device.deviceType)
-  if (matchingDevices.length <= 1) return title
-  return `${title} ${matchingDevices.indexOf(device) + 1}`
-}
-
 function recordingForControlProject(projectPath, controlPath, index) {
   let manifest
   try {
@@ -565,6 +570,9 @@ function recordingForControlProject(projectPath, controlPath, index) {
     title: 'Control',
     kind: 'control',
     source: 'artifact',
+    baseKey: 'control',
+    videoContext: 'main',
+    sourceVideoPath: primaryPath,
     suffix: 'control.pb',
     path: controlPath,
     relativePath: path.relative(projectPath, controlPath),
@@ -573,6 +581,8 @@ function recordingForControlProject(projectPath, controlPath, index) {
     modifiedMs: controlStat?.mtimeMs ?? 0,
   }]
   const claimedVisPaths = []
+  const videoContexts = []
+  const usedContextNames = new Set()
   let streamSize = 0
   let streamModifiedMs = 0
   for (const device of enabledDevices) {
@@ -583,12 +593,43 @@ function recordingForControlProject(projectPath, controlPath, index) {
     if (!streamStat?.isFile()) continue
     streamSize += streamStat.size
     streamModifiedMs = Math.max(streamModifiedMs, streamStat.mtimeMs)
+    const contextRoot = device === primary
+      ? 'main'
+      : normalizedVideoContextName(
+        device.deviceType === 'PHONE_DEVICE'
+          ? 'phone'
+          : device.deviceType === 'ROBOT_HAND_DEVICE'
+            ? 'hand'
+            : device.deviceType === 'DRONE_DEVICE'
+              ? 'drone'
+              : device.deviceType === 'ROBOT_CAR_DEVICE'
+                ? 'robot-car'
+                : device.displayName || device.deviceId,
+      ) || 'device'
+    let contextName = contextRoot
+    let contextSuffix = 2
+    while (usedContextNames.has(contextName)) {
+      contextName = `${contextRoot}-${contextSuffix}`
+      contextSuffix += 1
+    }
+    usedContextNames.add(contextName)
+    videoContexts.push({
+      name: contextName,
+      displayName: contextName,
+      path: streamPath,
+      fileStem: path.basename(streamPath).slice(0, -'.vis.pb'.length),
+      relativePath: path.relative(projectPath, streamPath),
+      isMain: device === primary,
+    })
     if (device.deviceType !== 'ROBOT_CAR_DEVICE') {
       analyses.push({
         key: `video:${device.deviceId}`,
-        title: controlVideoTitle(device, enabledDevices),
+        title: 'Video',
         kind: 'video',
         source: 'vis',
+        baseKey: 'video',
+        videoContext: contextName,
+        sourceVideoPath: streamPath,
         path: streamPath,
         relativePath: path.relative(projectPath, streamPath),
         sizeBytes: streamStat.size,
@@ -612,6 +653,7 @@ function recordingForControlProject(projectPath, controlPath, index) {
       sizeLabel: byteSizeLabel(streamSize),
       modifiedMs: Math.max(controlStat?.mtimeMs ?? 0, streamModifiedMs),
       analyses,
+      videoContexts,
       controlProject: manifest,
     },
     claimedVisPaths,
@@ -703,6 +745,140 @@ function analysesForVis(projectPath, visPath) {
   return analyses
 }
 
+function normalizedVideoContextName(value) {
+  return String(value || '')
+    .trim()
+    .replace(/^[_\-.]+|[_\-.]+$/g, '')
+    .replace(/[^A-Za-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .toLowerCase()
+}
+
+function groupVisFilesByContext(visFiles) {
+  const byDirectory = new Map()
+  for (const visPath of visFiles) {
+    const dir = path.dirname(visPath)
+    const stem = path.basename(visPath).slice(0, -'.vis.pb'.length)
+    const items = byDirectory.get(dir) ?? []
+    items.push({ path: visPath, stem })
+    byDirectory.set(dir, items)
+  }
+
+  const groups = []
+  for (const items of byDirectory.values()) {
+    const stems = new Set(items.map((item) => item.stem))
+    const grouped = new Map()
+    for (const item of items) {
+      const baseStem = [...stems]
+        .filter((candidate) => (
+          candidate !== item.stem
+          && item.stem.startsWith(candidate)
+          && /^[_\-.]/.test(item.stem.slice(candidate.length))
+        ))
+        .sort((left, right) => right.length - left.length)[0] ?? item.stem
+      const members = grouped.get(baseStem) ?? []
+      const rawSuffix = item.stem === baseStem ? '' : item.stem.slice(baseStem.length)
+      members.push({
+        ...item,
+        contextName: rawSuffix ? normalizedVideoContextName(rawSuffix) : 'main',
+      })
+      grouped.set(baseStem, members)
+    }
+    for (const [baseStem, members] of grouped.entries()) {
+      const main = members.find((member) => member.stem === baseStem)
+      if (!main) {
+        for (const member of members) {
+          groups.push({ baseStem: member.stem, members: [{ ...member, contextName: 'main' }] })
+        }
+        continue
+      }
+      const usedNames = new Set(['main'])
+      const normalizedMembers = members
+        .sort((left, right) => (
+          Number(right.contextName === 'main') - Number(left.contextName === 'main')
+          || left.contextName.localeCompare(right.contextName)
+        ))
+        .map((member) => {
+          if (member.contextName === 'main') return member
+          const rootName = member.contextName || 'camera'
+          let contextName = rootName
+          let suffix = 2
+          while (usedNames.has(contextName)) {
+            contextName = `${rootName}-${suffix}`
+            suffix += 1
+          }
+          usedNames.add(contextName)
+          return { ...member, contextName }
+        })
+      groups.push({ baseStem, members: normalizedMembers })
+    }
+  }
+  return groups.sort((left, right) => left.members[0].path.localeCompare(right.members[0].path))
+}
+
+function contextualAnalyses(projectPath, members) {
+  const contextOrder = new Map(members.map((member, index) => [member.contextName, index]))
+  const analysisOrder = [
+    'video',
+    'surface-planes',
+    'sensors',
+    ...ANALYSIS_DEFS.map((definition) => definition.key),
+    'worldgen',
+  ]
+  const analyses = members.flatMap((member) => (
+    analysesForVis(projectPath, member.path).map((analysis) => {
+      const contextName = member.contextName
+      return {
+        ...analysis,
+        key: contextName === 'main' ? analysis.key : `${analysis.key}:${contextName}`,
+        title: analysis.title,
+        baseKey: analysis.key,
+        videoContext: contextName,
+        sourceVideoPath: member.path,
+      }
+    })
+  ))
+  return analyses.sort((left, right) => {
+    const leftOrder = analysisOrder.indexOf(left.baseKey)
+    const rightOrder = analysisOrder.indexOf(right.baseKey)
+    const analysisDifference = (
+      (leftOrder < 0 ? analysisOrder.length : leftOrder)
+      - (rightOrder < 0 ? analysisOrder.length : rightOrder)
+    )
+    if (analysisDifference) return analysisDifference
+    return (contextOrder.get(left.videoContext) ?? 0) - (contextOrder.get(right.videoContext) ?? 0)
+  })
+}
+
+function recordingForVisGroup(rootPath, group, index) {
+  const main = group.members.find((member) => member.contextName === 'main') ?? group.members[0]
+  const visStat = safeStat(main.path)
+  const dir = path.dirname(main.path)
+  const folderName = path.basename(dir)
+  return {
+    id: `${group.baseStem}:${index}`,
+    name: folderName === group.baseStem ? group.baseStem : `${folderName}/${group.baseStem}`,
+    displayName: projectDisplayName(dir),
+    fileStem: group.baseStem,
+    path: main.path,
+    directoryPath: dir,
+    projectRootPath: rootPath,
+    relativePath: path.relative(rootPath, main.path),
+    sizeBytes: visStat?.size ?? 0,
+    sizeLabel: byteSizeLabel(visStat?.size ?? 0),
+    modifiedMs: visStat?.mtimeMs ?? 0,
+    videoContexts: group.members.map((member) => ({
+      name: member.contextName,
+      displayName: member.contextName,
+      path: member.path,
+      fileStem: member.stem,
+      relativePath: path.relative(rootPath, member.path),
+      isMain: member.contextName === 'main',
+    })),
+    analyses: contextualAnalyses(rootPath, group.members),
+  }
+}
+
 function scanProject(projectPath) {
   if (!projectPath || typeof projectPath !== 'string') {
     return { error: 'Project path is required.', rootPath: '', name: '', recordings: [] }
@@ -729,27 +905,12 @@ function scanProject(projectPath) {
     .filter(Boolean)
   const visFiles = walkForVisFiles(rootPath)
     .filter((visPath) => !claimedVisPaths.has(path.resolve(visPath)))
-  const recordings = [...controlRecordings, ...visFiles.map((visPath, index) => {
-    const visStat = safeStat(visPath)
-    const dir = path.dirname(visPath)
-    const baseName = path.basename(visPath).slice(0, -'.vis.pb'.length)
-    const folderName = path.basename(dir)
-
-    return {
-      id: `${baseName}:${index}`,
-      name: folderName === baseName ? baseName : `${folderName}/${baseName}`,
-      displayName: projectDisplayName(dir),
-      fileStem: baseName,
-      path: visPath,
-      directoryPath: dir,
-      projectRootPath: rootPath,
-      relativePath: path.relative(rootPath, visPath),
-      sizeBytes: visStat?.size ?? 0,
-      sizeLabel: byteSizeLabel(visStat?.size ?? 0),
-      modifiedMs: visStat?.mtimeMs ?? 0,
-      analyses: analysesForVis(rootPath, visPath),
-    }
-  })]
+  const recordings = [
+    ...controlRecordings,
+    ...groupVisFilesByContext(visFiles).map(
+      (group, index) => recordingForVisGroup(rootPath, group, index),
+    ),
+  ]
   const controlError = controlResults.find((result) => result.error)?.error
 
   return {
@@ -1089,26 +1250,9 @@ function scanVisFiles(filePaths) {
     .sort((a, b) => a.localeCompare(b))
   const rootPath = commonAncestor(visFiles.map((filePath) => path.dirname(filePath)))
 
-  const recordings = visFiles.map((visPath, index) => {
-    const visStat = safeStat(visPath)
-    const dir = path.dirname(visPath)
-    const baseName = path.basename(visPath).slice(0, -'.vis.pb'.length)
-    const folderName = path.basename(dir)
-
-    return {
-      id: `${baseName}:${index}`,
-      name: folderName === baseName ? baseName : `${folderName}/${baseName}`,
-      displayName: projectDisplayName(dir),
-      fileStem: baseName,
-      path: visPath,
-      directoryPath: dir,
-      relativePath: path.relative(rootPath, visPath),
-      sizeBytes: visStat?.size ?? 0,
-      sizeLabel: byteSizeLabel(visStat?.size ?? 0),
-      modifiedMs: visStat?.mtimeMs ?? 0,
-      analyses: analysesForVis(rootPath, visPath),
-    }
-  })
+  const recordings = groupVisFilesByContext(visFiles).map(
+    (group, index) => recordingForVisGroup(rootPath, group, index),
+  )
 
   return {
     rootPath,
@@ -1159,6 +1303,52 @@ function buildSampleIndexes(count) {
     indexes.add(Math.round((i / (MAX_SAMPLE_FRAMES - 1)) * (count - 1)))
   }
   return [...indexes].sort((a, b) => a - b)
+}
+
+function buildEvenSampleIndexes(count, sampleCount) {
+  const boundedCount = Math.max(0, Math.trunc(finiteNumber(count)))
+  const boundedSamples = Math.min(
+    boundedCount,
+    Math.max(0, Math.trunc(finiteNumber(sampleCount))),
+  )
+  if (boundedSamples <= 0) return []
+  if (boundedSamples >= boundedCount) {
+    return Array.from({ length: boundedCount }, (_value, index) => index)
+  }
+  if (boundedSamples === 1) return [0]
+
+  const indexes = new Set()
+  for (let index = 0; index < boundedSamples; index += 1) {
+    indexes.add(Math.round((index * (boundedCount - 1)) / (boundedSamples - 1)))
+  }
+  return [...indexes].sort((left, right) => left - right)
+}
+
+function buildGemmaSampleIndexes(
+  frameCount,
+  durationSeconds,
+  targetFps = DEFAULT_GEMMA_SAMPLE_FPS,
+  maxFrames = MAX_GEMMA_UPLOAD_FRAMES,
+  fallbackSourceFps = 30,
+) {
+  const count = Math.max(0, Math.trunc(finiteNumber(frameCount)))
+  const hardLimit = Math.min(
+    MAX_GEMMA_UPLOAD_FRAMES,
+    Math.max(0, Math.trunc(finiteNumber(maxFrames))),
+  )
+  if (!count || !hardLimit) return []
+
+  const sampleFps = Math.max(0.1, finiteNumber(targetFps, DEFAULT_GEMMA_SAMPLE_FPS))
+  const duration = finiteNumber(durationSeconds)
+  const desiredSamples = duration > 0
+    ? Math.floor(duration * sampleFps) + 1
+    : Math.ceil(
+        (count / Math.max(0.1, finiteNumber(fallbackSourceFps, 30))) * sampleFps,
+      )
+  return buildEvenSampleIndexes(
+    count,
+    Math.min(count, hardLimit, Math.max(1, desiredSamples)),
+  )
 }
 
 function finiteNumber(value, fallback = 0) {
@@ -1933,6 +2123,359 @@ function readMotionCapture(filePath, frameNumber) {
   }
 }
 
+const domainReconstructionCache = new Map()
+
+function numericArray(value) {
+  return Array.isArray(value) || ArrayBuffer.isView(value)
+    ? Array.from(value, (item) => finiteNumber(item))
+    : []
+}
+
+function pongtownPoint(
+  value,
+  fallbackLabel = '',
+  fallbackFrameIndex = 0,
+  fallbackFrameNumber = 0,
+) {
+  const coordinates = numericArray(value?.tableXyzMm)
+  if (!value?.hasTablePosition || coordinates.length < 2) return null
+  return {
+    xMm: coordinates[0],
+    yMm: coordinates[1],
+    zMm: coordinates[2] ?? 0,
+    label: normalizedLabel(value.label) || fallbackLabel,
+    confidence: finiteNumber(value.confidence),
+    frameIndex: finiteNumber(value.frameIdx, fallbackFrameIndex),
+    frameNumber: finiteNumber(value.frameNumber, fallbackFrameNumber),
+    insideTable: Boolean(value.insideTable),
+  }
+}
+
+function pongtownFrameIndex(record, fallbackIndex) {
+  const debug = Array.isArray(record.pnpFrameDebug) ? record.pnpFrameDebug[0] : null
+  return finiteNumber(
+    record.frameOutput?.frameIdx,
+    finiteNumber(debug?.frameIdx, fallbackIndex),
+  )
+}
+
+function pongtownTriangulation(record) {
+  const frameOutput = record.frameOutput
+  const debug = Array.isArray(record.pnpFrameDebug) ? record.pnpFrameDebug[0] : null
+  const tablePose = record.tablePose
+  const tableQuad = numericArray(
+    frameOutput?.tableQuadImg?.length >= 8
+      ? frameOutput.tableQuadImg
+      : debug?.pnpTableQuadImg?.length >= 8
+        ? debug.pnpTableQuadImg
+        : tablePose?.quadImgGlobal?.length >= 8
+          ? tablePose.quadImgGlobal
+          : tablePose?.quadImg,
+  ).slice(0, 8)
+  const netQuad = numericArray(
+    frameOutput?.netQuadImg?.length >= 8
+      ? frameOutput.netQuadImg
+      : debug?.pnpOverlayNetQuadImg?.length >= 8
+        ? debug.pnpOverlayNetQuadImg
+        : debug?.pnpNetQuadImg?.length >= 8
+          ? debug.pnpNetQuadImg
+          : debug?.imagePlaneNetQuadImg,
+  ).slice(0, 8)
+  if (tableQuad.length < 8 && netQuad.length < 8) return null
+  return {
+    frameNumber: finiteNumber(record.frameIdentifier?.frameNumber),
+    tableQuad,
+    netQuad,
+    method: String(tablePose?.method || debug?.imagePlaneMethod || 'UNKNOWN'),
+    quality: Math.max(
+      finiteNumber(frameOutput?.globalIou),
+      finiteNumber(debug?.pnpTableIou),
+      finiteNumber(tablePose?.quadQuality),
+    ),
+  }
+}
+
+function inverseHomography(values) {
+  const matrix = numericArray(values)
+  if (matrix.length < 9) return null
+  const [a, b, c, d, e, f, g, h, i] = matrix
+  const A = e * i - f * h
+  const B = c * h - b * i
+  const C = b * f - c * e
+  const D = f * g - d * i
+  const E = a * i - c * g
+  const F = c * d - a * f
+  const G = d * h - e * g
+  const H = b * g - a * h
+  const I = a * e - b * d
+  const determinant = a * A + b * D + c * G
+  if (!Number.isFinite(determinant) || Math.abs(determinant) < 1e-9) return null
+  return [A, B, C, D, E, F, G, H, I].map((value) => value / determinant)
+}
+
+function projectHomography(matrix, x, y) {
+  const scale = matrix[6] * x + matrix[7] * y + matrix[8]
+  if (!Number.isFinite(scale) || Math.abs(scale) < 1e-9) return null
+  return [
+    (matrix[0] * x + matrix[1] * y + matrix[2]) / scale,
+    (matrix[3] * x + matrix[4] * y + matrix[5]) / scale,
+  ]
+}
+
+function snookestownTriangulation(record, tableWidthMm, tableHeightMm) {
+  const inverse = inverseHomography(record.tablePose?.homographyImgToTableMm)
+  if (!inverse || tableWidthMm <= 0 || tableHeightMm <= 0) return null
+  const halfWidth = tableWidthMm / 2
+  const halfHeight = tableHeightMm / 2
+  const corners = [
+    [-halfWidth, -halfHeight],
+    [halfWidth, -halfHeight],
+    [halfWidth, halfHeight],
+    [-halfWidth, halfHeight],
+  ]
+  const projected = corners.map(([x, y]) => projectHomography(inverse, x, y))
+  if (projected.some((point) => !point)) return null
+  return {
+    frameNumber: finiteNumber(record.frameIdentifier?.frameNumber),
+    tableQuad: projected.flat(),
+    netQuad: [],
+    method: String(record.tablePose?.method || 'UNKNOWN'),
+    quality: finiteNumber(record.tablePose?.quality),
+  }
+}
+
+function buildPongtownDomain(messages, sourcePath) {
+  const records = messages.map((message) => getPongtownType().toObject(message, {
+    arrays: true,
+    defaults: false,
+    enums: String,
+    longs: String,
+  }))
+  const summary = [...records].reverse().find((record) => record.globalTablePose?.hasPose)
+    ?? records.at(-1)
+    ?? {}
+  const frames = records.filter((record) => record.frameIdentifier)
+  const trajectory = summary.pingpongTracking?.ballTrajectory ?? summary.ballTrajectory ?? {}
+  const hasNet = Boolean(summary.globalTablePose?.hasNetPose)
+    || finiteNumber(summary.netHeightMm) > 0
+  const sportMode = summary.sportMode === 'PINGPONG' || hasNet ? 'PINGPONG' : 'SNOOKER'
+  const tableWidthMm = finiteNumber(summary.tableWidthMm)
+    || (sportMode === 'PINGPONG' ? 2740 : 3569)
+  const tableHeightMm = finiteNumber(summary.tableHeightMm)
+    || (sportMode === 'PINGPONG' ? 1525 : 1778)
+  const firstFrameNumber = finiteNumber(frames[0]?.frameIdentifier?.frameNumber)
+  const inferredTrajectoryFrameIndex = (value) => (
+    value?.frameIdx == null
+      ? Math.max(0, finiteNumber(value?.frameNumber) - firstFrameNumber)
+      : finiteNumber(value.frameIdx)
+  )
+
+  const trajectoryPoints = sportMode === 'PINGPONG'
+    ? (trajectory.positions || [])
+      .map((position) => pongtownPoint(
+        position,
+        'Ball',
+        inferredTrajectoryFrameIndex(position),
+      ))
+      .filter(Boolean)
+    : []
+  const bounces = sportMode === 'PINGPONG'
+    ? (trajectory.bounces || [])
+      .map((bounce, index) => pongtownPoint(
+        bounce,
+        `Bounce ${index + 1}`,
+        inferredTrajectoryFrameIndex(bounce),
+      ))
+      .filter(Boolean)
+    : []
+  const trajectoryByFrameIndex = new Map()
+  const trajectoryByFrameNumber = new Map()
+  for (const point of trajectoryPoints) {
+    const byIndex = trajectoryByFrameIndex.get(point.frameIndex) ?? []
+    byIndex.push(point)
+    trajectoryByFrameIndex.set(point.frameIndex, byIndex)
+    const byNumber = trajectoryByFrameNumber.get(point.frameNumber) ?? []
+    byNumber.push(point)
+    trajectoryByFrameNumber.set(point.frameNumber, byNumber)
+  }
+  const domainFrames = frames.map((record, fallbackIndex) => {
+    const frameIndex = pongtownFrameIndex(record, fallbackIndex)
+    const frameNumber = finiteNumber(record.frameIdentifier?.frameNumber, frameIndex)
+    const observations = sportMode === 'SNOOKER'
+      ? record.snookerTracking?.ballPositions || []
+      : record.pingpongTracking?.ballPositions || record.ballPositions || []
+    let frameBalls = observations
+      .map((ball) => pongtownPoint(ball, 'Ball', frameIndex, frameNumber))
+      .filter(Boolean)
+    if (sportMode === 'PINGPONG' && frameBalls.length === 0) {
+      frameBalls = trajectoryByFrameIndex.get(frameIndex)
+        ?? trajectoryByFrameNumber.get(frameNumber)
+        ?? []
+    }
+    return { frameIndex, frameNumber, balls: frameBalls }
+  }).sort((left, right) => left.frameIndex - right.frameIndex)
+  const finalWindow = frames.slice(-Math.max(1, Math.ceil(frames.length * 0.15)))
+  const finalBallFrame = finalWindow.reduce((best, record) => {
+    const count = (record.snookerTracking?.ballPositions || [])
+      .filter((ball) => ball.hasTablePosition).length
+    const bestCount = (best?.snookerTracking?.ballPositions || [])
+      .filter((ball) => ball.hasTablePosition).length
+    return count >= bestCount ? record : best
+  }, null)
+  const balls = sportMode === 'SNOOKER'
+    ? (finalBallFrame?.snookerTracking?.ballPositions || [])
+      .map((ball) => pongtownPoint(
+        ball,
+        'Ball',
+        pongtownFrameIndex(finalBallFrame, Math.max(0, frames.length - 1)),
+        finiteNumber(finalBallFrame?.frameIdentifier?.frameNumber),
+      ))
+      .filter(Boolean)
+    : []
+  const byFrame = new Map()
+  for (const record of frames) {
+    const overlay = pongtownTriangulation(record)
+    if (overlay) byFrame.set(overlay.frameNumber, overlay)
+  }
+  const snapshotFrameNumber = finiteNumber(finalBallFrame?.frameIdentifier?.frameNumber)
+    || finiteNumber(frames.at(-1)?.frameIdentifier?.frameNumber)
+
+  return {
+    reconstruction: {
+      sourcePath,
+      sourceKind: 'pongtown',
+      sportMode,
+      tableWidthMm,
+      tableHeightMm,
+      netHeightMm: finiteNumber(summary.netHeightMm),
+      netOverhangMm: finiteNumber(summary.netOverhangMm),
+      hasNet,
+      frameCount: frames.length,
+      snapshotFrameNumber,
+      poseQuality: finiteNumber(summary.globalTablePose?.meanIou),
+      balls,
+      bounces,
+      trajectory: trajectoryPoints,
+      pockets: [],
+      frames: domainFrames,
+    },
+    byFrame,
+    sortedFrames: [...byFrame.keys()].sort((left, right) => left - right),
+  }
+}
+
+function buildSnookestownDomain(messages, sourcePath) {
+  const records = messages.map((message) => getSnookestownType().toObject(message, {
+    arrays: true,
+    defaults: false,
+    enums: String,
+    longs: String,
+  }))
+  const summary = [...records].reverse().find((record) => (
+    record.tracks?.length || finiteNumber(record.totalFrames) > 0
+  )) ?? records.at(-1) ?? {}
+  const frames = records.filter((record) => record.frameIdentifier)
+  const tableWidthMm = finiteNumber(summary.tableWidthMm) || 3569
+  const tableHeightMm = finiteNumber(summary.tableHeightMm) || 1778
+  const trackColors = new Map(
+    (summary.tracks || []).map((track) => [finiteNumber(track.trackId), String(track.color || '')]),
+  )
+  const latestByTrack = new Map()
+  const domainFrames = frames.map((record, frameIndex) => {
+    const frameNumber = finiteNumber(record.frameIdentifier?.frameNumber)
+    const balls = (record.balls || []).map((ball) => {
+      const point = {
+        xMm: finiteNumber(ball.xMm),
+        yMm: finiteNumber(ball.yMm),
+        zMm: 0,
+        label: trackColors.get(finiteNumber(ball.trackId)) || `Ball ${finiteNumber(ball.trackId)}`,
+        confidence: finiteNumber(ball.confidence),
+        frameIndex,
+        frameNumber,
+        insideTable: true,
+      }
+      latestByTrack.set(finiteNumber(ball.trackId), point)
+      return point
+    })
+    return {
+      frameIndex,
+      frameNumber,
+      balls,
+    }
+  })
+  const byFrame = new Map()
+  for (const record of frames) {
+    const overlay = snookestownTriangulation(record, tableWidthMm, tableHeightMm)
+    if (overlay) byFrame.set(overlay.frameNumber, overlay)
+  }
+
+  return {
+    reconstruction: {
+      sourcePath,
+      sourceKind: 'snookestown',
+      sportMode: 'SNOOKER',
+      tableWidthMm,
+      tableHeightMm,
+      netHeightMm: 0,
+      netOverhangMm: 0,
+      hasNet: false,
+      frameCount: finiteNumber(summary.totalFrames) || frames.length,
+      snapshotFrameNumber: Math.max(
+        0,
+        ...[...latestByTrack.values()].map((ball) => ball.frameNumber),
+      ),
+      poseQuality: 0,
+      balls: [...latestByTrack.values()],
+      bounces: [],
+      trajectory: [],
+      pockets: (summary.canonicalPockets || []).map((pocket) => ({
+        xMm: finiteNumber(pocket.xMm),
+        yMm: finiteNumber(pocket.yMm),
+        kind: String(pocket.kind || 'UNKNOWN'),
+      })),
+      frames: domainFrames,
+    },
+    byFrame,
+    sortedFrames: [...byFrame.keys()].sort((left, right) => left - right),
+  }
+}
+
+function getDomainReconstructionIndex(filePath) {
+  if (
+    !filePath
+    || (!filePath.endsWith('.pongtown.pb') && !filePath.endsWith('.snook.pb'))
+  ) {
+    throw new Error('Expected a .pongtown.pb or .snook.pb reconstruction file.')
+  }
+  const resolved = path.resolve(filePath)
+  const stat = fs.statSync(resolved)
+  const key = `${stat.size}:${stat.mtimeMs}`
+  const cached = domainReconstructionCache.get(resolved)
+  if (cached?.key === key) return cached.index
+
+  const pongtown = resolved.endsWith('.pongtown.pb')
+  const type = pongtown ? getPongtownType() : getSnookestownType()
+  const messages = readLengthDelimitedProtos(resolved, type)
+  const index = pongtown
+    ? buildPongtownDomain(messages, resolved)
+    : buildSnookestownDomain(messages, resolved)
+  domainReconstructionCache.set(resolved, { key, index })
+  return index
+}
+
+function readDomainReconstruction(filePath) {
+  return getDomainReconstructionIndex(filePath).reconstruction
+}
+
+function readDomainTriangulation(filePath, frameNumber) {
+  const index = getDomainReconstructionIndex(filePath)
+  const targetFrame = nearestSegFrame(
+    index.sortedFrames,
+    Math.trunc(Number(frameNumber) || 0),
+  )
+  return targetFrame == null ? null : index.byFrame.get(targetFrame) ?? null
+}
+
 function analysisFromInitialTurn(turn) {
   const raw = String(turn?.text || '').trim()
   if (!raw) return null
@@ -2316,6 +2859,7 @@ function normalizeChatSession(session) {
     markers: Array.isArray(session?.markers)
       ? session.markers.map(normalizeWorkspaceMarker)
       : [],
+    videoContext: normalizedVideoContextName(session?.videoContext) || 'main',
     ...(session?.source === 'legacy-chat-pb' ? { source: session.source } : {}),
   }
 }
@@ -2330,6 +2874,7 @@ function writeChatSession(videoDirectory, session) {
     title: normalized.title,
     createdAt: normalized.createdAt,
     updatedAt: normalized.updatedAt,
+    videoContext: normalized.videoContext,
     ...(normalized.source ? { source: normalized.source } : {}),
   })
   writeJsonAtomic(path.join(chatDirectory, 'chat.json'), {
@@ -3717,56 +4262,160 @@ function buildMultipartBody(parts) {
   }
 }
 
-async function runAgentChat(request) {
-  if (!request?.recordingPath || typeof request.recordingPath !== 'string') {
-    throw new Error('Gemma video chat requires a selected recording.')
+function agentHarnessSystemContext(recordingPath) {
+  const resolved = path.resolve(recordingPath)
+  let controlProject
+  try {
+    controlProject = controlManifestForRecording(
+      path.dirname(resolved),
+      path.basename(resolved),
+    )
+  } catch {
+    return ''
   }
-  if (!request.recordingPath.endsWith('.vis.pb')) {
-    throw new Error('Gemma video chat requires a .vis.pb recording.')
+  if (!controlProject) return ''
+
+  const robotCars = controlProject.devices.filter(
+    (device) => device.enabled && device.deviceType === 'ROBOT_CAR_DEVICE',
+  )
+  if (!robotCars.length) return ''
+
+  return [
+    'The active physical interface includes a robot car.',
+    'Its observation inputs are a camera and an ultrasonic distance sensor.',
+    'Its actuation output is four independently commanded wheel speeds: left front, right front, left back, and right back.',
+    'This describes available hardware, not current observations. Do not claim a camera image, distance reading, or robot motion unless it is present in attached frames, telemetry, or tool results.',
+  ].join(' ')
+}
+
+function normalizedAgentVideoContexts(request, mainRecordingPath) {
+  const contexts = [{
+    name: 'main',
+    displayName: 'main',
+    path: mainRecordingPath,
+  }]
+  const usedNames = new Set(['main'])
+  const usedPaths = new Set([mainRecordingPath])
+  for (const value of Array.isArray(request?.videoContexts) ? request.videoContexts : []) {
+    if (contexts.length >= 8) break
+    const name = normalizedVideoContextName(value?.name)
+    const contextPath = path.resolve(String(value?.path || ''))
+    if (!name || name === 'main' || usedNames.has(name) || usedPaths.has(contextPath)) continue
+    if (!contextPath.endsWith('.vis.pb') || !safeStat(contextPath)?.isFile()) continue
+    contexts.push({
+      name,
+      displayName: String(value?.displayName || name).trim() || name,
+      path: contextPath,
+    })
+    usedNames.add(name)
+    usedPaths.add(contextPath)
   }
-  const message = String(request.message || '').trim()
-  if (!message) throw new Error('Gemma video chat requires a message.')
+  return contexts
+}
 
-  const resolved = path.resolve(request.recordingPath)
-  const offsets = getFrameOffsets(resolved)
-  if (!offsets.length) throw new Error('The selected recording has no frames.')
-
-  const configuredFrameCount = Math.trunc(finiteNumber(process.env.GEMMA_VIDEO_MAX_FRAMES, 24))
-  const sampleCount = Math.max(1, Math.min(32, configuredFrameCount, offsets.length))
-  const sampledIndexes = []
-  for (let index = 0; index < sampleCount; index += 1) {
-    const frameIndex = sampleCount === 1
-      ? 0
-      : Math.round((index * (offsets.length - 1)) / (sampleCount - 1))
-    if (sampledIndexes.at(-1) !== frameIndex) sampledIndexes.push(frameIndex)
+function sampleAgentVideoContext(
+  context,
+  configuredFrameCount,
+  targetSampleFps,
+  fallbackSourceFps,
+) {
+  const offsets = getFrameOffsets(context.path)
+  let recordingDurationSeconds = 0
+  if (offsets.length > 1 && configuredFrameCount > 0) {
+    const fd = fs.openSync(context.path, 'r')
+    try {
+      const firstFrame = decodedFrameAt(context.path, offsets, 0, fd)
+      const lastFrame = decodedFrameAt(context.path, offsets, offsets.length - 1, fd)
+      recordingDurationSeconds = timestampDeltaSeconds(
+        frameIdentifierFor(firstFrame, 0).timestampNs,
+        frameIdentifierFor(lastFrame, offsets.length - 1).timestampNs,
+      )
+    } finally {
+      fs.closeSync(fd)
+    }
   }
-
+  const sampledIndexes = buildGemmaSampleIndexes(
+    offsets.length,
+    recordingDurationSeconds,
+    targetSampleFps,
+    configuredFrameCount,
+    fallbackSourceFps,
+  )
   const uploads = []
   const timestampsNs = []
-  const fd = fs.openSync(resolved, 'r')
-  try {
-    for (const frameIndex of sampledIndexes) {
-      const frame = decodedFrameAt(resolved, offsets, frameIndex, fd)
-      const jpeg = rgbFrameJpeg(frame)
-      if (!jpeg) continue
-      const identifier = frameIdentifierFor(frame, frameIndex)
-      timestampsNs.push(identifier.timestampNs)
-      uploads.push({
-        name: 'frames',
-        filename: `frame_${String(frameIndex).padStart(6, '0')}.jpg`,
-        contentType: 'image/jpeg',
-        value: jpeg,
-      })
+  if (sampledIndexes.length) {
+    const fd = fs.openSync(context.path, 'r')
+    try {
+      for (const frameIndex of sampledIndexes) {
+        const frame = decodedFrameAt(context.path, offsets, frameIndex, fd)
+        const jpeg = rgbFrameJpeg(frame)
+        if (!jpeg) continue
+        const identifier = frameIdentifierFor(frame, frameIndex)
+        timestampsNs.push(identifier.timestampNs)
+        uploads.push({
+          name: 'frames',
+          filename: `${context.name}_frame_${String(frameIndex).padStart(6, '0')}.jpg`,
+          contentType: 'image/jpeg',
+          value: jpeg,
+        })
+      }
+    } finally {
+      fs.closeSync(fd)
     }
-  } finally {
-    fs.closeSync(fd)
   }
-  if (!uploads.length) {
-    throw new Error('No JPEG RGB frames were available for Gemma video inference.')
-  }
-
   const firstTimestamp = timestampsNs[0]
-  const timestampsSec = timestampsNs.map((value) => timestampDeltaSeconds(firstTimestamp, value))
+  return {
+    ...context,
+    uploads,
+    timestampsSec: timestampsNs.map((value) => timestampDeltaSeconds(firstTimestamp, value)),
+  }
+}
+
+async function runAgentChat(request) {
+  if (!request?.recordingPath || typeof request.recordingPath !== 'string') {
+    throw new Error('Gemma chat requires a selected project.')
+  }
+  if (!request.recordingPath.endsWith('.vis.pb')) {
+    throw new Error('Gemma chat requires a project recording.')
+  }
+  const message = String(request.message || '').trim()
+  if (!message) throw new Error('Gemma chat requires a message.')
+
+  const resolved = path.resolve(request.recordingPath)
+  const configuredFrameCount = Math.trunc(
+    finiteNumber(process.env.GEMMA_VIDEO_MAX_FRAMES, MAX_GEMMA_UPLOAD_FRAMES),
+  )
+  const targetSampleFps = Math.max(
+    0.1,
+    finiteNumber(process.env.GEMMA_VIDEO_SAMPLE_FPS, DEFAULT_GEMMA_SAMPLE_FPS),
+  )
+  const contexts = normalizedAgentVideoContexts(request, resolved).map((context) => (
+    sampleAgentVideoContext(
+      context,
+      configuredFrameCount,
+      targetSampleFps,
+      finiteNumber(process.env.GEMMA_VIDEO_FALLBACK_FPS, 30),
+    )
+  ))
+  const activeVideoContext = contexts.some(
+    (context) => context.name === normalizedVideoContextName(request.activeVideoContext),
+  )
+    ? normalizedVideoContextName(request.activeVideoContext)
+    : 'main'
+  const uploads = contexts.flatMap((context) => context.uploads)
+  const timestampsSec = contexts.flatMap((context) => context.timestampsSec)
+  let frameOffset = 0
+  const videoContexts = contexts.map((context) => {
+    const value = {
+      name: context.name,
+      display_name: context.displayName,
+      start: frameOffset,
+      count: context.uploads.length,
+      timestamps_sec: context.timestampsSec,
+    }
+    frameOffset += context.uploads.length
+    return value
+  })
   const history = Array.isArray(request.history)
     ? request.history
       .filter((item) => item && ['user', 'assistant'].includes(item.role) && String(item.text || '').trim())
@@ -3777,10 +4426,13 @@ async function runAgentChat(request) {
     ...uploads,
     { name: 'message', value: message },
     { name: 'timestamps_sec', value: JSON.stringify(timestampsSec) },
+    { name: 'video_contexts', value: JSON.stringify(videoContexts) },
+    { name: 'active_video_context', value: activeVideoContext },
     { name: 'history', value: JSON.stringify(history) },
     { name: 'request_id', value: String(request.requestId || '') },
     { name: 'chat_id', value: String(request.chatId || '') },
     { name: 'recording_path', value: resolved },
+    { name: 'system_context', value: agentHarnessSystemContext(resolved) },
   ])
   const timeoutMs = Math.max(
     1000,
@@ -3851,6 +4503,7 @@ async function runAgentChat(request) {
             result: call?.result,
           }))
         : [],
+      activeVideoContext: normalizedVideoContextName(result?.active_video_context) || activeVideoContext,
     }
   }
 }
@@ -4594,6 +5247,10 @@ if (isElectronRuntime) {
   ipcMain.handle('seg:masks', (_event, filePath, frameNumber) => readSegmentationMasks(filePath, frameNumber))
   ipcMain.handle('seg:labels', (_event, filePath) => readSegmentationLabels(filePath))
   ipcMain.handle('motioncap:frame', (_event, filePath, frameNumber) => readMotionCapture(filePath, frameNumber))
+  ipcMain.handle('domain:reconstruction', (_event, filePath) => readDomainReconstruction(filePath))
+  ipcMain.handle('domain:triangulation', (_event, filePath, frameNumber) => (
+    readDomainTriangulation(filePath, frameNumber)
+  ))
   ipcMain.handle('chat:thread', (_event, recordingPath) => readChatThread(recordingPath))
   ipcMain.handle('chat-workspace:load', (_event, videoId, recordingPath) => loadChatWorkspace(videoId, recordingPath))
   ipcMain.handle('chat-workspace:create', (_event, videoId, recordingPath) => createChatSession(videoId, recordingPath))
@@ -4688,6 +5345,7 @@ module.exports = {
   createProject,
   createControlProject,
   addDeviceToProject,
+  agentHarnessSystemContext,
   renameProject,
   loadDesktopWorkspaceState,
   saveDesktopWorkspaceState,
@@ -4705,6 +5363,8 @@ module.exports = {
   readIdoSlam,
   readSegmentationMasks,
   readMotionCapture,
+  readDomainReconstruction,
+  readDomainTriangulation,
   readChatThread,
   loadChatWorkspace,
   createChatSession,
@@ -4728,4 +5388,5 @@ module.exports = {
   persistWorldgenComputation,
   worldgenPreviewFromMessages,
   worldgenSplatPaths,
+  buildGemmaSampleIndexes,
 }

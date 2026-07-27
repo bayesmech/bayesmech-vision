@@ -69,6 +69,13 @@ test('saved chats can be deleted, including the final chat', (t) => {
   const recreated = createChatSession(videoId, recordingPath)
   assert.equal(recreated.chats.length, 1)
   assert.ok(recreated.activeChatId)
+  const active = recreated.chats[0]
+  assert.equal(active.videoContext, 'main')
+  saveChatSession(videoId, recordingPath, { ...active, videoContext: 'pov' })
+  assert.equal(
+    loadChatWorkspace(videoId, recordingPath).chats[0].videoContext,
+    'pov',
+  )
 })
 
 test('workspace and project state survive closing and reopening a project', (t) => {

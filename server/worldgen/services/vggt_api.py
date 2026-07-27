@@ -82,6 +82,10 @@ _model = None
 _model_lock = threading.Lock()
 _infer_lock = threading.Lock()
 API_TOKEN = os.environ.get("VGGT_API_TOKEN", "").strip()
+MAX_MODEL_FRAMES = min(
+    96,
+    max(1, int(os.environ.get("VGGT_MAX_MODEL_FRAMES", "96"))),
+)
 
 
 @contextmanager
@@ -166,6 +170,25 @@ def _npz_bytes(**arrays) -> bytes:
     return buffer.getvalue()
 
 
+def _inference_chunk_ranges(
+    frame_count: int,
+    requested_window: int,
+) -> list[tuple[int, int]]:
+    """Partition frames without ever exceeding VGGT's per-call sequence limit."""
+
+    if frame_count <= 0:
+        return []
+    window_size = min(
+        frame_count,
+        MAX_MODEL_FRAMES,
+        requested_window if requested_window > 0 else MAX_MODEL_FRAMES,
+    )
+    return [
+        (start, min(start + window_size, frame_count))
+        for start in range(0, frame_count, window_size)
+    ]
+
+
 def _run_inference(
     frame_paths: list[Path],
     frame_indices: list[int],
@@ -199,7 +222,8 @@ def _run_inference(
             progress_callback(stage, progress, current, total_frames, message)
 
     device = _device()
-    window_size = window or len(frame_paths)
+    chunk_ranges = _inference_chunk_ranges(len(frame_paths), window)
+    window_size = max(end - start for start, end in chunk_ranges)
 
     camera_extrinsics: list[np.ndarray] = []
     camera_intrinsics: list[np.ndarray] = []
@@ -213,9 +237,16 @@ def _run_inference(
     with _scheduled_inference(parent_job_id, progress_callback):
         report("loading_model", 0.02, 0, "Loading VGGT-Omega.")
         get_model()
-        report("reconstructing", 0.08, 0, f"Reconstructing {total_frames} frames.")
-        for start in range(0, len(frame_paths), window_size):
-            end = min(start + window_size, len(frame_paths))
+        report(
+            "reconstructing",
+            0.08,
+            0,
+            (
+                f"Reconstructing {total_frames} frames in "
+                f"{len(chunk_ranges)} chunk{'s' if len(chunk_ranges) != 1 else ''}."
+            ),
+        )
+        for chunk_index, (start, end) in enumerate(chunk_ranges):
             result = run_vggt_window(
                 get_model(),
                 frame_paths[start:end],
@@ -311,6 +342,9 @@ def _run_inference(
                     f"Reconstructed frame {completed}/{total_frames}.",
                 )
 
+            if chunk_index + 1 < len(chunk_ranges) and torch.cuda.is_available():
+                torch.cuda.empty_cache()
+
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
 
@@ -334,6 +368,14 @@ def _run_inference(
         "preprocess_mode": preprocess_mode,
         "conf_thresh": conf_thresh,
         "window": window_size,
+        "requested_window": window,
+        "chunk_count": len(chunk_ranges),
+        "max_model_frames": MAX_MODEL_FRAMES,
+        "trajectory_scope": (
+            "single coherent model world frame"
+            if len(chunk_ranges) == 1
+            else "ordered per-chunk model world frames"
+        ),
         "elapsed_sec": time.time() - started,
         "camera_convention": "extrinsics are camera-from-world [R|t], OpenCV coordinates",
         "pointcloud_space": "world coordinates in VGGT-Omega model frame",
@@ -419,6 +461,7 @@ def health():
         "model_filename": MODEL_FILENAME,
         "model_loaded": _model is not None,
         "auth_required": bool(API_TOKEN),
+        "max_model_frames": MAX_MODEL_FRAMES,
     }
 
 
@@ -445,10 +488,6 @@ async def submit_vggt(
     if not frames:
         raise HTTPException(
             status_code=400, detail="At least one image frame is required."
-        )
-    if len(frames) > 96:
-        raise HTTPException(
-            status_code=400, detail="At most 96 image frames may be submitted."
         )
     if fps is not None and fps <= 0:
         raise HTTPException(status_code=400, detail="fps must be positive")

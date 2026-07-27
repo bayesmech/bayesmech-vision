@@ -30,12 +30,16 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
+MAX_MODEL_FRAMES = 96
+
 
 def _import_torch():
     try:
         import torch
     except ImportError as exc:
-        raise RuntimeError("Install VGGT-Omega dependencies, including torch, before running inference.") from exc
+        raise RuntimeError(
+            "Install VGGT-Omega dependencies, including torch, before running inference."
+        ) from exc
     return torch
 
 
@@ -96,7 +100,9 @@ def load_model(
 ):
     torch = _import_torch()
 
-    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "vendor" / "vggt_omega"))
+    sys.path.insert(
+        0, str(Path(__file__).resolve().parent.parent / "vendor" / "vggt_omega")
+    )
     from vggt_omega.models import VGGTOmega
 
     model = VGGTOmega()
@@ -118,7 +124,9 @@ def camera_to_world(extrinsic: np.ndarray) -> np.ndarray:
     return np.linalg.inv(world_to_camera).astype(np.float32)
 
 
-def depth_to_pointcloud(depth, intrinsics, extrinsics, conf=None, conf_thresh: float = 0.0):
+def depth_to_pointcloud(
+    depth, intrinsics, extrinsics, conf=None, conf_thresh: float = 0.0
+):
     torch = _import_torch()
 
     height, width = depth.shape
@@ -174,7 +182,17 @@ def save_ply(path: Path, xyz: np.ndarray, rgb: np.ndarray) -> None:
     with open(path, "wb") as handle:
         handle.write(header.encode("ascii"))
         for point, color in zip(xyz, rgb_u8):
-            handle.write(struct.pack("<fffBBB", point[0], point[1], point[2], color[0], color[1], color[2]))
+            handle.write(
+                struct.pack(
+                    "<fffBBB",
+                    point[0],
+                    point[1],
+                    point[2],
+                    color[0],
+                    color[1],
+                    color[2],
+                )
+            )
 
 
 def find_segmentation_path(seg_dir: Path, frame_stem: str) -> Path | None:
@@ -193,7 +211,9 @@ def load_segmentation_map(path: Path) -> np.ndarray:
     return np.asarray(Image.open(path))
 
 
-def preprocess_segmentation_maps(seg_paths: list[Path], mode: str, image_resolution: int) -> list[np.ndarray]:
+def preprocess_segmentation_maps(
+    seg_paths: list[Path], mode: str, image_resolution: int
+) -> list[np.ndarray]:
     from vggt_omega.utils.load_fn import (
         _balanced_target_shape,
         _crop_to_supported_aspect_ratio,
@@ -208,17 +228,27 @@ def preprocess_segmentation_maps(seg_paths: list[Path], mode: str, image_resolut
     shapes = set()
 
     for path in seg_paths:
-        image = Image.fromarray(load_segmentation_map(path)) if path.suffix == ".npy" else Image.open(path)
+        image = (
+            Image.fromarray(load_segmentation_map(path))
+            if path.suffix == ".npy"
+            else Image.open(path)
+        )
 
         image = _crop_to_supported_aspect_ratio(image)
         width, height = image.size
         aspect_ratio = height / max(width, 1)
         if mode == "balanced":
-            target_h, target_w = _balanced_target_shape(aspect_ratio, image_resolution, patch_size=16)
+            target_h, target_w = _balanced_target_shape(
+                aspect_ratio, image_resolution, patch_size=16
+            )
         else:
-            target_h, target_w = _max_size_target_shape(aspect_ratio, image_resolution, patch_size=16)
+            target_h, target_w = _max_size_target_shape(
+                aspect_ratio, image_resolution, patch_size=16
+            )
 
-        resized = np.asarray(image.resize((target_w, target_h), Image.Resampling.NEAREST))
+        resized = np.asarray(
+            image.resize((target_w, target_h), Image.Resampling.NEAREST)
+        )
         if resized.ndim == 2:
             tensor = torch.from_numpy(resized[None])
         else:
@@ -285,7 +315,9 @@ def run_vggt_window(model, frame_paths: list[Path], resolution: int, mode: str, 
         predictions = model(images)
 
     height, width = images.shape[-2:]
-    extrinsics, intrinsics = encoding_to_camera(predictions["pose_enc"], image_size_hw=(height, width))
+    extrinsics, intrinsics = encoding_to_camera(
+        predictions["pose_enc"], image_size_hw=(height, width)
+    )
 
     return {
         "images": images[0].detach().cpu(),
@@ -298,32 +330,77 @@ def run_vggt_window(model, frame_paths: list[Path], resolution: int, mode: str, 
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Run VGGT-Omega on a video and save per-frame point clouds.")
+    parser = argparse.ArgumentParser(
+        description="Run VGGT-Omega on a video and save per-frame point clouds."
+    )
     parser.add_argument("--video", required=True, help="Input video path.")
     parser.add_argument("--out", required=True, help="Output directory.")
-    parser.add_argument("--ckpt", default=None, help="Local VGGT-Omega checkpoint. If omitted, --model is downloaded.")
-    parser.add_argument("--model", default="facebook/VGGT-Omega-1B-512", help="Hugging Face model ID used when --ckpt is omitted.")
-    parser.add_argument("--resolution", type=int, default=512, help="VGGT-Omega preprocessing resolution.")
-    parser.add_argument("--preprocess-mode", choices=["balanced", "max_size"], default="balanced")
-    parser.add_argument("--every-n", type=int, default=1, help="Sample every Nth video frame.")
-    parser.add_argument("--max-frames", type=int, default=None, help="Optional cap on sampled frames.")
-    parser.add_argument("--conf-thresh", type=float, default=0.5, help="Minimum depth confidence for exported points.")
+    parser.add_argument(
+        "--ckpt",
+        default=None,
+        help="Local VGGT-Omega checkpoint. If omitted, --model is downloaded.",
+    )
+    parser.add_argument(
+        "--model",
+        default="facebook/VGGT-Omega-1B-512",
+        help="Hugging Face model ID used when --ckpt is omitted.",
+    )
+    parser.add_argument(
+        "--resolution",
+        type=int,
+        default=512,
+        help="VGGT-Omega preprocessing resolution.",
+    )
+    parser.add_argument(
+        "--preprocess-mode", choices=["balanced", "max_size"], default="balanced"
+    )
+    parser.add_argument(
+        "--every-n", type=int, default=1, help="Sample every Nth video frame."
+    )
+    parser.add_argument(
+        "--max-frames", type=int, default=None, help="Optional cap on sampled frames."
+    )
+    parser.add_argument(
+        "--conf-thresh",
+        type=float,
+        default=0.5,
+        help="Minimum depth confidence for exported points.",
+    )
     parser.add_argument(
         "--window",
         type=int,
         default=0,
-        help="Frames per model call. The default 0 runs all sampled frames together for one coherent trajectory.",
+        help=(
+            "Frames per model call, capped at 96. The default 0 automatically "
+            "processes ordered chunks of up to 96 frames."
+        ),
     )
-    parser.add_argument("--seg-video", default=None, help="Optional segmentation video aligned to --video.")
-    parser.add_argument("--seg-dir", default=None, help="Optional segmentation maps named like extracted frames.")
+    parser.add_argument(
+        "--seg-video",
+        default=None,
+        help="Optional segmentation video aligned to --video.",
+    )
+    parser.add_argument(
+        "--seg-dir",
+        default=None,
+        help="Optional segmentation maps named like extracted frames.",
+    )
     parser.add_argument(
         "--seg-preprocessed",
         action="store_true",
         help="Treat --seg-dir maps as already matching VGGT output pixels; otherwise crop/resize them like RGB.",
     )
-    parser.add_argument("--ply", action="store_true", help="Also export binary PLY point clouds.")
-    parser.add_argument("--keep-frames", action="store_true", help="Keep extracted RGB frames under the output directory.")
-    parser.add_argument("--device", default=None, help="Torch device. Defaults to cuda when available.")
+    parser.add_argument(
+        "--ply", action="store_true", help="Also export binary PLY point clouds."
+    )
+    parser.add_argument(
+        "--keep-frames",
+        action="store_true",
+        help="Keep extracted RGB frames under the output directory.",
+    )
+    parser.add_argument(
+        "--device", default=None, help="Torch device. Defaults to cuda when available."
+    )
     args = parser.parse_args()
 
     if args.every_n < 1:
@@ -332,7 +409,9 @@ def main() -> None:
         raise ValueError("--window must be >= 0")
 
     torch = _import_torch()
-    device = torch.device(args.device or ("cuda" if torch.cuda.is_available() else "cpu"))
+    device = torch.device(
+        args.device or ("cuda" if torch.cuda.is_available() else "cpu")
+    )
 
     out_dir = Path(args.out)
     pointcloud_dir = out_dir / "pointclouds"
@@ -365,7 +444,9 @@ def main() -> None:
                 max_frames=args.max_frames,
             )
             if len(seg_frame_paths) != len(frame_paths):
-                raise ValueError("--seg-video produced a different number of sampled frames than --video")
+                raise ValueError(
+                    "--seg-video produced a different number of sampled frames than --video"
+                )
 
         model = load_model(args.ckpt, args.model, device)
 
@@ -376,11 +457,17 @@ def main() -> None:
         image_sizes: list[tuple[int, int]] = []
         saved_frames: list[str] = []
 
-        window_size = args.window or len(frame_paths)
+        window_size = min(
+            len(frame_paths),
+            MAX_MODEL_FRAMES,
+            args.window if args.window > 0 else MAX_MODEL_FRAMES,
+        )
         for start in range(0, len(frame_paths), window_size):
             end = min(start + window_size, len(frame_paths))
             window_paths = frame_paths[start:end]
-            result = run_vggt_window(model, window_paths, args.resolution, args.preprocess_mode, device)
+            result = run_vggt_window(
+                model, window_paths, args.resolution, args.preprocess_mode, device
+            )
             image_sizes.extend([result["image_size"]] * len(window_paths))
             window_segmentation: list[np.ndarray | None] = [None] * len(window_paths)
 
@@ -393,9 +480,13 @@ def main() -> None:
             elif args.seg_dir is not None and not args.seg_preprocessed:
                 seg_paths = []
                 for frame_path in window_paths:
-                    seg_path = find_segmentation_path(Path(args.seg_dir), frame_path.stem)
+                    seg_path = find_segmentation_path(
+                        Path(args.seg_dir), frame_path.stem
+                    )
                     if seg_path is None:
-                        raise ValueError(f"No segmentation map found for {frame_path.stem} in {args.seg_dir}")
+                        raise ValueError(
+                            f"No segmentation map found for {frame_path.stem} in {args.seg_dir}"
+                        )
                     seg_paths.append(seg_path)
                 window_segmentation = preprocess_segmentation_maps(
                     seg_paths,
@@ -412,7 +503,12 @@ def main() -> None:
                     conf=result["depth_conf"][local_idx],
                     conf_thresh=args.conf_thresh,
                 )
-                rgb = result["images"][local_idx].permute(1, 2, 0).reshape(-1, 3).numpy()[pc["valid_mask"]]
+                rgb = (
+                    result["images"][local_idx]
+                    .permute(1, 2, 0)
+                    .reshape(-1, 3)
+                    .numpy()[pc["valid_mask"]]
+                )
 
                 arrays = {
                     "xyz": pc["xyz"],
@@ -448,7 +544,11 @@ def main() -> None:
                 frame_name = f"frame_{global_idx:06d}"
                 np.savez_compressed(pointcloud_dir / f"{frame_name}.npz", **arrays)
                 if args.ply:
-                    save_ply(pointcloud_dir / f"{frame_name}.ply", arrays["xyz"], arrays["rgb"])
+                    save_ply(
+                        pointcloud_dir / f"{frame_name}.ply",
+                        arrays["xyz"],
+                        arrays["rgb"],
+                    )
 
                 extrinsic = result["extrinsics"][local_idx].numpy().astype(np.float32)
                 intrinsic = result["intrinsics"][local_idx].numpy().astype(np.float32)
@@ -457,7 +557,9 @@ def main() -> None:
                 intrinsics_out.append(intrinsic)
                 cam_to_world_out.append(c2w)
                 centers_out.append(c2w[:3, 3])
-                saved_frames.append(str(frame_path if args.keep_frames else Path(args.video)))
+                saved_frames.append(
+                    str(frame_path if args.keep_frames else Path(args.video))
+                )
 
         np.savez_compressed(
             out_dir / "camera_trajectory.npz",
@@ -486,11 +588,21 @@ def main() -> None:
             "conf_thresh": args.conf_thresh,
             "segmentation_source": args.seg_video or args.seg_dir,
             "segmentation_preprocessed": args.seg_preprocessed,
-            "pointcloud_npz_keys": ["xyz", "rgb", "uv", "flat_indices", "depth", "conf", "segmentation"],
+            "pointcloud_npz_keys": [
+                "xyz",
+                "rgb",
+                "uv",
+                "flat_indices",
+                "depth",
+                "conf",
+                "segmentation",
+            ],
             "pixel_space": "uv and flat_indices refer to VGGT-Omega's preprocessed output image, not the original video frame",
             "camera_convention": "extrinsics are camera-from-world [R|t], OpenCV coordinates",
         }
-        (out_dir / "metadata.json").write_text(json.dumps(metadata, indent=2), encoding="utf-8")
+        (out_dir / "metadata.json").write_text(
+            json.dumps(metadata, indent=2), encoding="utf-8"
+        )
     finally:
         if temp_dir is not None:
             shutil.rmtree(temp_dir, ignore_errors=True)

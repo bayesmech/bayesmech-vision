@@ -159,8 +159,10 @@ World Modeling is available at `/api/v1/worldgen`. Generic jobs use:
 
 Queued World Modeling and shared background state use:
 
-- `POST /api/v1/worldgen/jobs/vggt` — queue VGGT; `start_splat=true`
-  creates a separately tracked Gaussian Splatting child job after reconstruction
+- `POST /api/v1/worldgen/jobs/vggt` — queue VGGT; sequences longer than 96
+  frames are processed as ordered model-call chunks of at most 96;
+  `start_splat=true` creates a separately tracked Gaussian Splatting child job
+  after reconstruction
 - `GET /api/v1/worldgen/jobs` — list persistent VGGT and splatting jobs
 - `GET /api/v1/worldgen/jobs/{job_id}` — read one job and its percentage progress
 - `GET /api/v1/worldgen/jobs/{vggt_job_id}/result` — fetch the completed VGGT JSON

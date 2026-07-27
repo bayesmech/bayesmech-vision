@@ -7,6 +7,8 @@ import type {
   AgentChatResult,
   ChatThread,
   ControlDevicePreset,
+  DomainReconstruction,
+  DomainTriangulation,
   IdoSlamSummary,
   MotionCaptureOverlay,
   ProjectScanResult,
@@ -128,6 +130,7 @@ function createBrowserWorkspace(
     updatedAt: createdAt,
     messages: legacyMessages(turns),
     markers: [],
+    videoContext: 'main',
   }
   return {
     version: 1,
@@ -827,6 +830,17 @@ export default function App() {
   const activeChat = useMemo(() => (
     activeWorkspace?.chats.find((chat) => chat.id === selectedChatId) ?? null
   ), [activeWorkspace, selectedChatId])
+  const activeVideoContext = useMemo(() => {
+    const contexts = selectedRecording?.videoContexts
+    if (!contexts?.length) {
+      return selectedRecording
+        ? { name: 'main', path: selectedRecording.path }
+        : null
+    }
+    return contexts.find((context) => context.name === (activeChat?.videoContext ?? 'main'))
+      ?? contexts.find((context) => context.name === 'main')
+      ?? contexts[0]
+  }, [activeChat?.videoContext, selectedRecording])
 
   const persistChatSession = useCallback(
     (recording: RecordingEntry, session: WorkspaceChatSession) => {
@@ -904,6 +918,7 @@ export default function App() {
             updatedAt: createdAt,
             messages: [],
             markers: [],
+            videoContext: 'main',
           }
           workspace = {
             ...current,
@@ -1035,17 +1050,38 @@ export default function App() {
       if (selectedRecording.path.startsWith('browser://')) {
         throw new Error('Gemma video chat requires a local filesystem recording.')
       }
-      return bridge.sendAgentMessage({
+      const result = await bridge.sendAgentMessage({
         requestId: requestId(),
         recordingPath: selectedRecording.path,
         chatId: activeChat.id,
         message,
+        videoContexts: (selectedRecording.videoContexts?.length
+          ? selectedRecording.videoContexts
+          : [{
+              name: 'main',
+              displayName: 'main',
+              path: selectedRecording.path,
+            }]
+        ).map((context) => ({
+          name: context.name,
+          displayName: context.displayName,
+          path: context.path,
+        })),
+        activeVideoContext: activeChat.videoContext ?? 'main',
         history: history
           .filter((item) => item.role === 'user' || item.role === 'assistant')
           .map((item) => ({ role: item.role, text: chatHistoryText(item) })),
       })
+      const nextContext = result.activeVideoContext ?? activeChat.videoContext ?? 'main'
+      if (nextContext !== activeChat.videoContext) {
+        persistChatSession(selectedRecording, {
+          ...activeChat,
+          videoContext: nextContext,
+        })
+      }
+      return result
     },
-    [activeChat, bridge, selectedRecording],
+    [activeChat, bridge, persistChatSession, selectedRecording],
   )
 
   const closeRecording = useCallback(
@@ -1164,17 +1200,22 @@ export default function App() {
     return null
   }, [bridge, selectedRecording])
 
-  const getSensorData = useCallback(async (): Promise<SensorDataSummary | null> => {
+  const getSensorData = useCallback(async (sourcePath?: string): Promise<SensorDataSummary | null> => {
     const recording = selectedRecording
     if (!recording) return null
-    const browserFile = browserFilesRef.current.get(recording.path)
-    if (browserFile) return readBrowserVisSensors(recording, browserFile)
-    if (bridge?.readVisSensors) return bridge.readVisSensors(recording.path)
+    const recordingPath = sourcePath ?? recording.path
+    const browserFile = browserFilesRef.current.get(recordingPath)
+    if (browserFile) {
+      return readBrowserVisSensors({ ...recording, path: recordingPath }, browserFile)
+    }
+    if (bridge?.readVisSensors) return bridge.readVisSensors(recordingPath)
     return null
   }, [bridge, selectedRecording])
 
-  const getIdoSlamData = useCallback(async (): Promise<IdoSlamSummary | null> => {
-    const analysis = selectedRecording?.analyses.find((item) => item.key === 'idoslam')
+  const getIdoSlamData = useCallback(async (artifactPath?: string): Promise<IdoSlamSummary | null> => {
+    const analysis = artifactPath
+      ? selectedRecording?.analyses.find((item) => item.path === artifactPath)
+      : selectedRecording?.analyses.find((item) => item.key === 'idoslam')
     if (!analysis) return null
     const browserFile = browserFilesRef.current.get(analysis.path)
     if (browserFile) return readBrowserIdoSlam(analysis.path, browserFile)
@@ -1193,12 +1234,16 @@ export default function App() {
     setSegmentationOn(false)
     setSegmentationMaskLabel(null)
     setWorldgenResults({})
-    const worldgen = selectedRecording?.analyses.find((analysis) => analysis.key === 'worldgen')
-    if (!worldgen || !bridge?.readWorldgen) return
+    const worldgenAnalyses = selectedRecording?.analyses.filter(
+      (analysis) => (analysis.baseKey ?? analysis.key.split(':')[0]) === 'worldgen',
+    ) ?? []
+    if (!worldgenAnalyses.length || !bridge?.readWorldgen) return
     let cancelled = false
-    bridge.readWorldgen(worldgen.path)
-      .then((result) => {
-        if (!cancelled) setWorldgenResults({ [result.id]: result })
+    Promise.all(worldgenAnalyses.map((analysis) => bridge.readWorldgen(analysis.path)))
+      .then((results) => {
+        if (!cancelled) {
+          setWorldgenResults(Object.fromEntries(results.map((result) => [result.id, result])))
+        }
       })
       .catch((err) => {
         if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load World Modeling.')
@@ -1248,27 +1293,69 @@ export default function App() {
   }, [bridge, selectedRecording])
 
   const openSegmentationView = useCallback(() => {
+    const analysisKey = selectedRecording?.analyses.find((analysis) => (
+      (analysis.baseKey ?? analysis.key.split(':')[0]) === 'segmentation'
+      && (analysis.videoContext ?? 'main') === (activeVideoContext?.name ?? 'main')
+    ))?.key ?? 'segmentation'
     setTabRequest({
       requestId: requestId(),
       type: 'analysis',
       title: 'Segmentation',
-      analysisKey: 'segmentation',
+      analysisKey,
     })
-  }, [])
+  }, [activeVideoContext?.name, selectedRecording])
 
   const selectedSegmentationArtifact = useCallback(
-    () => selectedRecording?.analyses.find((analysis) => analysis.key === 'segmentation') ?? null,
-    [selectedRecording],
+    () => selectedRecording?.analyses.find((analysis) => (
+      (analysis.baseKey ?? analysis.key.split(':')[0]) === 'segmentation'
+      && (analysis.videoContext ?? 'main') === (activeVideoContext?.name ?? 'main')
+    )) ?? null,
+    [activeVideoContext?.name, selectedRecording],
   )
 
-  const getSegmentationLabels = useCallback(async (): Promise<string[]> => {
-    const seg = selectedSegmentationArtifact()
+  const selectedDomainArtifact = useCallback(
+    () => selectedRecording?.analyses.find(
+      (analysis) => (
+        ['pongtown', 'snookestown'].includes(analysis.baseKey ?? analysis.key.split(':')[0])
+        && (analysis.videoContext ?? 'main') === (activeVideoContext?.name ?? 'main')
+      ),
+    ) ?? null,
+    [activeVideoContext?.name, selectedRecording],
+  )
+
+  const getDomainReconstruction = useCallback(
+    async (filePath: string): Promise<DomainReconstruction | null> => {
+      if (browserFilesRef.current.has(filePath)) return null
+      if (bridge?.readDomainReconstruction) return bridge.readDomainReconstruction(filePath)
+      return null
+    },
+    [bridge],
+  )
+
+  const getDomainTriangulation = useCallback(
+    async (frameNumber: number, artifactPath?: string): Promise<DomainTriangulation | null> => {
+      const artifact = artifactPath
+        ? selectedRecording?.analyses.find((analysis) => analysis.path === artifactPath)
+        : selectedDomainArtifact()
+      if (!artifact || browserFilesRef.current.has(artifact.path)) return null
+      if (bridge?.readDomainTriangulation) {
+        return bridge.readDomainTriangulation(artifact.path, frameNumber)
+      }
+      return null
+    },
+    [bridge, selectedDomainArtifact, selectedRecording],
+  )
+
+  const getSegmentationLabels = useCallback(async (artifactPath?: string): Promise<string[]> => {
+    const seg = artifactPath
+      ? selectedRecording?.analyses.find((analysis) => analysis.path === artifactPath)
+      : selectedSegmentationArtifact()
     if (!seg) return []
     const browserFile = browserFilesRef.current.get(seg.path)
     if (browserFile) return readBrowserSegmentationLabels(browserFile)
     if (bridge?.readSegmentationLabels) return bridge.readSegmentationLabels(seg.path)
     return []
-  }, [bridge, selectedSegmentationArtifact])
+  }, [bridge, selectedRecording, selectedSegmentationArtifact])
 
   const runCommand = useCallback(
     async (text: string, onProgress?: (progress: CommandProgress) => void): Promise<CommandResult> => {
@@ -1301,7 +1388,7 @@ export default function App() {
         try {
           const result = await bridge.runWorldgen({
             requestId: worldgenRequestId,
-            recordingPath: selectedRecording.path,
+            recordingPath: activeVideoContext?.path ?? selectedRecording.path,
             markerStart: startMarker.reference,
             markerEnd: endMarker.reference,
             startFrameIndex: startMarker.frameIndex,
@@ -1440,16 +1527,18 @@ export default function App() {
       openSegmentationView()
       return { ok: true, message: 'Segmentation overlay enabled.' }
     },
-    [bridge, getSegmentationLabels, openSegmentationView, selectedRecording, selectedSegmentationArtifact, videoState.markers],
+    [activeVideoContext?.path, bridge, getSegmentationLabels, openSegmentationView, selectedRecording, selectedSegmentationArtifact, videoState.markers],
   )
 
   // Segmentation masks for a video frame number, routed like getFrame. Fetching
   // is independent of the regular Video tab's optional overlay because the
   // dedicated Segmentation tab always renders masks.
   const getSegmentation = useCallback(
-    async (frameNumber: number): Promise<SegMask[] | null> => {
+    async (frameNumber: number, artifactPath?: string): Promise<SegMask[] | null> => {
       if (!selectedRecording) return null
-      const seg = selectedRecording.analyses.find((analysis) => analysis.key === 'segmentation')
+      const seg = artifactPath
+        ? selectedRecording.analyses.find((analysis) => analysis.path === artifactPath)
+        : selectedRecording.analyses.find((analysis) => analysis.key === 'segmentation')
       if (!seg) return null
       const browserFile = browserFilesRef.current.get(seg.path)
       if (browserFile) return readBrowserSegmentationMasks(browserFile, frameNumber)
@@ -1460,8 +1549,10 @@ export default function App() {
   )
 
   const getMotionCapture = useCallback(
-    async (frameNumber: number): Promise<MotionCaptureOverlay | null> => {
-      const motionCapture = selectedRecording?.analyses.find((analysis) => analysis.key === 'motioncap')
+    async (frameNumber: number, artifactPath?: string): Promise<MotionCaptureOverlay | null> => {
+      const motionCapture = artifactPath
+        ? selectedRecording?.analyses.find((analysis) => analysis.path === artifactPath)
+        : selectedRecording?.analyses.find((analysis) => analysis.key === 'motioncap')
       if (!motionCapture) return null
       const browserFile = browserFilesRef.current.get(motionCapture.path)
       if (browserFile) return readBrowserMotionCapture(browserFile, frameNumber)
@@ -1478,6 +1569,11 @@ export default function App() {
       runCommand,
       getSegmentation,
       getSegmentationLabels,
+      triangulationAvailable: (() => {
+        const artifact = selectedDomainArtifact()
+        return Boolean(artifact && !browserFilesRef.current.has(artifact.path))
+      })(),
+      getDomainTriangulation,
       getMotionCapture,
     }),
     [
@@ -1486,6 +1582,8 @@ export default function App() {
       runCommand,
       getSegmentation,
       getSegmentationLabels,
+      selectedDomainArtifact,
+      getDomainTriangulation,
       getMotionCapture,
     ],
   )
@@ -1577,6 +1675,7 @@ export default function App() {
             getVisSummary={getVisSummary}
             getSensorData={getSensorData}
             getIdoSlamData={getIdoSlamData}
+            getDomainReconstruction={getDomainReconstruction}
             overlay={overlay}
             videoState={videoState}
             onVideoStateChange={setVideoState}

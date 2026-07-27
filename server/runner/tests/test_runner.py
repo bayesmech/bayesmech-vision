@@ -291,7 +291,119 @@ def test_gemma_video_job_runs_in_fifo_worker_and_returns_result(
         "from pathlib import Path\n"
         "request = json.loads(Path(sys.argv[1]).read_text())\n"
         "Path(sys.argv[2]).write_text(json.dumps({"
-        "'text': 'saw the sampled frame', "
+        "'text': ','.join(item['name'] for item in request['video_contexts']), "
+        "'model': request['model_id'], "
+        "'tool_calls': [], "
+        "'sampled_frame_count': len(request['frame_paths']), "
+        "'active_video_context': request['active_video_context']"
+        "}))\n",
+        encoding="utf-8",
+    )
+    settings = _settings(tmp_path)
+    manager = JobManager(
+        settings.data_dir,
+        {},
+        max_workers=1,
+        max_upload_bytes=settings.max_upload_bytes,
+        max_runtime_seconds=settings.max_runtime_seconds,
+        python_executable=sys.executable,
+    )
+    gemma_manager = GemmaJobManager(
+        settings.data_dir,
+        runner_token=TOKEN,
+        max_runtime_seconds=30,
+        server_root=server_root,
+        python_executable=sys.executable,
+    )
+    app = create_app(settings, manager, gemma_manager)
+    headers = {"Authorization": f"Bearer {TOKEN}"}
+    submitted = asyncio.run(
+        _request(
+            app,
+            "POST",
+            "/api/v1/agent/jobs",
+            headers=headers,
+            data={
+                "message": "What happens?",
+                "timestamps_sec": "[1.25, 1.5]",
+                "video_contexts": json.dumps(
+                    [
+                        {
+                            "name": "main",
+                            "display_name": "main",
+                            "start": 0,
+                            "count": 1,
+                            "timestamps_sec": [1.25],
+                        },
+                        {
+                            "name": "pov",
+                            "display_name": "pov",
+                            "start": 1,
+                            "count": 1,
+                            "timestamps_sec": [1.5],
+                        },
+                    ]
+                ),
+                "active_video_context": "pov",
+                "history": json.dumps([{"role": "user", "text": "Earlier question"}]),
+                "request_id": "request-test",
+                "chat_id": "chat-test",
+            },
+            files=[
+                ("frames", ("frame.jpg", b"jpeg-bytes", "image/jpeg")),
+                ("frames", ("frame-pov.jpg", b"pov-jpeg-bytes", "image/jpeg")),
+            ],
+        )
+    )
+    assert submitted.status_code == 202, submitted.text
+    job_id = submitted.json()["job_id"]
+
+    state = submitted.json()
+    deadline = time.monotonic() + 10
+    while state["status"] not in {"complete", "failed"}:
+        assert time.monotonic() < deadline
+        time.sleep(0.05)
+        response = asyncio.run(
+            _request(
+                app,
+                "GET",
+                f"/api/v1/agent/jobs/{job_id}",
+                headers=headers,
+            )
+        )
+        assert response.status_code == 200
+        state = response.json()
+    assert state["status"] == "complete", state
+    assert state["sampled_frame_count"] == 2
+
+    response = asyncio.run(
+        _request(
+            app,
+            "GET",
+            f"/api/v1/agent/jobs/{job_id}/result",
+            headers=headers,
+        )
+    )
+    assert response.status_code == 200
+    assert response.json()["text"] == "main,pov"
+    assert response.json()["sampled_frame_count"] == 2
+    assert response.json()["active_video_context"] == "pov"
+    gemma_manager.close()
+    manager.close()
+
+
+def test_gemma_text_job_accepts_no_frames_and_preserves_harness_context(
+    tmp_path: Path,
+) -> None:
+    server_root = tmp_path / "server"
+    worker = server_root / "gemma" / "worker.py"
+    worker.parent.mkdir(parents=True)
+    worker.write_text(
+        "import json, sys\n"
+        "from pathlib import Path\n"
+        "request = json.loads(Path(sys.argv[1]).read_text())\n"
+        "Path(sys.argv[2]).write_text(json.dumps({"
+        "'text': request['system_context'], "
         "'model': request['model_id'], "
         "'tool_calls': [], "
         "'sampled_frame_count': len(request['frame_paths'])"
@@ -323,18 +435,20 @@ def test_gemma_video_job_runs_in_fifo_worker_and_returns_result(
             "/api/v1/agent/jobs",
             headers=headers,
             data={
-                "message": "What happens?",
-                "timestamps_sec": "[1.25]",
-                "history": json.dumps([{"role": "user", "text": "Earlier question"}]),
-                "request_id": "request-test",
-                "chat_id": "chat-test",
+                "message": "What can this robot sense?",
+                "timestamps_sec": "[]",
+                "history": "[]",
+                "request_id": "request-text",
+                "chat_id": "chat-text",
+                "system_context": (
+                    "The robot has camera and ultrasonic inputs and four wheel outputs."
+                ),
             },
-            files=[
-                ("frames", ("frame.jpg", b"jpeg-bytes", "image/jpeg")),
-            ],
         )
     )
     assert submitted.status_code == 202, submitted.text
+    assert submitted.json()["frame_count"] == 0
+    assert submitted.json()["chat_mode"] == "text"
     job_id = submitted.json()["job_id"]
 
     state = submitted.json()
@@ -353,7 +467,7 @@ def test_gemma_video_job_runs_in_fifo_worker_and_returns_result(
         assert response.status_code == 200
         state = response.json()
     assert state["status"] == "complete", state
-    assert state["sampled_frame_count"] == 1
+    assert state["sampled_frame_count"] == 0
 
     response = asyncio.run(
         _request(
@@ -364,8 +478,7 @@ def test_gemma_video_job_runs_in_fifo_worker_and_returns_result(
         )
     )
     assert response.status_code == 200
-    assert response.json()["text"] == "saw the sampled frame"
-    assert response.json()["sampled_frame_count"] == 1
+    assert "camera and ultrasonic inputs" in response.json()["text"]
     gemma_manager.close()
     manager.close()
 

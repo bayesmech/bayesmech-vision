@@ -44,9 +44,11 @@ encoding from the video frames. `encoding_to_camera` decodes the pose encoding
 into intrinsics and camera-from-world extrinsics. The script then unprojects
 each predicted depth pixel with those camera parameters, so the point clouds and
 camera trajectory are derived directly from the model's video-only outputs.
-By default the script sends all sampled frames in one model call so the camera
-trajectory lives in one coherent model world frame. Use `--window` only as a
-VRAM fallback for long clips; smaller windows produce per-window world frames.
+VGGT model calls are capped at 96 frames. Longer sampled sequences are
+processed in ordered chunks of 96 and merged into one result instead of being
+rejected. `--window` may set a smaller chunk size, but values above 96 are
+clamped to the model limit. Multi-chunk results contain per-chunk model world
+frames.
 
 If you have segmentation aligned to the video, pass either:
 

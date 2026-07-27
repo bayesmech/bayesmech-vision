@@ -64,6 +64,7 @@ def test_control_session_keeps_robot_and_phone_in_separate_recordings(tmp_path):
 
     opened = manager.open(manifest_path)
     assert opened["project_id"] == "20260726_120000_robot_car"
+    assert opened["recording"] is False
     assert manager.robot_profiles() == [
         {
             "id": "robocar-1",
@@ -74,6 +75,19 @@ def test_control_session_keeps_robot_and_phone_in_separate_recordings(tmp_path):
         }
     ]
 
+    # Loading a control project does not start writing to disk.
+    manager.write_video(
+        "robocar-1",
+        b"\xff\xd8ignored-before-recording\xff\xd9",
+        160,
+        120,
+        {"valid": True, "filtered_mm": 200, "seq": 8, "age_ms": 5},
+    )
+    assert not (project_dir / "car.vis.pb").exists()
+
+    started = manager.start_recording()
+    assert started["recording"] is True
+    assert started["recording_started_timestamp_ms"] is not None
     manager.write_video(
         "robocar-1",
         b"\xff\xd8robot-jpeg\xff\xd9",
@@ -87,6 +101,24 @@ def test_control_session_keeps_robot_and_phone_in_separate_recordings(tmp_path):
     phone_frame.rgb_frame.format = perceiver_pb2.ImageFrame.JPEG
     phone_frame.rgb_frame.data = b"\xff\xd8phone-jpeg\xff\xd9"
     manager.write_perceiver(phone_frame, "pixel-1")
+    stopped = manager.stop_recording()
+    assert stopped["recording"] is False
+    assert stopped["recording_elapsed_ms"] >= 0
+    assert {
+        stream["device_id"]: stream["frames_written"] for stream in stopped["streams"]
+    } == {
+        "robocar-1": 1,
+        "phone": 1,
+    }
+
+    # Frames arriving after the stop edge cannot leak into the saved trajectory.
+    manager.write_video(
+        "robocar-1",
+        b"\xff\xd8ignored-after-recording\xff\xd9",
+        160,
+        120,
+        {"valid": True, "filtered_mm": 100, "seq": 10, "age_ms": 3},
+    )
     manager.close()
 
     robot_frames = _read_frames(project_dir / "car.vis.pb")
@@ -98,6 +130,10 @@ def test_control_session_keeps_robot_and_phone_in_separate_recordings(tmp_path):
     assert ultrasonic.distance_meters == pytest.approx(0.4)
     assert ultrasonic.normalized_distance == pytest.approx(0.1)
     assert 0 <= ultrasonic.normalized_distance <= 1
+    assert robot_frames[0].HasField("rgb_frame")
+    assert not robot_frames[0].HasField("camera_pose")
+    assert not robot_frames[0].HasField("imu_data")
+    assert not robot_frames[0].HasField("depth_frame")
     assert phone_frames[0].frame_identifier.device_id == "pixel-1"
     assert not phone_frames[0].HasField("ultrasonic_sensor_data")
 
@@ -131,6 +167,7 @@ def test_robot_profile_changes_are_persisted_for_multiple_devices(tmp_path):
             "camera_stream_url": "http://192.168.1.42:81/stream",
         }
     )
+    manager.start_recording()
     manager.write_video(
         "robocar-2",
         b"\xff\xd8second-robot\xff\xd9",
@@ -150,3 +187,49 @@ def test_robot_profile_changes_are_persisted_for_multiple_devices(tmp_path):
     assert second.recording_file.endswith(".robocar-2.vis.pb")
     assert second.enabled is False
     assert (project_dir / second.recording_file).is_file()
+
+
+def test_recording_can_pause_and_resume_the_same_trajectory(tmp_path):
+    recordings = tmp_path / "recordings"
+    project_dir = recordings / "20260726_120000_robot_car"
+    project_dir.mkdir(parents=True)
+    manifest_path = _write_manifest(project_dir)
+    manager = ControlSessionManager(recordings)
+    manager.open(manifest_path)
+
+    for sequence in (1, 2):
+        manager.start_recording()
+        manager.write_video(
+            "robocar-1",
+            f"jpeg-{sequence}".encode(),
+            160,
+            120,
+            {
+                "valid": True,
+                "filtered_mm": sequence * 100,
+                "seq": sequence,
+                "age_ms": 2,
+            },
+        )
+        stopped = manager.stop_recording()
+        assert stopped["streams"][0]["frames_written"] == 1
+        assert stopped["streams"][0]["total_frames"] == sequence
+
+    frames = _read_frames(project_dir / "car.vis.pb")
+    assert [frame.frame_identifier.frame_number for frame in frames] == [1, 2]
+    assert [frame.ultrasonic_sensor_data.sequence for frame in frames] == [1, 2]
+
+
+def test_reopening_same_project_does_not_interrupt_recording(tmp_path):
+    recordings = tmp_path / "recordings"
+    project_dir = recordings / "20260726_120000_robot_car"
+    project_dir.mkdir(parents=True)
+    manifest_path = _write_manifest(project_dir)
+    manager = ControlSessionManager(recordings)
+    manager.open(manifest_path)
+    manager.start_recording()
+
+    reopened = manager.open(manifest_path)
+
+    assert reopened["active"] is True
+    assert reopened["recording"] is True

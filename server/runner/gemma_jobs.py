@@ -104,16 +104,18 @@ class GemmaJobManager:
         request_id: str = "",
         chat_id: str = "",
         recording_path: str = "",
+        system_context: str = "",
+        video_contexts: list[dict[str, Any]] | None = None,
+        active_video_context: str = "main",
     ) -> dict[str, Any]:
         prompt = message.strip()
         if not prompt:
             raise ValueError("message is required")
         if len(prompt) > 32_000:
             raise ValueError("message must be at most 32000 characters")
-        if not frame_files:
-            raise ValueError("at least one video frame is required")
         if len(frame_files) != len(timestamps_sec):
             raise ValueError("frame timestamps do not match the uploaded frames")
+        normalized_system_context = system_context.strip()[:8_000]
 
         job_id = f"gemma-{uuid.uuid4().hex[:12]}"
         workspace = self.jobs_dir / job_id
@@ -141,7 +143,11 @@ class GemmaJobManager:
             job_id,
             status="queued",
             stage="queued",
-            message="Queued Gemma video inference.",
+            message=(
+                "Queued Gemma video chat."
+                if frame_paths
+                else "Queued Gemma text chat."
+            ),
             progress=0.0,
             current_step=0,
             max_steps=4,
@@ -150,10 +156,17 @@ class GemmaJobManager:
             request_id=request_id,
             chat_id=chat_id,
             recording_path=recording_path,
+            chat_mode="video" if frame_paths else "text",
             created_at=time.time(),
         )
         request = self._worker_request(
-            frame_paths, timestamps_sec, prompt, normalized_history
+            frame_paths,
+            timestamps_sec,
+            prompt,
+            normalized_history,
+            normalized_system_context,
+            video_contexts or [],
+            active_video_context,
         )
         _atomic_json(workspace / "request.json", request)
         try:
@@ -209,6 +222,9 @@ class GemmaJobManager:
         timestamps_sec: list[float],
         message: str,
         history: list[dict[str, str]],
+        system_context: str,
+        video_contexts: list[dict[str, Any]],
+        active_video_context: str,
     ) -> dict[str, Any]:
         configured_allowlist = [
             value.strip()
@@ -234,6 +250,18 @@ class GemmaJobManager:
             "timestamps_sec": timestamps_sec,
             "message": message,
             "history": history,
+            "system_context": system_context,
+            "video_contexts": [
+                {
+                    **context,
+                    "frame_paths": frame_paths[
+                        int(context.get("start") or 0) :
+                        int(context.get("start") or 0) + int(context.get("count") or 0)
+                    ],
+                }
+                for context in video_contexts
+            ],
+            "active_video_context": active_video_context,
         }
 
     def _update(self, job_id: str, **fields: Any) -> dict[str, Any]:
@@ -244,7 +272,7 @@ class GemmaJobManager:
             job_id=job_id,
             id=job_id,
             type="gemma",
-            title="Gemma Video Chat",
+            title="Gemma Chat",
             source="agent",
             updated_at=time.time(),
         )
@@ -373,7 +401,7 @@ class GemmaJobManager:
             job_id,
             status="complete",
             stage="complete",
-            message="Gemma video response is ready.",
+            message="Gemma response is ready.",
             progress=1.0,
             current_step=4,
             max_steps=4,

@@ -21,12 +21,24 @@ export type ProjectAnalysis = {
   title: string
   kind: string
   source: 'vis' | 'artifact'
+  baseKey?: string
+  videoContext?: string
+  sourceVideoPath?: string
   suffix?: string
   path: string
   relativePath: string
   sizeBytes?: number
   sizeLabel?: string
   modifiedMs?: number
+}
+
+export type VideoContext = {
+  name: string
+  displayName: string
+  path: string
+  fileStem: string
+  relativePath: string
+  isMain: boolean
 }
 
 export type ControlPreset = 'robot_car' | 'robot_hand' | 'drone_control'
@@ -73,6 +85,7 @@ export type RecordingEntry = {
   sizeLabel: string
   modifiedMs: number
   analyses: ProjectAnalysis[]
+  videoContexts?: VideoContext[]
   controlProject?: ControlProjectManifest
 }
 
@@ -297,6 +310,56 @@ export type MotionCaptureOverlay = {
   tracks: MotionCaptureTrack[]
 }
 
+export type DomainReconstructionPoint = {
+  xMm: number
+  yMm: number
+  zMm: number
+  label: string
+  confidence: number
+  frameIndex: number
+  frameNumber: number
+  insideTable: boolean
+}
+
+export type DomainReconstructionFrame = {
+  frameIndex: number
+  frameNumber: number
+  balls: DomainReconstructionPoint[]
+}
+
+export type DomainReconstructionPocket = {
+  xMm: number
+  yMm: number
+  kind: string
+}
+
+export type DomainReconstruction = {
+  sourcePath: string
+  sourceKind: 'pongtown' | 'snookestown'
+  sportMode: 'PINGPONG' | 'SNOOKER'
+  tableWidthMm: number
+  tableHeightMm: number
+  netHeightMm: number
+  netOverhangMm: number
+  hasNet: boolean
+  frameCount: number
+  snapshotFrameNumber: number
+  poseQuality: number
+  balls: DomainReconstructionPoint[]
+  bounces: DomainReconstructionPoint[]
+  trajectory: DomainReconstructionPoint[]
+  pockets: DomainReconstructionPocket[]
+  frames: DomainReconstructionFrame[]
+}
+
+export type DomainTriangulation = {
+  frameNumber: number
+  tableQuad: number[]
+  netQuad: number[]
+  method: string
+  quality: number
+}
+
 export type VideoMarker = {
   id: string
   name: string
@@ -365,7 +428,14 @@ export type WorkspaceChatSession = {
   updatedAt: string
   messages: WorkspaceChatMessage[]
   markers: VideoMarker[]
+  videoContext?: string
   source?: 'legacy-chat-pb'
+}
+
+export type AgentVideoContext = {
+  name: string
+  displayName: string
+  path: string
 }
 
 export type AgentChatRequest = {
@@ -374,6 +444,8 @@ export type AgentChatRequest = {
   chatId: string
   message: string
   history: Array<Pick<WorkspaceChatMessage, 'role' | 'text'>>
+  videoContexts?: AgentVideoContext[]
+  activeVideoContext?: string
 }
 
 export type AgentToolCall = ChatToolCall
@@ -384,6 +456,7 @@ export type AgentChatResult = {
   model: string
   sampledFrameCount: number
   toolCalls: AgentToolCall[]
+  activeVideoContext?: string
 }
 
 export type VideoChatWorkspace = {
@@ -552,6 +625,7 @@ export type WorkspaceTab = {
   id: string
   type: WorkspaceTabType
   title: string
+  contextLabel?: string
   analysisKey?: string
   worldgenResultId?: string
   sourcePath?: string
@@ -725,6 +799,11 @@ export type BridgeApi = {
   readSegmentationMasks: (filePath: string, frameNumber: number) => Promise<SegMask[] | null>
   readSegmentationLabels: (filePath: string) => Promise<string[]>
   readMotionCapture: (filePath: string, frameNumber: number) => Promise<MotionCaptureOverlay | null>
+  readDomainReconstruction: (filePath: string) => Promise<DomainReconstruction>
+  readDomainTriangulation: (
+    filePath: string,
+    frameNumber: number,
+  ) => Promise<DomainTriangulation | null>
   readChatThread: (recordingPath: string) => Promise<ChatThread>
   loadChatWorkspace: (videoId: string, recordingPath: string) => Promise<VideoChatWorkspace>
   createChatSession: (videoId: string, recordingPath: string) => Promise<VideoChatWorkspace>

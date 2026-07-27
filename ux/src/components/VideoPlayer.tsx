@@ -8,8 +8,14 @@ import {
   type KeyboardEvent,
   type SetStateAction,
 } from 'react'
-import { Activity, Boxes, Film, LoaderCircle } from 'lucide-react'
-import type { MotionCaptureOverlay, VideoPlaybackState, VisFrame, VisSummary } from '../types'
+import { Activity, Boxes, Film, LoaderCircle, Triangle } from 'lucide-react'
+import type {
+  DomainTriangulation,
+  MotionCaptureOverlay,
+  VideoPlaybackState,
+  VisFrame,
+  VisSummary,
+} from '../types'
 import { useFrameSource } from '../lib/frameSource'
 import { normalizeSegmentationLabel, useOverlay } from '../lib/overlay'
 import {
@@ -53,6 +59,7 @@ export default function VideoPlayer({
   const overlay = useOverlay()
   const getSegmentation = overlay?.getSegmentation
   const getSegmentationLabels = overlay?.getSegmentationLabels
+  const getDomainTriangulation = overlay?.getDomainTriangulation
   const getMotionCapture = overlay?.getMotionCapture
   const segmentationOn = segmentationViewer || (overlay?.segmentation ?? false)
   const [selectedEntity, setSelectedEntity] = useState<string | null>(null)
@@ -70,6 +77,9 @@ export default function VideoPlayer({
   const [motionCapture, setMotionCapture] = useState<MotionCaptureOverlay | null>(null)
   const [motionHeatmap, setMotionHeatmap] = useState<DecodedHeatmap | null>(null)
   const [motionLoading, setMotionLoading] = useState(false)
+  const [triangulationOn, setTriangulationOn] = useState(false)
+  const [triangulation, setTriangulation] = useState<DomainTriangulation | null>(null)
+  const [triangulationLoading, setTriangulationLoading] = useState(false)
 
   // Caches keyed by frame index (images) / frame number (decoded overlays). In
   // browser mode image dataUrls are object URLs, so evictions must revoke them.
@@ -79,6 +89,7 @@ export default function VideoPlayer({
     overlay: MotionCaptureOverlay | null
     heatmap: DecodedHeatmap | null
   }>>(new Map())
+  const triangulationCacheRef = useRef<Map<number, DomainTriangulation | null>>(new Map())
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const baseImgRef = useRef<HTMLImageElement | null>(null)
   const [drawTick, setDrawTick] = useState(0)
@@ -90,6 +101,7 @@ export default function VideoPlayer({
     cacheRef.current.clear()
     overlayCacheRef.current.clear()
     motionCacheRef.current.clear()
+    triangulationCacheRef.current.clear()
   }, [])
 
   const setVideoIndex = useCallback(
@@ -121,6 +133,8 @@ export default function VideoPlayer({
     setOverlays([])
     setMotionCapture(null)
     setMotionHeatmap(null)
+    setTriangulation(null)
+    setTriangulationOn(false)
     setVideoPlaying(false)
   }, [getFrame, summary?.path, clearCaches, setVideoPlaying])
 
@@ -275,6 +289,36 @@ export default function VideoPlayer({
     }
   }, [frame, getMotionCapture, motionCaptureViewer])
 
+  useEffect(() => {
+    if (!segmentationViewer || !triangulationOn || !getDomainTriangulation || !frame) {
+      setTriangulation(null)
+      setTriangulationLoading(false)
+      return
+    }
+    if (triangulationCacheRef.current.has(frame.frameNumber)) {
+      setTriangulation(triangulationCacheRef.current.get(frame.frameNumber) ?? null)
+      return
+    }
+
+    let cancelled = false
+    setTriangulationLoading(true)
+    getDomainTriangulation(frame.frameNumber)
+      .then((result) => {
+        if (cancelled) return
+        triangulationCacheRef.current.set(frame.frameNumber, result)
+        setTriangulation(result)
+      })
+      .catch(() => {
+        if (!cancelled) setTriangulation(null)
+      })
+      .finally(() => {
+        if (!cancelled) setTriangulationLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [frame, getDomainTriangulation, segmentationViewer, triangulationOn])
+
   const displayUrl = imageUrl ?? summary?.rgbPreview?.dataUrl ?? null
 
   // Decode the base image off the current URL, then trigger a canvas redraw.
@@ -404,6 +448,42 @@ export default function VideoPlayer({
       ctx.drawImage(tmp, 0, 0, w, h)
     }
 
+    if (triangulation) {
+      const drawQuad = (
+        coordinates: number[],
+        color: string,
+        label: string,
+        dash: number[] = [],
+      ) => {
+        if (coordinates.length < 8) return
+        ctx.save()
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.88)'
+        ctx.lineWidth = 6
+        ctx.lineJoin = 'round'
+        ctx.beginPath()
+        ctx.moveTo(coordinates[0], coordinates[1])
+        for (let point = 1; point < 4; point += 1) {
+          ctx.lineTo(coordinates[point * 2], coordinates[point * 2 + 1])
+        }
+        ctx.closePath()
+        ctx.stroke()
+        ctx.strokeStyle = color
+        ctx.lineWidth = 2.5
+        ctx.setLineDash(dash)
+        ctx.stroke()
+        ctx.setLineDash([])
+        ctx.font = '600 12px Inter, sans-serif'
+        ctx.lineWidth = 4
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.86)'
+        ctx.strokeText(label, coordinates[0] + 7, coordinates[1] - 7)
+        ctx.fillStyle = color
+        ctx.fillText(label, coordinates[0] + 7, coordinates[1] - 7)
+        ctx.restore()
+      }
+      drawQuad(triangulation.tableQuad, '#62d2a2', 'table')
+      drawQuad(triangulation.netQuad, '#f0b35a', 'net', [7, 4])
+    }
+
     if (motionCapture) {
       ctx.save()
       ctx.lineCap = 'round'
@@ -459,7 +539,14 @@ export default function VideoPlayer({
       }
       ctx.restore()
     }
-  }, [drawTick, motionCapture, motionHeatmap, segmentationMaskLabel, visibleOverlays])
+  }, [
+    drawTick,
+    motionCapture,
+    motionHeatmap,
+    segmentationMaskLabel,
+    triangulation,
+    visibleOverlays,
+  ])
 
   const togglePlay = useCallback(() => {
     if (frameCount <= 1) return
@@ -531,7 +618,18 @@ export default function VideoPlayer({
               }`}
         </div>
       ) : null}
-      {loading || motionLoading ? <div className="video-loading" aria-hidden="true" /> : null}
+      {segmentationViewer && triangulationOn ? (
+        <div className="video-overlay-badge triangulation">
+          {triangulationLoading
+            ? 'triangulation · loading'
+            : triangulation
+              ? `triangulation · ${triangulation.netQuad.length >= 8 ? 'table + net' : 'table'}`
+              : 'triangulation · unavailable'}
+        </div>
+      ) : null}
+      {loading || motionLoading || triangulationLoading ? (
+        <div className="video-loading" aria-hidden="true" />
+      ) : null}
     </div>
   )
 
@@ -554,6 +652,33 @@ export default function VideoPlayer({
           </div>
           <span className="segmentation-entity-count">{listedEntities.length}</span>
         </header>
+
+        <button
+          type="button"
+          className={triangulationOn ? 'segmentation-triangulation-toggle is-active' : 'segmentation-triangulation-toggle'}
+          role="switch"
+          aria-checked={triangulationOn}
+          disabled={!overlay?.triangulationAvailable}
+          onClick={() => setTriangulationOn((current) => !current)}
+          title={
+            overlay?.triangulationAvailable
+              ? 'Overlay generated table and net rectangles'
+              : 'No Pongtown or Snookerstown geometry is available'
+          }
+        >
+          <span className="segmentation-triangulation-icon">
+            <Triangle size={14} aria-hidden="true" />
+          </span>
+          <span className="segmentation-entity-copy">
+            <strong>Triangulation</strong>
+            <small>
+              {overlay?.triangulationAvailable
+                ? 'Generated table and net rectangles'
+                : 'No domain geometry available'}
+            </small>
+          </span>
+          <span className="segmentation-toggle-state">{triangulationOn ? 'On' : 'Off'}</span>
+        </button>
 
         <button
           type="button"

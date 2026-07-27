@@ -100,6 +100,121 @@ def _result_data(result: Any) -> Any:
     texts = [str(item.text) for item in content if hasattr(item, "text")]
     return "\n".join(texts)
 
+VIDEO_CONTEXT_TOOL_NAMES = {
+    "list_video_contexts",
+    "switch_video_context",
+}
+
+
+def _video_context_tool_schemas() -> list[dict[str, Any]]:
+    return [
+        {
+            "type": "function",
+            "function": {
+                "name": "list_video_contexts",
+                "description": (
+                    "List the synchronized video contexts available in this chat and "
+                    "report which context is currently active."
+                ),
+                "parameters": {
+                    "type": "object",
+                    "properties": {},
+                    "additionalProperties": False,
+                },
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "switch_video_context",
+                "description": (
+                    "Switch the active video used for visual reasoning and subsequent "
+                    "analysis. Use a name returned by list_video_contexts."
+                ),
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "name": {
+                            "type": "string",
+                            "description": "Video context name, such as main or pov.",
+                        }
+                    },
+                    "required": ["name"],
+                    "additionalProperties": False,
+                },
+            },
+        },
+    ]
+
+
+def _normalized_video_contexts(request: dict[str, Any]) -> list[dict[str, Any]]:
+    contexts: list[dict[str, Any]] = []
+    used: set[str] = set()
+    for item in request.get("video_contexts") or []:
+        if not isinstance(item, dict):
+            continue
+        name = str(item.get("name") or "").strip().lower()
+        if not name or name in used:
+            continue
+        frame_paths = [str(path) for path in item.get("frame_paths") or []]
+        timestamps = [float(value) for value in item.get("timestamps_sec") or []]
+        contexts.append(
+            {
+                "name": name,
+                "display_name": str(item.get("display_name") or name),
+                "frame_paths": frame_paths,
+                "timestamps_sec": timestamps,
+            }
+        )
+        used.add(name)
+    if not contexts:
+        contexts.append(
+            {
+                "name": "main",
+                "display_name": "main",
+                "frame_paths": [
+                    str(path) for path in request.get("frame_paths") or []
+                ],
+                "timestamps_sec": [
+                    float(value) for value in request.get("timestamps_sec") or []
+                ],
+            }
+        )
+    return contexts
+
+
+def _video_context_content(context: dict[str, Any]) -> list[dict[str, Any]]:
+    frame_paths = context["frame_paths"]
+    timestamps = context["timestamps_sec"]
+    content: list[dict[str, Any]] = []
+    if not frame_paths:
+        content.append(
+            {
+                "type": "text",
+                "text": (
+                    f"Video context {context['name']!r} has no sampled camera frames "
+                    "in this turn."
+                ),
+            }
+        )
+        return content
+    content.append(
+        {
+            "type": "text",
+            "text": (
+                f"These are timestamped frames from the active video context "
+                f"{context['name']!r}. Treat them as one video sequence."
+            ),
+        }
+    )
+    for index, frame_path in enumerate(frame_paths):
+        timestamp = float(timestamps[index]) if index < len(timestamps) else index
+        content.append(
+            {"type": "text", "text": f"Frame at {timestamp:.3f} seconds:"}
+        )
+        content.append({"type": "image", "url": frame_path})
+    return content
+
 
 async def _run(request: dict[str, Any], output_path: Path) -> dict[str, Any]:
     _write_progress(
@@ -129,7 +244,7 @@ async def _run(request: dict[str, Any], output_path: Path) -> dict[str, Any]:
     _write_progress(
         output_path,
         stage="loading_processor",
-        message="Loading the Gemma video processor.",
+        message="Loading the Gemma processor.",
         progress=0.10,
         current_step=1,
     )
@@ -151,8 +266,8 @@ async def _run(request: dict[str, Any], output_path: Path) -> dict[str, Any]:
     model.eval()
     _write_progress(
         output_path,
-        stage="preparing_video",
-        message="Preparing sampled video frames and available tools.",
+        stage="preparing_context",
+        message="Preparing conversation context and available tools.",
         progress=0.45,
         current_step=2,
     )
@@ -165,33 +280,53 @@ async def _run(request: dict[str, Any], output_path: Path) -> dict[str, Any]:
         for item in request.get("history") or []
         if str(item.get("text") or "").strip()
     ][-12:]
-    frame_paths = [str(path) for path in request.get("frame_paths") or []]
-    timestamps = list(request.get("timestamps_sec") or [])
-    content: list[dict[str, Any]] = [
-        {
-            "type": "text",
-            "text": (
-                "These are timestamped frames sampled in temporal order from the "
-                "active video recording. Use them as one video sequence."
-            ),
-        }
-    ]
-    for index, frame_path in enumerate(frame_paths):
-        timestamp = float(timestamps[index]) if index < len(timestamps) else index
-        content.append({"type": "text", "text": f"Frame at {timestamp:.3f} seconds:"})
-        content.append({"type": "image", "url": frame_path})
+    video_contexts = _normalized_video_contexts(request)
+    context_by_name = {context["name"]: context for context in video_contexts}
+    active_video_context = str(
+        request.get("active_video_context") or "main"
+    ).strip().lower()
+    if active_video_context not in context_by_name:
+        active_video_context = video_contexts[0]["name"]
+    active_context = context_by_name[active_video_context]
+    frame_paths = active_context["frame_paths"]
+    content = _video_context_content(active_context)
     content.append({"type": "text", "text": str(request["message"])})
+    system_context = str(request.get("system_context") or "").strip()
+    system_parts = [
+        (
+            "You are an assistant operating inside BayesMech Vision, a physical "
+            "intelligence harness for observing, reasoning about, and controlling "
+            "devices in the physical world."
+        ),
+        (
+            "Ground visual claims in the supplied recording frames."
+            if frame_paths
+            else (
+                "No sampled camera frames are attached to this turn. Continue as a "
+                "regular conversational assistant and do not claim to see the "
+                "physical environment unless observations arrive through telemetry "
+                "or tool results."
+            )
+        ),
+        (
+            "Use available tools when they are needed, never invent sensor readings "
+            "or tool results, and be concise. Format responses as GitHub-flavored "
+            "Markdown. When code is useful, provide complete fenced code blocks with "
+            "an accurate language identifier and preserve the code's indentation."
+        ),
+        (
+            "This chat may contain multiple synchronized video contexts. The active "
+            f"context is {active_video_context!r}. Use list_video_contexts to inspect "
+            "the available names and switch_video_context before making claims about "
+            "another view."
+        ),
+    ]
+    if system_context:
+        system_parts.append(system_context)
     messages: list[dict[str, Any]] = [
         {
             "role": "system",
-            "content": (
-                "You are the BayesMech video analysis assistant. Ground answers in "
-                "the supplied recording frames. Use available tools when they are "
-                "needed, never invent tool results, and be concise. Format responses "
-                "as GitHub-flavored Markdown. When code is useful, provide complete "
-                "fenced code blocks with an accurate language identifier and preserve "
-                "the code's indentation."
-            ),
+            "content": "\n\n".join(system_parts),
         },
         *history,
         {"role": "user", "content": content},
@@ -203,7 +338,10 @@ async def _run(request: dict[str, Any], output_path: Path) -> dict[str, Any]:
             str(getattr(tool, "name", "")): tool for tool in discovered if tool
         }
         selected = [available[name] for name in sorted(allowlist) if name in available]
-        tools = [_tool_schema(tool) for tool in selected]
+        tools = [
+            *[_tool_schema(tool) for tool in selected],
+            *_video_context_tool_schemas(),
+        ]
         max_turns = max(1, min(int(request.get("max_tool_turns") or 6), 12))
         final_text = ""
 
@@ -252,9 +390,42 @@ async def _run(request: dict[str, Any], output_path: Path) -> dict[str, Any]:
                 }
             )
             results = []
+            switched_context = False
             for call in calls:
                 name = call["name"]
-                if name not in allowlist or name not in available:
+                if name == "list_video_contexts":
+                    result_data = {
+                        "active_video_context": active_video_context,
+                        "contexts": [
+                            {
+                                "name": context["name"],
+                                "display_name": context["display_name"],
+                                "sampled_frame_count": len(context["frame_paths"]),
+                            }
+                            for context in video_contexts
+                        ],
+                    }
+                elif name == "switch_video_context":
+                    requested_context = str(
+                        call["arguments"].get("name") or ""
+                    ).strip().lower()
+                    if requested_context not in context_by_name:
+                        result_data = {
+                            "error": f"Unknown video context {requested_context!r}.",
+                            "available": list(context_by_name),
+                            "active_video_context": active_video_context,
+                        }
+                    else:
+                        active_video_context = requested_context
+                        active_context = context_by_name[active_video_context]
+                        frame_paths = active_context["frame_paths"]
+                        switched_context = True
+                        result_data = {
+                            "ok": True,
+                            "active_video_context": active_video_context,
+                            "sampled_frame_count": len(frame_paths),
+                        }
+                elif name not in allowlist or name not in available:
                     result_data: Any = {
                         "error": f"Tool {name!r} is not allowed for autonomous use."
                     }
@@ -278,15 +449,18 @@ async def _run(request: dict[str, Any], output_path: Path) -> dict[str, Any]:
                 progress=min(0.94, 0.68 + (0.08 * _turn)),
                 current_step=3,
             )
-            messages.append(
+            result_content: list[dict[str, Any]] = [
                 {
-                    "role": "user",
-                    "content": (
+                    "type": "text",
+                    "text": (
                         "Tool execution results follow. Use them to answer the "
                         f"original request:\n{json.dumps(results, default=str)}"
                     ),
                 }
-            )
+            ]
+            if switched_context:
+                result_content.extend(_video_context_content(active_context))
+            messages.append({"role": "user", "content": result_content})
         else:
             final_text = "The tool-call limit was reached before a final answer."
 
@@ -295,6 +469,7 @@ async def _run(request: dict[str, Any], output_path: Path) -> dict[str, Any]:
         "model": str(request.get("model_id") or model_path),
         "tool_calls": tool_trace,
         "sampled_frame_count": len(frame_paths),
+        "active_video_context": active_video_context,
     }
 
 

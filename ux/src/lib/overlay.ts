@@ -1,5 +1,5 @@
 import { createContext, useContext } from 'react'
-import type { MotionCaptureOverlay, SegMask } from '../types'
+import type { DomainTriangulation, MotionCaptureOverlay, SegMask } from '../types'
 
 export type CommandResult = {
   ok: boolean
@@ -36,11 +36,16 @@ export type OverlayState = {
   // Fetch segmentation masks for a video frame number, or null when no artifact
   // or frame source is available. The dedicated Segmentation tab uses this even
   // when the optional overlay on the regular Video tab is disabled.
-  getSegmentation: (frameNumber: number) => Promise<SegMask[] | null>
+  getSegmentation: (frameNumber: number, artifactPath?: string) => Promise<SegMask[] | null>
   // All tracked entity labels in the selected recording's segmentation artifact.
-  getSegmentationLabels: () => Promise<string[]>
+  getSegmentationLabels: (artifactPath?: string) => Promise<string[]>
+  // Whether the selected recording has a domain reconstruction capable of
+  // projecting its generated table/net rectangles back into the video.
+  triangulationAvailable: boolean
+  // Table and optional net quadrilaterals synchronized to a video frame.
+  getDomainTriangulation: (frameNumber: number, artifactPath?: string) => Promise<DomainTriangulation | null>
   // Heatmap and recent track tails synchronized to a video frame.
-  getMotionCapture: (frameNumber: number) => Promise<MotionCaptureOverlay | null>
+  getMotionCapture: (frameNumber: number, artifactPath?: string) => Promise<MotionCaptureOverlay | null>
 }
 
 export const OverlayContext = createContext<OverlayState | null>(null)

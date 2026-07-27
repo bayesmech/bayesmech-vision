@@ -1,6 +1,7 @@
 import { Activity, Boxes, Database, FileCode2, MapPinned, ScanLine } from 'lucide-react'
 import { useCallback, useEffect, useState, type Dispatch, type SetStateAction } from 'react'
 import type {
+  DomainReconstruction,
   IdoSlamSummary,
   ProjectAnalysis,
   RecordingEntry,
@@ -17,7 +18,10 @@ import SensorDataPanel from './SensorDataPanel'
 import VideoPlayer from './VideoPlayer'
 import WorldgenScene from './WorldgenScene'
 import ControlPanel from './ControlPanel'
+import DomainReconstructionScene from './DomainReconstructionScene'
 import { FrameSourceContext, type FrameGetter } from '../lib/frameSource'
+import { OverlayContext, useOverlay, type OverlayState } from '../lib/overlay'
+import { baseAnalysisKey } from '../lib/analysisTabs'
 
 type PanelProps = {
   tab: WorkspaceTab
@@ -25,10 +29,11 @@ type PanelProps = {
   summary: VisSummary | null
   videoState: VideoPlaybackState
   onVideoStateChange: Dispatch<SetStateAction<VideoPlaybackState>>
-  getSensorData: () => Promise<SensorDataSummary | null>
+  getSensorData: (sourcePath?: string) => Promise<SensorDataSummary | null>
   getFrame: FrameGetter
   getVisSummary: (sourcePath: string) => Promise<VisSummary | null>
-  getIdoSlamData: () => Promise<IdoSlamSummary | null>
+  getIdoSlamData: (artifactPath?: string) => Promise<IdoSlamSummary | null>
+  getDomainReconstruction: (filePath: string) => Promise<DomainReconstruction | null>
   worldgenResults: Record<string, WorldgenResult>
 }
 
@@ -102,6 +107,9 @@ function StreamVideoPanel({
   getVisSummary,
   videoState,
   onVideoStateChange,
+  segmentationViewer = false,
+  motionCaptureViewer = false,
+  overlayOverride,
 }: {
   sourcePath: string | undefined
   initialSummary: VisSummary | null
@@ -110,6 +118,9 @@ function StreamVideoPanel({
   getVisSummary: (sourcePath: string) => Promise<VisSummary | null>
   videoState: VideoPlaybackState
   onVideoStateChange: Dispatch<SetStateAction<VideoPlaybackState>>
+  segmentationViewer?: boolean
+  motionCaptureViewer?: boolean
+  overlayOverride?: OverlayState | null
 }) {
   const [sourceSummary, setSourceSummary] = useState(initialSummary)
   const sourceFrame = useCallback(
@@ -138,15 +149,44 @@ function StreamVideoPanel({
     }
   }, [getVisSummary, initialSummary, live, sourcePath])
 
-  return (
+  const player = (
     <FrameSourceContext.Provider value={sourceFrame}>
       <VideoPlayer
         summary={sourceSummary}
         videoState={videoState}
         onVideoStateChange={onVideoStateChange}
+        segmentationViewer={segmentationViewer}
+        motionCaptureViewer={motionCaptureViewer}
       />
     </FrameSourceContext.Provider>
   )
+  return overlayOverride
+    ? <OverlayContext.Provider value={overlayOverride}>{player}</OverlayContext.Provider>
+    : player
+}
+
+function SourceScenePanel({
+  sourcePath,
+  initialSummary,
+  getVisSummary,
+}: {
+  sourcePath: string | undefined
+  initialSummary: VisSummary | null
+  getVisSummary: (sourcePath: string) => Promise<VisSummary | null>
+}) {
+  const [sourceSummary, setSourceSummary] = useState(initialSummary)
+  useEffect(() => {
+    setSourceSummary(initialSummary)
+    if (!sourcePath || initialSummary?.path === sourcePath) return
+    let cancelled = false
+    void getVisSummary(sourcePath).then((next) => {
+      if (!cancelled) setSourceSummary(next)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [getVisSummary, initialSummary, sourcePath])
+  return <Scene3D summary={sourceSummary} mode="planes" />
 }
 
 export default function VisualizationPanel({
@@ -159,13 +199,19 @@ export default function VisualizationPanel({
   getFrame,
   getVisSummary,
   getIdoSlamData,
+  getDomainReconstruction,
   worldgenResults,
 }: PanelProps) {
+  const overlay = useOverlay()
+  const analysis = analysisForTab(selectedRecording, tab)
+  const analysisBaseKey = baseAnalysisKey(tab.analysisKey ?? '')
+  const sourceVideoPath = analysis?.sourceVideoPath ?? selectedRecording?.path
+  const sourceInitialSummary = sourceVideoPath === selectedRecording?.path ? summary : null
   if (tab.type === 'control') {
     return <ControlPanel controlProject={selectedRecording?.controlProject ?? null} />
   }
   if (tab.type === 'video') {
-    const sourcePath = tab.sourcePath ?? analysisForTab(selectedRecording, tab)?.path
+    const sourcePath = tab.sourcePath ?? analysis?.sourceVideoPath ?? analysis?.path
     const initialSummary = !sourcePath || sourcePath === selectedRecording?.path ? summary : null
     return (
       <StreamVideoPanel
@@ -180,41 +226,84 @@ export default function VisualizationPanel({
     )
   }
   if (tab.type === 'sensors') {
-    return <SensorDataPanel currentFrameIndex={videoState.index} getSensorData={getSensorData} />
+    return (
+      <SensorDataPanel
+        currentFrameIndex={videoState.index}
+        getSensorData={() => getSensorData(sourceVideoPath)}
+      />
+    )
   }
-  if (tab.analysisKey === 'idoslam') {
+  if (analysisBaseKey === 'idoslam') {
     return (
       <MapGenerationPanel
         currentFrameIndex={videoState.index}
-        getSensorData={getSensorData}
-        getIdoSlamData={getIdoSlamData}
+        getSensorData={() => getSensorData(sourceVideoPath)}
+        getIdoSlamData={() => getIdoSlamData(analysis?.path)}
       />
     )
   }
-  if (tab.analysisKey === 'segmentation') {
+  if (analysisBaseKey === 'segmentation') {
+    const contextualOverlay = overlay && analysis
+      ? {
+          ...overlay,
+          getSegmentation: (frameNumber: number) => (
+            overlay.getSegmentation(frameNumber, analysis.path)
+          ),
+          getSegmentationLabels: () => overlay.getSegmentationLabels(analysis.path),
+        }
+      : overlay
     return (
-      <VideoPlayer
-        summary={summary}
+      <StreamVideoPanel
+        sourcePath={sourceVideoPath}
+        initialSummary={sourceInitialSummary}
+        live={Boolean(selectedRecording?.controlProject)}
+        getFrame={getFrame}
+        getVisSummary={getVisSummary}
         videoState={videoState}
         onVideoStateChange={onVideoStateChange}
         segmentationViewer
+        overlayOverride={contextualOverlay}
       />
     )
   }
-  if (tab.analysisKey === 'motioncap') {
+  if (analysisBaseKey === 'motioncap') {
+    const contextualOverlay = overlay && analysis
+      ? {
+          ...overlay,
+          getMotionCapture: (frameNumber: number) => (
+            overlay.getMotionCapture(frameNumber, analysis.path)
+          ),
+        }
+      : overlay
     return (
-      <VideoPlayer
-        summary={summary}
+      <StreamVideoPanel
+        sourcePath={sourceVideoPath}
+        initialSummary={sourceInitialSummary}
+        live={Boolean(selectedRecording?.controlProject)}
+        getFrame={getFrame}
+        getVisSummary={getVisSummary}
         videoState={videoState}
         onVideoStateChange={onVideoStateChange}
         motionCaptureViewer
+        overlayOverride={contextualOverlay}
       />
     )
+  }
+  if (analysisBaseKey === 'pongtown' || analysisBaseKey === 'snookestown') {
+    return analysis ? (
+      <DomainReconstructionScene
+        sourcePath={analysis.path}
+        currentFrameIndex={videoState.index}
+        getDomainReconstruction={getDomainReconstruction}
+      />
+    ) : <EmptyPanel title="Domain specific reconstruction" />
   }
   if (tab.type === 'worldgen') {
     const result = tab.worldgenResultId
       ? worldgenResults[tab.worldgenResultId] ?? null
-      : Object.values(worldgenResults)[0] ?? null
+      : Object.values(worldgenResults).find((item) => item.outputPath === analysis?.path)
+        ?? Object.values(worldgenResults)[0]
+        ?? null
     return (
       <WorldgenScene
         result={result}
@@ -223,8 +312,15 @@ export default function VisualizationPanel({
       />
     )
   }
-  if (tab.type === 'scene') return <Scene3D summary={summary} mode="scene" />
-  if (tab.type === 'point-cloud') return <Scene3D summary={summary} mode="planes" />
-  if (tab.type === 'planes') return <Scene3D summary={summary} mode="planes" />
+  if (tab.type === 'scene') return <Scene3D summary={sourceInitialSummary} mode="scene" />
+  if (tab.type === 'point-cloud' || tab.type === 'planes') {
+    return (
+      <SourceScenePanel
+        sourcePath={sourceVideoPath}
+        initialSummary={sourceInitialSummary}
+        getVisSummary={getVisSummary}
+      />
+    )
+  }
   return <AnalysisPanel recording={selectedRecording} summary={summary} tab={tab} />
 }

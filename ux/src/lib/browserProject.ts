@@ -37,8 +37,8 @@ const ANALYSIS_DEFS = [
   { key: 'genspark', title: 'AI Analysis', kind: 'protobuf', suffixes: ['genspark.pb'] },
   { key: 'chat', title: 'Follow-up Chat', kind: 'protobuf', suffixes: ['chat.pb'] },
   { key: 'reconstruction', title: '3D Reconstruction', kind: 'protobuf', suffixes: ['reconstruct.pb', 'recon.pb'] },
-  { key: 'snookestown', title: 'Snookestown', kind: 'protobuf', suffixes: ['snook.pb'] },
-  { key: 'pongtown', title: 'Pongtown', kind: 'protobuf', suffixes: ['pongtown.pb'] },
+  { key: 'snookestown', title: 'Domain specific reconstruction', kind: 'protobuf', suffixes: ['snook.pb'] },
+  { key: 'pongtown', title: 'Domain specific reconstruction', kind: 'protobuf', suffixes: ['pongtown.pb'] },
 ]
 
 type BrowserFileScan = {
@@ -226,6 +226,75 @@ function analysesForVis(relativePath: string, fileByRelativePath: Map<string, Fi
   return analyses
 }
 
+function normalizedVideoContextName(value: string): string {
+  return value
+    .trim()
+    .replace(/^[_\-.]+|[_\-.]+$/g, '')
+    .replace(/[^A-Za-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .toLowerCase()
+}
+
+type BrowserVisMember = {
+  file: File
+  relativePath: string
+  stem: string
+  contextName: string
+}
+
+function groupBrowserVisFiles(files: File[]): Array<{ baseStem: string; members: BrowserVisMember[] }> {
+  const byDirectory = new Map<string, Array<Omit<BrowserVisMember, 'contextName'>>>()
+  for (const file of files) {
+    const relativePath = fileRelativePath(file)
+    const dir = dirname(relativePath)
+    const stem = basename(relativePath).slice(0, -'.vis.pb'.length)
+    const items = byDirectory.get(dir) ?? []
+    items.push({ file, relativePath, stem })
+    byDirectory.set(dir, items)
+  }
+
+  const groups: Array<{ baseStem: string; members: BrowserVisMember[] }> = []
+  for (const items of byDirectory.values()) {
+    const stems = new Set(items.map((item) => item.stem))
+    const grouped = new Map<string, BrowserVisMember[]>()
+    for (const item of items) {
+      const baseStem = [...stems]
+        .filter((candidate) => (
+          candidate !== item.stem
+          && item.stem.startsWith(candidate)
+          && /^[_\-.]/.test(item.stem.slice(candidate.length))
+        ))
+        .sort((left, right) => right.length - left.length)[0] ?? item.stem
+      const members = grouped.get(baseStem) ?? []
+      const suffix = item.stem === baseStem ? '' : item.stem.slice(baseStem.length)
+      members.push({
+        ...item,
+        contextName: suffix ? normalizedVideoContextName(suffix) : 'main',
+      })
+      grouped.set(baseStem, members)
+    }
+    for (const [baseStem, members] of grouped.entries()) {
+      const main = members.find((member) => member.stem === baseStem)
+      if (!main) {
+        for (const member of members) {
+          groups.push({ baseStem: member.stem, members: [{ ...member, contextName: 'main' }] })
+        }
+        continue
+      }
+      groups.push({
+        baseStem,
+        members: members.sort((left, right) => (
+          Number(right.contextName === 'main') - Number(left.contextName === 'main')
+          || left.contextName.localeCompare(right.contextName)
+        )),
+      })
+    }
+  }
+  return groups.sort((left, right) => (
+    left.members[0].relativePath.localeCompare(right.members[0].relativePath)
+  ))
+}
+
 export function scanBrowserFiles(fileList: FileList | File[]): BrowserFileScan {
   const files = Array.from(fileList)
   const fileByRelativePath = new Map<string, File>()
@@ -238,18 +307,53 @@ export function scanBrowserFiles(fileList: FileList | File[]): BrowserFileScan {
     .sort((a, b) => fileRelativePath(a).localeCompare(fileRelativePath(b)))
 
   const filesByPath = new Map<string, File>()
-  const recordings: RecordingEntry[] = visFiles.map((file, index) => {
-    const relativePath = fileRelativePath(file)
+  const recordings: RecordingEntry[] = groupBrowserVisFiles(visFiles).map((group, index) => {
+    const main = group.members.find((member) => member.contextName === 'main') ?? group.members[0]
+    const file = main.file
+    const relativePath = main.relativePath
     const fileName = basename(relativePath)
     const dir = dirname(relativePath)
-    const baseName = fileName.slice(0, -'.vis.pb'.length)
+    const baseName = group.baseStem
     const folderName = dir ? basename(dir) : ''
     const path = browserPath(relativePath)
-    filesByPath.set(path, file)
+    for (const member of group.members) {
+      filesByPath.set(browserPath(member.relativePath), member.file)
+    }
 
     // Register artifact files too (e.g. .segmentation.pb) so overlays can read
     // them by their browser:// path, mirroring the recording registration.
-    const analyses = analysesForVis(relativePath, fileByRelativePath)
+    const contextOrder = new Map(group.members.map((member, memberIndex) => [
+      member.contextName,
+      memberIndex,
+    ]))
+    const analysisOrder = [
+      'video',
+      'surface-planes',
+      'sensors',
+      ...ANALYSIS_DEFS.map((definition) => definition.key),
+    ]
+    const analyses = group.members.flatMap((member) => (
+      analysesForVis(member.relativePath, fileByRelativePath).map((analysis) => ({
+        ...analysis,
+        key: member.contextName === 'main' ? analysis.key : `${analysis.key}:${member.contextName}`,
+        title: analysis.title,
+        baseKey: analysis.key,
+        videoContext: member.contextName,
+        sourceVideoPath: browserPath(member.relativePath),
+      }))
+    )).sort((left, right) => {
+      const leftOrder = analysisOrder.indexOf(left.baseKey ?? left.key)
+      const rightOrder = analysisOrder.indexOf(right.baseKey ?? right.key)
+      const analysisDifference = (
+        (leftOrder < 0 ? analysisOrder.length : leftOrder)
+        - (rightOrder < 0 ? analysisOrder.length : rightOrder)
+      )
+      if (analysisDifference) return analysisDifference
+      return (
+        (contextOrder.get(left.videoContext ?? 'main') ?? 0)
+        - (contextOrder.get(right.videoContext ?? 'main') ?? 0)
+      )
+    })
     for (const analysis of analyses) {
       if (analysis.source !== 'artifact') continue
       const artifactFile = fileByRelativePath.get(analysis.relativePath)
@@ -267,6 +371,14 @@ export function scanBrowserFiles(fileList: FileList | File[]): BrowserFileScan {
       sizeLabel: byteSizeLabel(file.size),
       modifiedMs: file.lastModified,
       analyses,
+      videoContexts: group.members.map((member) => ({
+        name: member.contextName,
+        displayName: member.contextName,
+        path: browserPath(member.relativePath),
+        fileStem: member.stem,
+        relativePath: member.relativePath,
+        isMain: member.contextName === 'main',
+      })),
     }
   })
 
