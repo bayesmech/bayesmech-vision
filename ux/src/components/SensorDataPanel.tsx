@@ -5,7 +5,8 @@ import SensorOrientationScene from './SensorOrientationScene'
 
 type SensorDataPanelProps = {
   currentFrameIndex: number
-  getSensorData: () => Promise<SensorDataSummary | null>
+  sourcePath?: string
+  getSensorData: (sourcePath?: string) => Promise<SensorDataSummary | null>
 }
 
 type VectorField = 'linearAcceleration' | 'angularVelocity' | 'gravity' | 'magneticField'
@@ -77,27 +78,53 @@ function SensorChart({
   description: string
   currentFrameIndex: number
 }) {
-  const windowSamples = useMemo(() => {
-    const start = Math.max(0, currentFrameIndex - HALF_WINDOW)
-    const end = Math.min(data.frameCount - 1, currentFrameIndex + HALF_WINDOW)
-    return downsample(data.samples.filter((sample) => sample.index >= start && sample.index <= end), 720)
-  }, [currentFrameIndex, data])
   const current = sampleAt(data, currentFrameIndex)?.[field] ?? null
-  const vectors = windowSamples.flatMap((sample) => sample[field] ? [sample[field] as Vec3] : [])
-  const values = vectors.flatMap((vector) => [vector.x, vector.y, vector.z])
-  const rawMin = values.length ? Math.min(...values) : -1
-  const rawMax = values.length ? Math.max(...values) : 1
-  const spread = Math.max(rawMax - rawMin, 0.001)
-  const min = rawMin - spread * 0.08
-  const max = rawMax + spread * 0.08
-  const firstIndex = windowSamples[0]?.index ?? 0
-  const lastIndex = windowSamples[windowSamples.length - 1]?.index ?? Math.max(1, data.frameCount - 1)
-  const xSpan = Math.max(1, lastIndex - firstIndex)
   const plotWidth = CHART_WIDTH - CHART_PADDING.left - CHART_PADDING.right
   const plotHeight = CHART_HEIGHT - CHART_PADDING.top - CHART_PADDING.bottom
-  const xFor = (index: number) => CHART_PADDING.left + ((index - firstIndex) / xSpan) * plotWidth
-  const yFor = (value: number) => CHART_PADDING.top + (1 - (value - min) / Math.max(max - min, 0.001)) * plotHeight
-  const markerX = xFor(Math.max(firstIndex, Math.min(lastIndex, currentFrameIndex)))
+  // The trace window is a buffered page. Its expensive paths remain unchanged
+  // for hundreds of playback ticks; only the lightweight playhead moves.
+  const windowPage = Math.floor(currentFrameIndex / HALF_WINDOW)
+  const geometry = useMemo(() => {
+    const center = windowPage * HALF_WINDOW
+    const start = Math.max(0, center - HALF_WINDOW)
+    const end = Math.min(data.frameCount - 1, center + HALF_WINDOW)
+    const windowSamples = downsample(
+      data.samples.filter((sample) => sample.index >= start && sample.index <= end),
+      720,
+    )
+    const vectors = windowSamples.flatMap((sample) => (
+      sample[field] ? [sample[field] as Vec3] : []
+    ))
+    const values = vectors.flatMap((vector) => [vector.x, vector.y, vector.z])
+    const rawMin = values.length ? Math.min(...values) : -1
+    const rawMax = values.length ? Math.max(...values) : 1
+    const spread = Math.max(rawMax - rawMin, 0.001)
+    const min = rawMin - spread * 0.08
+    const max = rawMax + spread * 0.08
+    const firstIndex = windowSamples[0]?.index ?? start
+    const lastIndex = windowSamples[windowSamples.length - 1]?.index ?? Math.max(start + 1, end)
+    const xSpan = Math.max(1, lastIndex - firstIndex)
+    const xFor = (index: number) => (
+      CHART_PADDING.left + ((index - firstIndex) / xSpan) * plotWidth
+    )
+    const yFor = (value: number) => (
+      CHART_PADDING.top
+      + (1 - (value - min) / Math.max(max - min, 0.001)) * plotHeight
+    )
+    const axisPoints = Object.fromEntries(AXES.map((axis) => [
+      axis.key,
+      windowSamples
+        .filter((sample) => sample[field])
+        .map((sample) => (
+          `${xFor(sample.index).toFixed(1)},${yFor((sample[field] as Vec3)[axis.key]).toFixed(1)}`
+        ))
+        .join(' '),
+    ])) as Record<(typeof AXES)[number]['key'], string>
+    return { axisPoints, firstIndex, lastIndex, max, min, xFor }
+  }, [data, field, plotHeight, plotWidth, windowPage])
+  const markerX = geometry.xFor(
+    Math.max(geometry.firstIndex, Math.min(geometry.lastIndex, currentFrameIndex)),
+  )
 
   return (
     <section className="sensor-chart-card">
@@ -112,7 +139,7 @@ function SensorChart({
         <rect className="sensor-chart-background" x="0" y="0" width={CHART_WIDTH} height={CHART_HEIGHT} />
         {[0, 0.25, 0.5, 0.75, 1].map((part) => {
           const y = CHART_PADDING.top + part * plotHeight
-          const value = max - part * (max - min)
+          const value = geometry.max - part * (geometry.max - geometry.min)
           return (
             <g key={part}>
               <line className="plot-grid-line" x1={CHART_PADDING.left} x2={CHART_WIDTH - CHART_PADDING.right} y1={y} y2={y} />
@@ -121,11 +148,7 @@ function SensorChart({
           )
         })}
         {AXES.map((axis) => {
-          const points = windowSamples
-            .filter((sample) => sample[field])
-            .map((sample) => `${xFor(sample.index).toFixed(1)},${yFor((sample[field] as Vec3)[axis.key]).toFixed(1)}`)
-            .join(' ')
-          return <polyline key={axis.key} points={points} fill="none" stroke={axis.color} strokeWidth="1.7" vectorEffect="non-scaling-stroke" />
+          return <polyline key={axis.key} points={geometry.axisPoints[axis.key]} fill="none" stroke={axis.color} strokeWidth="1.7" vectorEffect="non-scaling-stroke" />
         })}
         <line className="sensor-chart-current" x1={markerX} x2={markerX} y1={CHART_PADDING.top} y2={CHART_HEIGHT - CHART_PADDING.bottom} />
         <text className="sensor-chart-frame-label" x={markerX} y={CHART_HEIGHT - 8} textAnchor="middle">frame {currentFrameIndex + 1}</text>
@@ -140,15 +163,18 @@ function SensorChart({
   )
 }
 
-export default function SensorDataPanel({ currentFrameIndex, getSensorData }: SensorDataPanelProps) {
+export default function SensorDataPanel({
+  currentFrameIndex,
+  sourcePath,
+  getSensorData,
+}: SensorDataPanelProps) {
   const [data, setData] = useState<SensorDataSummary | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
-    setData(null)
     setError(null)
-    getSensorData()
+    getSensorData(sourcePath)
       .then((next) => {
         if (!cancelled) setData(next)
       })
@@ -158,9 +184,14 @@ export default function SensorDataPanel({ currentFrameIndex, getSensorData }: Se
     return () => {
       cancelled = true
     }
-  }, [getSensorData])
+  }, [getSensorData, sourcePath])
 
-  if (error) {
+  const availability = useMemo(() => data ? SENSOR_CHARTS.map((chart) => ({
+    ...chart,
+    count: data.samples.filter((sample) => Boolean(sample[chart.field])).length,
+  })) : [], [data])
+
+  if (error && !data) {
     return <div className="sensor-panel-state is-error"><Activity size={22} aria-hidden="true" /><span>{error}</span></div>
   }
   if (!data) {
@@ -168,10 +199,6 @@ export default function SensorDataPanel({ currentFrameIndex, getSensorData }: Se
   }
 
   const current = sampleAt(data, currentFrameIndex)
-  const availability = SENSOR_CHARTS.map((chart) => ({
-    ...chart,
-    count: data.samples.filter((sample) => Boolean(sample[chart.field])).length,
-  }))
 
   return (
     <div className="sensor-data-panel">

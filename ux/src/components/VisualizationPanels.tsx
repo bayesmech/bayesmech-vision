@@ -431,7 +431,8 @@ export default function VisualizationPanel({
     return (
       <SensorDataPanel
         currentFrameIndex={videoState.index}
-        getSensorData={() => getSensorData(sourceVideoPath)}
+        sourcePath={sourceVideoPath}
+        getSensorData={getSensorData}
       />
     )
   }
@@ -439,8 +440,10 @@ export default function VisualizationPanel({
     return (
       <MapGenerationPanel
         currentFrameIndex={videoState.index}
-        getSensorData={() => getSensorData(sourceVideoPath)}
-        getIdoSlamData={() => getIdoSlamData(analysis?.path)}
+        sourcePath={sourceVideoPath}
+        artifactPath={analysis?.path}
+        getSensorData={getSensorData}
+        getIdoSlamData={getIdoSlamData}
       />
     )
   }

@@ -217,9 +217,42 @@ function disposeObject(object: THREE.Object3D) {
   })
 }
 
+function renderSensorSample(group: THREE.Group, sample: SensorSample) {
+  const orientation = quaternionFor(sample)
+  addCamera(group, orientation)
+  addDeviceAxes(group, orientation)
+
+  const gravity = vector(sample.gravity)
+  if (gravity) {
+    addArrow(
+      group,
+      gravity.normalize().applyQuaternion(orientation),
+      1.2,
+      0xf0b35a,
+      `Gravity · ${vector(sample.gravity)?.length().toFixed(2) ?? '0.00'} m/s²`,
+      '#f0b35a',
+    )
+  }
+  const north = inferredNorth(sample.gravity, sample.magneticField)
+  if (north) {
+    addArrow(
+      group,
+      north.applyQuaternion(orientation),
+      1.35,
+      0x37d7e5,
+      'Magnetometer north · N',
+      '#64e5ef',
+    )
+  }
+  const angularVelocity = vector(sample.angularVelocity)
+  if (angularVelocity) addGyroscopeArc(group, angularVelocity, orientation)
+}
+
 export default function SensorOrientationScene({ sample }: SensorOrientationSceneProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const handlesRef = useRef<SceneHandles | null>(null)
+  const latestSampleRef = useRef(sample)
+  latestSampleRef.current = sample
   const measurements = useMemo(() => {
     const gravityMagnitude = vector(sample?.gravity ?? null)?.length() ?? 0
     const magneticMagnitude = vector(sample?.magneticField ?? null)?.length() ?? 0
@@ -251,12 +284,14 @@ export default function SensorOrientationScene({ sample }: SensorOrientationScen
     const dataGroup = new THREE.Group()
     scene.add(dataGroup)
 
+    let needsRender = true
     const resize = () => {
       const width = Math.max(1, container.clientWidth)
       const height = Math.max(1, container.clientHeight)
       renderer.setSize(width, height, false)
       camera.aspect = width / height
       camera.updateProjectionMatrix()
+      needsRender = true
     }
     const resizeObserver = new ResizeObserver(resize)
     resizeObserver.observe(container)
@@ -271,12 +306,29 @@ export default function SensorOrientationScene({ sample }: SensorOrientationScen
       resizeObserver,
       animationId: 0,
     }
-    const animate = () => {
+    let renderedSample: SensorSample | null | undefined
+    let lastSampleRender = Number.NEGATIVE_INFINITY
+    const animate = (now: number) => {
       handles.animationId = requestAnimationFrame(animate)
-      controls.update()
-      renderer.render(scene, camera)
+      const latestSample = latestSampleRef.current
+      // Rebuilding arrows and their text textures for every 30/60 fps playhead
+      // tick overwhelms the renderer. Consume the latest buffered sample at a
+      // steady visual cadence instead, dropping stale intermediate revisions.
+      if (renderedSample !== latestSample && now - lastSampleRender >= 66) {
+        disposeObject(dataGroup)
+        dataGroup.clear()
+        if (latestSample) renderSensorSample(dataGroup, latestSample)
+        renderedSample = latestSample
+        lastSampleRender = now
+        needsRender = true
+      }
+      const controlsChanged = controls.update()
+      if (needsRender || controlsChanged) {
+        renderer.render(scene, camera)
+        needsRender = false
+      }
     }
-    animate()
+    handles.animationId = requestAnimationFrame(animate)
     handlesRef.current = handles
 
     return () => {
@@ -289,43 +341,6 @@ export default function SensorOrientationScene({ sample }: SensorOrientationScen
       renderer.domElement.remove()
     }
   }, [])
-
-  useEffect(() => {
-    const handles = handlesRef.current
-    if (!handles) return
-    disposeObject(handles.dataGroup)
-    handles.dataGroup.clear()
-    if (!sample) return
-
-    const orientation = quaternionFor(sample)
-    addCamera(handles.dataGroup, orientation)
-    addDeviceAxes(handles.dataGroup, orientation)
-
-    const gravity = vector(sample.gravity)
-    if (gravity) {
-      addArrow(
-        handles.dataGroup,
-        gravity.normalize().applyQuaternion(orientation),
-        1.2,
-        0xf0b35a,
-        `Gravity · ${measurements.gravityMagnitude.toFixed(2)} m/s²`,
-        '#f0b35a',
-      )
-    }
-    const north = inferredNorth(sample.gravity, sample.magneticField)
-    if (north) {
-      addArrow(
-        handles.dataGroup,
-        north.applyQuaternion(orientation),
-        1.35,
-        0x37d7e5,
-        'Magnetometer north · N',
-        '#64e5ef',
-      )
-    }
-    const angularVelocity = vector(sample.angularVelocity)
-    if (angularVelocity) addGyroscopeArc(handles.dataGroup, angularVelocity, orientation)
-  }, [measurements.gravityMagnitude, sample])
 
   return (
     <section className="sensor-orientation-card">

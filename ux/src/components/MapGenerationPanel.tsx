@@ -1,7 +1,7 @@
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { LoaderCircle, MapPinned, Route } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import type {
   GpsSample,
   IdoSlamCenterlinePoint,
@@ -12,8 +12,10 @@ import type {
 
 type MapGenerationPanelProps = {
   currentFrameIndex: number
-  getSensorData: () => Promise<SensorDataSummary | null>
-  getIdoSlamData: () => Promise<IdoSlamSummary | null>
+  sourcePath?: string
+  artifactPath?: string
+  getSensorData: (sourcePath?: string) => Promise<SensorDataSummary | null>
+  getIdoSlamData: (artifactPath?: string) => Promise<IdoSlamSummary | null>
 }
 
 type Point2 = { x: number; y: number }
@@ -72,16 +74,19 @@ function poseProjection(poses: IdoSlamPose[]): Point2[] {
 
 function currentPoseIndex(poses: IdoSlamPose[], frameIndex: number): number {
   if (!poses.length) return -1
-  let bestIndex = 0
-  let bestDistance = Math.abs(poses[0].frameIndex - frameIndex)
-  for (let index = 1; index < poses.length; index += 1) {
-    const distance = Math.abs(poses[index].frameIndex - frameIndex)
-    if (distance < bestDistance) {
-      bestIndex = index
-      bestDistance = distance
-    }
+  let low = 0
+  let high = poses.length - 1
+  while (low < high) {
+    const middle = Math.floor((low + high) / 2)
+    if (poses[middle].frameIndex < frameIndex) low = middle + 1
+    else high = middle
   }
-  return bestIndex
+  if (low === 0) return 0
+  const previous = low - 1
+  return Math.abs(poses[low].frameIndex - frameIndex)
+    < Math.abs(poses[previous].frameIndex - frameIndex)
+    ? low
+    : previous
 }
 
 function RoutePlot({ title, poses, currentFrameIndex, accent }: {
@@ -90,29 +95,49 @@ function RoutePlot({ title, poses, currentFrameIndex, accent }: {
   currentFrameIndex: number
   accent: string
 }) {
-  const points = poseProjection(poses)
-  const map = fitPoints(points)
+  const geometry = useMemo(() => {
+    const points = poseProjection(poses)
+    const map = fitPoints(points)
+    return {
+      points,
+      map,
+      path: pointString(points, map),
+    }
+  }, [poses])
   const activeIndex = currentPoseIndex(poses, currentFrameIndex)
-  const active = activeIndex >= 0 ? map(points[activeIndex]) : null
+  const active = activeIndex >= 0
+    ? geometry.map(geometry.points[activeIndex])
+    : null
   return (
     <section className="map-plot-card">
       <header><strong>{title}</strong><span>{compactNumber(poses.length)} poses</span></header>
       <svg viewBox={`0 0 ${PLOT_WIDTH} ${PLOT_HEIGHT}`} role="img" aria-label={title}>
         <rect className="map-plot-background" width={PLOT_WIDTH} height={PLOT_HEIGHT} />
         <path className="plot-grid-line" d="M0 85H720M0 170H720M0 255H720M180 0V340M360 0V340M540 0V340" />
-        {points.length > 1 && <polyline points={pointString(points, map)} fill="none" stroke={accent} strokeWidth="2.5" vectorEffect="non-scaling-stroke" />}
+        {geometry.points.length > 1 && <polyline points={geometry.path} fill="none" stroke={accent} strokeWidth="2.5" vectorEffect="non-scaling-stroke" />}
         {active && <circle cx={active.x} cy={active.y} r="7" className="map-current-point" />}
-        {!points.length && <text className="map-empty-label" x={PLOT_WIDTH / 2} y={PLOT_HEIGHT / 2} textAnchor="middle">No IDOSLAM pose data</text>}
+        {!geometry.points.length && <text className="map-empty-label" x={PLOT_WIDTH / 2} y={PLOT_HEIGHT / 2} textAnchor="middle">No IDOSLAM pose data</text>}
       </svg>
     </section>
   )
 }
 
-function CenterlinePlot({ points }: { points: IdoSlamCenterlinePoint[] }) {
-  const center = points.map((point) => ({ x: point.centerX, y: point.centerY }))
-  const left = points.map((point) => ({ x: point.leftX, y: point.leftY }))
-  const right = points.map((point) => ({ x: point.rightX, y: point.rightY }))
-  const map = fitPoints([...left, ...right, ...center])
+const CenterlinePlot = memo(function CenterlinePlot({
+  points,
+}: {
+  points: IdoSlamCenterlinePoint[]
+}) {
+  const geometry = useMemo(() => {
+    const center = points.map((point) => ({ x: point.centerX, y: point.centerY }))
+    const left = points.map((point) => ({ x: point.leftX, y: point.leftY }))
+    const right = points.map((point) => ({ x: point.rightX, y: point.rightY }))
+    const map = fitPoints([...left, ...right, ...center])
+    return {
+      center: pointString(center, map),
+      left: pointString(left, map),
+      right: pointString(right, map),
+    }
+  }, [points])
   return (
     <section className="map-plot-card">
       <header><strong>Canonical road model</strong><span>{compactNumber(points.length)} centerline bins</span></header>
@@ -121,16 +146,16 @@ function CenterlinePlot({ points }: { points: IdoSlamCenterlinePoint[] }) {
         <path className="plot-grid-line" d="M0 85H720M0 170H720M0 255H720M180 0V340M360 0V340M540 0V340" />
         {points.length > 1 && (
           <>
-            <polyline points={pointString(left, map)} fill="none" stroke="#d7687d" strokeWidth="2" />
-            <polyline points={pointString(center, map)} fill="none" stroke="#eef0f3" strokeWidth="2.5" />
-            <polyline points={pointString(right, map)} fill="none" stroke="#62d2a2" strokeWidth="2" />
+            <polyline points={geometry.left} fill="none" stroke="#d7687d" strokeWidth="2" />
+            <polyline points={geometry.center} fill="none" stroke="#eef0f3" strokeWidth="2.5" />
+            <polyline points={geometry.right} fill="none" stroke="#62d2a2" strokeWidth="2" />
           </>
         )}
         {!points.length && <text className="map-empty-label" x={PLOT_WIDTH / 2} y={PLOT_HEIGHT / 2} textAnchor="middle">No canonical centerline data</text>}
       </svg>
     </section>
   )
-}
+})
 
 function GpsRouteMap({ points, current }: { points: GpsSample[]; current: GpsSample | null }) {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -173,7 +198,10 @@ function GpsRouteMap({ points, current }: { points: GpsSample[]; current: GpsSam
       fillOpacity: 1,
       weight: 2,
     }).addTo(map)
-    map.panTo(position, { animate: true, duration: 0.25 })
+    const stableViewport = map.getBounds().pad(-0.16)
+    if (!stableViewport.contains(position)) {
+      map.panTo(position, { animate: true, duration: 0.18 })
+    }
   }, [current])
 
   return (
@@ -189,6 +217,8 @@ function GpsRouteMap({ points, current }: { points: GpsSample[]; current: GpsSam
 
 export default function MapGenerationPanel({
   currentFrameIndex,
+  sourcePath,
+  artifactPath,
   getSensorData,
   getIdoSlamData,
 }: MapGenerationPanelProps) {
@@ -201,7 +231,7 @@ export default function MapGenerationPanel({
     let cancelled = false
     setLoading(true)
     setError(null)
-    Promise.allSettled([getSensorData(), getIdoSlamData()])
+    Promise.allSettled([getSensorData(sourcePath), getIdoSlamData(artifactPath)])
       .then(([sensorResult, slamResult]) => {
         if (cancelled) return
         if (sensorResult.status === 'fulfilled') setSensors(sensorResult.value)
@@ -217,7 +247,7 @@ export default function MapGenerationPanel({
     return () => {
       cancelled = true
     }
-  }, [getIdoSlamData, getSensorData])
+  }, [artifactPath, getIdoSlamData, getSensorData, sourcePath])
 
   const gpsPoints = useMemo(
     () => sensors?.samples.flatMap((sample) => sample.gps ? [sample.gps] : []) ?? [],
@@ -225,7 +255,7 @@ export default function MapGenerationPanel({
   )
   const currentGps = gpsAt(sensors, currentFrameIndex)
 
-  if (loading) {
+  if (loading && !sensors && !slam) {
     return <div className="sensor-panel-state"><LoaderCircle className="sensor-loading-icon" size={22} aria-hidden="true" /><span>Loading GPS and IDOSLAM maps…</span></div>
   }
 

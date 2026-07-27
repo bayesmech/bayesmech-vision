@@ -2,7 +2,6 @@ import { ChevronLeft, ChevronRight, MapPin, Pause, Play, Plus } from 'lucide-rea
 import {
   useCallback,
   useEffect,
-  useLayoutEffect,
   useMemo,
   useRef,
   type Dispatch,
@@ -140,33 +139,35 @@ export default function WorkspaceTimeline({
     updateIndex(maximumIndex)
   }, [index, maximumIndex, updateIndex])
 
-  useLayoutEffect(() => {
+  useEffect(() => {
     if (!playing || frameCount <= 1) {
       nextPlaybackDeadlineRef.current = 0
       return
     }
     const interval = 1000 / (fps * speed)
-    const now = performance.now()
-    if (nextPlaybackDeadlineRef.current <= 0) {
-      nextPlaybackDeadlineRef.current = now + interval
+    let animationFrame = 0
+    const tick = (now: number) => {
+      if (nextPlaybackDeadlineRef.current <= 0) {
+        nextPlaybackDeadlineRef.current = now + interval
+      }
+      if (now >= nextPlaybackDeadlineRef.current) {
+        const overdue = Math.max(0, now - nextPlaybackDeadlineRef.current)
+        const steps = Math.max(1, Math.floor(overdue / interval) + 1)
+        nextPlaybackDeadlineRef.current += steps * interval
+        onVideoStateChange((current) => {
+          const nextIndex = current.index + steps
+          if (nextIndex >= maximumIndex) {
+            nextPlaybackDeadlineRef.current = 0
+            return { ...current, index: maximumIndex, playing: false }
+          }
+          return { ...current, index: nextIndex }
+        })
+      }
+      animationFrame = window.requestAnimationFrame(tick)
     }
-    const delay = Math.max(0, nextPlaybackDeadlineRef.current - now)
-    const timer = window.setTimeout(() => {
-      const tickTime = performance.now()
-      const overdue = Math.max(0, tickTime - nextPlaybackDeadlineRef.current)
-      const steps = Math.max(1, Math.floor(overdue / interval) + 1)
-      nextPlaybackDeadlineRef.current += steps * interval
-      onVideoStateChange((current) => {
-        const nextIndex = current.index + steps
-        if (nextIndex >= maximumIndex) {
-          nextPlaybackDeadlineRef.current = 0
-          return { ...current, index: maximumIndex, playing: false }
-        }
-        return { ...current, index: nextIndex }
-      })
-    }, delay)
-    return () => window.clearTimeout(timer)
-  }, [fps, frameCount, index, maximumIndex, onVideoStateChange, playing, speed])
+    animationFrame = window.requestAnimationFrame(tick)
+    return () => window.cancelAnimationFrame(animationFrame)
+  }, [fps, frameCount, maximumIndex, onVideoStateChange, playing, speed])
 
   const addMarker = useCallback(() => {
     if (!frameCount) return
