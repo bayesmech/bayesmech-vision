@@ -112,7 +112,12 @@ export function updateSplitRatio(node: LayoutNode, splitId: string, ratio: numbe
   }
 }
 
-export function addTabToLeaf(node: LayoutNode, leafId: string, request: WorkspaceTabRequest): LayoutNode {
+export function addTabToLeaf(
+  node: LayoutNode,
+  leafId: string,
+  request: WorkspaceTabRequest,
+  activate = true,
+): LayoutNode {
   return updateLeaf(node, leafId, (leaf) => {
     const tab = createTab(
       request.type,
@@ -123,7 +128,7 @@ export function addTabToLeaf(node: LayoutNode, leafId: string, request: Workspac
     )
     return {
       ...leaf,
-      activeTabId: tab.id,
+      activeTabId: activate ? tab.id : leaf.activeTabId,
       tabs: [...leaf.tabs, tab],
     }
   })

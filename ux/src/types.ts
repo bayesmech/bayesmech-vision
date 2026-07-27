@@ -300,6 +300,8 @@ export type MotionCaptureTrack = {
   points: MotionCapturePoint[]
 }
 
+export type MotionTrajectoryMode = 'motion' | 'segmentation'
+
 export type MotionCaptureOverlay = {
   frameNumber: number
   heatmapIndex: number
@@ -375,6 +377,7 @@ export type VideoPlaybackState = {
   playing: boolean
   speed: number
   markers: VideoMarker[]
+  playbackTimestampNs?: string
 }
 
 export type ChatAnalysisParameter = {

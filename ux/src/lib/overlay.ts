@@ -24,6 +24,10 @@ export type WorldgenCommand =
   | { action: 'run'; raw: string; startRef: string; endRef: string }
   | { action: 'invalid'; raw: string; message: string }
 
+export type ContextCommand =
+  | { action: 'list'; raw: string }
+  | { action: 'switch'; raw: string; context: string }
+
 // Overlay/command state shared between the AI chat box, the video command bar,
 // and the video renderer. Owned by App, consumed via context by the workspace.
 export type OverlayState = {
@@ -57,7 +61,9 @@ export function useOverlay(): OverlayState | null {
 // True when a message contains a recognized "/command". Used by the AI chat box
 // to intercept commands instead of sending them to the assistant.
 export function isCommand(text: string): boolean {
-  return parseSegmentationCommand(text) !== null || parseWorldgenCommand(text) !== null
+  return parseContextCommand(text) !== null
+    || parseSegmentationCommand(text) !== null
+    || parseWorldgenCommand(text) !== null
 }
 
 export function normalizeSegmentationLabel(label: string): string {
@@ -108,5 +114,20 @@ export function parseWorldgenCommand(text: string): WorldgenCommand | null {
     raw: segmentMatch[0],
     startRef: segmentMatch[1],
     endRef: segmentMatch[2],
+  }
+}
+
+export function parseContextCommand(text: string): ContextCommand | null {
+  const commandMatch = /(^|\s)\/context\b/i.exec(text)
+  if (!commandMatch) return null
+
+  const commandStart = commandMatch.index + commandMatch[0].search(/\/context/i)
+  const rawLine = text.slice(commandStart).split(/\r?\n/)[0].trim()
+  const context = rawLine.slice('/context'.length).trim()
+  if (!context) return { action: 'list', raw: rawLine || '/context' }
+  return {
+    action: 'switch',
+    raw: rawLine,
+    context: context.replace(/^["']|["']$/g, '').trim(),
   }
 }

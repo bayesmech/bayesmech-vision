@@ -36,7 +36,6 @@ const ANALYSIS_DEFS = [
   { key: 'idoslam', title: 'Map Generation', kind: 'protobuf', suffixes: ['idoslam.pb'] },
   { key: 'genspark', title: 'AI Analysis', kind: 'protobuf', suffixes: ['genspark.pb'] },
   { key: 'chat', title: 'Follow-up Chat', kind: 'protobuf', suffixes: ['chat.pb'] },
-  { key: 'reconstruction', title: '3D Reconstruction', kind: 'protobuf', suffixes: ['reconstruct.pb', 'recon.pb'] },
   { key: 'snookestown', title: 'Domain specific reconstruction', kind: 'protobuf', suffixes: ['snook.pb'] },
   { key: 'pongtown', title: 'Domain specific reconstruction', kind: 'protobuf', suffixes: ['pongtown.pb'] },
 ]

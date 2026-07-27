@@ -1,5 +1,4 @@
 import {
-  Box,
   Boxes,
   BrainCircuit,
   CircleDot,
@@ -50,8 +49,6 @@ export function iconForAnalysis(key: string): LucideIcon {
       return BrainCircuit
     case 'chat':
       return MessageSquare
-    case 'reconstruction':
-      return Box
     case 'worldgen':
       return ScanSearch
     case 'pongtown':

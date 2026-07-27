@@ -1,5 +1,14 @@
 import { ChevronLeft, ChevronRight, MapPin, Pause, Play, Plus } from 'lucide-react'
-import { useCallback, useEffect, useMemo, type Dispatch, type KeyboardEvent, type SetStateAction } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  type Dispatch,
+  type KeyboardEvent,
+  type SetStateAction,
+} from 'react'
 import type { VideoMarker, VideoPlaybackState, VisSummary, WorldgenResult } from '../types'
 
 type WorkspaceTimelineProps = {
@@ -68,6 +77,19 @@ function generatedFrameRanges(frameCount: number, results: WorldgenResult[]): Fr
   return ranges
 }
 
+function generatedFrameIndexes(frameCount: number, results: WorldgenResult[]): number[] {
+  const indexes = new Set<number>()
+  for (const result of results) {
+    for (const frame of result.frames) {
+      if (frame.frameIndex >= 0 && frame.frameIndex < frameCount) indexes.add(frame.frameIndex)
+    }
+    for (const camera of result.cameras) {
+      if (camera.frameIndex >= 0 && camera.frameIndex < frameCount) indexes.add(camera.frameIndex)
+    }
+  }
+  return [...indexes].sort((left, right) => left - right)
+}
+
 export default function WorkspaceTimeline({
   summary,
   videoState,
@@ -86,7 +108,9 @@ export default function WorkspaceTimeline({
   const sortedMarkers = useMemo(() => [...markers].sort((left, right) => left.frameIndex - right.frameIndex), [markers])
   const results = useMemo(() => Object.values(worldgenResults), [worldgenResults])
   const coverageRanges = useMemo(() => generatedFrameRanges(frameCount, results), [frameCount, results])
-  const showCoverage = results.some((result) => result.frames.length || result.cameras.length)
+  const coverageFrames = useMemo(() => generatedFrameIndexes(frameCount, results), [frameCount, results])
+  const showCoverage = coverageFrames.length > 0
+  const nextPlaybackDeadlineRef = useRef(0)
 
   const updateIndex = useCallback(
     (next: number | ((current: number) => number), stopPlayback = true) => {
@@ -116,29 +140,33 @@ export default function WorkspaceTimeline({
     updateIndex(maximumIndex)
   }, [index, maximumIndex, updateIndex])
 
-  useEffect(() => {
-    if (!playing || frameCount <= 1) return
-    let animationId = 0
-    let lastTime = performance.now()
-    let accumulated = 0
-    const interval = 1000 / (fps * speed)
-    const tick = (now: number) => {
-      accumulated += now - lastTime
-      lastTime = now
-      if (accumulated >= interval) {
-        const steps = Math.floor(accumulated / interval)
-        accumulated -= steps * interval
-        onVideoStateChange((current) => {
-          const nextIndex = current.index + steps
-          if (nextIndex >= maximumIndex) return { ...current, index: maximumIndex, playing: false }
-          return { ...current, index: nextIndex }
-        })
-      }
-      animationId = requestAnimationFrame(tick)
+  useLayoutEffect(() => {
+    if (!playing || frameCount <= 1) {
+      nextPlaybackDeadlineRef.current = 0
+      return
     }
-    animationId = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(animationId)
-  }, [fps, frameCount, maximumIndex, onVideoStateChange, playing, speed])
+    const interval = 1000 / (fps * speed)
+    const now = performance.now()
+    if (nextPlaybackDeadlineRef.current <= 0) {
+      nextPlaybackDeadlineRef.current = now + interval
+    }
+    const delay = Math.max(0, nextPlaybackDeadlineRef.current - now)
+    const timer = window.setTimeout(() => {
+      const tickTime = performance.now()
+      const overdue = Math.max(0, tickTime - nextPlaybackDeadlineRef.current)
+      const steps = Math.max(1, Math.floor(overdue / interval) + 1)
+      nextPlaybackDeadlineRef.current += steps * interval
+      onVideoStateChange((current) => {
+        const nextIndex = current.index + steps
+        if (nextIndex >= maximumIndex) {
+          nextPlaybackDeadlineRef.current = 0
+          return { ...current, index: maximumIndex, playing: false }
+        }
+        return { ...current, index: nextIndex }
+      })
+    }, delay)
+    return () => window.clearTimeout(timer)
+  }, [fps, frameCount, index, maximumIndex, onVideoStateChange, playing, speed])
 
   const addMarker = useCallback(() => {
     if (!frameCount) return
@@ -208,6 +236,19 @@ export default function WorkspaceTimeline({
                 left: `${(range.start / frameCount) * 100}%`,
                 width: `${((range.end - range.start + 1) / frameCount) * 100}%`,
               }}
+            />
+          ))}
+        </div>
+        <div className="timeline-worldgen-frames" aria-label={`${coverageFrames.length} reconstructed World Modeling frames`}>
+          {coverageFrames.map((frameIndex) => (
+            <button
+              type="button"
+              className="timeline-worldgen-frame"
+              key={frameIndex}
+              onClick={() => updateIndex(frameIndex)}
+              style={{ left: `${maximumIndex > 0 ? (frameIndex / maximumIndex) * 100 : 0}%` }}
+              title={`Open reconstructed frame ${frameIndex + 1}`}
+              aria-label={`Open reconstructed frame ${frameIndex + 1}`}
             />
           ))}
         </div>

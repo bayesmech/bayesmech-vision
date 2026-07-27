@@ -113,8 +113,8 @@ def test_vggt_background_job_reports_progress_and_result(
 
     def fake_inference(frame_paths, frame_indices, timestamps_sec, **kwargs):
         assert len(frame_paths) == 2
-        assert frame_indices == [0, 1]
-        assert timestamps_sec == [0.0, 0.05]
+        assert frame_indices == [0, 20]
+        assert timestamps_sec == [0.0, 1.0]
         assert kwargs["parent_job_id"].startswith("vggt-")
         kwargs["progress_callback"](
             "reconstructing", 0.5, 1, 2, "Reconstructed frame 1/2."
@@ -123,7 +123,28 @@ def test_vggt_background_job_reports_progress_and_result(
             {
                 "metadata": {"num_frames": 2},
                 "camera": {},
-                "point_clouds": [],
+                "point_clouds": [
+                    {
+                        "frame_index": 0,
+                        "sampled_frame_index": 0,
+                        "num_points": 1,
+                        "returned_points": 1,
+                        "xyz": [[0.0, 0.0, 0.0]],
+                        "rgb": [[1.0, 0.0, 0.0]],
+                        "uv": [[0.0, 0.0]],
+                        "conf": [1.0],
+                    },
+                    {
+                        "frame_index": 20,
+                        "sampled_frame_index": 1,
+                        "num_points": 1,
+                        "returned_points": 1,
+                        "xyz": [[1.0, 0.0, 0.0]],
+                        "rgb": [[0.0, 1.0, 0.0]],
+                        "uv": [[0.0, 0.0]],
+                        "conf": [1.0],
+                    },
+                ],
                 "splat_job": {
                     "job_id": "splat-test-child",
                     "status": "queued",
@@ -170,6 +191,35 @@ def test_vggt_background_job_reports_progress_and_result(
     result = asyncio.run(_request_path(vggt_api.app, "GET", f"/jobs/{job_id}/result"))
     assert result.status_code == 200
     assert result.json()["metadata"]["num_frames"] == 2
+    manifest = asyncio.run(
+        _request_path(vggt_api.app, "GET", f"/jobs/{job_id}/result/manifest")
+    )
+    assert manifest.status_code == 200
+    assert manifest.json()["frame_count"] == 2
+    assert [frame["frame_index"] for frame in manifest.json()["frames"]] == [0, 20]
+    first_frame = asyncio.run(
+        _request_path(vggt_api.app, "GET", f"/jobs/{job_id}/result/frames/0")
+    )
+    assert first_frame.status_code == 200
+    assert len(first_frame.json()["point_clouds"]) == 1
+    assert first_frame.json()["result_frame_index"] == 0
+    assert first_frame.json()["result_frame_count"] == 2
+    assert first_frame.json()["result_complete"] is False
+    sampled_frame = asyncio.run(
+        _request_path(
+            vggt_api.app,
+            "GET",
+            f"/jobs/{job_id}/result/frames/0?max_points=1",
+        )
+    )
+    assert sampled_frame.status_code == 200
+    assert sampled_frame.json()["point_clouds"][0]["returned_points"] == 1
+    assert len(sampled_frame.json()["point_clouds"][0]["xyz"]) == 1
+    with vggt_jobs._jobs_lock:
+        vggt_jobs._jobs.clear()
+    recovered_jobs = asyncio.run(_request_path(vggt_api.app, "GET", "/jobs"))
+    assert recovered_jobs.status_code == 200
+    assert any(job["job_id"] == job_id for job in recovered_jobs.json()["jobs"])
 
 
 def test_vggt_batches_more_than_96_frames_instead_of_rejecting(
@@ -195,7 +245,19 @@ def test_vggt_batches_more_than_96_frames_instead_of_rejecting(
                     ),
                 },
                 "camera": {},
-                "point_clouds": [],
+                    "point_clouds": [
+                        {
+                            "frame_index": index,
+                            "sampled_frame_index": index,
+                            "num_points": 1,
+                            "returned_points": 1,
+                            "xyz": [[float(index), 0.0, 0.0]],
+                            "rgb": [[1.0, 1.0, 1.0]],
+                            "uv": [[0.0, 0.0]],
+                            "conf": [1.0],
+                        }
+                        for index in range(len(frame_paths))
+                    ],
             }
         )
 

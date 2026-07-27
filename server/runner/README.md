@@ -166,6 +166,10 @@ Queued World Modeling and shared background state use:
 - `GET /api/v1/worldgen/jobs` — list persistent VGGT and splatting jobs
 - `GET /api/v1/worldgen/jobs/{job_id}` — read one job and its percentage progress
 - `GET /api/v1/worldgen/jobs/{vggt_job_id}/result` — fetch the completed VGGT JSON
+- `GET /api/v1/worldgen/jobs/{vggt_job_id}/result/manifest` — list completed
+  reconstructed frames without downloading their point data
+- `GET /api/v1/worldgen/jobs/{vggt_job_id}/result/frames/{position}` — fetch one
+  gzip-capable reconstructed frame for incremental, resumable persistence
 - `GET /api/v1/jobs/state` — snapshot all live runner-owned job state
 - `GET /api/v1/jobs/events` — resumable Server-Sent Events stream of full job states
 
@@ -173,7 +177,8 @@ Each event has a stable `job_id`, `type`, `status`, `stage`, `progress` in the
 range 0–1, and marker/request metadata. VGGT events expose the splatting job in
 `child_job_ids`; splatting events point back with `parent_job_id`. The Electron
 UX consumes the event stream for its background-jobs ribbon while the completed
-results are persisted in the recording's canonical `.vggt.pb` file.
+results are persisted beside the recording in its canonical `.worldgen.pb`
+file. Legacy `.vggt.pb` files remain readable.
 
 All endpoints except `/health` require `Authorization: Bearer $RUNNER_TOKEN`
 when a token is configured.

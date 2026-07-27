@@ -17,6 +17,7 @@ import {
   Sparkles,
   Terminal,
   UserRound,
+  X,
 } from 'lucide-react'
 import {
   FormEvent,
@@ -50,6 +51,7 @@ type AIChatProps = {
   chatLoading: boolean
   chatError: string | null
   backgroundJobs: RunnerBackgroundJob[]
+  onDismissBackgroundJob: (jobId: string) => void
   addingDevice: boolean
   onAddDevice: (preset: ControlDevicePreset) => void
   onMessagesChange: (messages: WorkspaceChatMessage[]) => void
@@ -76,6 +78,13 @@ type ComposerSuggestion = {
 }
 
 const COMMAND_SUGGESTIONS: ComposerSuggestion[] = [
+  {
+    id: 'context',
+    label: '/context',
+    detail: 'List or switch the active video context',
+    insertText: '/context ',
+    kind: 'command',
+  },
   {
     id: 'segmentation-show',
     label: '/segmentation',
@@ -196,6 +205,7 @@ export default function AIChat({
   chatLoading,
   chatError,
   backgroundJobs,
+  onDismissBackgroundJob,
   addingDevice,
   onAddDevice,
   onMessagesChange,
@@ -745,6 +755,15 @@ export default function AIChat({
                       <strong>{job.title}</strong>
                       <span>{markerRange}</span>
                       <em>{percent}%</em>
+                      <button
+                        type="button"
+                        className="background-job-dismiss"
+                        title={`Dismiss ${job.title}`}
+                        aria-label={`Dismiss ${job.title}`}
+                        onClick={() => onDismissBackgroundJob(job.jobId)}
+                      >
+                        <X size={12} aria-hidden="true" />
+                      </button>
                     </div>
                     <div className="background-job-progress" aria-label={`${job.title} ${percent}%`}>
                       <span style={{ width: `${percent}%` }} />

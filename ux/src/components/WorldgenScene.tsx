@@ -315,7 +315,7 @@ export default function WorldgenScene({ result, currentFrameIndex, onVideoStateC
 
   useEffect(() => {
     setViewMode(result?.splat?.status === 'complete' && result.splatPoints.length ? 'splat' : 'vggt')
-    setShowAllFrames(false)
+    setShowAllFrames(Boolean(result?.frames.length))
     setSplatJob(null)
     setHighlightedKey(null)
     fitKeyRef.current = ''
@@ -792,7 +792,7 @@ export default function WorldgenScene({ result, currentFrameIndex, onVideoStateC
           <span>{requestedPointCloudLabel} · updating…</span>
         ) : null}
       </div>
-      {result && !selectedFrame ? (
+      {result && !selectedFrame && !showAllFrames ? (
         <div className="worldgen-frame-unavailable" role="status">
           Frame {currentFrameIndex + 1} has no generated VGGT or Gaussian data
         </div>
@@ -824,8 +824,34 @@ export default function WorldgenScene({ result, currentFrameIndex, onVideoStateC
             ) : null}
             <label>
               <input type="checkbox" checked={showAllFrames} onChange={(event) => setShowAllFrames(event.target.checked)} />
-              <span>All frames</span>
+              <span>All reconstructed frames ({result.frames.length})</span>
             </label>
+            {result.frames.length ? (
+              <label>
+                <span>Frame</span>
+                <select
+                  value={selectedFrameIndex ?? ''}
+                  onChange={(event) => {
+                    const frameIndex = Number(event.target.value)
+                    if (!Number.isFinite(frameIndex)) return
+                    setShowAllFrames(false)
+                    onVideoStateChange((current) => ({
+                      ...current,
+                      index: frameIndex,
+                      playing: false,
+                    }))
+                  }}
+                  aria-label="Reconstructed frame"
+                >
+                  {!selectedFrame ? <option value="">Choose reconstructed frame</option> : null}
+                  {result.frames.map((frame) => (
+                    <option value={frame.frameIndex} key={`${frame.frameIndex}:${frame.frameNumber}`}>
+                      Timeline {frame.frameIndex + 1} · source {frame.frameNumber}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
           </div>
           {selectedFrame ? (
             <>

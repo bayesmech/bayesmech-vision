@@ -323,13 +323,45 @@ export default function SplitWorkspace({
   const [selectedLeafId, setSelectedLeafId] = useState(() => firstLeafId(layout))
   const consumedRequestRef = useRef<string | null>(null)
   const controlProjectActive = Boolean(selectedRecording?.controlProject)
+  const recordingLayoutKey = `${selectedRecording?.path ?? ''}:${controlProjectActive ? 'control' : 'recording'}`
+  const analysisLayoutKey = (selectedRecording?.analyses ?? [])
+    .map((analysis) => `${analysis.key}:${analysis.path}`)
+    .join('|')
 
   useEffect(() => {
     const nextLayout = createRecordingLayout(selectedRecording)
     setLayout(nextLayout)
     setSelectedLeafId(firstLeafId(nextLayout))
     consumedRequestRef.current = null
-  }, [selectedRecording])
+    // Recording content can refresh every few seconds while devices stream.
+    // Rebuild only when the selected recording or its control mode changes;
+    // otherwise the active tab would repeatedly jump back to Control.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recordingLayoutKey])
+
+  useEffect(() => {
+    const analyses = (selectedRecording?.analyses ?? []).filter((analysis) => (
+      !['control', 'genspark', 'chat', 'point-cloud'].includes(
+        analysis.baseKey ?? analysis.key.split(':')[0],
+      )
+    ))
+    if (!analyses.length) return
+    setLayout((current) => {
+      let next = current
+      for (const analysis of analyses) {
+        if (findTabByAnalysisKey(next, analysis.key)) continue
+        const targetLeafId = findTabByType(next, 'video')?.leafId ?? firstLeafId(next)
+        next = addTabToLeaf(next, targetLeafId, {
+          requestId: `discovered:${analysis.key}:${analysis.path}`,
+          type: tabTypeForAnalysis(analysis.key),
+          title: analysis.title,
+          analysisKey: analysis.key,
+          sourcePath: analysis.path,
+        }, false)
+      }
+      return next
+    })
+  }, [analysisLayoutKey, selectedRecording?.analyses])
 
   useEffect(() => {
     let leafStillExists = false
@@ -381,14 +413,12 @@ export default function SplitWorkspace({
             worldgenResults={worldgenResults}
           />
         </div>
-        {!controlProjectActive ? (
-          <WorkspaceTimeline
-            summary={summary}
-            videoState={videoState}
-            onVideoStateChange={onVideoStateChange}
-            worldgenResults={worldgenResults}
-          />
-        ) : null}
+        <WorkspaceTimeline
+          summary={summary}
+          videoState={videoState}
+          onVideoStateChange={onVideoStateChange}
+          worldgenResults={worldgenResults}
+        />
       </section>
       </OverlayContext.Provider>
     </FrameSourceContext.Provider>

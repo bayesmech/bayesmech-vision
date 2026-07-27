@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import gzip
 import os
 import threading
 import time
@@ -18,7 +19,11 @@ JOBS_DIR = Path(
 
 _jobs: dict[str, dict[str, Any]] = {}
 _jobs_lock = threading.Lock()
+_result_bundle_lock = threading.Lock()
 _executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="worldgen-vggt")
+RESULT_POINT_BUDGET = max(
+    1, int(os.environ.get("WORLDGEN_RESULT_POINT_BUDGET", "1000000"))
+)
 
 
 def _job_path(job_id: str) -> Path:
@@ -97,6 +102,159 @@ def vggt_result_path(job_id: str) -> Path | None:
     return path
 
 
+def _even_sample_indices(count: int, limit: int) -> list[int]:
+    if count <= limit:
+        return list(range(count))
+    if limit <= 1:
+        return [0]
+    return [
+        min(count - 1, round(index * (count - 1) / (limit - 1)))
+        for index in range(limit)
+    ]
+
+
+def _write_gzip_json(path: Path, payload: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_suffix(f"{path.suffix}.tmp")
+    temporary.write_bytes(
+        gzip.compress(
+            json.dumps(payload, separators=(",", ":")).encode("utf-8"),
+            compresslevel=6,
+        )
+    )
+    os.replace(temporary, path)
+
+
+def _materialize_vggt_result_bundle(
+    job_id: str, payload: dict[str, Any] | None = None
+) -> tuple[Path, list[Path]]:
+    workspace = _job_path(job_id)
+    manifest_path = workspace / "result_manifest.json"
+    frames_dir = workspace / "result_frames"
+    existing_manifest = _read_json(manifest_path)
+    if existing_manifest is not None:
+        frame_count = int(existing_manifest.get("frame_count") or 0)
+        frame_paths = [
+            frames_dir / f"frame_{position:06d}.json.gz"
+            for position in range(frame_count)
+        ]
+        if frame_count > 0 and all(path.is_file() for path in frame_paths):
+            return manifest_path, frame_paths
+
+    with _result_bundle_lock:
+        existing_manifest = _read_json(manifest_path)
+        if existing_manifest is not None:
+            frame_count = int(existing_manifest.get("frame_count") or 0)
+            frame_paths = [
+                frames_dir / f"frame_{position:06d}.json.gz"
+                for position in range(frame_count)
+            ]
+            if frame_count > 0 and all(path.is_file() for path in frame_paths):
+                return manifest_path, frame_paths
+
+        if payload is None:
+            result_path = vggt_result_path(job_id)
+            if result_path is None:
+                raise ValueError("VGGT result is not ready")
+            payload = _read_json(result_path)
+        if not isinstance(payload, dict):
+            raise ValueError("VGGT result is invalid")
+
+        metadata = payload.get("metadata")
+        metadata = metadata if isinstance(metadata, dict) else {}
+        camera = payload.get("camera")
+        camera = camera if isinstance(camera, dict) else {}
+        point_clouds = payload.get("point_clouds")
+        point_clouds = point_clouds if isinstance(point_clouds, list) else []
+        if not point_clouds:
+            raise ValueError("VGGT result has no point-cloud frames")
+
+        per_frame_limit = max(1, RESULT_POINT_BUDGET // len(point_clouds))
+        manifest_frames = []
+        frame_paths = []
+        for position, raw_cloud in enumerate(point_clouds):
+            point_cloud = dict(raw_cloud) if isinstance(raw_cloud, dict) else {}
+            xyz = point_cloud.get("xyz")
+            if isinstance(xyz, list) and len(xyz) > per_frame_limit:
+                keep = _even_sample_indices(len(xyz), per_frame_limit)
+                for key in ("xyz", "rgb", "uv", "conf"):
+                    values = point_cloud.get(key)
+                    if isinstance(values, list):
+                        point_cloud[key] = [values[index] for index in keep]
+                point_cloud["returned_points"] = len(keep)
+
+            frame_camera = {}
+            for key in (
+                "extrinsics",
+                "intrinsics",
+                "camera_to_world",
+                "camera_centers",
+            ):
+                values = camera.get(key)
+                frame_camera[key] = (
+                    [values[position]]
+                    if isinstance(values, list) and position < len(values)
+                    else []
+                )
+
+            frame_payload = {
+                "metadata": metadata,
+                "camera": frame_camera,
+                "point_clouds": [point_cloud],
+                "splat_job": payload.get("splat_job"),
+                "result_frame_index": position,
+                "result_frame_count": len(point_clouds),
+                "result_complete": position + 1 == len(point_clouds),
+            }
+            frame_path = frames_dir / f"frame_{position:06d}.json.gz"
+            _write_gzip_json(frame_path, frame_payload)
+            frame_paths.append(frame_path)
+            manifest_frames.append(
+                {
+                    "position": position,
+                    "frame_index": int(point_cloud.get("frame_index", position)),
+                    "sampled_frame_index": int(
+                        point_cloud.get("sampled_frame_index", position)
+                    ),
+                    "timestamp_sec": point_cloud.get("timestamp_sec"),
+                    "num_points": int(point_cloud.get("num_points", 0)),
+                    "returned_points": int(point_cloud.get("returned_points", 0)),
+                }
+            )
+
+        _write_json(
+            manifest_path,
+            {
+                "job_id": job_id,
+                "request_id": str(metadata.get("request_id") or ""),
+                "metadata": metadata,
+                "frame_count": len(manifest_frames),
+                "frames": manifest_frames,
+                "splat_job": payload.get("splat_job"),
+            },
+        )
+        return manifest_path, frame_paths
+
+
+def vggt_result_manifest_path(job_id: str) -> Path | None:
+    try:
+        manifest_path, _ = _materialize_vggt_result_bundle(job_id)
+        return manifest_path
+    except ValueError:
+        return None
+
+
+def vggt_result_frame_path(job_id: str, position: int) -> Path | None:
+    try:
+        _, frame_paths = _materialize_vggt_result_bundle(job_id)
+    except ValueError:
+        return None
+    if position < 0 or position >= len(frame_paths):
+        return None
+    path = frame_paths[position]
+    return path if path.is_file() else None
+
+
 def start_vggt_job(
     frame_files: list[tuple[str, bytes]],
     frame_indices: list[int],
@@ -140,6 +298,9 @@ def start_vggt_job(
         current_step=0,
         max_steps=len(frame_paths),
         frame_count=len(frame_paths),
+        frame_indices=[int(value) for value in frame_indices],
+        start_frame_index=min(frame_indices),
+        end_frame_index=max(frame_indices),
         child_job_ids=[],
         result_ready=False,
         request_id=request_id,
@@ -229,6 +390,7 @@ def _run_vggt_job(
         )
         payload = json.loads(bytes(response.body))
         _write_json(_job_path(job_id) / "result.json", payload)
+        _materialize_vggt_result_bundle(job_id, payload)
         splat = payload.get("splat_job") or {}
         child_ids = [str(splat["job_id"])] if splat.get("job_id") else []
         _update_job(

@@ -7,9 +7,10 @@ option java_package = "com.bayesmech.vision";
 
 import "perceiver.proto";
 
-// On disk, one recording-level .vggt.pb file contains a length-delimited
+// On disk, one recording-level .worldgen.pb file contains a length-delimited
 // stream of VggtInferenceResponse records. Each record is one computed frame
-// set; consumers merge records by frame_identifier.frame_number.
+// set; consumers merge records by frame_identifier.frame_number. Older
+// .vggt.pb files remain readable as a compatibility format.
 
 message VggtInferenceRequest {
   string request_id = 1;
@@ -112,4 +113,10 @@ message VggtInferenceResponse {
   string preprocess_mode = 19;
   float confidence_threshold = 20;
   uint32 max_points_per_frame = 21;
+  // Remote results may arrive incrementally. These fields make each persisted
+  // frame resumable without treating the first received frame as completion.
+  uint32 result_frame_index = 22;
+  uint32 result_frame_count = 23;
+  bool result_complete = 24;
+  string runner_job_id = 25;
 }

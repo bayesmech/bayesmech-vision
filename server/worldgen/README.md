@@ -71,16 +71,20 @@ the script validates this before attaching labels to points.
 
 ## Gaussian Splatting from VGGT Output
 
-The native `/worldgen @MarkerA-@MarkerB` flow appends one length-delimited
-`VggtInferenceResponse` record to the recording's single `<name>.vggt.pb`
-file. Records carry their source frame numbers, so later marker ranges extend
-the same artifact and overlapping frames use the newest computation. The file
-can then be consumed by the 3D Gaussian Splatting trainer:
+The native `/worldgen @MarkerA-@MarkerB` flow incrementally appends
+length-delimited `VggtInferenceResponse` records to the recording's single
+`<name>.worldgen.pb` file. Completed remote results are downloaded one frame at
+a time, so partial point clouds remain usable and transfer resumes after a
+desktop restart. Records carry their source frame numbers, so later marker
+ranges extend the same artifact and overlapping frames use the newest
+computation. Legacy `.vggt.pb` files remain readable and are folded into the
+canonical artifact on its first write. The file can then be consumed by the 3D
+Gaussian Splatting trainer:
 
 ```bash
 cd server
 uv run python worldgen/scripts/train_vggt_splat.py \
-  --vggt-pb path/to/result.vggt.pb
+  --vggt-pb path/to/result.worldgen.pb
 ```
 
 The trainer uses VGGT's world-space point clouds for initialization and the

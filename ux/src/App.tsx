@@ -41,6 +41,7 @@ import {
 import type { FrameGetter } from './lib/frameSource'
 import {
   normalizeSegmentationLabel,
+  parseContextCommand,
   parseSegmentationCommand,
   parseWorldgenCommand,
   type CommandResult,
@@ -53,6 +54,7 @@ import { recordingDisplayName, recordingVideoId } from './lib/recordingNames'
 const LEGACY_LAST_PROJECT_KEY = 'bayesmech:lastProject'
 const LEGACY_PROJECT_PATHS_KEY = 'bayesmech:projectPaths'
 const BROWSER_CHAT_WORKSPACE_KEY = 'bayesmech:chat-workspace'
+const DISMISSED_BACKGROUND_JOBS_KEY = 'bayesmech:dismissed-background-jobs'
 
 const initialVideoState = (): VideoPlaybackState => ({
   index: 0,
@@ -74,6 +76,46 @@ function backgroundJobTimestamp(job: RunnerBackgroundJob): number {
   if (typeof value === 'number') return value < 1_000_000_000_000 ? value * 1000 : value
   const parsed = new Date(value).getTime()
   return Number.isFinite(parsed) ? parsed : 0
+}
+
+function mapSummaryFrameIndex(
+  source: VisSummary,
+  target: VisSummary,
+  frameIndex: number,
+): number {
+  const sourceMaximum = Math.max(0, source.frameCount - 1)
+  const targetMaximum = Math.max(0, target.frameCount - 1)
+  const clamped = Math.max(0, Math.min(sourceMaximum, Math.trunc(frameIndex)))
+  try {
+    const sourceStart = BigInt(source.firstTimestampNs)
+    const sourceEnd = BigInt(source.lastTimestampNs)
+    const targetStart = BigInt(target.firstTimestampNs)
+    const targetEnd = BigInt(target.lastTimestampNs)
+    if (sourceMaximum > 0 && sourceEnd > sourceStart && targetEnd > targetStart) {
+      const timestamp = sourceStart + (
+        BigInt(clamped) * (sourceEnd - sourceStart) / BigInt(sourceMaximum)
+      )
+      if (timestamp <= targetStart) return 0
+      if (timestamp >= targetEnd) return targetMaximum
+      return Number(
+        (timestamp - targetStart) * BigInt(targetMaximum) / (targetEnd - targetStart),
+      )
+    }
+  } catch {
+    // Fall back to proportional frame mapping for recordings without timestamps.
+  }
+  return sourceMaximum > 0
+    ? Math.round((clamped / sourceMaximum) * targetMaximum)
+    : 0
+}
+
+function loadDismissedBackgroundJobs(): Set<string> {
+  try {
+    const stored = JSON.parse(localStorage.getItem(DISMISSED_BACKGROUND_JOBS_KEY) || '[]')
+    return new Set(Array.isArray(stored) ? stored.filter((value): value is string => typeof value === 'string') : [])
+  } catch {
+    return new Set()
+  }
 }
 
 function splatProgressMessage(splat: NonNullable<WorldgenResult['splat']>): string {
@@ -235,6 +277,9 @@ export default function App() {
   const projectRootsRef = useRef<string[]>([])
   const restoredProjectsRef = useRef(false)
   const chatSaveQueueRef = useRef<Promise<unknown>>(Promise.resolve())
+  const dismissedBackgroundJobsRef = useRef<Set<string>>(loadDismissedBackgroundJobs())
+  const worldgenLoadedRecordingRef = useRef('')
+  const worldgenAppliedMtimeRef = useRef<Map<string, number>>(new Map())
 
   useEffect(() => {
     if (!bridge?.readRunnerBackgroundJobs || !bridge.onRunnerJobState) return
@@ -245,6 +290,7 @@ export default function App() {
         setBackgroundJobs((current) => {
           const next = { ...current }
           for (const job of jobs) {
+            if (dismissedBackgroundJobsRef.current.has(job.jobId)) continue
             const previous = next[job.jobId]
             if (!previous || backgroundJobTimestamp(job) >= backgroundJobTimestamp(previous)) {
               next[job.jobId] = job
@@ -257,7 +303,7 @@ export default function App() {
         // The runner may be offline while the user works with local recordings.
       })
     const unsubscribe = bridge.onRunnerJobState((job) => {
-      if (cancelled || !job.jobId) return
+      if (cancelled || !job.jobId || dismissedBackgroundJobsRef.current.has(job.jobId)) return
       setBackgroundJobs((current) => {
         const previous = current[job.jobId]
         if (
@@ -272,6 +318,22 @@ export default function App() {
       unsubscribe()
     }
   }, [bridge])
+
+  const dismissBackgroundJob = useCallback((jobId: string) => {
+    const nextDismissed = new Set(dismissedBackgroundJobsRef.current)
+    nextDismissed.add(jobId)
+    dismissedBackgroundJobsRef.current = nextDismissed
+    localStorage.setItem(
+      DISMISSED_BACKGROUND_JOBS_KEY,
+      JSON.stringify([...nextDismissed].slice(-256)),
+    )
+    setBackgroundJobs((current) => {
+      if (!(jobId in current)) return current
+      const next = { ...current }
+      delete next[jobId]
+      return next
+    })
+  }, [])
 
   const loadRecordingWorkspace = useCallback(
     async (recording: RecordingEntry): Promise<VideoChatWorkspace> => {
@@ -748,7 +810,7 @@ export default function App() {
         )
         if (!next) return
         const previousSignature = selectedRecording.analyses
-          .map((analysis) => `${analysis.key}:${analysis.path}`)
+          .map((analysis) => `${analysis.key}:${analysis.path}:${analysis.sizeBytes ?? ''}:${analysis.modifiedMs ?? ''}`)
           .concat(
             selectedRecording.controlProject?.devices.map((device) => (
               `${device.deviceId}:${device.enabled}:${device.controlHost}:${device.controlPort}:${device.streamHost}:${device.streamPort}`
@@ -756,7 +818,7 @@ export default function App() {
           )
           .join('|')
         const nextSignature = next.analyses
-          .map((analysis) => `${analysis.key}:${analysis.path}`)
+          .map((analysis) => `${analysis.key}:${analysis.path}:${analysis.sizeBytes ?? ''}:${analysis.modifiedMs ?? ''}`)
           .concat(
             next.controlProject?.devices.map((device) => (
               `${device.deviceId}:${device.enabled}:${device.controlHost}:${device.controlPort}:${device.streamHost}:${device.streamPort}`
@@ -764,6 +826,27 @@ export default function App() {
           )
           .join('|')
         if (previousSignature === nextSignature) return
+        const previousVideoKeys = new Set(
+          selectedRecording.analyses
+            .filter((analysis) => (analysis.baseKey ?? analysis.key.split(':')[0]) === 'video')
+            .map((analysis) => analysis.key),
+        )
+        const previousWorldgen = new Map(
+          selectedRecording.analyses
+            .filter((analysis) => (analysis.baseKey ?? analysis.key.split(':')[0]) === 'worldgen')
+            .map((analysis) => [
+              analysis.key,
+              `${analysis.path}:${analysis.sizeBytes ?? ''}:${analysis.modifiedMs ?? ''}`,
+            ]),
+        )
+        const newlyAvailableVideo = next.analyses.find((analysis) => (
+          (analysis.baseKey ?? analysis.key.split(':')[0]) === 'video'
+          && !previousVideoKeys.has(analysis.key)
+        ))
+        const updatedWorldgen = next.analyses.find((analysis) => (
+          (analysis.baseKey ?? analysis.key.split(':')[0]) === 'worldgen'
+          && previousWorldgen.get(analysis.key) !== `${analysis.path}:${analysis.sizeBytes ?? ''}:${analysis.modifiedMs ?? ''}`
+        ))
         const nextRecording = { ...next, id: selectedRecording.id }
         selectedRecordingRef.current = nextRecording
         setSelectedRecording(nextRecording)
@@ -778,6 +861,17 @@ export default function App() {
           projectRef.current = updated
           return updated
         })
+        const newlyRenderableAnalysis = updatedWorldgen ?? newlyAvailableVideo
+        if (newlyRenderableAnalysis) {
+          const baseKey = newlyRenderableAnalysis.baseKey ?? newlyRenderableAnalysis.key.split(':')[0]
+          setTabRequest({
+            requestId: requestId(),
+            type: baseKey === 'worldgen' ? 'worldgen' : 'video',
+            title: newlyRenderableAnalysis.title,
+            analysisKey: newlyRenderableAnalysis.key,
+            sourcePath: newlyRenderableAnalysis.path,
+          })
+        }
       } catch {
         // Stream files are created lazily; a transient scan failure is retried.
       } finally {
@@ -1233,23 +1327,31 @@ export default function App() {
   useEffect(() => {
     setSegmentationOn(false)
     setSegmentationMaskLabel(null)
-    setWorldgenResults({})
+    const recordingPath = selectedRecording?.path ?? ''
+    if (worldgenLoadedRecordingRef.current !== recordingPath) {
+      worldgenLoadedRecordingRef.current = recordingPath
+      worldgenAppliedMtimeRef.current.clear()
+      setWorldgenResults({})
+    }
     const worldgenAnalyses = selectedRecording?.analyses.filter(
       (analysis) => (analysis.baseKey ?? analysis.key.split(':')[0]) === 'worldgen',
     ) ?? []
     if (!worldgenAnalyses.length || !bridge?.readWorldgen) return
-    let cancelled = false
-    Promise.all(worldgenAnalyses.map((analysis) => bridge.readWorldgen(analysis.path)))
-      .then((results) => {
-        if (!cancelled) {
-          setWorldgenResults(Object.fromEntries(results.map((result) => [result.id, result])))
-        }
-      })
-      .catch((err) => {
-        if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load World Modeling.')
-      })
-    return () => {
-      cancelled = true
+    for (const analysis of worldgenAnalyses) {
+      const requestedMtime = analysis.modifiedMs ?? 0
+      bridge.readWorldgen(analysis.path)
+        .then((result) => {
+          if (selectedRecordingRef.current?.path !== recordingPath) return
+          const appliedMtime = worldgenAppliedMtimeRef.current.get(analysis.path) ?? -1
+          if (requestedMtime < appliedMtime) return
+          worldgenAppliedMtimeRef.current.set(analysis.path, requestedMtime)
+          setWorldgenResults((current) => ({ ...current, [result.id]: result }))
+        })
+        .catch((err) => {
+          if (selectedRecordingRef.current?.path === recordingPath) {
+            setError(err instanceof Error ? err.message : 'Failed to load World Modeling.')
+          }
+        })
     }
   }, [bridge, selectedRecording])
 
@@ -1360,6 +1462,63 @@ export default function App() {
   const runCommand = useCallback(
     async (text: string, onProgress?: (progress: CommandProgress) => void): Promise<CommandResult> => {
       const trimmed = text.trim()
+      const contextCommand = parseContextCommand(trimmed)
+      if (contextCommand) {
+        if (!selectedRecording || !activeChat) {
+          return { ok: false, message: 'Select a recording and chat before switching video context.' }
+        }
+        const contexts = selectedRecording.videoContexts?.length
+          ? selectedRecording.videoContexts
+          : [{
+              name: 'main',
+              displayName: 'main',
+              path: selectedRecording.path,
+              fileStem: selectedRecording.fileStem,
+              relativePath: selectedRecording.relativePath,
+              isMain: true,
+            }]
+        if (contextCommand.action === 'list') {
+          const activeName = activeChat.videoContext ?? 'main'
+          return {
+            ok: true,
+            message: `Video contexts: ${contexts.map((context) => (
+              context.name === activeName ? `${context.displayName} (active)` : context.displayName
+            )).join(', ')}. Use /context <name> to switch.`,
+          }
+        }
+
+        const comparableName = (value: string) => value.trim().toLowerCase().replace(/[\s_]+/g, '-')
+        const requested = comparableName(contextCommand.context)
+        const context = contexts.find((candidate) => (
+          comparableName(candidate.name) === requested
+          || comparableName(candidate.displayName) === requested
+        ))
+        if (!context) {
+          return {
+            ok: false,
+            message: `Video context not found: ${contextCommand.context}. Available contexts: ${contexts.map((item) => item.displayName).join(', ')}.`,
+          }
+        }
+
+        persistChatSession(selectedRecording, {
+          ...activeChat,
+          videoContext: context.name,
+        })
+        const videoAnalysis = selectedRecording.analyses.find((analysis) => (
+          (analysis.baseKey ?? analysis.key.split(':')[0]) === 'video'
+          && (analysis.videoContext ?? 'main') === context.name
+        ))
+        setTabRequest({
+          requestId: requestId(),
+          type: 'video',
+          title: videoAnalysis?.title ?? 'Video',
+          analysisKey: videoAnalysis?.key,
+          sourcePath: context.path,
+        })
+        setVideoState((current) => ({ ...current, playing: false }))
+        return { ok: true, message: `Video context switched to ${context.displayName}.` }
+      }
+
       const worldgenCommand = parseWorldgenCommand(trimmed)
       if (worldgenCommand) {
         if (worldgenCommand.action === 'invalid') return { ok: false, message: worldgenCommand.message }
@@ -1385,16 +1544,59 @@ export default function App() {
         }
 
         const worldgenRequestId = requestId()
+        const worldgenRecordingPath = activeVideoContext?.path ?? selectedRecording.path
+        let mappedStartFrameIndex = startMarker.frameIndex
+        let mappedEndFrameIndex = endMarker.frameIndex
+        if (worldgenRecordingPath !== selectedRecording.path && summary) {
+          const contextSummary = await getVisSummary(worldgenRecordingPath)
+          if (contextSummary) {
+            mappedStartFrameIndex = mapSummaryFrameIndex(summary, contextSummary, startMarker.frameIndex)
+            mappedEndFrameIndex = mapSummaryFrameIndex(summary, contextSummary, endMarker.frameIndex)
+          }
+        }
+        const worldgenOutputPath = worldgenRecordingPath
+          .replace(/\.vis\.pb$/i, '.worldgen.pb')
+        const pendingWorldgen: WorldgenResult = {
+          id: worldgenRequestId,
+          outputPath: worldgenOutputPath,
+          markerStart: startMarker.reference,
+          markerEnd: endMarker.reference,
+          startFrameIndex: Math.min(mappedStartFrameIndex, mappedEndFrameIndex),
+          endFrameIndex: Math.max(mappedStartFrameIndex, mappedEndFrameIndex),
+          frameCount: 0,
+          pointCount: 0,
+          returnedPointCount: 0,
+          model: 'VGGT-Omega',
+          elapsedSec: 0,
+          frames: [],
+          points: [],
+          cameras: [],
+          splat: null,
+          splatPoints: [],
+        }
+        setWorldgenResults((current) => ({ ...current, [worldgenRequestId]: pendingWorldgen }))
+        setTabRequest({
+          requestId: requestId(),
+          type: 'worldgen',
+          title: 'World Modeling',
+          worldgenResultId: worldgenRequestId,
+        })
+        onProgress?.({ message: 'Uploading frames and preparing the World Modeling view.' })
         try {
           const result = await bridge.runWorldgen({
             requestId: worldgenRequestId,
-            recordingPath: activeVideoContext?.path ?? selectedRecording.path,
+            recordingPath: worldgenRecordingPath,
             markerStart: startMarker.reference,
             markerEnd: endMarker.reference,
-            startFrameIndex: startMarker.frameIndex,
-            endFrameIndex: endMarker.frameIndex,
+            startFrameIndex: mappedStartFrameIndex,
+            endFrameIndex: mappedEndFrameIndex,
           })
-          setWorldgenResults({ [result.id]: result })
+          setWorldgenResults((current) => {
+            const next = { ...current }
+            delete next[worldgenRequestId]
+            next[result.id] = result
+            return next
+          })
           setTabRequest({
             requestId: requestId(),
             type: 'worldgen',
@@ -1477,6 +1679,11 @@ export default function App() {
             message: `${firstMessage}${splatMessage}`,
           }
         } catch (err) {
+          setWorldgenResults((current) => {
+            const next = { ...current }
+            delete next[worldgenRequestId]
+            return next
+          })
           const message = err instanceof Error ? err.message : 'World Modeling failed.'
           return { ok: false, message }
         }
@@ -1527,7 +1734,7 @@ export default function App() {
       openSegmentationView()
       return { ok: true, message: 'Segmentation overlay enabled.' }
     },
-    [activeVideoContext?.path, bridge, getSegmentationLabels, openSegmentationView, selectedRecording, selectedSegmentationArtifact, videoState.markers],
+    [activeChat, activeVideoContext?.path, bridge, getSegmentationLabels, getVisSummary, openSegmentationView, persistChatSession, selectedRecording, selectedSegmentationArtifact, summary, videoState.markers],
   )
 
   // Segmentation masks for a video frame number, routed like getFrame. Fetching
@@ -1661,6 +1868,7 @@ export default function App() {
             chatLoading={chatThreadLoading}
             chatError={chatThreadError}
             backgroundJobs={Object.values(backgroundJobs)}
+            onDismissBackgroundJob={dismissBackgroundJob}
             addingDevice={addingDevice}
             onAddDevice={addDeviceToProject}
             onMessagesChange={saveActiveMessages}

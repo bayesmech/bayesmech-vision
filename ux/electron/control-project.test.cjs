@@ -4,6 +4,7 @@ const http = require('node:http')
 const os = require('node:os')
 const path = require('node:path')
 const test = require('node:test')
+const protobuf = require('protobufjs')
 
 const {
   addDeviceToProject,
@@ -72,7 +73,7 @@ test('devices attach to a regular project without changing its primary recording
   )
   assert.deepEqual(
     withCar.recordings[0].analyses.map((analysis) => analysis.title),
-    ['Control'],
+    ['Control', 'Video'],
   )
   const robotContext = agentHarnessSystemContext(recordingPath)
   assert.match(robotContext, /camera and an ultrasonic distance sensor/)
@@ -87,7 +88,7 @@ test('devices attach to a regular project without changing its primary recording
   )
   assert.deepEqual(
     withPhone.recordings[0].analyses.map((analysis) => analysis.title),
-    ['Control', 'Video'],
+    ['Control', 'Video', 'Video'],
   )
   assert.deepEqual(
     withPhone.recordings[0].videoContexts.map((context) => context.name),
@@ -103,7 +104,7 @@ test('devices attach to a regular project without changing its primary recording
   )
   assert.deepEqual(
     withSecondCar.recordings[0].analyses.map((analysis) => analysis.title),
-    ['Control', 'Video'],
+    ['Control', 'Video', 'Video', 'Video'],
   )
   assert.deepEqual(
     withSecondCar.recordings[0].videoContexts.map((context) => context.name),
@@ -111,7 +112,7 @@ test('devices attach to a regular project without changing its primary recording
   )
 })
 
-test('robot preset keeps car video in Control and adds augmented video tabs', (t) => {
+test('robot preset exposes primary and augmented streams as video tabs', (t) => {
   const recordingsRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'bayesmech-control-'))
   t.after(() => fs.rmSync(recordingsRoot, { recursive: true, force: true }))
 
@@ -144,6 +145,7 @@ test('robot preset keeps car video in Control and adds augmented video tabs', (t
   )
   assert.deepEqual(recording.analyses.map((analysis) => analysis.title), [
     'Control',
+    'Video',
   ])
 
   const manifest = readControlProject(recording.controlProject.manifestPath)
@@ -155,10 +157,65 @@ test('robot preset keeps car video in Control and adds augmented video tabs', (t
   assert.deepEqual(rescanned.recordings[0].analyses.map((analysis) => analysis.title), [
     'Control',
     'Video',
+    'Video',
   ])
   assert.deepEqual(
     rescanned.recordings[0].videoContexts.map((context) => context.name),
     ['main', 'phone'],
+  )
+})
+
+test('fixed augmented cameras retain their manifest display name as the video context', (t) => {
+  const recordingsRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'bayesmech-top-camera-'))
+  t.after(() => fs.rmSync(recordingsRoot, { recursive: true, force: true }))
+
+  const created = createControlProject('robot_car', recordingsRoot)
+  const manifestPath = created.recordings[0].controlProject.manifestPath
+  const protoRoot = new protobuf.Root()
+  const protoDirectory = path.resolve(__dirname, '../../proto')
+  protoRoot.resolvePath = (_origin, target) => path.join(protoDirectory, target)
+  protoRoot.loadSync(['control.proto'], { keepCase: false })
+  protoRoot.resolveAll()
+  const projectType = protoRoot.lookupType('bayesmech.vision.ControlProject')
+  const manifest = projectType.decode(fs.readFileSync(manifestPath))
+  const topCamera = manifest.devices.find((device) => device.deviceType === 4)
+  topCamera.deviceId = 'top-camera'
+  topCamera.displayName = 'Top Camera'
+  topCamera.recordingFile = `${manifest.projectId}.top_camera.vis.pb`
+  fs.writeFileSync(manifestPath, projectType.encode(manifest).finish())
+  fs.closeSync(fs.openSync(path.join(created.rootPath, topCamera.recordingFile), 'wx'))
+
+  const rescanned = scanProject(created.rootPath)
+  assert.deepEqual(
+    rescanned.recordings[0].videoContexts.map((context) => context.name),
+    ['main', 'top-camera'],
+  )
+  assert.equal(
+    rescanned.recordings[0].analyses.find((analysis) => analysis.key === 'video:top-camera')?.title,
+    'Video',
+  )
+})
+
+test('control projects expose project-local vis assets missing from an older manifest', (t) => {
+  const recordingsRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'bayesmech-control-assets-'))
+  t.after(() => fs.rmSync(recordingsRoot, { recursive: true, force: true }))
+
+  const created = createProject(recordingsRoot)
+  const recordingPath = created.recordings[0].path
+  const withCar = addDeviceToProject(recordingPath, 'robot_car')
+  const projectId = withCar.recordings[0].controlProject.projectId
+  const topCameraPath = path.join(withCar.rootPath, `${projectId}_top_camera.vis.pb`)
+  fs.closeSync(fs.openSync(topCameraPath, 'wx'))
+
+  const rescanned = scanProject(withCar.rootPath)
+  assert.equal(rescanned.recordings.length, 1)
+  assert.deepEqual(
+    rescanned.recordings[0].videoContexts.map((context) => context.name),
+    ['main', 'top-camera'],
+  )
+  assert.deepEqual(
+    rescanned.recordings[0].analyses.map((analysis) => analysis.title),
+    ['Control', 'Video', 'Video'],
   )
 })
 

@@ -5,6 +5,7 @@ import gc
 import io
 import json
 import os
+import re
 import shutil
 import sys
 import tempfile
@@ -27,6 +28,7 @@ from fastapi import (
     UploadFile,
 )
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -51,6 +53,8 @@ from .vggt_jobs import (  # noqa: E402
     get_vggt_job,
     list_vggt_jobs,
     start_vggt_job,
+    vggt_result_frame_path,
+    vggt_result_manifest_path,
     vggt_result_path,
 )
 
@@ -77,6 +81,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(GZipMiddleware, minimum_size=1024)
 
 _model = None
 _model_lock = threading.Lock()
@@ -447,6 +452,11 @@ def _safe_suffix(name: str | None, fallback: str = ".mp4") -> str:
     )
 
 
+def _frame_index_from_name(name: str | None, fallback: int) -> int:
+    match = re.search(r"frame_(\d+)", Path(name or "").stem, flags=re.IGNORECASE)
+    return int(match.group(1)) if match else fallback
+
+
 @app.get("/health")
 def health():
     return {
@@ -494,12 +504,13 @@ async def submit_vggt(
 
     selected = list(frames)
     frame_files: list[tuple[str, bytes]] = []
+    frame_indices: list[int] = []
     total_bytes = 0
     max_job_bytes = int(
         os.environ.get("WORLDGEN_MAX_JOB_UPLOAD_BYTES", str(2 * 1024**3))
     )
     try:
-        for upload in selected:
+        for position, upload in enumerate(selected):
             payload = await upload.read()
             total_bytes += len(payload)
             if total_bytes > max_job_bytes:
@@ -508,11 +519,11 @@ async def submit_vggt(
                     detail=f"frame upload exceeds the {max_job_bytes}-byte World Modeling limit",
                 )
             frame_files.append((_safe_suffix(upload.filename, ".png"), payload))
+            frame_indices.append(_frame_index_from_name(upload.filename, position))
     finally:
         for upload in selected:
             await upload.close()
 
-    frame_indices = list(range(len(frame_files)))
     timestamps = [
         index / fps if fps is not None else float("nan") for index in frame_indices
     ]
@@ -563,6 +574,39 @@ def worldgen_job_result(job_id: str):
             status_code=409, detail=f"VGGT job is {job.get('status', 'not ready')}"
         )
     return Response(path.read_bytes(), media_type="application/json")
+
+
+@app.get("/jobs/{job_id}/result/manifest")
+def worldgen_job_result_manifest(job_id: str):
+    path = vggt_result_manifest_path(job_id)
+    if path is None:
+        job = get_vggt_job(job_id)
+        if job is None:
+            raise HTTPException(status_code=404, detail="VGGT job not found")
+        raise HTTPException(
+            status_code=409, detail=f"VGGT job is {job.get('status', 'not ready')}"
+        )
+    return FileResponse(path, media_type="application/json")
+
+
+@app.get("/jobs/{job_id}/result/frames/{position}")
+def worldgen_job_result_frame(
+    job_id: str,
+    position: int,
+    max_points: int | None = Query(default=None, ge=1),
+):
+    del max_points  # Frame shards already share the configured total point budget.
+    path = vggt_result_frame_path(job_id, position)
+    if path is None:
+        raise HTTPException(status_code=404, detail="VGGT result frame not found")
+    return FileResponse(
+        path,
+        media_type="application/json",
+        headers={
+            "Content-Encoding": "gzip",
+            "Vary": "Accept-Encoding",
+        },
+    )
 
 
 @app.post("/infer")

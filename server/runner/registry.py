@@ -60,13 +60,6 @@ def builtin_job_registry(server_root: Path) -> dict[str, JobDefinition]:
             server_root / "pongtown" / "main.py",
         ),
         JobDefinition(
-            "reconstruct",
-            "3D Reconstruction",
-            "Run COLMAP reconstruction and optional Gaussian splatting.",
-            server_root / "reconstruct" / "main.py",
-            requires_gpu=True,
-        ),
-        JobDefinition(
             "genspark",
             "AI Analysis",
             "Run the video analysis and insight-generation pipeline.",

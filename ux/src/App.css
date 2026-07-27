@@ -1102,7 +1102,7 @@ button {
 
 .background-job-heading {
   display: grid;
-  grid-template-columns: 14px minmax(0, auto) minmax(0, 1fr) auto;
+  grid-template-columns: 14px minmax(0, auto) minmax(0, 1fr) auto auto;
   align-items: center;
   gap: 6px;
   min-width: 0;
@@ -1148,6 +1148,26 @@ button {
   font-size: 10px;
   font-style: normal;
   font-weight: 700;
+}
+
+.background-job-dismiss {
+  display: inline-grid;
+  width: 18px;
+  height: 18px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--subtle);
+}
+
+.background-job-dismiss:hover {
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--text);
+}
+
+.background-job-dismiss svg {
+  color: currentColor !important;
 }
 
 .background-job-progress {
@@ -1375,10 +1395,6 @@ button {
   min-width: 0;
   min-height: 0;
   background: var(--bg);
-}
-
-.visual-workspace.is-control {
-  grid-template-rows: minmax(0, 1fr);
 }
 
 .control-panel {
@@ -2484,16 +2500,9 @@ button {
   background: var(--teal);
 }
 
-.domain-reconstruction-legend i.is-trajectory {
-  width: 13px;
-  height: 2px;
-  border-radius: 2px;
-  background: #f5c451;
-}
-
 .domain-reconstruction-legend i.is-bounce {
-  border: 2px solid #ff5f57;
-  background: transparent;
+  background: #ffd84d;
+  box-shadow: inset -2px -2px rgba(0, 0, 0, 0.3);
 }
 
 .domain-reconstruction-legend i.is-ball {
@@ -3082,6 +3091,14 @@ button {
 }
 
 /* Video player ---------------------------------------------------------- */
+.stream-video-playback {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
 .video-player {
   display: block;
   height: 100%;
@@ -3134,8 +3151,61 @@ button {
 }
 
 .video-overlay-badge.motion-capture {
+  position: static;
   border-color: rgba(240, 179, 90, 0.55);
   color: var(--amber);
+}
+
+.motion-capture-toolbar {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  right: 10px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  pointer-events: none;
+}
+
+.motion-trajectory-mode-control {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  width: min(300px, 42%);
+  border: 1px solid rgba(98, 210, 162, 0.45);
+  border-radius: 4px;
+  overflow: hidden;
+  background: rgba(3, 3, 3, 0.9);
+  pointer-events: auto;
+}
+
+.motion-trajectory-mode-control button {
+  min-height: 30px;
+  padding: 0 12px;
+  border: 0;
+  border-right: 1px solid rgba(98, 210, 162, 0.24);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.motion-trajectory-mode-control button:last-child {
+  border-right: 0;
+}
+
+.motion-trajectory-mode-control button:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.motion-trajectory-mode-control button.is-active {
+  color: #001b0f;
+  background: var(--teal);
 }
 
 .video-overlay-badge.triangulation {
@@ -3937,6 +4007,40 @@ button {
   bottom: 0;
   min-width: 2px;
   background: rgba(98, 210, 162, 0.72);
+}
+
+.timeline-track.has-worldgen-coverage .timeline-available-range {
+  min-width: 8px;
+  background: rgba(98, 210, 162, 0.9);
+  box-shadow: 0 0 8px rgba(98, 210, 162, 0.52);
+}
+
+.timeline-worldgen-frames {
+  position: absolute;
+  z-index: 4;
+  inset: 7px 0 5px;
+  pointer-events: none;
+}
+
+.timeline-worldgen-frame {
+  position: absolute;
+  top: 0;
+  width: 5px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: #62d2a2;
+  box-shadow: 0 0 0 1px rgba(9, 18, 15, 0.85), 0 0 8px rgba(98, 210, 162, 0.72);
+  pointer-events: auto;
+  transform: translateX(-50%);
+}
+
+.timeline-worldgen-frame:hover,
+.timeline-worldgen-frame:focus-visible {
+  z-index: 2;
+  background: #b3ffdc;
+  box-shadow: 0 0 0 2px rgba(98, 210, 162, 0.28), 0 0 11px rgba(98, 210, 162, 0.95);
 }
 
 .timeline-available-range.full {

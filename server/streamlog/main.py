@@ -68,7 +68,6 @@ from proto import perceiver_pb2
 from proto import insightgen_pb2
 from proto import idoslam_pb2
 from proto import motioncap_pb2
-from proto import reconstruction_pb2
 from proto import segmentation_pb2
 from proto import snookestown_pb2
 from proto import pongtown_pb2
@@ -174,7 +173,6 @@ chat_manager = ChatManager(_genspark_config.get("gemini", {}), RECORDINGS_DIR)
 
 _seg_io = ProtoIO(segmentation_pb2.SegmentationResponse)
 _motion_io = ProtoIO(motioncap_pb2.MotionCaptureResponse)
-_recon_io = ProtoIO(reconstruction_pb2.ReconstructionResponse)
 _snook_io = ProtoIO(snookestown_pb2.SnookerResponse)
 _pong_io = ProtoIO(pongtown_pb2.PongtownResponse)
 
@@ -1158,42 +1156,6 @@ _ANALYSIS_SPECS: tuple[AnalysisSpec, ...] = (
                 proto_message_type="bayesmech.vision.ChatHistory",
             ),
         ),
-    ),
-    AnalysisSpec(
-        name="reconstruction",
-        title="3D Reconstruction",
-        artifacts=(
-            AnalysisArtifactSpec(
-                name="proto",
-                title="Reconstruction Summary",
-                suffix="recon.pb",
-                media_type="application/x-protobuf",
-                kind="protobuf",
-                encoding="length-delimited-protobuf",
-                aliases=("pb",),
-                proto_message_type="bayesmech.vision.ReconstructionResponse",
-                proto_io=_recon_io,
-            ),
-            AnalysisArtifactSpec(
-                name="splat",
-                title="Gaussian Splat PLY",
-                suffix="splat.ply",
-                media_type="application/octet-stream",
-                kind="point-cloud",
-                encoding="ply",
-                aliases=("splat_ply",),
-            ),
-            AnalysisArtifactSpec(
-                name="workspace",
-                title="Reconstruction Workspace",
-                suffix="recon",
-                media_type=None,
-                kind="workspace",
-                encoding="directory",
-                is_directory=True,
-            ),
-        ),
-        aliases=("reconstruct",),
     ),
     AnalysisSpec(
         name="snookestown",

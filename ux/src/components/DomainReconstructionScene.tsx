@@ -37,6 +37,10 @@ const BALL_COLORS: Record<string, number> = {
   orange: 0xf2a65a,
 }
 
+const DROP_CORRECTION_OUTLIER_TABLE_LENGTHS = 2
+const DROP_CORRECTION_MAX_AXIS_NORM = 2
+const DROP_CORRECTION_INFLUENCE_POWER = 1.15
+
 function pointPosition(point: DomainReconstructionPoint, lift = 0.03): THREE.Vector3 {
   return new THREE.Vector3(
     point.xMm / 1000,
@@ -49,6 +53,84 @@ function ballColor(label: string): number {
   const normalized = label.toLowerCase()
   const entry = Object.entries(BALL_COLORS).find(([name]) => normalized.includes(name))
   return entry?.[1] ?? 0xf4f1e8
+}
+
+function distanceOutsideTableMm(
+  point: DomainReconstructionPoint,
+  halfLengthMm: number,
+  halfWidthMm: number,
+): number {
+  const outsideX = Math.max(0, Math.abs(point.xMm) - halfLengthMm)
+  const outsideY = Math.max(0, Math.abs(point.yMm) - halfWidthMm)
+  return Math.hypot(outsideX, outsideY)
+}
+
+function correctedDropCoordinate(
+  valueMm: number,
+  halfExtentMm: number,
+  maxAbsUsedMm: number,
+): number {
+  if (halfExtentMm <= 0 || maxAbsUsedMm <= halfExtentMm) {
+    return THREE.MathUtils.clamp(valueMm, -halfExtentMm, halfExtentMm)
+  }
+  const cappedMaxAbsMm = Math.min(
+    maxAbsUsedMm,
+    halfExtentMm * DROP_CORRECTION_MAX_AXIS_NORM,
+  )
+  const scale = halfExtentMm / cappedMaxAbsMm
+  const normalized = Math.abs(valueMm) / halfExtentMm
+  const maxNormalized = cappedMaxAbsMm / halfExtentMm
+  const influence = Math.pow(
+    THREE.MathUtils.clamp(normalized / maxNormalized, 0, 1),
+    DROP_CORRECTION_INFLUENCE_POWER,
+  )
+  return THREE.MathUtils.clamp(
+    valueMm * (1 - influence * (1 - scale)),
+    -halfExtentMm,
+    halfExtentMm,
+  )
+}
+
+function correctedDropPoints(
+  data: DomainReconstruction,
+  bounces: DomainReconstructionPoint[],
+): DomainReconstructionPoint[] {
+  const finiteBounces = bounces.filter((bounce) => (
+    Number.isFinite(bounce.xMm) && Number.isFinite(bounce.yMm)
+  ))
+  if (!finiteBounces.length) return []
+  const halfLengthMm = data.tableWidthMm / 2
+  const halfWidthMm = data.tableHeightMm / 2
+  const outlierDistanceMm = data.tableWidthMm * DROP_CORRECTION_OUTLIER_TABLE_LENGTHS
+  const scalingCandidates = finiteBounces.filter((bounce) => (
+    distanceOutsideTableMm(bounce, halfLengthMm, halfWidthMm) <= outlierDistanceMm
+  ))
+  const maxAbsUsedX = Math.max(
+    halfLengthMm,
+    ...scalingCandidates.map((bounce) => Math.abs(bounce.xMm)),
+  )
+  const maxAbsUsedY = Math.max(
+    halfWidthMm,
+    ...scalingCandidates.map((bounce) => Math.abs(bounce.yMm)),
+  )
+  return finiteBounces.map((bounce) => {
+    const outlier = distanceOutsideTableMm(
+      bounce,
+      halfLengthMm,
+      halfWidthMm,
+    ) > outlierDistanceMm
+    return {
+      ...bounce,
+      xMm: outlier
+        ? THREE.MathUtils.clamp(bounce.xMm, -halfLengthMm, halfLengthMm)
+        : correctedDropCoordinate(bounce.xMm, halfLengthMm, maxAbsUsedX),
+      yMm: outlier
+        ? THREE.MathUtils.clamp(bounce.yMm, -halfWidthMm, halfWidthMm)
+        : correctedDropCoordinate(bounce.yMm, halfWidthMm, maxAbsUsedY),
+      zMm: 0,
+      insideTable: true,
+    }
+  })
 }
 
 function ballsOnTable(
@@ -197,55 +279,6 @@ function addTable(group: THREE.Group, data: DomainReconstruction) {
   }
 }
 
-function addTrajectory(
-  group: THREE.Group,
-  data: DomainReconstruction,
-  trajectory: DomainReconstructionPoint[],
-) {
-  const points = trajectory
-    .filter((point) => (
-      point.insideTable
-      && Number.isFinite(point.xMm)
-      && Number.isFinite(point.yMm)
-      && Math.abs(point.xMm) <= data.tableWidthMm / 2 + 40
-      && Math.abs(point.yMm) <= data.tableHeightMm / 2 + 40
-    ))
-    .map((point) => pointPosition(point, 0.024))
-  const runs: THREE.Vector3[][] = []
-  for (const point of points) {
-    const run = runs.at(-1)
-    if (!run || run.at(-1)!.distanceTo(point) > 0.72) runs.push([point])
-    else run.push(point)
-  }
-  for (const run of runs) {
-    if (run.length < 2) continue
-    group.add(
-      new THREE.Line(
-        new THREE.BufferGeometry().setFromPoints(run),
-        new THREE.LineBasicMaterial({
-          color: 0xf5c451,
-          transparent: true,
-          opacity: 0.58,
-        }),
-      ),
-    )
-  }
-  if (points.length) {
-    group.add(
-      new THREE.Points(
-        new THREE.BufferGeometry().setFromPoints(points),
-        new THREE.PointsMaterial({
-          color: 0xffd76c,
-          size: 0.018,
-          sizeAttenuation: true,
-          transparent: true,
-          opacity: 0.82,
-        }),
-      ),
-    )
-  }
-}
-
 function addBalls(
   group: THREE.Group,
   data: DomainReconstruction,
@@ -267,27 +300,23 @@ function addBalls(
   }
 }
 
-function addBounces(group: THREE.Group, bounces: DomainReconstructionPoint[]) {
+function addDropBalls(group: THREE.Group, bounces: DomainReconstructionPoint[]) {
+  const latestFrame = bounces.at(-1)?.frameIndex
   for (const bounce of bounces) {
-    const ring = new THREE.Mesh(
-      new THREE.RingGeometry(0.038, 0.068, 28),
-      new THREE.MeshBasicMaterial({
-        color: bounce.insideTable ? 0xff5f57 : 0xf5c451,
-        side: THREE.DoubleSide,
-        transparent: true,
-        opacity: 0.96,
+    const active = bounce.frameIndex === latestFrame
+    const color = active ? 0xff5d35 : 0xffd84d
+    const radius = active ? 0.06 : 0.048
+    const ball = new THREE.Mesh(
+      new THREE.SphereGeometry(radius, 24, 18),
+      new THREE.MeshStandardMaterial({
+        color,
+        emissive: color,
+        emissiveIntensity: active ? 0.28 : 0.1,
+        roughness: 0.35,
       }),
     )
-    ring.rotation.x = -Math.PI / 2
-    ring.position.copy(pointPosition(bounce, 0.006))
-    group.add(ring)
-
-    const pin = new THREE.Mesh(
-      new THREE.SphereGeometry(0.018, 16, 12),
-      new THREE.MeshBasicMaterial({ color: bounce.insideTable ? 0xff5f57 : 0xf5c451 }),
-    )
-    pin.position.copy(pointPosition(bounce, 0.025))
-    group.add(pin)
+    ball.position.copy(pointPosition(bounce, radius))
+    group.add(ball)
   }
 }
 
@@ -299,12 +328,13 @@ function populateDynamicScene(
   group: THREE.Group,
   data: DomainReconstruction,
   balls: DomainReconstructionPoint[],
-  trajectory: DomainReconstructionPoint[],
   bounces: DomainReconstructionPoint[],
 ) {
-  addTrajectory(group, data, trajectory)
+  if (data.sportMode === 'PINGPONG') {
+    addDropBalls(group, bounces)
+    return
+  }
   addBalls(group, data, balls)
-  addBounces(group, bounces)
 }
 
 function domainFrameAtIndex(
@@ -456,27 +486,23 @@ export default function DomainReconstructionScene({
     () => data ? domainFrameAtIndex(data.frames, currentFrameIndex) : null,
     [currentFrameIndex, data],
   )
-  const visibleTrajectory = useMemo(() => {
-    if (!data || data.sportMode !== 'PINGPONG') return []
-    return data.trajectory.filter((point) => point.frameIndex <= currentFrameIndex)
-  }, [currentFrameIndex, data])
+  const pingPongDrops = useMemo(
+    () => data?.sportMode === 'PINGPONG'
+      ? correctedDropPoints(data, data.bounces)
+      : [],
+    [data],
+  )
   const visibleBounces = useMemo(() => {
     if (!data || data.sportMode !== 'PINGPONG') return []
-    return data.bounces.filter((point) => point.frameIndex <= currentFrameIndex)
-  }, [currentFrameIndex, data])
+    return pingPongDrops.filter((point) => point.frameIndex <= currentFrameIndex)
+  }, [currentFrameIndex, data, pingPongDrops])
   const visibleBalls = useMemo(() => {
-    if (!data) return []
+    if (!data || data.sportMode === 'PINGPONG') return []
     if (activeFrame) {
-      if (activeFrame.balls.length > 0 || data.sportMode === 'SNOOKER') {
-        return activeFrame.balls
-      }
-    }
-    if (data.sportMode === 'PINGPONG') {
-      const latest = visibleTrajectory.at(-1)
-      return latest ? [latest] : []
+      return activeFrame.balls
     }
     return data.balls
-  }, [activeFrame, data, visibleTrajectory])
+  }, [activeFrame, data])
   const renderedBalls = useMemo(
     () => data ? ballsOnTable(data, visibleBalls) : [],
     [data, visibleBalls],
@@ -492,11 +518,10 @@ export default function DomainReconstructionScene({
         handles.dynamicGroup,
         data,
         renderedBalls,
-        visibleTrajectory,
         visibleBounces,
       )
     }
-  }, [data, renderedBalls, visibleBounces, visibleTrajectory])
+  }, [data, renderedBalls, visibleBounces])
 
   const tableSize = useMemo(() => (
     data ? `${(data.tableWidthMm / 1000).toFixed(2)} × ${(data.tableHeightMm / 1000).toFixed(2)} m` : '—'
@@ -509,7 +534,9 @@ export default function DomainReconstructionScene({
       className="domain-reconstruction"
       data-frame-index={displayedFrameIndex}
       data-frame-number={displayedFrameNumber}
-      data-ball-count={renderedBalls.length}
+      data-ball-count={
+        data?.sportMode === 'PINGPONG' ? visibleBounces.length : renderedBalls.length
+      }
     >
       <div className="domain-reconstruction-canvas" ref={containerRef} />
       <div className="domain-reconstruction-header">
@@ -535,7 +562,7 @@ export default function DomainReconstructionScene({
             <div><Triangle size={13} /><span>Table</span><strong>{tableSize}</strong></div>
             <div>
               <CircleDot size={13} />
-              <span>{data.sportMode === 'PINGPONG' ? 'Bounces' : 'Balls'}</span>
+              <span>{data.sportMode === 'PINGPONG' ? 'Drops' : 'Balls'}</span>
               <strong>
                 {data.sportMode === 'PINGPONG'
                   ? `${compactNumber(visibleBounces.length)} / ${compactNumber(data.bounces.length)}`
@@ -551,10 +578,7 @@ export default function DomainReconstructionScene({
           <div className="domain-reconstruction-legend">
             <span><i className="is-surface" />Table geometry</span>
             {data.sportMode === 'PINGPONG' ? (
-              <>
-                <span><i className="is-trajectory" />Ball trajectory</span>
-                <span><i className="is-bounce" />Bounce location</span>
-              </>
+              <span><i className="is-bounce" />Drop locations</span>
             ) : (
               <span><i className="is-ball" />Live detected balls · source frame {displayedFrameNumber}</span>
             )}

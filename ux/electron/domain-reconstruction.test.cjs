@@ -141,6 +141,46 @@ test('Pongtown reconstruction exposes table, net, trajectory, bounces, and frame
   assert.deepEqual(triangulation.netQuad, [58, 18, 62, 18, 62, 72, 58, 72])
 })
 
+test('Pongtown reconstruction recovers drop locations from an older trajectory without bounces', (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'bayesmech-pong-drops-'))
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }))
+  const type = protoType('pongtown.proto', 'bayesmech.vision.PongtownResponse')
+  const filePath = path.join(root, 'capture.pongtown.pb')
+  const imageY = [0, 1, 3, 8, 12, 8, 3, 1, 0]
+  fs.writeFileSync(filePath, record(type, {
+    sportMode: 'PINGPONG',
+    globalTablePose: { hasPose: true, hasNetPose: true },
+    tableWidthMm: 2740,
+    tableHeightMm: 1525,
+    pingpongTracking: {
+      ballTrajectory: {
+        minBounceProminencePx: 2,
+        minBounceSpacingFrames: 4,
+        smoothSigma: 1,
+        positions: imageY.map((vImg, frameIdx) => ({
+          observationIdx: frameIdx,
+          frameIdx,
+          frameNumber: 100 + frameIdx,
+          vImg,
+          hasTablePosition: true,
+          tableXyzMm: [frameIdx * 10, frameIdx * -5, 0],
+          insideTable: true,
+        })),
+      },
+    },
+  }))
+
+  const reconstruction = readDomainReconstruction(filePath)
+  assert.equal(reconstruction.bounces.length, 1)
+  assert.equal(reconstruction.bounces[0].label, 'Drop 1')
+  assert.equal(reconstruction.bounces[0].frameIndex, 4)
+  assert.equal(reconstruction.bounces[0].frameNumber, 104)
+  assert.deepEqual(
+    [reconstruction.bounces[0].xMm, reconstruction.bounces[0].yMm],
+    [40, -20],
+  )
+})
+
 test('Snookerstown reconstruction exposes every frame while retaining the latest summary', (t) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'bayesmech-snooker-domain-'))
   t.after(() => fs.rmSync(root, { recursive: true, force: true }))

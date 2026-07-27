@@ -30,11 +30,8 @@ uv run python motioncap/main.py ../recordings/<name>/<name>.vis.pb
 # AI video analysis (Gemini native video upload)
 uv run python genspark/main.py ../recordings/<name>/<name>.vis.pb
 
-# 3D reconstruction: COLMAP SfM + Gaussian Splatting
-uv run python reconstruct/main.py ../recordings/<name>/<name>.vis.pb
-uv run python reconstruct/main.py ../recordings/<name>/<name>.vis.pb --no-splat   # COLMAP only
-uv run python reconstruct/main.py ../recordings/<name>/<name>.vis.pb --max-frames 100 --sample-every 10  # quick test
-uv run python reconstruct/main.py ../recordings/<name>/<name>.vis.pb --dense-mvs   # + dense MVS (requires colmap binary)
+# Worldgen Gaussian Splatting from a saved VGGT response
+uv run python worldgen/scripts/train_vggt_splat.py --vggt-pb ../recordings/<name>/<name>.worldgen.pb
 
 # IDOSLAM: unified trajectory + road-ground triangulation + canonical dashboard data
 uv run python idoslam/main.py ../recordings/<name>/<name>.vis.pb
@@ -62,7 +59,7 @@ huggingface-cli login
 | `segmentation/` | Offline SAM3 annotator → writes `.segmentation.pb` |
 | `motioncap/` | Offline RAFT optical-flow motion heatmap → writes `.motioncap.pb` |
 | `genspark/` | Offline AI video analysis (Gemini native video upload) |
-| `reconstruct/` | Offline COLMAP SfM + Gaussian Splatting → writes `.recon/`, `.splat.ply`, `.recon.pb` |
+| `worldgen/` | VGGT point clouds and Gaussian Splatting → writes `.worldgen.pb` and Worldgen splat artifacts |
 | `idoslam/` | Offline SLAM pipeline → writes `.idoslam.pb` and workspace CSV/JSON artifacts consumed by the dashboard |
 
 ## Motion Capture (`motioncap/`)

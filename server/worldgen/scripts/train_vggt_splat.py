@@ -42,7 +42,7 @@ except ModuleNotFoundError:
     import vggt_pb2  # noqa: E402
 
 from motioncap.geometry import decode_frame_rgb  # noqa: E402
-from reconstruct.gsplat_trainer import _load_ply_splats, train_splat_dataset  # noqa: E402
+from worldgen.gsplat_trainer import _load_ply_splats, train_splat_dataset  # noqa: E402
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s  %(message)s")
 log = logging.getLogger(__name__)
@@ -101,7 +101,12 @@ def parse_args() -> argparse.Namespace:
 
 def _default_output_paths(vggt_pb: Path) -> tuple[Path, Path, Path]:
     name = vggt_pb.name
-    stem = name[: -len(".vggt.pb")] if name.endswith(".vggt.pb") else vggt_pb.stem
+    if name.endswith(".worldgen.pb"):
+        stem = name[: -len(".worldgen.pb")]
+    elif name.endswith(".vggt.pb"):
+        stem = name[: -len(".vggt.pb")]
+    else:
+        stem = vggt_pb.stem
     return (
         vggt_pb.with_name(f"{stem}.splat-workspace"),
         vggt_pb.with_name(f"{stem}.splat.ply"),
@@ -168,7 +173,7 @@ def read_vggt_response(path: Path) -> vggt_pb2.VggtInferenceResponse:
             target.sampled_frame_index = sampled_index
 
     source_indices = [source_index(key) for key in ordered_keys]
-    merged.request_id = path.name.removesuffix(".vggt.pb")
+    merged.request_id = path.name.removesuffix(".worldgen.pb").removesuffix(".vggt.pb")
     merged.marker_start = ""
     merged.marker_end = ""
     merged.start_frame_index = min(source_indices, default=0)

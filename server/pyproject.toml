@@ -35,8 +35,7 @@ dependencies = [
     # maintained v2 line to avoid pulling the Starlette 1.x migration into the
     # existing FastAPI service.
     "fastmcp==2.14.7",
-    # 3D reconstruction (COLMAP bridge)
-    "pycolmap>=0.4.0",
+    # Worldgen Gaussian splatting
     "gsplat",
     "plyfile",
     "rerun-sdk==0.22.1",

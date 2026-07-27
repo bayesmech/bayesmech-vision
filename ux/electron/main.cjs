@@ -6,6 +6,7 @@ const http = require('node:http')
 const https = require('node:https')
 const os = require('node:os')
 const path = require('node:path')
+const zlib = require('node:zlib')
 const protobuf = require('protobufjs')
 const { Client: McpClient } = require('@modelcontextprotocol/sdk/client/index.js')
 const { StreamableHTTPClientTransport } = require('@modelcontextprotocol/sdk/client/streamableHttp.js')
@@ -121,12 +122,6 @@ const ANALYSIS_DEFS = [
     suffixes: ['chat.pb'],
   },
   {
-    key: 'reconstruction',
-    title: '3D Reconstruction',
-    kind: 'protobuf',
-    suffixes: ['reconstruct.pb', 'recon.pb'],
-  },
-  {
     key: 'snookestown',
     title: 'Domain specific reconstruction',
     kind: 'protobuf',
@@ -153,6 +148,10 @@ let pongtownType = null
 let snookestownType = null
 const worldgenSplatDestinations = new Map()
 const runnerBackgroundJobs = new Map()
+const pendingWorldgenResultJobs = new Set()
+const recoveringWorldgenResultJobs = new Map()
+const worldgenArtifactRecoveryQueues = new Map()
+const worldgenSavedRequestCache = new Map()
 let runnerJobEventRequest = null
 let runnerJobEventReconnectTimer = null
 
@@ -585,27 +584,11 @@ function recordingForControlProject(projectPath, controlPath, index) {
   const usedContextNames = new Set()
   let streamSize = 0
   let streamModifiedMs = 0
-  for (const device of enabledDevices) {
-    const streamPath = safeControlRecordingPath(manifest.directoryPath, device.recordingFile)
-    if (!streamPath) continue
-    claimedVisPaths.push(streamPath)
+  const addStream = (streamPath, contextRoot, analysisKey) => {
     const streamStat = safeStat(streamPath)
-    if (!streamStat?.isFile()) continue
+    if (!streamStat?.isFile()) return
     streamSize += streamStat.size
     streamModifiedMs = Math.max(streamModifiedMs, streamStat.mtimeMs)
-    const contextRoot = device === primary
-      ? 'main'
-      : normalizedVideoContextName(
-        device.deviceType === 'PHONE_DEVICE'
-          ? 'phone'
-          : device.deviceType === 'ROBOT_HAND_DEVICE'
-            ? 'hand'
-            : device.deviceType === 'DRONE_DEVICE'
-              ? 'drone'
-              : device.deviceType === 'ROBOT_CAR_DEVICE'
-                ? 'robot-car'
-                : device.displayName || device.deviceId,
-      ) || 'device'
     let contextName = contextRoot
     let contextSuffix = 2
     while (usedContextNames.has(contextName)) {
@@ -619,24 +602,51 @@ function recordingForControlProject(projectPath, controlPath, index) {
       path: streamPath,
       fileStem: path.basename(streamPath).slice(0, -'.vis.pb'.length),
       relativePath: path.relative(projectPath, streamPath),
-      isMain: device === primary,
+      isMain: contextName === 'main',
     })
-    if (device.deviceType !== 'ROBOT_CAR_DEVICE') {
-      analyses.push({
-        key: `video:${device.deviceId}`,
-        title: 'Video',
-        kind: 'video',
-        source: 'vis',
-        baseKey: 'video',
+    const streamAnalyses = analysesForVis(projectPath, streamPath)
+      .filter((analysis) => analysis.key === 'video' || analysis.source === 'artifact')
+      .map((analysis) => ({
+        ...analysis,
+        key: analysis.key === 'video'
+          ? analysisKey
+          : contextName === 'main'
+            ? analysis.key
+            : `${analysis.key}:${contextName}`,
+        baseKey: analysis.key,
         videoContext: contextName,
         sourceVideoPath: streamPath,
-        path: streamPath,
-        relativePath: path.relative(projectPath, streamPath),
-        sizeBytes: streamStat.size,
-        sizeLabel: byteSizeLabel(streamStat.size),
-        modifiedMs: streamStat.mtimeMs,
-      })
-    }
+      }))
+    analyses.push(...streamAnalyses)
+  }
+  for (const device of enabledDevices) {
+    const streamPath = safeControlRecordingPath(manifest.directoryPath, device.recordingFile)
+    if (!streamPath) continue
+    claimedVisPaths.push(streamPath)
+    const contextRoot = device === primary
+      ? 'main'
+      : controlDeviceVideoContextName(device)
+    addStream(streamPath, contextRoot, `video:${device.deviceId}`)
+  }
+
+  // A project directory is the durable asset boundary. Files copied or
+  // converted into it must remain visible even if an older control manifest
+  // has not learned about that stream yet.
+  const claimedPaths = new Set(claimedVisPaths.map((item) => path.resolve(item)))
+  let localEntries = []
+  try {
+    localEntries = fs.readdirSync(manifest.directoryPath, { withFileTypes: true })
+  } catch {
+    localEntries = []
+  }
+  for (const entry of localEntries) {
+    if (!entry.isFile() || !entry.name.endsWith('.vis.pb')) continue
+    const streamPath = path.join(manifest.directoryPath, entry.name)
+    if (claimedPaths.has(path.resolve(streamPath))) continue
+    claimedVisPaths.push(streamPath)
+    claimedPaths.add(path.resolve(streamPath))
+    const contextRoot = controlAssetVideoContextName(streamPath, manifest, primaryPath)
+    addStream(streamPath, contextRoot, `video:${contextRoot}`)
   }
 
   return {
@@ -687,11 +697,16 @@ function worldgenArtifactsFor(dir, baseName, projectPath) {
     return []
   }
 
-  const canonicalName = `${baseName}.vggt.pb`
+  const canonicalName = `${baseName}.worldgen.pb`
+  const legacyCanonicalName = `${baseName}.vggt.pb`
   const candidates = entries
     .filter((entry) => entry.isFile() && (
       entry.name === canonicalName ||
-      (entry.name.startsWith(`${baseName}.`) && entry.name.endsWith('.vggt.pb'))
+      entry.name === legacyCanonicalName ||
+      (entry.name.startsWith(`${baseName}.`) && (
+        entry.name.endsWith('.worldgen.pb') ||
+        entry.name.endsWith('.vggt.pb')
+      ))
     ))
     .map((entry) => {
       const artifactPath = path.join(dir, entry.name)
@@ -705,7 +720,9 @@ function worldgenArtifactsFor(dir, baseName, projectPath) {
   // legacy marker-pair project is migrated by its next generation, expose only
   // its most recent old file as a compatibility fallback instead of showing a
   // separate analysis entry for every marker pair.
-  const selected = candidates.find((candidate) => candidate.entry.name === canonicalName) ?? candidates[0]
+  const selected = candidates.find((candidate) => candidate.entry.name === canonicalName)
+    ?? candidates.find((candidate) => candidate.entry.name === legacyCanonicalName)
+    ?? candidates[0]
   if (!selected) return []
   return [{
     key: 'worldgen',
@@ -752,6 +769,47 @@ function normalizedVideoContextName(value) {
     .replace(/[^A-Za-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
     .toLowerCase()
+}
+
+function controlDeviceVideoContextName(device) {
+  const displayName = normalizedVideoContextName(device.displayName || device.deviceId)
+  if (device.deviceType === 'PHONE_DEVICE') {
+    // Keep ordinary phone sources concise while preserving a meaningful name
+    // for imported or fixed cameras represented by the camera-capable phone
+    // device type (for example, "Top Camera").
+    return displayName && !displayName.split('-').includes('phone')
+      ? displayName
+      : 'phone'
+  }
+  if (device.deviceType === 'ROBOT_HAND_DEVICE') return 'hand'
+  if (device.deviceType === 'DRONE_DEVICE') return 'drone'
+  if (device.deviceType === 'ROBOT_CAR_DEVICE') return 'robot-car'
+  return displayName || 'device'
+}
+
+function controlAssetVideoContextName(streamPath, manifest, primaryPath) {
+  const stem = path.basename(streamPath).slice(0, -'.vis.pb'.length)
+  const primaryStem = path.basename(primaryPath).slice(0, -'.vis.pb'.length)
+  const candidates = [primaryStem, String(manifest.projectId || '')]
+    .filter(Boolean)
+    .sort((left, right) => right.length - left.length)
+  let rawName = stem
+  for (const candidate of candidates) {
+    if (stem.startsWith(candidate) && /^[_\-.]/.test(stem.slice(candidate.length))) {
+      rawName = stem.slice(candidate.length)
+      break
+    }
+  }
+  if (rawName === stem) {
+    const timestampPrefix = primaryStem.match(/^\d{8}_\d{6}/)?.[0]
+    if (timestampPrefix && stem.startsWith(`${timestampPrefix}_`)) {
+      rawName = stem.slice(timestampPrefix.length)
+    }
+  }
+  const contextName = normalizedVideoContextName(rawName)
+  return contextName && !['main', 'project', 'car', 'robot-car'].includes(contextName)
+    ? contextName
+    : 'camera'
 }
 
 function groupVisFilesByContext(visFiles) {
@@ -2151,6 +2209,81 @@ function pongtownPoint(
   }
 }
 
+function smoothPongtownImageY(values, sigma) {
+  if (sigma <= 0) return [...values]
+  const radius = Math.max(1, Math.ceil(3 * sigma))
+  const kernel = []
+  let weightTotal = 0
+  for (let offset = -radius; offset <= radius; offset += 1) {
+    const weight = Math.exp(-0.5 * (offset / sigma) ** 2)
+    kernel.push(weight)
+    weightTotal += weight
+  }
+  return values.map((_value, index) => kernel.reduce((sum, weight, kernelIndex) => {
+    const sourceIndex = index + kernelIndex - radius
+    if (sourceIndex < 0 || sourceIndex >= values.length) return sum
+    return sum + values[sourceIndex] * (weight / weightTotal)
+  }, 0))
+}
+
+function inferPongtownDrops(trajectory) {
+  const positions = Array.isArray(trajectory?.positions) ? trajectory.positions : []
+  if (positions.length < 5) return []
+
+  const imageY = positions.map((position) => finiteNumber(position.vImg))
+  const frameIndexes = positions.map((position, index) => (
+    position?.frameIdx == null ? index : finiteNumber(position.frameIdx, index)
+  ))
+  const smoothSigma = finiteNumber(trajectory.smoothSigma, 1)
+  const smoothedY = smoothPongtownImageY(imageY, smoothSigma)
+  const minProminencePx = finiteNumber(trajectory.minBounceProminencePx, 4)
+  const minSpacing = Math.max(1, finiteNumber(trajectory.minBounceSpacingFrames, 4))
+  const candidates = []
+
+  for (let index = 2; index < positions.length - 2; index += 1) {
+    if (!(smoothedY[index] > smoothedY[index - 1]
+      && smoothedY[index] >= smoothedY[index + 1])) {
+      continue
+    }
+    if (frameIndexes[index] - frameIndexes[index - 2] > 8
+      || frameIndexes[index + 2] - frameIndexes[index] > 8) {
+      continue
+    }
+    const left = smoothedY.slice(Math.max(0, index - 6), index)
+    const right = smoothedY.slice(index + 1, Math.min(smoothedY.length, index + 7))
+    const prominence = Math.min(
+      smoothedY[index] - Math.min(...left),
+      smoothedY[index] - Math.min(...right),
+    )
+    if (prominence < minProminencePx
+      || imageY[index] - imageY[Math.max(0, index - 2)] <= 0
+      || imageY[Math.min(imageY.length - 1, index + 2)] - imageY[index] >= 0) {
+      continue
+    }
+    candidates.push({ index, prominence })
+  }
+
+  const pruned = []
+  for (const candidate of candidates) {
+    const previous = pruned.at(-1)
+    if (previous && candidate.index - previous.index < minSpacing) {
+      if (candidate.prominence > previous.prominence) {
+        pruned[pruned.length - 1] = candidate
+      }
+      continue
+    }
+    pruned.push(candidate)
+  }
+
+  return pruned
+    .map(({ index, prominence }, bounceIndex) => ({
+      ...positions[index],
+      bounceIdx: bounceIndex,
+      prominencePx: prominence,
+    }))
+    .filter((position) => position.hasTablePosition)
+}
+
 function pongtownFrameIndex(record, fallbackIndex) {
   const debug = Array.isArray(record.pnpFrameDebug) ? record.pnpFrameDebug[0] : null
   return finiteNumber(
@@ -2279,11 +2412,15 @@ function buildPongtownDomain(messages, sourcePath) {
       ))
       .filter(Boolean)
     : []
+  const serializedBounces = Array.isArray(trajectory.bounces) ? trajectory.bounces : []
+  const bounceSource = serializedBounces.length > 0
+    ? serializedBounces
+    : inferPongtownDrops(trajectory)
   const bounces = sportMode === 'PINGPONG'
-    ? (trajectory.bounces || [])
+    ? bounceSource
       .map((bounce, index) => pongtownPoint(
         bounce,
-        `Bounce ${index + 1}`,
+        `Drop ${index + 1}`,
         inferredTrajectoryFrameIndex(bounce),
       ))
       .filter(Boolean)
@@ -3291,6 +3428,23 @@ function worldgenFrameKey(frame) {
   return `index:${finiteNumber(frame?.sourceFrameIndex)}`
 }
 
+function isWorldgenArtifactPath(filePath) {
+  return typeof filePath === 'string'
+    && (filePath.endsWith('.worldgen.pb') || filePath.endsWith('.vggt.pb'))
+}
+
+function worldgenStem(filePath) {
+  const name = path.basename(filePath)
+  if (name.endsWith('.worldgen.pb')) return name.slice(0, -'.worldgen.pb'.length)
+  if (name.endsWith('.vggt.pb')) return name.slice(0, -'.vggt.pb'.length)
+  return path.parse(name).name
+}
+
+function worldgenPathForRecording(recordingPath) {
+  if (!String(recordingPath || '').endsWith('.vis.pb')) return ''
+  return `${recordingPath.slice(0, -'.vis.pb'.length)}.worldgen.pb`
+}
+
 function worldgenComputationKey(message) {
   const frames = (Array.isArray(message?.pointClouds) && message.pointClouds.length
     ? message.pointClouds
@@ -3391,7 +3545,7 @@ function worldgenPreviewFromMessages(messages, outputPath) {
   const frameKeys = new Set([...camerasByFrame.keys(), ...cloudsByFrame.keys()])
   const combined = {
     ...latest,
-    requestId: path.basename(outputPath, '.vggt.pb'),
+    requestId: worldgenStem(outputPath),
     markerStart: '',
     markerEnd: '',
     startFrameIndex: sourceIndices.length ? Math.min(...sourceIndices) : 0,
@@ -3480,7 +3634,7 @@ function worldgenPreviewFromMessage(message, outputPath, splatInfo = null) {
     })
     .filter(Boolean)
 
-  const id = message.requestId || path.basename(outputPath, '.vggt.pb')
+  const id = message.requestId || worldgenStem(outputPath)
   return {
     id,
     outputPath,
@@ -3522,8 +3676,8 @@ function worldgenPreviewFromMessage(message, outputPath, splatInfo = null) {
 }
 
 async function readWorldgen(filePath) {
-  if (!filePath || typeof filePath !== 'string' || !filePath.endsWith('.vggt.pb')) {
-    throw new Error('Expected a .vggt.pb file.')
+  if (!isWorldgenArtifactPath(filePath)) {
+    throw new Error('Expected a .worldgen.pb or legacy .vggt.pb file.')
   }
   const resolved = path.resolve(filePath)
   const type = getVggtResponseType()
@@ -3534,10 +3688,7 @@ async function readWorldgen(filePath) {
   for (const message of messages) {
     const saved = savedSplatInfo(message?.gaussianSplat)
     if (!saved?.jobId || polledJobs.has(saved.jobId)) continue
-    const missingCompletedPly = saved.status === 'complete' && (
-      !saved.plyPath || !fs.existsSync(saved.plyPath)
-    )
-    if (['complete', 'failed', 'skipped'].includes(saved.status) && !missingCompletedPly) continue
+    if (['complete', 'failed', 'skipped'].includes(saved.status)) continue
 
     polledJobs.add(saved.jobId)
     try {
@@ -3545,7 +3696,14 @@ async function readWorldgen(filePath) {
         saved.jobId,
         worldgenSplatPaths(resolved, saved.jobId),
       )
-      const remote = await pollWorldgenSplat(saved.jobId)
+      // The saved VGGT point clouds are independently useful. A completed
+      // Gaussian-splat PLY can be hundreds of megabytes over the SSH tunnel,
+      // so never block opening the World Modeling tab on that secondary
+      // artifact. The active background-job flow downloads it separately.
+      const remote = await pollWorldgenSplat(saved.jobId, {
+        includePreview: false,
+        downloadArtifacts: false,
+      })
       changed = applyWorldgenSplatToMessages(resolved, messages, remote) || changed
     } catch {
       // Keep every saved VGGT point cloud usable even when one remote splat
@@ -3623,8 +3781,8 @@ function applyWorldgenSplatToMessages(resolved, messages, splat) {
 }
 
 async function saveWorldgenSplat(filePath, splat) {
-  if (!filePath || typeof filePath !== 'string' || !filePath.endsWith('.vggt.pb')) {
-    throw new Error('Expected a .vggt.pb file.')
+  if (!isWorldgenArtifactPath(filePath)) {
+    throw new Error('Expected a .worldgen.pb or legacy .vggt.pb file.')
   }
   const resolved = path.resolve(filePath)
   const type = getVggtResponseType()
@@ -3662,8 +3820,7 @@ function worldgenSplatDisabled() {
 
 function worldgenSplatPaths(vggtPath, jobId = '') {
   const dir = path.dirname(vggtPath)
-  const name = path.basename(vggtPath)
-  const stem = name.endsWith('.vggt.pb') ? name.slice(0, -'.vggt.pb'.length) : path.parse(name).name
+  const stem = worldgenStem(vggtPath)
   if (jobId) {
     const safeJobId = String(jobId).replace(/[^A-Za-z0-9._-]+/g, '_')
     const jobDir = path.join(dir, `${stem}.splats`, safeJobId)
@@ -3758,18 +3915,37 @@ function nodeHttpRequest(urlString, options = {}) {
   return new Promise((resolve, reject) => {
     const req = transport.request(parsed, { method, headers }, (res) => {
       const chunks = []
-      res.on('data', (chunk) => chunks.push(Buffer.from(chunk)))
+      const totalBytes = Math.max(0, finiteNumber(res.headers['content-length']))
+      let receivedBytes = 0
+      res.on('data', (chunk) => {
+        const buffer = Buffer.from(chunk)
+        chunks.push(buffer)
+        receivedBytes += buffer.length
+        if (typeof options.onDownloadProgress === 'function') {
+          options.onDownloadProgress({ receivedBytes, totalBytes })
+        }
+      })
       res.on('end', () => {
-        const payload = Buffer.concat(chunks)
-        const status = Number(res.statusCode) || 0
-        resolve({
-          ok: status >= 200 && status < 300,
-          status,
-          headers: res.headers,
-          body: payload,
-          text: async () => payload.toString('utf8'),
-          json: async () => JSON.parse(payload.toString('utf8')),
-        })
+        try {
+          const encodedPayload = Buffer.concat(chunks)
+          const encoding = String(res.headers['content-encoding'] || '').toLowerCase()
+          const payload = encoding.includes('gzip')
+            ? zlib.gunzipSync(encodedPayload)
+            : encoding.includes('deflate')
+              ? zlib.inflateSync(encodedPayload)
+              : encodedPayload
+          const status = Number(res.statusCode) || 0
+          resolve({
+            ok: status >= 200 && status < 300,
+            status,
+            headers: res.headers,
+            body: payload,
+            text: async () => payload.toString('utf8'),
+            json: async () => JSON.parse(payload.toString('utf8')),
+          })
+        } catch (error) {
+          reject(error)
+        }
       })
     })
     req.setTimeout(timeoutMs, () => {
@@ -3935,16 +4111,43 @@ function runnerHeaders(token = worldgenToken()) {
 }
 
 function normalizeRunnerBackgroundJob(raw) {
-  const status = String(raw?.status || 'queued')
+  const jobId = String(raw?.job_id || raw?.id || '')
+  const type = String(raw?.type || 'runner')
+  const rawStatus = String(raw?.status || 'queued')
+  const remoteComplete = ['complete', 'succeeded'].includes(rawStatus)
+  const localTransfer = ['receiving', 'saving'].includes(rawStatus)
+  const hasLocalTracking = type === 'vggt'
+    && String(raw?.recording_path || raw?.recordingPath || '').endsWith('.vis.pb')
+    && Boolean(String(raw?.request_id || raw?.requestId || '').trim())
+  const awaitingLocalResult = type === 'vggt' && (
+    pendingWorldgenResultJobs.has(jobId)
+    || (remoteComplete && hasLocalTracking && !worldgenRequestSavedLocally(raw))
+  )
+  const status = awaitingLocalResult && remoteComplete ? 'receiving' : rawStatus
+  const rawProgress = Math.min(
+    1,
+    Math.max(0, finiteNumber(raw?.progress, remoteComplete ? 1 : 0)),
+  )
+  const progress = awaitingLocalResult
+    ? remoteComplete
+      ? 0.9
+      : localTransfer
+        ? Math.min(0.999, rawProgress)
+        : Math.min(0.9, rawProgress * 0.9)
+    : rawProgress
   return {
-    jobId: String(raw?.job_id || raw?.id || ''),
-    type: String(raw?.type || 'runner'),
+    jobId,
+    type,
     title: String(raw?.title || raw?.type || 'Runner job'),
     source: String(raw?.source || 'runner'),
     status,
-    stage: String(raw?.stage || status),
-    message: String(raw?.message || raw?.error || ''),
-    progress: Math.min(1, Math.max(0, finiteNumber(raw?.progress, ['complete', 'succeeded'].includes(status) ? 1 : 0))),
+    stage: awaitingLocalResult && remoteComplete
+      ? 'awaiting_result'
+      : String(raw?.stage || status),
+    message: awaitingLocalResult && remoteComplete
+      ? 'VGGT inference complete. Waiting to receive the reconstruction data.'
+      : String(raw?.message || raw?.error || ''),
+    progress,
     currentStep: finiteNumber(raw?.current_step ?? raw?.currentStep),
     maxSteps: finiteNumber(raw?.max_steps ?? raw?.maxSteps),
     parentJobId: String(raw?.parent_job_id || raw?.parentJobId || ''),
@@ -3962,6 +4165,60 @@ function normalizeRunnerBackgroundJob(raw) {
   }
 }
 
+function worldgenRequestSavedLocally(raw) {
+  const recordingPath = String(raw?.recording_path || raw?.recordingPath || '')
+  const requestId = String(raw?.request_id || raw?.requestId || '').trim()
+  if (!recordingPath.endsWith('.vis.pb') || !requestId) return false
+
+  const stem = recordingPath.slice(0, -'.vis.pb'.length)
+  for (const outputPath of [`${stem}.worldgen.pb`, `${stem}.vggt.pb`]) {
+    const stat = safeStat(outputPath)
+    if (!stat?.isFile()) continue
+
+    let messages
+    const cached = worldgenSavedRequestCache.get(outputPath)
+    if (cached?.size === stat.size && cached?.modifiedMs === stat.mtimeMs) {
+      messages = cached.messages
+    } else {
+      try {
+        messages = readLengthDelimitedProtos(outputPath, getVggtResponseType())
+        worldgenSavedRequestCache.set(outputPath, {
+          size: stat.size,
+          modifiedMs: stat.mtimeMs,
+          messages,
+        })
+      } catch {
+        continue
+      }
+    }
+
+    const matching = messages.filter(
+      (message) => String(message?.requestId || '').trim() === requestId,
+    )
+    if (!matching.length) continue
+    const expected = matching.reduce(
+      (maximum, message) => Math.max(maximum, finiteNumber(message?.resultFrameCount)),
+      0,
+    )
+    // Older monolithic records predate incremental transfer metadata.
+    if (expected <= 0) return true
+    const received = new Set(
+      matching.map((message) => Math.max(0, Math.trunc(finiteNumber(message?.resultFrameIndex)))),
+    )
+    if (received.size >= expected && matching.some((message) => message?.resultComplete)) {
+      return true
+    }
+  }
+  return false
+}
+
+function setWorldgenResultPending(jobId, pending = true) {
+  const normalized = String(jobId || '').trim()
+  if (!normalized) return
+  if (pending) pendingWorldgenResultJobs.add(normalized)
+  else pendingWorldgenResultJobs.delete(normalized)
+}
+
 function publishRunnerBackgroundJob(raw) {
   const job = normalizeRunnerBackgroundJob(raw)
   if (!job.jobId) return
@@ -3969,20 +4226,70 @@ function publishRunnerBackgroundJob(raw) {
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send('runner:job-state', job)
   }
+  void maybeResumeCompletedWorldgenResult(raw)
 }
 
 async function readRunnerBackgroundJobs() {
+  const timeoutMs = Math.max(
+    1000,
+    Math.trunc(finiteNumber(process.env.RUNNER_HEALTH_TIMEOUT_MS, DEFAULT_VGGT_HEALTH_TIMEOUT_MS)),
+  )
   const response = await nodeHttpRequest(`${runnerEndpoint()}/api/v1/jobs/state`, {
     headers: { ...runnerHeaders(), Accept: 'application/json' },
-    timeoutMs: Math.max(1000, Math.trunc(finiteNumber(process.env.RUNNER_HEALTH_TIMEOUT_MS, DEFAULT_VGGT_HEALTH_TIMEOUT_MS))),
+    timeoutMs,
   })
   if (!response.ok) {
     throw new Error(`Runner background jobs failed with HTTP ${response.status}${await readResponseDetail(response)}`)
   }
   const payload = await response.json()
-  const jobs = Array.isArray(payload?.jobs) ? payload.jobs.map(normalizeRunnerBackgroundJob) : []
+  const rawJobsById = new Map()
+  for (const raw of Array.isArray(payload?.jobs) ? payload.jobs : []) {
+    const jobId = String(raw?.job_id || raw?.id || '')
+    if (jobId) rawJobsById.set(jobId, raw)
+  }
+  try {
+    const worldgenResponse = await nodeHttpRequest(`${worldgenEndpoint()}/jobs?limit=500`, {
+      headers: { ...runnerHeaders(), Accept: 'application/json' },
+      timeoutMs,
+    })
+    if (worldgenResponse.ok) {
+      const worldgenPayload = await worldgenResponse.json()
+      for (const raw of Array.isArray(worldgenPayload?.jobs) ? worldgenPayload.jobs : []) {
+        const jobId = String(raw?.job_id || raw?.id || '')
+        const previous = rawJobsById.get(jobId)
+        if (
+          jobId
+          && (!previous || finiteNumber(raw?.updated_at ?? raw?.updatedAt ?? raw?.created_at ?? raw?.createdAt)
+            >= finiteNumber(previous?.updated_at ?? previous?.updatedAt ?? previous?.created_at ?? previous?.createdAt))
+        ) {
+          rawJobsById.set(jobId, raw)
+        }
+      }
+    }
+  } catch {
+    // Generic runner jobs remain available when the optional Worldgen service is offline.
+  }
+  const rawJobs = [...rawJobsById.values()]
+  const jobs = rawJobs.map(normalizeRunnerBackgroundJob)
   for (const job of jobs) {
     if (job.jobId) runnerBackgroundJobs.set(job.jobId, job)
+  }
+  const newestWorldgenRanges = new Set()
+  const recoveryOrder = [...rawJobs].sort(
+    (left, right) => finiteNumber(right?.updated_at ?? right?.created_at)
+      - finiteNumber(left?.updated_at ?? left?.created_at),
+  )
+  for (const raw of recoveryOrder) {
+    if (String(raw?.type || '') !== 'vggt') continue
+    const recordingPath = String(raw?.recording_path || '')
+    const rangeKey = [
+      recordingPath,
+      String(raw?.marker_start || ''),
+      String(raw?.marker_end || ''),
+    ].join('\u0000')
+    if (recordingPath && newestWorldgenRanges.has(rangeKey)) continue
+    if (recordingPath) newestWorldgenRanges.add(rangeKey)
+    void maybeResumeCompletedWorldgenResult(raw)
   }
   return jobs
 }
@@ -4674,11 +4981,12 @@ function normalizeRemoteSplatJob(job, fallback = {}) {
   }
 }
 
-async function pollWorldgenSplat(jobId) {
+async function pollWorldgenSplat(jobId, options = {}) {
   if (!jobId || typeof jobId !== 'string') throw new Error('Splat job id is required.')
   const token = worldgenToken()
   const endpoint = worldgenEndpoint()
-  const response = await nodeHttpRequest(`${endpoint}/splat/${encodeURIComponent(jobId)}?include_preview=true`, {
+  const includePreview = options.includePreview !== false
+  const response = await nodeHttpRequest(`${endpoint}/splat/${encodeURIComponent(jobId)}?include_preview=${includePreview ? 'true' : 'false'}`, {
     method: 'GET',
     headers: {
       ...runnerHeaders(token),
@@ -4691,7 +4999,12 @@ async function pollWorldgenSplat(jobId) {
   }
   const normalized = normalizeRemoteSplatJob(await response.json(), { jobId })
   const destinations = worldgenSplatDestinations.get(jobId)
-  if (normalized.status === 'complete' && destinations && worldgenUsesRunner()) {
+  if (
+    normalized.status === 'complete'
+    && destinations
+    && worldgenUsesRunner()
+    && options.downloadArtifacts !== false
+  ) {
     await nodeDownloadToFile(
       `${endpoint}/splat/${encodeURIComponent(jobId)}/artifact/ply`,
       destinations.plyPath,
@@ -4966,6 +5279,10 @@ function encodeWorldgenResponse(responseJson, sourceFrames, request, endpoint, s
     preprocessMode: String(metadata.preprocess_mode ?? ''),
     confidenceThreshold: finiteNumber(metadata.conf_thresh),
     maxPointsPerFrame: finiteNumber(request.maxPointsPerFrame),
+    resultFrameIndex: finiteNumber(responseJson?.result_frame_index),
+    resultFrameCount: finiteNumber(responseJson?.result_frame_count),
+    resultComplete: Boolean(responseJson?.result_complete),
+    runnerJobId: String(responseJson?.runner_job_id || request.runnerJobId || ''),
   })
 }
 
@@ -4979,7 +5296,9 @@ function legacyWorldgenPaths(recordingPath, canonicalPath) {
     return []
   }
   return entries
-    .filter((entry) => entry.isFile() && entry.name.startsWith(`${baseName}.`) && entry.name.endsWith('.vggt.pb'))
+    .filter((entry) => entry.isFile() && entry.name.startsWith(`${baseName}.`) && (
+      entry.name.endsWith('.worldgen.pb') || entry.name.endsWith('.vggt.pb')
+    ))
     .map((entry) => path.join(dir, entry.name))
     .filter((filePath) => path.resolve(filePath) !== path.resolve(canonicalPath))
     .map((filePath) => ({ filePath, modifiedMs: safeStat(filePath)?.mtimeMs ?? 0 }))
@@ -4987,12 +5306,13 @@ function legacyWorldgenPaths(recordingPath, canonicalPath) {
     .map((entry) => entry.filePath)
 }
 
-function persistWorldgenComputation(recordingPath, outputPath, message) {
+function persistWorldgenComputation(recordingPath, outputPath, message, existingHistory = null) {
   const type = getVggtResponseType()
-  let history = []
-  if (fs.existsSync(outputPath)) {
+  let history = Array.isArray(existingHistory) ? existingHistory : []
+  const outputExists = fs.existsSync(outputPath)
+  if (!Array.isArray(existingHistory) && outputExists) {
     history = readLengthDelimitedProtos(outputPath, type)
-  } else {
+  } else if (!outputExists) {
     // First write to the canonical file also folds in old marker-pair files so
     // projects created by earlier builds keep all of their computed frames.
     for (const legacyPath of legacyWorldgenPaths(recordingPath, outputPath)) {
@@ -5000,8 +5320,317 @@ function persistWorldgenComputation(recordingPath, outputPath, message) {
     }
   }
   const nextHistory = uniqueWorldgenMessages([...history, message])
+  if (outputExists && finiteNumber(message?.resultFrameCount) > 0) {
+    const payload = type.encode(type.create(message)).finish()
+    fs.appendFileSync(outputPath, lengthDelimitedProtoRecord(payload))
+    return nextHistory
+  }
   writeLengthDelimitedProtos(outputPath, type, nextHistory)
   return nextHistory
+}
+
+function receivedWorldgenFramePositions(outputPath, requestId, runnerJobId = '') {
+  if (!safeStat(outputPath)?.isFile()) return new Set()
+  try {
+    return new Set(
+      readLengthDelimitedProtos(outputPath, getVggtResponseType())
+        .filter((message) => (
+          String(message?.requestId || '') === String(requestId || '')
+          && finiteNumber(message?.resultFrameCount) > 0
+          && (!runnerJobId || !message?.runnerJobId || String(message.runnerJobId) === String(runnerJobId))
+        ))
+        .map((message) => Math.max(0, Math.trunc(finiteNumber(message?.resultFrameIndex)))),
+    )
+  } catch {
+    return new Set()
+  }
+}
+
+function sourceFrameFromRecording(recordingPath, offsets, frameIndex) {
+  if (!offsets.length) return null
+  const normalized = Math.max(0, Math.min(offsets.length - 1, Math.trunc(finiteNumber(frameIndex))))
+  const fd = fs.openSync(recordingPath, 'r')
+  try {
+    const frame = decodedFrameAt(recordingPath, offsets, normalized, fd)
+    return {
+      sourceFrameIndex: normalized,
+      frameIdentifier: frameIdentifierFor(frame, normalized),
+    }
+  } finally {
+    fs.closeSync(fd)
+  }
+}
+
+async function receiveWorldgenResultFrames(options) {
+  const {
+    endpoint,
+    token,
+    jobId,
+    recordingPath,
+    outputPath,
+    request,
+    requestTimeoutMs,
+  } = options
+  const availableSourceFrames = Array.isArray(options.sourceFrames) ? options.sourceFrames : []
+  const offsets = getFrameOffsets(recordingPath)
+  if (!offsets.length) throw new Error('The selected recording has no frames.')
+
+  const manifestResponse = await nodeHttpRequest(
+    `${endpoint}/jobs/${encodeURIComponent(jobId)}/result/manifest`,
+    {
+      headers: {
+        ...runnerHeaders(token),
+        Accept: 'application/json',
+        'Accept-Encoding': 'gzip',
+      },
+      timeoutMs: requestTimeoutMs,
+    },
+  )
+  if (!manifestResponse.ok) {
+    throw new Error(
+      `VGGT result manifest failed with HTTP ${manifestResponse.status}${await readResponseDetail(manifestResponse)}`,
+    )
+  }
+  const manifest = await manifestResponse.json()
+  const frames = Array.isArray(manifest?.frames) ? manifest.frames : []
+  if (!frames.length) throw new Error('VGGT completed without returning any point-cloud frames.')
+
+  const requestId = String(request.requestId || manifest?.request_id || '')
+  const received = receivedWorldgenFramePositions(outputPath, requestId, jobId)
+  const splatInfo = manifest?.splat_job
+    ? normalizeRemoteSplatJob(manifest.splat_job)
+    : normalizeRemoteSplatJob(null, {
+        status: 'skipped',
+        message: 'VGGT response did not include a remote splat job.',
+      })
+  if (splatInfo.jobId) {
+    worldgenSplatDestinations.set(
+      splatInfo.jobId,
+      worldgenSplatPaths(outputPath, splatInfo.jobId),
+    )
+  }
+  const transferPointsPerFrame = Math.max(
+    1,
+    Math.min(
+      Math.trunc(finiteNumber(request.maxPointsPerFrame, DEFAULT_WORLDGEN_POINTS_PER_FRAME)),
+      Math.floor(MAX_WORLDGEN_PREVIEW_POINTS / frames.length),
+    ),
+  )
+
+  let history = safeStat(outputPath)?.isFile()
+    ? readLengthDelimitedProtos(outputPath, getVggtResponseType())
+    : []
+  for (const [sequenceIndex, manifestFrame] of frames.entries()) {
+    const position = Math.max(
+      0,
+      Math.trunc(finiteNumber(manifestFrame?.position, sequenceIndex)),
+    )
+    if (received.has(position)) continue
+
+    publishRunnerBackgroundJob({
+      job_id: jobId,
+      type: 'vggt',
+      title: 'VGGT Reconstruction',
+      source: 'desktop',
+      status: 'receiving',
+      stage: 'downloading_frame',
+      message: `Receiving reconstructed frame ${sequenceIndex + 1} of ${frames.length}.`,
+      progress: 0.9 + (0.09 * sequenceIndex / frames.length),
+      current_step: sequenceIndex,
+      max_steps: frames.length,
+      request_id: requestId,
+      marker_start: request.markerStart,
+      marker_end: request.markerEnd,
+      recording_path: recordingPath,
+      updated_at: Date.now() / 1000,
+    })
+
+    let lastDownloadBucket = -1
+    const frameResponse = await nodeHttpRequest(
+      `${endpoint}/jobs/${encodeURIComponent(jobId)}/result/frames/${position}?max_points=${transferPointsPerFrame}`,
+      {
+        headers: {
+          ...runnerHeaders(token),
+          Accept: 'application/json',
+          'Accept-Encoding': 'gzip',
+        },
+        timeoutMs: requestTimeoutMs,
+        onDownloadProgress: ({ receivedBytes, totalBytes }) => {
+          const ratio = totalBytes > 0 ? Math.min(1, receivedBytes / totalBytes) : 0
+          const bucket = Math.floor(ratio * 20)
+          if (bucket === lastDownloadBucket) return
+          lastDownloadBucket = bucket
+          publishRunnerBackgroundJob({
+            job_id: jobId,
+            type: 'vggt',
+            title: 'VGGT Reconstruction',
+            source: 'desktop',
+            status: 'receiving',
+            stage: 'downloading_frame',
+            message: totalBytes > 0
+              ? `Receiving frame ${sequenceIndex + 1}/${frames.length}: ${byteSizeLabel(receivedBytes)} of ${byteSizeLabel(totalBytes)}.`
+              : `Receiving frame ${sequenceIndex + 1}/${frames.length}: ${byteSizeLabel(receivedBytes)}.`,
+            progress: 0.9 + (0.09 * (sequenceIndex + ratio) / frames.length),
+            current_step: sequenceIndex + ratio,
+            max_steps: frames.length,
+            request_id: requestId,
+            marker_start: request.markerStart,
+            marker_end: request.markerEnd,
+            recording_path: recordingPath,
+            updated_at: Date.now() / 1000,
+          })
+        },
+      },
+    )
+    if (!frameResponse.ok) {
+      throw new Error(
+        `VGGT frame ${sequenceIndex + 1} download failed with HTTP ${frameResponse.status}${await readResponseDetail(frameResponse)}`,
+      )
+    }
+    const framePayload = await frameResponse.json()
+    framePayload.runner_job_id = jobId
+    framePayload.result_frame_index = position
+    framePayload.result_frame_count = frames.length
+    framePayload.result_complete = sequenceIndex + 1 === frames.length
+
+    const sourceFrameIndex = Math.max(
+      0,
+      Math.trunc(finiteNumber(
+        manifestFrame?.frame_index,
+        framePayload?.point_clouds?.[0]?.frame_index,
+      )),
+    )
+    const sourceFrame = availableSourceFrames.find(
+      (candidate) => candidate.sourceFrameIndex === sourceFrameIndex,
+    ) ?? sourceFrameFromRecording(recordingPath, offsets, sourceFrameIndex)
+    if (!sourceFrame) {
+      throw new Error(`Could not resolve source frame ${sourceFrameIndex} in ${path.basename(recordingPath)}.`)
+    }
+
+    const message = encodeWorldgenResponse(
+      framePayload,
+      [sourceFrame],
+      {
+        ...request,
+        requestId,
+        recordingPath,
+        runnerJobId: jobId,
+      },
+      endpoint,
+      sequenceIndex + 1 === frames.length ? splatInfo : null,
+    )
+    history = persistWorldgenComputation(recordingPath, outputPath, message, history)
+    received.add(position)
+
+    publishRunnerBackgroundJob({
+      job_id: jobId,
+      type: 'vggt',
+      title: 'VGGT Reconstruction',
+      source: 'desktop',
+      status: 'saving',
+      stage: 'saved_frame',
+      message: `Saved reconstructed frame ${sequenceIndex + 1}/${frames.length} to ${path.basename(outputPath)}.`,
+      progress: 0.9 + (0.09 * (sequenceIndex + 1) / frames.length),
+      current_step: sequenceIndex + 1,
+      max_steps: frames.length,
+      request_id: requestId,
+      marker_start: request.markerStart,
+      marker_end: request.markerEnd,
+      recording_path: recordingPath,
+      updated_at: Date.now() / 1000,
+    })
+  }
+
+  return { history, manifest, splatInfo }
+}
+
+function maybeResumeCompletedWorldgenResult(raw) {
+  const jobId = String(raw?.job_id || raw?.id || '').trim()
+  const status = String(raw?.status || '')
+  const type = String(raw?.type || '')
+  const recordingPath = String(raw?.recording_path || raw?.recordingPath || '')
+  const requestId = String(raw?.request_id || raw?.requestId || '').trim()
+  if (
+    !jobId
+    || type !== 'vggt'
+    || !['complete', 'succeeded'].includes(status)
+    || !recordingPath.endsWith('.vis.pb')
+    || !requestId
+    || worldgenRequestSavedLocally(raw)
+    || recoveringWorldgenResultJobs.has(jobId)
+    || !safeStat(recordingPath)?.isFile()
+  ) return null
+
+  const outputPath = worldgenPathForRecording(recordingPath)
+  const previousRecovery = worldgenArtifactRecoveryQueues.get(outputPath) ?? Promise.resolve()
+  setWorldgenResultPending(jobId)
+  const recovery = previousRecovery.catch(() => null).then(async () => {
+    if (worldgenRequestSavedLocally(raw)) {
+      setWorldgenResultPending(jobId, false)
+      return outputPath
+    }
+    const request = {
+      requestId,
+      recordingPath,
+      markerStart: String(raw?.marker_start || raw?.markerStart || ''),
+      markerEnd: String(raw?.marker_end || raw?.markerEnd || ''),
+      startFrameIndex: Math.max(0, Math.trunc(finiteNumber(raw?.start_frame_index ?? raw?.startFrameIndex))),
+      endFrameIndex: Math.max(0, Math.trunc(finiteNumber(raw?.end_frame_index ?? raw?.endFrameIndex))),
+      maxPointsPerFrame: Math.max(
+        0,
+        Math.trunc(finiteNumber(process.env.VGGT_MAX_POINTS_PER_FRAME, DEFAULT_WORLDGEN_POINTS_PER_FRAME)),
+      ),
+    }
+    try {
+      const received = await receiveWorldgenResultFrames({
+        endpoint: worldgenEndpoint(),
+        token: worldgenToken(),
+        jobId,
+        recordingPath,
+        outputPath,
+        request,
+        sourceFrames: [],
+        requestTimeoutMs: Math.max(
+          1000,
+          Math.trunc(finiteNumber(process.env.VGGT_REQUEST_TIMEOUT_MS, DEFAULT_VGGT_REQUEST_TIMEOUT_MS)),
+        ),
+      })
+      setWorldgenResultPending(jobId, false)
+      publishRunnerBackgroundJob({
+        ...raw,
+        job_id: jobId,
+        status: 'complete',
+        stage: 'saved_local',
+        message: `Recovered ${received.manifest.frame_count} reconstructed frame${received.manifest.frame_count === 1 ? '' : 's'} to ${path.basename(outputPath)}.`,
+        progress: 1,
+        current_step: received.manifest.frame_count,
+        max_steps: received.manifest.frame_count,
+        updated_at: Date.now() / 1000,
+      })
+      return outputPath
+    } catch (error) {
+      setWorldgenResultPending(jobId, false)
+      publishRunnerBackgroundJob({
+        ...raw,
+        job_id: jobId,
+        status: 'failed',
+        stage: 'result_recovery_failed',
+        message: error instanceof Error ? error.message : 'Failed to recover the completed Worldgen result.',
+        error: error instanceof Error ? error.message : String(error),
+        progress: 0.99,
+        updated_at: Date.now() / 1000,
+      })
+      return null
+    }
+  })
+  recoveringWorldgenResultJobs.set(jobId, recovery)
+  worldgenArtifactRecoveryQueues.set(outputPath, recovery)
+  void recovery.finally(() => {
+    if (worldgenArtifactRecoveryQueues.get(outputPath) === recovery) {
+      worldgenArtifactRecoveryQueues.delete(outputPath)
+    }
+  })
+  return recovery
 }
 
 async function runWorldgen(request) {
@@ -5015,6 +5644,7 @@ async function runWorldgen(request) {
   const token = worldgenToken()
 
   const resolved = path.resolve(request.recordingPath)
+  const outputPath = worldgenPathForRecording(resolved)
   const offsets = getFrameOffsets(resolved)
   if (!offsets.length) throw new Error('The selected recording has no frames.')
 
@@ -5081,6 +5711,8 @@ async function runWorldgen(request) {
   const requestTimeoutMs = Math.max(1000, Math.trunc(finiteNumber(process.env.VGGT_REQUEST_TIMEOUT_MS, DEFAULT_VGGT_REQUEST_TIMEOUT_MS)))
   let response
   let vggtJobId = ''
+  let receivedHistory = null
+  let receivedSplatInfo = null
   try {
     response = await nodeHttpRequest(`${endpoint}${worldgenUsesRunner() ? '/jobs/vggt' : '/infer'}`, {
       method: 'POST',
@@ -5106,57 +5738,88 @@ async function runWorldgen(request) {
     const submitted = await response.json()
     vggtJobId = String(submitted?.job_id || submitted?.id || '')
     if (!vggtJobId) throw new Error('Runner accepted VGGT work without returning a job id.')
-    const deadline = Date.now() + requestTimeoutMs
-    for (;;) {
-      if (Date.now() > deadline) {
-        throw new Error(`VGGT job ${vggtJobId} exceeded the ${Math.round(requestTimeoutMs / 1000)}s request timeout.`)
+    setWorldgenResultPending(vggtJobId)
+    try {
+      const deadline = Date.now() + requestTimeoutMs
+      for (;;) {
+        if (Date.now() > deadline) {
+          throw new Error(`VGGT job ${vggtJobId} exceeded the ${Math.round(requestTimeoutMs / 1000)}s request timeout.`)
+        }
+        await new Promise((resolveWait) => setTimeout(resolveWait, 1000))
+        const stateResponse = await nodeHttpRequest(`${endpoint}/jobs/${encodeURIComponent(vggtJobId)}`, {
+          headers: {
+            ...runnerHeaders(token),
+            Accept: 'application/json',
+          },
+          timeoutMs: Math.max(1000, Math.trunc(finiteNumber(process.env.RUNNER_HEALTH_TIMEOUT_MS, DEFAULT_VGGT_HEALTH_TIMEOUT_MS))),
+        })
+        if (!stateResponse.ok) {
+          throw new Error(`VGGT job status failed with HTTP ${stateResponse.status}${await readResponseDetail(stateResponse)}`)
+        }
+        const state = await stateResponse.json()
+        if (state.status === 'failed' || state.status === 'cancelled') {
+          throw new Error(state.error || state.message || `VGGT job ${state.status}.`)
+        }
+        if (state.status !== 'complete') continue
+
+        const received = await receiveWorldgenResultFrames({
+          endpoint,
+          token,
+          jobId: vggtJobId,
+          recordingPath: resolved,
+          outputPath,
+          request: {
+            ...request,
+            startFrameIndex: firstIndex,
+            endFrameIndex: lastIndex,
+            maxPointsPerFrame,
+          },
+          sourceFrames,
+          requestTimeoutMs,
+        })
+        receivedHistory = received.history
+        receivedSplatInfo = received.splatInfo
+        responseJson = {
+          metadata: received.manifest?.metadata || {},
+          splat_job: received.manifest?.splat_job,
+        }
+        break
       }
-      await new Promise((resolveWait) => setTimeout(resolveWait, 1000))
-      const stateResponse = await nodeHttpRequest(`${endpoint}/jobs/${encodeURIComponent(vggtJobId)}`, {
-        headers: {
-          ...runnerHeaders(token),
-          Accept: 'application/json',
-        },
-        timeoutMs: Math.max(1000, Math.trunc(finiteNumber(process.env.RUNNER_HEALTH_TIMEOUT_MS, DEFAULT_VGGT_HEALTH_TIMEOUT_MS))),
+    } catch (err) {
+      setWorldgenResultPending(vggtJobId, false)
+      publishRunnerBackgroundJob({
+        job_id: vggtJobId,
+        type: 'vggt',
+        title: 'VGGT Reconstruction',
+        source: 'desktop',
+        status: 'failed',
+        stage: 'result_failed',
+        message: err instanceof Error ? err.message : 'Failed to receive VGGT reconstruction data.',
+        progress: 0.99,
+        error: err instanceof Error ? err.message : String(err),
+        request_id: request.requestId,
+        marker_start: request.markerStart,
+        marker_end: request.markerEnd,
+        recording_path: resolved,
+        updated_at: Date.now() / 1000,
       })
-      if (!stateResponse.ok) {
-        throw new Error(`VGGT job status failed with HTTP ${stateResponse.status}${await readResponseDetail(stateResponse)}`)
-      }
-      const state = await stateResponse.json()
-      if (state.status === 'failed' || state.status === 'cancelled') {
-        throw new Error(state.error || state.message || `VGGT job ${state.status}.`)
-      }
-      if (state.status !== 'complete') continue
-      const resultResponse = await nodeHttpRequest(`${endpoint}/jobs/${encodeURIComponent(vggtJobId)}/result`, {
-        headers: {
-          ...runnerHeaders(token),
-          Accept: 'application/json',
-        },
-        timeoutMs: requestTimeoutMs,
-      })
-      if (!resultResponse.ok) {
-        throw new Error(`VGGT result download failed with HTTP ${resultResponse.status}${await readResponseDetail(resultResponse)}`)
-      }
-      responseJson = await resultResponse.json()
-      break
+      throw err
     }
   } else {
     responseJson = await response.json()
   }
-  const baseName = path.basename(resolved).slice(0, -'.vis.pb'.length)
-  const outputPath = path.join(path.dirname(resolved), `${baseName}.vggt.pb`)
   const settledRequest = {
     ...request,
     startFrameIndex: firstIndex,
     endFrameIndex: lastIndex,
     maxPointsPerFrame,
   }
-  const splatInfo = responseJson?.splat_job
+  const splatInfo = receivedSplatInfo ?? (responseJson?.splat_job
     ? normalizeRemoteSplatJob(responseJson.splat_job)
     : normalizeRemoteSplatJob(null, {
         status: 'skipped',
         message: 'VGGT response did not include a remote splat job.',
-      })
+      }))
   if (splatInfo.jobId) {
     worldgenSplatDestinations.set(
       splatInfo.jobId,
@@ -5164,14 +5827,77 @@ async function runWorldgen(request) {
     )
   }
 
-  const message = encodeWorldgenResponse(
-    responseJson,
-    sourceFrames,
-    settledRequest,
-    endpoint,
-    splatInfo,
-  )
-  const history = persistWorldgenComputation(resolved, outputPath, message)
+  if (vggtJobId && !receivedHistory) {
+    publishRunnerBackgroundJob({
+      job_id: vggtJobId,
+      type: 'vggt',
+      title: 'VGGT Reconstruction',
+      source: 'desktop',
+      status: 'saving',
+      stage: 'saving_result',
+      message: 'Reconstruction data received. Saving the local world model.',
+      progress: 0.99,
+      request_id: request.requestId,
+      marker_start: request.markerStart,
+      marker_end: request.markerEnd,
+      recording_path: resolved,
+      updated_at: Date.now() / 1000,
+    })
+  }
+  let history = receivedHistory
+  try {
+    if (!history) {
+      const message = encodeWorldgenResponse(
+        responseJson,
+        sourceFrames,
+        settledRequest,
+        endpoint,
+        splatInfo,
+      )
+      history = persistWorldgenComputation(resolved, outputPath, message)
+    }
+  } catch (err) {
+    if (vggtJobId) {
+      setWorldgenResultPending(vggtJobId, false)
+      publishRunnerBackgroundJob({
+        job_id: vggtJobId,
+        type: 'vggt',
+        title: 'VGGT Reconstruction',
+        source: 'desktop',
+        status: 'failed',
+        stage: 'save_failed',
+        message: err instanceof Error ? err.message : 'Failed to save the local world model.',
+        progress: 0.99,
+        error: err instanceof Error ? err.message : String(err),
+        request_id: request.requestId,
+        marker_start: request.markerStart,
+        marker_end: request.markerEnd,
+        recording_path: resolved,
+        updated_at: Date.now() / 1000,
+      })
+    }
+    throw err
+  }
+  if (vggtJobId) {
+    setWorldgenResultPending(vggtJobId, false)
+    publishRunnerBackgroundJob({
+      job_id: vggtJobId,
+      type: 'vggt',
+      title: 'VGGT Reconstruction',
+      source: 'desktop',
+      status: 'complete',
+      stage: 'saved_local',
+      message: `Reconstruction received and saved to ${path.basename(outputPath)}.`,
+      progress: 1,
+      current_step: 1,
+      max_steps: 1,
+      request_id: request.requestId,
+      marker_start: request.markerStart,
+      marker_end: request.markerEnd,
+      recording_path: resolved,
+      updated_at: Date.now() / 1000,
+    })
+  }
   return {
     ...worldgenPreviewFromMessages(history, outputPath),
     vggtJobId,
@@ -5388,5 +6114,7 @@ module.exports = {
   persistWorldgenComputation,
   worldgenPreviewFromMessages,
   worldgenSplatPaths,
+  normalizeRunnerBackgroundJob,
+  setWorldgenResultPending,
   buildGemmaSampleIndexes,
 }
